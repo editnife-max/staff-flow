@@ -488,30 +488,54 @@ function CandidateCard({
             <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="overflow-x-auto no-scrollbar">
-            <div className="flex items-center gap-6 text-[11px] min-w-max pb-1">
-              <CardField label="FULL NAME" value={candidate.full_name} bold />
-              <CardField label="CANDIDATE CODE" value={candidate.candidate_code ?? "—"} />
-              <CardField label="GENDER" value={candidate.gender ?? "—"} />
-              <CardField label="RELIGION" value={candidate.religion ?? "—"} />
-              <CardField label="MARITAL STATUS" value={candidate.marital_status ?? "—"} />
-              <CardField label="BIRTH PLACE" value={candidate.birth_place ?? "—"} />
-              <CardField label="LIVING TOWN" value={candidate.living_town ?? "—"} />
-              <CardField label="OCCUPATION" value={candidate.occupation ?? "—"} />
-              <CardField label="PASSPORT NUMBER" value={candidate.passport_number ?? "—"} />
-              <CardField label="LABOUR ID" value={candidate.labour_id ?? "—"} />
-              <CardField label="OFFICE" value={candidate.office ?? "—"} />
-              <CardField label="PASSPORT STATUS" value={candidate.passport_status ?? "—"} />
-              <CardField label="COC STATUS" value={candidate.coc_status ?? "—"} />
-              <CardField label="MUSANED STATUS" value={candidate.musaned_status ?? "—"} />
-              <CardField label="MEDICAL STATUS" value={candidate.medical_status ?? "—"} />
-              <CardField label="MEDICAL DATE" value={candidate.medical_date ? new Date(candidate.medical_date).toLocaleDateString() : "—"} />
-              <CardField label="AVAILABILITY" value={statusLabel[candidate.status]} />
-              <CardField label="SELECTED BY" value={candidate.selected_by ?? "—"} />
-              <CardField label="CV SENT TO" value={candidate.cv_sent_to ?? "—"} />
-              <CardField label="CV SENT DATE" value={candidate.cv_sent_date ? new Date(candidate.cv_sent_date).toLocaleDateString() : "—"} />
-              <CardField label="NARRATIVE" value={candidate.narrative ?? "—"} />
-              <CardField label="NOTES" value={candidate.notes ?? "—"} />
-            </div>
+            {(() => {
+              const fields: { label: string; value: string; bold?: boolean }[] = [
+                { label: "FULL NAME", value: candidate.full_name, bold: true },
+                { label: "CANDIDATE CODE", value: candidate.candidate_code ?? "—" },
+                { label: "GENDER", value: candidate.gender ?? "—" },
+                { label: "RELIGION", value: candidate.religion ?? "—" },
+                { label: "MARITAL STATUS", value: candidate.marital_status ?? "—" },
+                { label: "BIRTH PLACE", value: candidate.birth_place ?? "—" },
+                { label: "LIVING TOWN", value: candidate.living_town ?? "—" },
+                { label: "OCCUPATION", value: candidate.occupation ?? "—" },
+                { label: "PASSPORT NUMBER", value: candidate.passport_number ?? "—" },
+                { label: "LABOUR ID", value: candidate.labour_id ?? "—" },
+                { label: "OFFICE", value: candidate.office ?? "—" },
+                { label: "PASSPORT STATUS", value: candidate.passport_status ?? "—" },
+                { label: "COC STATUS", value: candidate.coc_status ?? "—" },
+                { label: "MUSANED STATUS", value: candidate.musaned_status ?? "—" },
+                { label: "MEDICAL STATUS", value: candidate.medical_status ?? "—" },
+                { label: "MEDICAL DATE", value: candidate.medical_date ? new Date(candidate.medical_date).toLocaleDateString() : "—" },
+                { label: "AVAILABILITY", value: statusLabel[candidate.status] },
+                { label: "SELECTED BY", value: candidate.selected_by ?? "—" },
+                { label: "CV SENT TO", value: candidate.cv_sent_to ?? "—" },
+                { label: "CV SENT DATE", value: candidate.cv_sent_date ? new Date(candidate.cv_sent_date).toLocaleDateString() : "—" },
+                { label: "NARRATIVE", value: candidate.narrative ?? "—" },
+                { label: "NOTES", value: candidate.notes ?? "—" },
+              ];
+              return (
+                <table className="text-[11px] border-collapse">
+                  <thead>
+                    <tr>
+                      {fields.map((f) => (
+                        <th key={f.label} className="text-left text-[9px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap pr-6 pb-1">
+                          {f.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      {fields.map((f) => (
+                        <td key={f.label} className={cn("whitespace-nowrap pr-6 align-top", f.bold && "font-semibold")}>
+                          {f.value}
+                        </td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+              );
+            })()}
           </div>
           <div className="flex flex-col items-end gap-0.5">
             <Button asChild size="sm" className="h-6 w-16 text-[10px] px-2">
