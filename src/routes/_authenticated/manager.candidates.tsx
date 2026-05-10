@@ -23,7 +23,7 @@ import { StatusBadge } from "@/components/status-badge";
 import type { Database } from "@/integrations/supabase/types";
 
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"];
-type Status = Database["public"]["Enums"]["candidate_status"];
+type Status = "available" | "selected" | "private" | "unavailable";
 
 export const Route = createFileRoute("/_authenticated/manager/candidates")({
   head: () => ({ meta: [{ title: "Candidates — Staff-Flow" }] }),
