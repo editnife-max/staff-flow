@@ -9,38 +9,284 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SignupRouteImport } from './routes/signup'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as FaqRouteImport } from './routes/faq'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
+import { Route as AuthenticatedManagerRouteImport } from './routes/_authenticated/manager'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedStaffCvGeneratorRouteImport } from './routes/_authenticated/staff.cv-generator'
+import { Route as AuthenticatedStaffCandidatesRouteImport } from './routes/_authenticated/staff.candidates'
+import { Route as AuthenticatedManagerSubscriptionRouteImport } from './routes/_authenticated/manager.subscription'
+import { Route as AuthenticatedManagerStaffRouteImport } from './routes/_authenticated/manager.staff'
+import { Route as AuthenticatedManagerDashboardRouteImport } from './routes/_authenticated/manager.dashboard'
+import { Route as AuthenticatedManagerCandidatesRouteImport } from './routes/_authenticated/manager.candidates'
+import { Route as AuthenticatedManagerAgenciesRouteImport } from './routes/_authenticated/manager.agencies'
 
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedStaffRoute = AuthenticatedStaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedManagerRoute = AuthenticatedManagerRouteImport.update({
+  id: '/manager',
+  path: '/manager',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedStaffCvGeneratorRoute =
+  AuthenticatedStaffCvGeneratorRouteImport.update({
+    id: '/cv-generator',
+    path: '/cv-generator',
+    getParentRoute: () => AuthenticatedStaffRoute,
+  } as any)
+const AuthenticatedStaffCandidatesRoute =
+  AuthenticatedStaffCandidatesRouteImport.update({
+    id: '/candidates',
+    path: '/candidates',
+    getParentRoute: () => AuthenticatedStaffRoute,
+  } as any)
+const AuthenticatedManagerSubscriptionRoute =
+  AuthenticatedManagerSubscriptionRouteImport.update({
+    id: '/subscription',
+    path: '/subscription',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
+const AuthenticatedManagerStaffRoute =
+  AuthenticatedManagerStaffRouteImport.update({
+    id: '/staff',
+    path: '/staff',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
+const AuthenticatedManagerDashboardRoute =
+  AuthenticatedManagerDashboardRouteImport.update({
+    id: '/dashboard',
+    path: '/dashboard',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
+const AuthenticatedManagerCandidatesRoute =
+  AuthenticatedManagerCandidatesRouteImport.update({
+    id: '/candidates',
+    path: '/candidates',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
+const AuthenticatedManagerAgenciesRoute =
+  AuthenticatedManagerAgenciesRouteImport.update({
+    id: '/agencies',
+    path: '/agencies',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/contact': typeof ContactRoute
+  '/faq': typeof FaqRoute
+  '/login': typeof LoginRoute
+  '/signup': typeof SignupRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/manager': typeof AuthenticatedManagerRouteWithChildren
+  '/staff': typeof AuthenticatedStaffRouteWithChildren
+  '/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
+  '/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
+  '/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
+  '/manager/staff': typeof AuthenticatedManagerStaffRoute
+  '/manager/subscription': typeof AuthenticatedManagerSubscriptionRoute
+  '/staff/candidates': typeof AuthenticatedStaffCandidatesRoute
+  '/staff/cv-generator': typeof AuthenticatedStaffCvGeneratorRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/contact': typeof ContactRoute
+  '/faq': typeof FaqRoute
+  '/login': typeof LoginRoute
+  '/signup': typeof SignupRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/manager': typeof AuthenticatedManagerRouteWithChildren
+  '/staff': typeof AuthenticatedStaffRouteWithChildren
+  '/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
+  '/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
+  '/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
+  '/manager/staff': typeof AuthenticatedManagerStaffRoute
+  '/manager/subscription': typeof AuthenticatedManagerSubscriptionRoute
+  '/staff/candidates': typeof AuthenticatedStaffCandidatesRoute
+  '/staff/cv-generator': typeof AuthenticatedStaffCvGeneratorRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/about': typeof AboutRoute
+  '/contact': typeof ContactRoute
+  '/faq': typeof FaqRoute
+  '/login': typeof LoginRoute
+  '/signup': typeof SignupRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/manager': typeof AuthenticatedManagerRouteWithChildren
+  '/_authenticated/staff': typeof AuthenticatedStaffRouteWithChildren
+  '/_authenticated/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
+  '/_authenticated/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
+  '/_authenticated/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
+  '/_authenticated/manager/staff': typeof AuthenticatedManagerStaffRoute
+  '/_authenticated/manager/subscription': typeof AuthenticatedManagerSubscriptionRoute
+  '/_authenticated/staff/candidates': typeof AuthenticatedStaffCandidatesRoute
+  '/_authenticated/staff/cv-generator': typeof AuthenticatedStaffCvGeneratorRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/contact'
+    | '/faq'
+    | '/login'
+    | '/signup'
+    | '/dashboard'
+    | '/manager'
+    | '/staff'
+    | '/manager/agencies'
+    | '/manager/candidates'
+    | '/manager/dashboard'
+    | '/manager/staff'
+    | '/manager/subscription'
+    | '/staff/candidates'
+    | '/staff/cv-generator'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/about'
+    | '/contact'
+    | '/faq'
+    | '/login'
+    | '/signup'
+    | '/dashboard'
+    | '/manager'
+    | '/staff'
+    | '/manager/agencies'
+    | '/manager/candidates'
+    | '/manager/dashboard'
+    | '/manager/staff'
+    | '/manager/subscription'
+    | '/staff/candidates'
+    | '/staff/cv-generator'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/about'
+    | '/contact'
+    | '/faq'
+    | '/login'
+    | '/signup'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/manager'
+    | '/_authenticated/staff'
+    | '/_authenticated/manager/agencies'
+    | '/_authenticated/manager/candidates'
+    | '/_authenticated/manager/dashboard'
+    | '/_authenticated/manager/staff'
+    | '/_authenticated/manager/subscription'
+    | '/_authenticated/staff/candidates'
+    | '/_authenticated/staff/cv-generator'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  AboutRoute: typeof AboutRoute
+  ContactRoute: typeof ContactRoute
+  FaqRoute: typeof FaqRoute
+  LoginRoute: typeof LoginRoute
+  SignupRoute: typeof SignupRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +294,136 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/staff': {
+      id: '/_authenticated/staff'
+      path: '/staff'
+      fullPath: '/staff'
+      preLoaderRoute: typeof AuthenticatedStaffRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/manager': {
+      id: '/_authenticated/manager'
+      path: '/manager'
+      fullPath: '/manager'
+      preLoaderRoute: typeof AuthenticatedManagerRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/staff/cv-generator': {
+      id: '/_authenticated/staff/cv-generator'
+      path: '/cv-generator'
+      fullPath: '/staff/cv-generator'
+      preLoaderRoute: typeof AuthenticatedStaffCvGeneratorRouteImport
+      parentRoute: typeof AuthenticatedStaffRoute
+    }
+    '/_authenticated/staff/candidates': {
+      id: '/_authenticated/staff/candidates'
+      path: '/candidates'
+      fullPath: '/staff/candidates'
+      preLoaderRoute: typeof AuthenticatedStaffCandidatesRouteImport
+      parentRoute: typeof AuthenticatedStaffRoute
+    }
+    '/_authenticated/manager/subscription': {
+      id: '/_authenticated/manager/subscription'
+      path: '/subscription'
+      fullPath: '/manager/subscription'
+      preLoaderRoute: typeof AuthenticatedManagerSubscriptionRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
+    '/_authenticated/manager/staff': {
+      id: '/_authenticated/manager/staff'
+      path: '/staff'
+      fullPath: '/manager/staff'
+      preLoaderRoute: typeof AuthenticatedManagerStaffRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
+    '/_authenticated/manager/dashboard': {
+      id: '/_authenticated/manager/dashboard'
+      path: '/dashboard'
+      fullPath: '/manager/dashboard'
+      preLoaderRoute: typeof AuthenticatedManagerDashboardRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
+    '/_authenticated/manager/candidates': {
+      id: '/_authenticated/manager/candidates'
+      path: '/candidates'
+      fullPath: '/manager/candidates'
+      preLoaderRoute: typeof AuthenticatedManagerCandidatesRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
+    '/_authenticated/manager/agencies': {
+      id: '/_authenticated/manager/agencies'
+      path: '/agencies'
+      fullPath: '/manager/agencies'
+      preLoaderRoute: typeof AuthenticatedManagerAgenciesRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
   }
 }
 
+interface AuthenticatedManagerRouteChildren {
+  AuthenticatedManagerAgenciesRoute: typeof AuthenticatedManagerAgenciesRoute
+  AuthenticatedManagerCandidatesRoute: typeof AuthenticatedManagerCandidatesRoute
+  AuthenticatedManagerDashboardRoute: typeof AuthenticatedManagerDashboardRoute
+  AuthenticatedManagerStaffRoute: typeof AuthenticatedManagerStaffRoute
+  AuthenticatedManagerSubscriptionRoute: typeof AuthenticatedManagerSubscriptionRoute
+}
+
+const AuthenticatedManagerRouteChildren: AuthenticatedManagerRouteChildren = {
+  AuthenticatedManagerAgenciesRoute: AuthenticatedManagerAgenciesRoute,
+  AuthenticatedManagerCandidatesRoute: AuthenticatedManagerCandidatesRoute,
+  AuthenticatedManagerDashboardRoute: AuthenticatedManagerDashboardRoute,
+  AuthenticatedManagerStaffRoute: AuthenticatedManagerStaffRoute,
+  AuthenticatedManagerSubscriptionRoute: AuthenticatedManagerSubscriptionRoute,
+}
+
+const AuthenticatedManagerRouteWithChildren =
+  AuthenticatedManagerRoute._addFileChildren(AuthenticatedManagerRouteChildren)
+
+interface AuthenticatedStaffRouteChildren {
+  AuthenticatedStaffCandidatesRoute: typeof AuthenticatedStaffCandidatesRoute
+  AuthenticatedStaffCvGeneratorRoute: typeof AuthenticatedStaffCvGeneratorRoute
+}
+
+const AuthenticatedStaffRouteChildren: AuthenticatedStaffRouteChildren = {
+  AuthenticatedStaffCandidatesRoute: AuthenticatedStaffCandidatesRoute,
+  AuthenticatedStaffCvGeneratorRoute: AuthenticatedStaffCvGeneratorRoute,
+}
+
+const AuthenticatedStaffRouteWithChildren =
+  AuthenticatedStaffRoute._addFileChildren(AuthenticatedStaffRouteChildren)
+
+interface AuthenticatedRouteChildren {
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedManagerRoute: typeof AuthenticatedManagerRouteWithChildren
+  AuthenticatedStaffRoute: typeof AuthenticatedStaffRouteWithChildren
+}
+
+const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedManagerRoute: AuthenticatedManagerRouteWithChildren,
+  AuthenticatedStaffRoute: AuthenticatedStaffRouteWithChildren,
+}
+
+const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
+  AuthenticatedRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  AboutRoute: AboutRoute,
+  ContactRoute: ContactRoute,
+  FaqRoute: FaqRoute,
+  LoginRoute: LoginRoute,
+  SignupRoute: SignupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
