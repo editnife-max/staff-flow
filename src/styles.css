@@ -127,3 +127,9 @@
     font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
   }
 }
+
+@utility no-scrollbar {
+  &::-webkit-scrollbar { display: none; }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
