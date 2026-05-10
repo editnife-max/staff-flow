@@ -16,20 +16,9 @@ export const Route = createFileRoute("/_authenticated/staff")({
 
 const NAV_TOP = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/staff/candidates", label: "HR Pool", icon: Users, exact: false },
+  { to: "/staff/candidates", label: "CR Pool", icon: Users, exact: false },
 ];
 
-const NAV_DISABLED_TOP = [
-  { label: "Organizations", icon: Building2 },
-  { label: "Partnership Contracts", icon: Handshake },
-  { label: "Employment Requests", icon: Briefcase },
-  { label: "Worker Transfer Contracts", icon: ArrowLeftRight },
-];
-
-const NAV_DISABLED_BOTTOM = [
-  { label: "Update License and Info", icon: FileBadge },
-  { label: "Users Management", icon: UserCog },
-];
 
 function StaffLayout() {
   const { role, loading, user, signOut } = useAuth();
