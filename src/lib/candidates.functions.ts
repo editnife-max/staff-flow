@@ -72,3 +72,61 @@ export const deleteCandidate = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+const IdList = z.object({ ids: z.array(z.string().uuid()).min(1).max(500) });
+
+export const bulkDeleteCandidates = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => IdList.parse(input))
+  .handler(async ({ data, context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    const { error, count } = await supabaseAdmin
+      .from("candidates")
+      .delete({ count: "exact" })
+      .in("id", data.ids)
+      .eq("manager_id", managerId);
+    if (error) throw new Error(error.message);
+    return { ok: true, count: count ?? 0 };
+  });
+
+export const bulkUpdateStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    IdList.extend({ status: StatusEnum }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    const { error, count } = await supabaseAdmin
+      .from("candidates")
+      .update({ status: data.status }, { count: "exact" })
+      .in("id", data.ids)
+      .eq("manager_id", managerId);
+    if (error) throw new Error(error.message);
+    return { ok: true, count: count ?? 0 };
+  });
+
+export const bulkAssignStaff = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    IdList.extend({ staff_id: z.string().uuid().nullable() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    if (data.staff_id) {
+      const { data: staffRow, error: sErr } = await supabaseAdmin
+        .from("staff")
+        .select("id")
+        .eq("id", data.staff_id)
+        .eq("manager_id", managerId)
+        .maybeSingle();
+      if (sErr) throw new Error(sErr.message);
+      if (!staffRow) throw new Error("Staff not in your team");
+    }
+    const { error, count } = await supabaseAdmin
+      .from("candidates")
+      .update({ assigned_staff_id: data.staff_id }, { count: "exact" })
+      .in("id", data.ids)
+      .eq("manager_id", managerId);
+    if (error) throw new Error(error.message);
+    return { ok: true, count: count ?? 0 };
+  });

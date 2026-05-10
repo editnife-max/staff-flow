@@ -21,7 +21,11 @@ import {
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
-import { upsertCandidate, deleteCandidate } from "@/lib/candidates.functions";
+import {
+  upsertCandidate, deleteCandidate,
+  bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff,
+} from "@/lib/candidates.functions";
+import { UserCheck, X } from "lucide-react";
 
 type Status = Database["public"]["Enums"]["candidate_status"];
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"];
@@ -60,9 +64,13 @@ function StaffCandidatesPage() {
   const navigate = useNavigate();
   const upsert = useServerFn(upsertCandidate);
   const remove = useServerFn(deleteCandidate);
+  const bulkDel = useServerFn(bulkDeleteCandidates);
+  const bulkStatus = useServerFn(bulkUpdateStatus);
+  const bulkAssign = useServerFn(bulkAssignStaff);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const toggleSelect = (id: string) =>
     setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const clearSelection = () => setSelected(new Set());
 
   const [tab, setTab] = useState<Status>("available");
   const [search, setSearch] = useState("");
@@ -89,6 +97,16 @@ function StaffCandidatesPage() {
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase.from("candidates").select("*");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: staffList = [] } = useQuery({
+    queryKey: ["team-staff", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("staff").select("id,name").eq("status", "active");
       if (error) throw error;
       return data;
     },
@@ -160,6 +178,38 @@ function StaffCandidatesPage() {
     onSuccess: () => {
       toast.success("Deleted");
       qc.invalidateQueries({ queryKey: ["staff-candidates"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const bulkDeleteMut = useMutation({
+    mutationFn: async () => bulkDel({ data: { ids: Array.from(selected) } }),
+    onSuccess: (r) => {
+      toast.success(`Deleted ${r.count} candidate(s)`);
+      qc.invalidateQueries({ queryKey: ["staff-candidates"] });
+      clearSelection();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const bulkStatusMut = useMutation({
+    mutationFn: async (status: Status) =>
+      bulkStatus({ data: { ids: Array.from(selected), status } }),
+    onSuccess: (r) => {
+      toast.success(`Updated ${r.count} candidate(s)`);
+      qc.invalidateQueries({ queryKey: ["staff-candidates"] });
+      clearSelection();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const bulkAssignMut = useMutation({
+    mutationFn: async (staffId: string | null) =>
+      bulkAssign({ data: { ids: Array.from(selected), staff_id: staffId } }),
+    onSuccess: (r) => {
+      toast.success(`Assigned ${r.count} candidate(s)`);
+      qc.invalidateQueries({ queryKey: ["staff-candidates"] });
+      clearSelection();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -270,6 +320,57 @@ function StaffCandidatesPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Bulk actions */}
+      {selected.size > 0 && (
+        <Card className="border-primary/40 bg-primary/5">
+          <CardContent className="p-3 flex flex-wrap items-center gap-3">
+            <span className="text-sm font-semibold pl-1">
+              {selected.size} selected
+            </span>
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <Select onValueChange={(v) => bulkStatusMut.mutate(v as Status)}>
+                <SelectTrigger className="h-9 w-[180px]">
+                  <SelectValue placeholder="Update status..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="available">Available</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="arrived">Employee (Arrived)</SelectItem>
+                  <SelectItem value="canceled">Canceled</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select onValueChange={(v) => bulkAssignMut.mutate(v === "__none__" ? null : v)}>
+                <SelectTrigger className="h-9 w-[200px]">
+                  <UserCheck className="h-4 w-4 mr-1 text-primary" />
+                  <SelectValue placeholder="Assign to staff..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Unassign —</SelectItem>
+                  {staffList.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                variant="destructive"
+                className="gap-1"
+                disabled={bulkDeleteMut.isPending}
+                onClick={() => {
+                  if (confirm(`Delete ${selected.size} candidate(s)? This cannot be undone.`))
+                    bulkDeleteMut.mutate();
+                }}
+              >
+                <Trash2 className="h-4 w-4" /> Delete
+              </Button>
+              <Button size="sm" variant="ghost" className="gap-1" onClick={clearSelection}>
+                <X className="h-4 w-4" /> Clear
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Candidate cards */}
       <div className="space-y-4">
