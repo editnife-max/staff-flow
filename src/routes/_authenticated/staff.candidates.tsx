@@ -415,7 +415,7 @@ function FilterSelect({
 }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="border-0 bg-transparent shadow-none w-auto h-auto p-0 gap-2 font-medium hover:text-primary">
+      <SelectTrigger className="border-0 bg-transparent shadow-none w-auto h-auto p-0 gap-2 font-bold hover:text-primary">
         <Icon className="h-4 w-4 text-primary" />
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
