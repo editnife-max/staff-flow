@@ -19,6 +19,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
 import { Route as AuthenticatedManagerRouteImport } from './routes/_authenticated/manager'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedStaffCandidatesRouteImport } from './routes/_authenticated/staff.candidates'
 import { Route as AuthenticatedManagerSubscriptionRouteImport } from './routes/_authenticated/manager.subscription'
 import { Route as AuthenticatedManagerStaffRouteImport } from './routes/_authenticated/manager.staff'
 import { Route as AuthenticatedManagerDashboardRouteImport } from './routes/_authenticated/manager.dashboard'
@@ -74,6 +75,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedStaffCandidatesRoute =
+  AuthenticatedStaffCandidatesRouteImport.update({
+    id: '/candidates',
+    path: '/candidates',
+    getParentRoute: () => AuthenticatedStaffRoute,
+  } as any)
 const AuthenticatedManagerSubscriptionRoute =
   AuthenticatedManagerSubscriptionRouteImport.update({
     id: '/subscription',
@@ -114,12 +121,13 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/manager': typeof AuthenticatedManagerRouteWithChildren
-  '/staff': typeof AuthenticatedStaffRoute
+  '/staff': typeof AuthenticatedStaffRouteWithChildren
   '/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
   '/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
   '/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
   '/manager/staff': typeof AuthenticatedManagerStaffRoute
   '/manager/subscription': typeof AuthenticatedManagerSubscriptionRoute
+  '/staff/candidates': typeof AuthenticatedStaffCandidatesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -130,12 +138,13 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/manager': typeof AuthenticatedManagerRouteWithChildren
-  '/staff': typeof AuthenticatedStaffRoute
+  '/staff': typeof AuthenticatedStaffRouteWithChildren
   '/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
   '/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
   '/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
   '/manager/staff': typeof AuthenticatedManagerStaffRoute
   '/manager/subscription': typeof AuthenticatedManagerSubscriptionRoute
+  '/staff/candidates': typeof AuthenticatedStaffCandidatesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -148,12 +157,13 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/manager': typeof AuthenticatedManagerRouteWithChildren
-  '/_authenticated/staff': typeof AuthenticatedStaffRoute
+  '/_authenticated/staff': typeof AuthenticatedStaffRouteWithChildren
   '/_authenticated/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
   '/_authenticated/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
   '/_authenticated/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
   '/_authenticated/manager/staff': typeof AuthenticatedManagerStaffRoute
   '/_authenticated/manager/subscription': typeof AuthenticatedManagerSubscriptionRoute
+  '/_authenticated/staff/candidates': typeof AuthenticatedStaffCandidatesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -172,6 +182,7 @@ export interface FileRouteTypes {
     | '/manager/dashboard'
     | '/manager/staff'
     | '/manager/subscription'
+    | '/staff/candidates'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -188,6 +199,7 @@ export interface FileRouteTypes {
     | '/manager/dashboard'
     | '/manager/staff'
     | '/manager/subscription'
+    | '/staff/candidates'
   id:
     | '__root__'
     | '/'
@@ -205,6 +217,7 @@ export interface FileRouteTypes {
     | '/_authenticated/manager/dashboard'
     | '/_authenticated/manager/staff'
     | '/_authenticated/manager/subscription'
+    | '/_authenticated/staff/candidates'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -289,6 +302,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/staff/candidates': {
+      id: '/_authenticated/staff/candidates'
+      path: '/candidates'
+      fullPath: '/staff/candidates'
+      preLoaderRoute: typeof AuthenticatedStaffCandidatesRouteImport
+      parentRoute: typeof AuthenticatedStaffRoute
+    }
     '/_authenticated/manager/subscription': {
       id: '/_authenticated/manager/subscription'
       path: '/subscription'
@@ -346,16 +366,27 @@ const AuthenticatedManagerRouteChildren: AuthenticatedManagerRouteChildren = {
 const AuthenticatedManagerRouteWithChildren =
   AuthenticatedManagerRoute._addFileChildren(AuthenticatedManagerRouteChildren)
 
+interface AuthenticatedStaffRouteChildren {
+  AuthenticatedStaffCandidatesRoute: typeof AuthenticatedStaffCandidatesRoute
+}
+
+const AuthenticatedStaffRouteChildren: AuthenticatedStaffRouteChildren = {
+  AuthenticatedStaffCandidatesRoute: AuthenticatedStaffCandidatesRoute,
+}
+
+const AuthenticatedStaffRouteWithChildren =
+  AuthenticatedStaffRoute._addFileChildren(AuthenticatedStaffRouteChildren)
+
 interface AuthenticatedRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedManagerRoute: typeof AuthenticatedManagerRouteWithChildren
-  AuthenticatedStaffRoute: typeof AuthenticatedStaffRoute
+  AuthenticatedStaffRoute: typeof AuthenticatedStaffRouteWithChildren
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedManagerRoute: AuthenticatedManagerRouteWithChildren,
-  AuthenticatedStaffRoute: AuthenticatedStaffRoute,
+  AuthenticatedStaffRoute: AuthenticatedStaffRouteWithChildren,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
