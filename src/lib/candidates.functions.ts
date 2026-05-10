@@ -4,22 +4,42 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const StatusEnum = z.enum(["available", "processing", "arrived", "canceled"]);
+const DocStatus = z.enum(["pending", "in_progress", "done", "rejected"]);
+const PassStatus = z.enum(["pending", "submitted", "received", "expired"]);
+const MedStatus = z.enum(["pending", "fit", "unfit"]);
+const Office = z.enum(["saudi", "kuwait", "uae", "qatar", "bahrain", "oman", "other"]);
+
+const str = (max = 255) => z.string().max(max).optional().nullable();
 
 const CandidateInput = z.object({
   full_name: z.string().min(1).max(200),
-  serial_number: z.string().max(80).optional().nullable(),
-  passport_number: z.string().max(80).optional().nullable(),
-  dob: z.string().optional().nullable(),
-  occupation: z.string().max(120).optional().nullable(),
-  country: z.string().max(120).optional().nullable(),
+  serial_number: str(80),
+  passport_number: str(80),
+  dob: str(40),
+  occupation: str(120),
+  country: str(120),
   age: z.number().int().min(0).max(120).optional().nullable(),
-  gender: z.string().max(40).optional().nullable(),
-  religion: z.string().max(80).optional().nullable(),
-  marital_status: z.string().max(40).optional().nullable(),
-  education: z.string().max(120).optional().nullable(),
-  skills: z.string().max(500).optional().nullable(),
+  gender: str(40),
+  religion: str(80),
+  marital_status: str(40),
+  education: str(120),
+  skills: str(500),
   status: StatusEnum.default("available"),
-  photo_url: z.string().url().optional().nullable(),
+  photo_url: str(1000),
+  birth_place: str(120),
+  living_town: str(120),
+  labour_id: str(80),
+  office: Office.optional().nullable(),
+  passport_status: PassStatus.optional(),
+  coc_status: DocStatus.optional(),
+  musaned_status: DocStatus.optional(),
+  medical_status: MedStatus.optional(),
+  medical_date: str(40),
+  selected_by: str(120),
+  cv_sent_to: str(120),
+  cv_sent_date: str(40),
+  narrative: str(2000),
+  notes: str(2000),
 });
 
 async function resolveManagerId(userId: string): Promise<string> {
@@ -66,7 +86,7 @@ export const deleteCandidate = createServerFn({ method: "POST" })
     const managerId = await resolveManagerId(context.userId);
     const { error } = await supabaseAdmin
       .from("candidates")
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq("id", data.id)
       .eq("manager_id", managerId);
     if (error) throw new Error(error.message);
@@ -82,8 +102,9 @@ export const bulkDeleteCandidates = createServerFn({ method: "POST" })
     const managerId = await resolveManagerId(context.userId);
     const { error, count } = await supabaseAdmin
       .from("candidates")
-      .delete({ count: "exact" })
+      .update({ deleted_at: new Date().toISOString() }, { count: "exact" })
       .in("id", data.ids)
+      .is("deleted_at", null)
       .eq("manager_id", managerId);
     if (error) throw new Error(error.message);
     return { ok: true, count: count ?? 0 };
