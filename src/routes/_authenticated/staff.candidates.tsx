@@ -38,7 +38,7 @@ export const Route = createFileRoute("/_authenticated/staff/candidates")({
 const TABS: { key: Status; label: string }[] = [
   { key: "available", label: "Available" },
   { key: "processing", label: "Processing" },
-  { key: "arrived", label: "Employee" },
+  { key: "arrived", label: "Arrived" },
 ];
 
 const initialForm = {
