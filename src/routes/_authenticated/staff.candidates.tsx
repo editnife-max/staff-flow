@@ -420,6 +420,7 @@ function StaffCandidatesPage() {
             onToggleSelect={() => toggleSelect(c.id)}
             onEdit={() => openEdit(c)}
             onDelete={() => removeMut.mutate(c.id)}
+            onUpdateField={(field, value) => fieldMut.mutate({ id: c.id, field, value })}
           />
         ))}
         {filtered.length === 0 && (
