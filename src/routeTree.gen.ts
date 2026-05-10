@@ -19,6 +19,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
 import { Route as AuthenticatedManagerRouteImport } from './routes/_authenticated/manager'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedStaffCvGeneratorRouteImport } from './routes/_authenticated/staff.cv-generator'
 import { Route as AuthenticatedStaffCandidatesRouteImport } from './routes/_authenticated/staff.candidates'
 import { Route as AuthenticatedManagerSubscriptionRouteImport } from './routes/_authenticated/manager.subscription'
 import { Route as AuthenticatedManagerStaffRouteImport } from './routes/_authenticated/manager.staff'
@@ -75,6 +76,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedStaffCvGeneratorRoute =
+  AuthenticatedStaffCvGeneratorRouteImport.update({
+    id: '/cv-generator',
+    path: '/cv-generator',
+    getParentRoute: () => AuthenticatedStaffRoute,
+  } as any)
 const AuthenticatedStaffCandidatesRoute =
   AuthenticatedStaffCandidatesRouteImport.update({
     id: '/candidates',
@@ -128,6 +135,7 @@ export interface FileRoutesByFullPath {
   '/manager/staff': typeof AuthenticatedManagerStaffRoute
   '/manager/subscription': typeof AuthenticatedManagerSubscriptionRoute
   '/staff/candidates': typeof AuthenticatedStaffCandidatesRoute
+  '/staff/cv-generator': typeof AuthenticatedStaffCvGeneratorRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -145,6 +153,7 @@ export interface FileRoutesByTo {
   '/manager/staff': typeof AuthenticatedManagerStaffRoute
   '/manager/subscription': typeof AuthenticatedManagerSubscriptionRoute
   '/staff/candidates': typeof AuthenticatedStaffCandidatesRoute
+  '/staff/cv-generator': typeof AuthenticatedStaffCvGeneratorRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -164,6 +173,7 @@ export interface FileRoutesById {
   '/_authenticated/manager/staff': typeof AuthenticatedManagerStaffRoute
   '/_authenticated/manager/subscription': typeof AuthenticatedManagerSubscriptionRoute
   '/_authenticated/staff/candidates': typeof AuthenticatedStaffCandidatesRoute
+  '/_authenticated/staff/cv-generator': typeof AuthenticatedStaffCvGeneratorRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -183,6 +193,7 @@ export interface FileRouteTypes {
     | '/manager/staff'
     | '/manager/subscription'
     | '/staff/candidates'
+    | '/staff/cv-generator'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -200,6 +211,7 @@ export interface FileRouteTypes {
     | '/manager/staff'
     | '/manager/subscription'
     | '/staff/candidates'
+    | '/staff/cv-generator'
   id:
     | '__root__'
     | '/'
@@ -218,6 +230,7 @@ export interface FileRouteTypes {
     | '/_authenticated/manager/staff'
     | '/_authenticated/manager/subscription'
     | '/_authenticated/staff/candidates'
+    | '/_authenticated/staff/cv-generator'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -302,6 +315,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/staff/cv-generator': {
+      id: '/_authenticated/staff/cv-generator'
+      path: '/cv-generator'
+      fullPath: '/staff/cv-generator'
+      preLoaderRoute: typeof AuthenticatedStaffCvGeneratorRouteImport
+      parentRoute: typeof AuthenticatedStaffRoute
+    }
     '/_authenticated/staff/candidates': {
       id: '/_authenticated/staff/candidates'
       path: '/candidates'
@@ -368,10 +388,12 @@ const AuthenticatedManagerRouteWithChildren =
 
 interface AuthenticatedStaffRouteChildren {
   AuthenticatedStaffCandidatesRoute: typeof AuthenticatedStaffCandidatesRoute
+  AuthenticatedStaffCvGeneratorRoute: typeof AuthenticatedStaffCvGeneratorRoute
 }
 
 const AuthenticatedStaffRouteChildren: AuthenticatedStaffRouteChildren = {
   AuthenticatedStaffCandidatesRoute: AuthenticatedStaffCandidatesRoute,
+  AuthenticatedStaffCvGeneratorRoute: AuthenticatedStaffCvGeneratorRoute,
 }
 
 const AuthenticatedStaffRouteWithChildren =
