@@ -517,8 +517,8 @@ function CandidateCard({
 function CardField({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
     <div>
-      <div className="text-[11px] font-medium tracking-wider text-muted-foreground">{label}</div>
-      <div className={cn("mt-1", bold && "font-semibold")}>{value}</div>
+      <div className="text-[9px] font-medium tracking-wider text-muted-foreground uppercase">{label}</div>
+      <div className={cn("mt-0.5 text-[11px] truncate", bold && "font-semibold")}>{value}</div>
     </div>
   );
 }
