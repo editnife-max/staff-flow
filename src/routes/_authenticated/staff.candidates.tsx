@@ -246,8 +246,12 @@ function StaffCandidatesPage() {
             <FileSignature className="h-5 w-5" />
             GENERATE CV{selected.size > 0 ? ` (${selected.size})` : ""}
           </Button>
-          <Button size="lg" className="gap-2" onClick={openCreate}>
-            <FilePlus className="h-5 w-5" /> ADD NEW CANDIDATE
+          <Button
+            size="lg"
+            onClick={openCreate}
+            className="gap-2 bg-[#5cb8c4] hover:bg-[#4ea8b4] text-white font-semibold tracking-wide rounded-md px-6 shadow-sm"
+          >
+            <Files className="h-5 w-5" /> ADD NEW CANDIDATE
           </Button>
         </div>
       </div>
