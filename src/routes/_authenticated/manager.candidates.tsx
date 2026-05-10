@@ -32,9 +32,9 @@ export const Route = createFileRoute("/_authenticated/manager/candidates")({
 
 const COLUMNS: { id: Status; title: string }[] = [
   { id: "available", title: "Available" },
-  { id: "processing", title: "Processing" },
-  { id: "arrived", title: "Arrived" },
-  { id: "canceled", title: "Canceled" },
+  { id: "selected", title: "Selected" },
+  { id: "private", title: "Private" },
+  { id: "unavailable", title: "Unavailable" },
 ];
 
 function DraggableCard({ candidate }: { candidate: Candidate }) {
