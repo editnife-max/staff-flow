@@ -64,9 +64,13 @@ function StaffCandidatesPage() {
   const navigate = useNavigate();
   const upsert = useServerFn(upsertCandidate);
   const remove = useServerFn(deleteCandidate);
+  const bulkDel = useServerFn(bulkDeleteCandidates);
+  const bulkStatus = useServerFn(bulkUpdateStatus);
+  const bulkAssign = useServerFn(bulkAssignStaff);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const toggleSelect = (id: string) =>
     setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const clearSelection = () => setSelected(new Set());
 
   const [tab, setTab] = useState<Status>("available");
   const [search, setSearch] = useState("");
