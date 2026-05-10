@@ -75,8 +75,7 @@ export const updateCandidateField = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const managerId = await resolveManagerId(context.userId);
     const value = data.value === "" ? null : data.value;
-    const { error } = await supabaseAdmin
-      .from("candidates")
+    const { error } = await (supabaseAdmin.from("candidates") as any)
       .update({ [data.field]: value })
       .eq("id", data.id)
       .eq("manager_id", managerId);
