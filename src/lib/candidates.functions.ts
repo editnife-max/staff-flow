@@ -69,6 +69,20 @@ export const upsertCandidate = createServerFn({ method: "POST" })
     return { ok: true, id: row.id };
   });
 
+export const updateCandidateField = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => InlineFieldSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    const value = data.value === "" ? null : data.value;
+    const { error } = await supabaseAdmin
+      .from("candidates")
+      .update({ [data.field]: value })
+      .eq("id", data.id)
+      .eq("manager_id", managerId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
 export const deleteCandidate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
