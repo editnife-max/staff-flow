@@ -480,37 +480,36 @@ function CandidateCard({
       )}>
         {statusLabel[candidate.status]}
       </span>
-      <CardContent className="p-5">
-        <div className="grid grid-cols-[28px_80px_1fr_auto] gap-6 items-center">
+      <CardContent className="p-3">
+        <div className="grid grid-cols-[24px_56px_1fr_auto] gap-4 items-center">
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
-          <Avatar className="h-16 w-16">
+          <Avatar className="h-12 w-12">
             {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
             <AvatarFallback>{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-6 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-xs">
             <CardField label="NAME" value={candidate.full_name} bold />
             <CardField label="SERIAL NUMBER" value={candidate.serial_number ?? "—"} />
             <CardField label="PASSPORT NUMBER" value={candidate.passport_number ?? "—"} />
             <CardField label="DATE OF BIRTH" value={candidate.dob ? new Date(candidate.dob).toLocaleDateString() : "—"} />
             <CardField label="OCCUPATION" value={candidate.occupation ?? "—"} />
+            <CardField label="CREATION DATE" value={new Date(candidate.created_at).toLocaleDateString()} />
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <Button asChild size="sm" className="w-24">
+          <div className="flex flex-col items-end gap-1">
+            <Button asChild size="sm" className="h-7 w-20 text-xs">
               <Link to="/staff/cv-generator" search={{ id: candidate.id }}>
-                <FileText className="h-4 w-4 mr-1" /> VIEW
+                <FileText className="h-3 w-3 mr-1" /> VIEW
               </Link>
             </Button>
-            <button onClick={onEdit} className="text-xs text-primary hover:underline flex items-center gap-1">
+            <button onClick={onEdit} className="text-[11px] text-primary hover:underline flex items-center gap-1">
               <Pencil className="h-3 w-3" /> Edit
             </button>
-            <button onClick={onDelete} className="text-xs text-destructive hover:underline flex items-center gap-1">
+            <button onClick={onDelete} className="text-[11px] text-destructive hover:underline flex items-center gap-1">
               <Trash2 className="h-3 w-3" /> Delete
             </button>
           </div>
         </div>
-        <div className="mt-3 text-xs text-muted-foreground">
-          CREATION DATE · {new Date(candidate.created_at).toLocaleString()}
-        </div>
+      </CardContent>
       </CardContent>
     </Card>
   );
