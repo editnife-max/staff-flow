@@ -288,12 +288,12 @@ function StaffCandidatesPage() {
           </div>
           <div className="mt-3 flex flex-wrap gap-3">
             <div className="relative w-60">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-9" placeholder="Passport Number" value={passport} onChange={(e) => setPassport(e.target.value)} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input className="pl-9 h-8 text-xs" placeholder="Passport Number" value={passport} onChange={(e) => setPassport(e.target.value)} />
             </div>
             <div className="relative w-60">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-9" placeholder="Laborer Name" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input className="pl-9 h-8 text-xs" placeholder="Laborer Name" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
           </div>
         </CardContent>
