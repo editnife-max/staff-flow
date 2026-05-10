@@ -481,19 +481,35 @@ function CandidateCard({
         {statusLabel[candidate.status]}
       </span>
       <CardContent className="p-2.5">
-        <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-center">
-          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
+        <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-start">
+          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" className="mt-1" />
           <Avatar className="h-10 w-10">
             {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
             <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-[11px]">
-            <CardField label="NAME" value={candidate.full_name} bold />
-            <CardField label="SERIAL NUMBER" value={candidate.serial_number ?? "—"} />
-            <CardField label="PASSPORT NUMBER" value={candidate.passport_number ?? "—"} />
-            <CardField label="DATE OF BIRTH" value={candidate.dob ? new Date(candidate.dob).toLocaleDateString() : "—"} />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-x-3 gap-y-2">
+            <CardField label="FULL NAME" value={candidate.full_name} bold />
+            <CardField label="CANDIDATE CODE" value={candidate.candidate_code ?? "—"} />
+            <CardField label="GENDER" value={candidate.gender ?? "—"} />
+            <CardField label="RELIGION" value={candidate.religion ?? "—"} />
+            <CardField label="MARITAL STATUS" value={candidate.marital_status ?? "—"} />
+            <CardField label="BIRTH PLACE" value={candidate.birth_place ?? "—"} />
+            <CardField label="LIVING TOWN" value={candidate.living_town ?? "—"} />
             <CardField label="OCCUPATION" value={candidate.occupation ?? "—"} />
-            <CardField label="CREATION DATE" value={new Date(candidate.created_at).toLocaleDateString()} />
+            <CardField label="PASSPORT NUMBER" value={candidate.passport_number ?? "—"} />
+            <CardField label="LABOUR ID" value={candidate.labour_id ?? "—"} />
+            <CardField label="OFFICE" value={candidate.office ?? "—"} />
+            <CardField label="PASSPORT STATUS" value={candidate.passport_status ?? "—"} />
+            <CardField label="COC STATUS" value={candidate.coc_status ?? "—"} />
+            <CardField label="MUSANED STATUS" value={candidate.musaned_status ?? "—"} />
+            <CardField label="MEDICAL STATUS" value={candidate.medical_status ?? "—"} />
+            <CardField label="MEDICAL DATE" value={candidate.medical_date ? new Date(candidate.medical_date).toLocaleDateString() : "—"} />
+            <CardField label="AVAILABILITY" value={statusLabel[candidate.status]} />
+            <CardField label="SELECTED BY" value={candidate.selected_by ?? "—"} />
+            <CardField label="CV SENT TO" value={candidate.cv_sent_to ?? "—"} />
+            <CardField label="CV SENT DATE" value={candidate.cv_sent_date ? new Date(candidate.cv_sent_date).toLocaleDateString() : "—"} />
+            <CardField label="NARRATIVE" value={candidate.narrative ?? "—"} />
+            <CardField label="NOTES" value={candidate.notes ?? "—"} />
           </div>
           <div className="flex flex-col items-end gap-0.5">
             <Button asChild size="sm" className="h-6 w-16 text-[10px] px-2">
