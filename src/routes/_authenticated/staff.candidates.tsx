@@ -480,14 +480,14 @@ function CandidateCard({
       )}>
         {statusLabel[candidate.status]}
       </span>
-      <CardContent className="p-3">
-        <div className="grid grid-cols-[24px_56px_1fr_auto] gap-4 items-center">
+      <CardContent className="p-2.5">
+        <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-center">
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
-          <Avatar className="h-12 w-12">
+          <Avatar className="h-10 w-10">
             {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
-            <AvatarFallback>{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+            <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-xs">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-[11px]">
             <CardField label="NAME" value={candidate.full_name} bold />
             <CardField label="SERIAL NUMBER" value={candidate.serial_number ?? "—"} />
             <CardField label="PASSPORT NUMBER" value={candidate.passport_number ?? "—"} />
@@ -495,17 +495,17 @@ function CandidateCard({
             <CardField label="OCCUPATION" value={candidate.occupation ?? "—"} />
             <CardField label="CREATION DATE" value={new Date(candidate.created_at).toLocaleDateString()} />
           </div>
-          <div className="flex flex-col items-end gap-1">
-            <Button asChild size="sm" className="h-7 w-20 text-xs">
+          <div className="flex flex-col items-end gap-0.5">
+            <Button asChild size="sm" className="h-6 w-16 text-[10px] px-2">
               <Link to="/staff/cv-generator" search={{ id: candidate.id }}>
                 <FileText className="h-3 w-3 mr-1" /> VIEW
               </Link>
             </Button>
-            <button onClick={onEdit} className="text-[11px] text-primary hover:underline flex items-center gap-1">
-              <Pencil className="h-3 w-3" /> Edit
+            <button onClick={onEdit} className="text-[10px] text-primary hover:underline flex items-center gap-1">
+              <Pencil className="h-2.5 w-2.5" /> Edit
             </button>
-            <button onClick={onDelete} className="text-[11px] text-destructive hover:underline flex items-center gap-1">
-              <Trash2 className="h-3 w-3" /> Delete
+            <button onClick={onDelete} className="text-[10px] text-destructive hover:underline flex items-center gap-1">
+              <Trash2 className="h-2.5 w-2.5" /> Delete
             </button>
           </div>
         </div>
