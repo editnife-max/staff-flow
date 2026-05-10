@@ -31,7 +31,17 @@ function StaffLayout() {
           <LogOut className="h-4 w-4" />
         </Button>
       </header>
-      <main className="p-6"><Outlet /></main>
+      <main className="p-6 min-h-[calc(100vh-7.5rem)]"><Outlet /></main>
+      <footer className="border-t bg-background">
+        <div className="px-6 py-4 text-xs text-muted-foreground flex flex-wrap items-center justify-between gap-2">
+          <div>© {new Date().getFullYear()} Staff-Flow Agency. All rights reserved.</div>
+          <div className="flex items-center gap-4">
+            <Link to="/about" className="hover:text-foreground">About</Link>
+            <Link to="/faq" className="hover:text-foreground">FAQ</Link>
+            <Link to="/contact" className="hover:text-foreground">Contact</Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
