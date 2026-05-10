@@ -231,23 +231,23 @@ function StaffCandidatesPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Candidates</h1>
+        <h1 className="text-xl font-bold tracking-tight">Candidates</h1>
         <div className="flex items-center gap-2">
           <Button
-            size="lg"
+            size="sm"
             variant="secondary"
-            className="gap-2"
+            className="gap-2 text-xs h-8"
             disabled={selected.size === 0}
             onClick={() => {
               const first = Array.from(selected)[0];
               if (first) navigate({ to: "/staff/cv-generator", search: { id: first } });
             }}
           >
-            <FileSignature className="h-5 w-5" />
+            <FileSignature className="h-4 w-4" />
             GENERATE CV{selected.size > 0 ? ` (${selected.size})` : ""}
           </Button>
-          <Button size="lg" className="gap-2" onClick={openCreate}>
-            <FilePlus className="h-5 w-5" /> ADD NEW CANDIDATE
+          <Button size="sm" className="gap-2 text-xs h-8" onClick={openCreate}>
+            <FilePlus className="h-4 w-4" /> ADD NEW CANDIDATE
           </Button>
         </div>
       </div>
