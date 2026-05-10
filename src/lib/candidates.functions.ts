@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-const StatusEnum = z.enum(["available", "processing", "arrived", "canceled"]);
+const StatusEnum = z.enum(["available", "selected", "private", "unavailable"]);
 
 const CandidateInput = z.object({
   full_name: z.string().min(1).max(200),
@@ -20,6 +20,16 @@ const CandidateInput = z.object({
   skills: z.string().max(500).optional().nullable(),
   status: StatusEnum.default("available"),
   photo_url: z.string().url().optional().nullable(),
+});
+
+const InlineFieldSchema = z.object({
+  id: z.string().uuid(),
+  field: z.enum([
+    "notes", "narrative", "occupation", "living_town", "selected_by",
+    "medical_status", "status", "office", "passport_status",
+    "musaned_status", "coc_status",
+  ]),
+  value: z.string().nullable(),
 });
 
 async function resolveManagerId(userId: string): Promise<string> {
@@ -59,6 +69,19 @@ export const upsertCandidate = createServerFn({ method: "POST" })
     return { ok: true, id: row.id };
   });
 
+export const updateCandidateField = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => InlineFieldSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    const value = data.value === "" ? null : data.value;
+    const { error } = await (supabaseAdmin.from("candidates") as any)
+      .update({ [data.field]: value })
+      .eq("id", data.id)
+      .eq("manager_id", managerId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
 export const deleteCandidate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))

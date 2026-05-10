@@ -23,7 +23,7 @@ import { StatusBadge } from "@/components/status-badge";
 import type { Database } from "@/integrations/supabase/types";
 
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"];
-type Status = Database["public"]["Enums"]["candidate_status"];
+type Status = "available" | "selected" | "private" | "unavailable";
 
 export const Route = createFileRoute("/_authenticated/manager/candidates")({
   head: () => ({ meta: [{ title: "Candidates — Staff-Flow" }] }),
@@ -32,9 +32,9 @@ export const Route = createFileRoute("/_authenticated/manager/candidates")({
 
 const COLUMNS: { id: Status; title: string }[] = [
   { id: "available", title: "Available" },
-  { id: "processing", title: "Processing" },
-  { id: "arrived", title: "Arrived" },
-  { id: "canceled", title: "Canceled" },
+  { id: "selected", title: "Selected" },
+  { id: "private", title: "Private" },
+  { id: "unavailable", title: "Unavailable" },
 ];
 
 function DraggableCard({ candidate }: { candidate: Candidate }) {

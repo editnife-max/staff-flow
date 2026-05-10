@@ -20,7 +20,7 @@ export type Database = {
           assigned_staff_id: string | null
           birth_place: string | null
           candidate_code: string | null
-          coc_status: Database["public"]["Enums"]["doc_status"]
+          coc_status: string
           country: string | null
           created_at: string
           cv_sent_date: string | null
@@ -37,20 +37,20 @@ export type Database = {
           manager_id: string
           marital_status: string | null
           medical_date: string | null
-          medical_status: Database["public"]["Enums"]["medical_status"]
-          musaned_status: Database["public"]["Enums"]["doc_status"]
+          medical_status: string
+          musaned_status: string
           narrative: string | null
           notes: string | null
           occupation: string | null
-          office: Database["public"]["Enums"]["office_name"] | null
+          office: string | null
           passport_number: string | null
-          passport_status: Database["public"]["Enums"]["passport_status"]
+          passport_status: string
           photo_url: string | null
           religion: string | null
           selected_by: string | null
           serial_number: string | null
           skills: string | null
-          status: Database["public"]["Enums"]["candidate_status"]
+          status: string
           updated_at: string
         }
         Insert: {
@@ -58,7 +58,7 @@ export type Database = {
           assigned_staff_id?: string | null
           birth_place?: string | null
           candidate_code?: string | null
-          coc_status?: Database["public"]["Enums"]["doc_status"]
+          coc_status?: string
           country?: string | null
           created_at?: string
           cv_sent_date?: string | null
@@ -75,20 +75,20 @@ export type Database = {
           manager_id: string
           marital_status?: string | null
           medical_date?: string | null
-          medical_status?: Database["public"]["Enums"]["medical_status"]
-          musaned_status?: Database["public"]["Enums"]["doc_status"]
+          medical_status?: string
+          musaned_status?: string
           narrative?: string | null
           notes?: string | null
           occupation?: string | null
-          office?: Database["public"]["Enums"]["office_name"] | null
+          office?: string | null
           passport_number?: string | null
-          passport_status?: Database["public"]["Enums"]["passport_status"]
+          passport_status?: string
           photo_url?: string | null
           religion?: string | null
           selected_by?: string | null
           serial_number?: string | null
           skills?: string | null
-          status?: Database["public"]["Enums"]["candidate_status"]
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -96,7 +96,7 @@ export type Database = {
           assigned_staff_id?: string | null
           birth_place?: string | null
           candidate_code?: string | null
-          coc_status?: Database["public"]["Enums"]["doc_status"]
+          coc_status?: string
           country?: string | null
           created_at?: string
           cv_sent_date?: string | null
@@ -113,20 +113,20 @@ export type Database = {
           manager_id?: string
           marital_status?: string | null
           medical_date?: string | null
-          medical_status?: Database["public"]["Enums"]["medical_status"]
-          musaned_status?: Database["public"]["Enums"]["doc_status"]
+          medical_status?: string
+          musaned_status?: string
           narrative?: string | null
           notes?: string | null
           occupation?: string | null
-          office?: Database["public"]["Enums"]["office_name"] | null
+          office?: string | null
           passport_number?: string | null
-          passport_status?: Database["public"]["Enums"]["passport_status"]
+          passport_status?: string
           photo_url?: string | null
           religion?: string | null
           selected_by?: string | null
           serial_number?: string | null
           skills?: string | null
-          status?: Database["public"]["Enums"]["candidate_status"]
+          status?: string
           updated_at?: string
         }
         Relationships: [
@@ -310,18 +310,6 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "manager" | "staff" | "agency"
-      candidate_status: "available" | "processing" | "arrived" | "canceled"
-      doc_status: "pending" | "in_progress" | "done" | "rejected"
-      medical_status: "pending" | "fit" | "unfit"
-      office_name:
-        | "saudi"
-        | "kuwait"
-        | "uae"
-        | "qatar"
-        | "bahrain"
-        | "oman"
-        | "other"
-      passport_status: "pending" | "submitted" | "received" | "expired"
       subscription_plan: "basic" | "standard" | "pro"
       subscription_status: "pending" | "approved" | "rejected"
     }
@@ -452,19 +440,6 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "manager", "staff", "agency"],
-      candidate_status: ["available", "processing", "arrived", "canceled"],
-      doc_status: ["pending", "in_progress", "done", "rejected"],
-      medical_status: ["pending", "fit", "unfit"],
-      office_name: [
-        "saudi",
-        "kuwait",
-        "uae",
-        "qatar",
-        "bahrain",
-        "oman",
-        "other",
-      ],
-      passport_status: ["pending", "submitted", "received", "expired"],
       subscription_plan: ["basic", "standard", "pro"],
       subscription_status: ["pending", "approved", "rejected"],
     },

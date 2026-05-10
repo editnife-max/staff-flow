@@ -22,12 +22,12 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import {
-  upsertCandidate, deleteCandidate,
+  upsertCandidate, deleteCandidate, updateCandidateField,
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff,
 } from "@/lib/candidates.functions";
 import { UserCheck, X } from "lucide-react";
 
-type Status = Database["public"]["Enums"]["candidate_status"];
+type Status = "available" | "selected" | "private" | "unavailable";
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"];
 
 export const Route = createFileRoute("/_authenticated/staff/candidates")({
@@ -37,9 +37,17 @@ export const Route = createFileRoute("/_authenticated/staff/candidates")({
 
 const TABS: { key: Status; label: string }[] = [
   { key: "available", label: "Available" },
-  { key: "processing", label: "Processing" },
-  { key: "arrived", label: "Arrived" },
+  { key: "selected", label: "Selected" },
+  { key: "private", label: "Private" },
+  { key: "unavailable", label: "Unavailable" },
 ];
+
+const MEDICAL_OPTIONS = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired"];
+const AVAILABILITY_OPTIONS: Status[] = ["available", "selected", "private", "unavailable"];
+const COC_OPTIONS = ["Done", "No", "Booked", "Placed", "Yitazez", "Pending release"];
+const MUSANED_OPTIONS = ["Saudi", "Kuwait"];
+const OFFICE_OPTIONS = ["Riyadh", "Jeddah", "Dammam", "Other"];
+const PASSPORT_OPTIONS = ["Pending", "Submitted", "Received", "Expired"];
 
 const initialForm = {
   full_name: "",
@@ -113,10 +121,20 @@ function StaffCandidatesPage() {
   });
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { available: 0, processing: 0, arrived: 0 };
+    const c: Record<string, number> = { available: 0, selected: 0, private: 0, unavailable: 0 };
     candidates.forEach((x) => { c[x.status] = (c[x.status] ?? 0) + 1; });
     return c;
   }, [candidates]);
+
+  const updateField = useServerFn(updateCandidateField);
+  const fieldMut = useMutation({
+    mutationFn: async (input: { id: string; field: string; value: string | null }) =>
+      updateField({ data: input as never }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["staff-candidates"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const opts = useMemo(() => {
     const uniq = (k: keyof Candidate) =>
@@ -222,7 +240,7 @@ function StaffCandidatesPage() {
       dob: c.dob ?? "", occupation: c.occupation ?? "", country: c.country ?? "",
       age: c.age ?? "", gender: c.gender ?? "", religion: c.religion ?? "",
       marital_status: c.marital_status ?? "", education: c.education ?? "",
-      skills: c.skills ?? "", status: c.status, photo_url: c.photo_url ?? "",
+      skills: c.skills ?? "", status: c.status as Status, photo_url: c.photo_url ?? "",
     });
     setOpen(true);
   };
@@ -335,9 +353,9 @@ function StaffCandidatesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="processing">Processing</SelectItem>
-                  <SelectItem value="arrived">Arrived</SelectItem>
-                  <SelectItem value="canceled">Canceled</SelectItem>
+                  <SelectItem value="selected">Selected</SelectItem>
+                  <SelectItem value="private">Private</SelectItem>
+                  <SelectItem value="unavailable">Unavailable</SelectItem>
                 </SelectContent>
               </Select>
               <Select onValueChange={(v) => bulkAssignMut.mutate(v === "__none__" ? null : v)}>
@@ -402,6 +420,7 @@ function StaffCandidatesPage() {
             onToggleSelect={() => toggleSelect(c.id)}
             onEdit={() => openEdit(c)}
             onDelete={() => removeMut.mutate(c.id)}
+            onUpdateField={(field, value) => fieldMut.mutate({ id: c.id, field, value })}
           />
         ))}
         {filtered.length === 0 && (
@@ -435,9 +454,9 @@ function StaffCandidatesPage() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="processing">Processing</SelectItem>
-                  <SelectItem value="arrived">Arrived</SelectItem>
-                  <SelectItem value="canceled">Canceled</SelectItem>
+                  <SelectItem value="selected">Selected</SelectItem>
+                  <SelectItem value="private">Private</SelectItem>
+                  <SelectItem value="unavailable">Unavailable</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -454,31 +473,69 @@ function StaffCandidatesPage() {
   );
 }
 
+type EditableField =
+  | "notes" | "narrative" | "occupation" | "living_town" | "selected_by"
+  | "medical_status" | "status" | "office" | "passport_status"
+  | "musaned_status" | "coc_status";
+
 function CandidateCard({
-  candidate, selected, onToggleSelect, onEdit, onDelete,
+  candidate, selected, onToggleSelect, onEdit, onDelete, onUpdateField,
 }: {
   candidate: Candidate;
   selected: boolean;
   onToggleSelect: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onUpdateField: (field: EditableField, value: string | null) => void;
 }) {
   const statusStyles: Record<Status, string> = {
     available: "bg-success text-success-foreground",
-    processing: "bg-warning text-foreground",
-    arrived: "bg-info text-info-foreground",
-    canceled: "bg-destructive text-destructive-foreground",
+    selected: "bg-warning text-foreground",
+    private: "bg-info text-info-foreground",
+    unavailable: "bg-destructive text-destructive-foreground",
   };
   const statusLabel: Record<Status, string> = {
-    available: "AVAILABLE", processing: "PROCESSING", arrived: "ARRIVED", canceled: "CANCELED",
+    available: "AVAILABLE", selected: "SELECTED", private: "PRIVATE", unavailable: "UNAVAILABLE",
   };
+  const statusKey = (candidate.status in statusStyles ? candidate.status : "available") as Status;
+
+  type FieldDef =
+    | { label: string; value: string; bold?: boolean }
+    | { label: string; value: string; edit: "text"; field: EditableField }
+    | { label: string; value: string; edit: "select"; field: EditableField; options: string[] };
+
+  const fields: FieldDef[] = [
+    { label: "FULL NAME", value: candidate.full_name, bold: true },
+    { label: "CANDIDATE CODE", value: candidate.candidate_code ?? "—" },
+    { label: "GENDER", value: candidate.gender ?? "—" },
+    { label: "RELIGION", value: candidate.religion ?? "—" },
+    { label: "MARITAL STATUS", value: candidate.marital_status ?? "—" },
+    { label: "BIRTH PLACE", value: candidate.birth_place ?? "—" },
+    { label: "LIVING TOWN", value: candidate.living_town ?? "", edit: "text", field: "living_town" },
+    { label: "OCCUPATION", value: candidate.occupation ?? "", edit: "text", field: "occupation" },
+    { label: "PASSPORT NUMBER", value: candidate.passport_number ?? "—" },
+    { label: "LABOUR ID", value: candidate.labour_id ?? "—" },
+    { label: "OFFICE", value: candidate.office ?? "", edit: "select", field: "office", options: OFFICE_OPTIONS },
+    { label: "PASSPORT STATUS", value: candidate.passport_status ?? "", edit: "select", field: "passport_status", options: PASSPORT_OPTIONS },
+    { label: "COC STATUS", value: candidate.coc_status ?? "", edit: "select", field: "coc_status", options: COC_OPTIONS },
+    { label: "MUSANED STATUS", value: candidate.musaned_status ?? "", edit: "select", field: "musaned_status", options: MUSANED_OPTIONS },
+    { label: "MEDICAL STATUS", value: candidate.medical_status ?? "", edit: "select", field: "medical_status", options: MEDICAL_OPTIONS },
+    { label: "MEDICAL DATE", value: candidate.medical_date ? new Date(candidate.medical_date).toLocaleDateString() : "—" },
+    { label: "AVAILABILITY", value: statusKey, edit: "select", field: "status", options: AVAILABILITY_OPTIONS },
+    { label: "SELECTED BY", value: candidate.selected_by ?? "", edit: "text", field: "selected_by" },
+    { label: "CV SENT TO", value: candidate.cv_sent_to ?? "—" },
+    { label: "CV SENT DATE", value: candidate.cv_sent_date ? new Date(candidate.cv_sent_date).toLocaleDateString() : "—" },
+    { label: "NARRATIVE", value: candidate.narrative ?? "", edit: "text", field: "narrative" },
+    { label: "NOTES", value: candidate.notes ?? "", edit: "text", field: "notes" },
+  ];
+
   return (
     <Card className={cn("relative overflow-visible transition-colors", selected && "ring-2 ring-primary")}>
       <span className={cn(
         "absolute -top-2 left-3 rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-wide",
-        statusStyles[candidate.status],
+        statusStyles[statusKey],
       )}>
-        {statusLabel[candidate.status]}
+        {statusLabel[statusKey]}
       </span>
       <CardContent className="p-2.5">
         <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-center">
@@ -488,54 +545,39 @@ function CandidateCard({
             <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="overflow-x-auto no-scrollbar">
-            {(() => {
-              const fields: { label: string; value: string; bold?: boolean }[] = [
-                { label: "FULL NAME", value: candidate.full_name, bold: true },
-                { label: "CANDIDATE CODE", value: candidate.candidate_code ?? "—" },
-                { label: "GENDER", value: candidate.gender ?? "—" },
-                { label: "RELIGION", value: candidate.religion ?? "—" },
-                { label: "MARITAL STATUS", value: candidate.marital_status ?? "—" },
-                { label: "BIRTH PLACE", value: candidate.birth_place ?? "—" },
-                { label: "LIVING TOWN", value: candidate.living_town ?? "—" },
-                { label: "OCCUPATION", value: candidate.occupation ?? "—" },
-                { label: "PASSPORT NUMBER", value: candidate.passport_number ?? "—" },
-                { label: "LABOUR ID", value: candidate.labour_id ?? "—" },
-                { label: "OFFICE", value: candidate.office ?? "—" },
-                { label: "PASSPORT STATUS", value: candidate.passport_status ?? "—" },
-                { label: "COC STATUS", value: candidate.coc_status ?? "—" },
-                { label: "MUSANED STATUS", value: candidate.musaned_status ?? "—" },
-                { label: "MEDICAL STATUS", value: candidate.medical_status ?? "—" },
-                { label: "MEDICAL DATE", value: candidate.medical_date ? new Date(candidate.medical_date).toLocaleDateString() : "—" },
-                { label: "AVAILABILITY", value: statusLabel[candidate.status] },
-                { label: "SELECTED BY", value: candidate.selected_by ?? "—" },
-                { label: "CV SENT TO", value: candidate.cv_sent_to ?? "—" },
-                { label: "CV SENT DATE", value: candidate.cv_sent_date ? new Date(candidate.cv_sent_date).toLocaleDateString() : "—" },
-                { label: "NARRATIVE", value: candidate.narrative ?? "—" },
-                { label: "NOTES", value: candidate.notes ?? "—" },
-              ];
-              return (
-                <table className="text-[11px] border-collapse">
-                  <thead>
-                    <tr>
-                      {fields.map((f) => (
-                        <th key={f.label} className="text-left text-[9px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap pr-6 pb-1">
-                          {f.label}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      {fields.map((f) => (
-                        <td key={f.label} className={cn("whitespace-nowrap pr-6 align-top", f.bold && "font-semibold")}>
-                          {f.value}
-                        </td>
-                      ))}
-                    </tr>
-                  </tbody>
-                </table>
-              );
-            })()}
+            <table className="text-[11px] border-collapse">
+              <thead>
+                <tr>
+                  {fields.map((f) => (
+                    <th key={f.label} className="text-left text-[9px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap pr-6 pb-1">
+                      {f.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  {fields.map((f) => (
+                    <td key={f.label} className={cn("whitespace-nowrap pr-6 align-top", "bold" in f && f.bold && "font-semibold")}>
+                      {"edit" in f && f.edit === "text" ? (
+                        <InlineText
+                          value={f.value}
+                          onSave={(v) => onUpdateField(f.field, v)}
+                        />
+                      ) : "edit" in f && f.edit === "select" ? (
+                        <InlineSelect
+                          value={f.value}
+                          options={f.options}
+                          onSave={(v) => onUpdateField(f.field, v)}
+                        />
+                      ) : (
+                        ("value" in f ? f.value : "—") || "—"
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
           </div>
           <div className="flex flex-col items-end gap-0.5">
             <Button asChild size="sm" className="h-6 w-16 text-[10px] px-2">
@@ -553,6 +595,56 @@ function CandidateCard({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function InlineText({ value, onSave }: { value: string; onSave: (v: string | null) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => { setDraft(value); setEditing(true); }}
+        className="text-left rounded px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[40px] block"
+      >
+        {value || <span className="text-muted-foreground">—</span>}
+      </button>
+    );
+  }
+  const commit = () => {
+    setEditing(false);
+    if (draft !== value) onSave(draft.trim() === "" ? null : draft);
+  };
+  return (
+    <input
+      autoFocus
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+        if (e.key === "Escape") { setDraft(value); setEditing(false); }
+      }}
+      className="rounded border border-primary bg-background px-1 py-0.5 text-[11px] outline-none min-w-[80px]"
+    />
+  );
+}
+
+function InlineSelect({
+  value, options, onSave,
+}: { value: string; options: string[]; onSave: (v: string | null) => void }) {
+  return (
+    <Select value={value || undefined} onValueChange={(v) => onSave(v)}>
+      <SelectTrigger className="h-6 w-auto min-w-[90px] gap-1 border-transparent bg-transparent px-1 py-0 text-[11px] shadow-none hover:border-border hover:bg-muted/60 focus:ring-0">
+        <SelectValue placeholder="—" />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((o) => (
+          <SelectItem key={o} value={o} className="text-xs capitalize">{o}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
