@@ -487,7 +487,7 @@ function CandidateCard({
             {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
             <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto no-scrollbar">
             <div className="flex items-center gap-6 text-[11px] min-w-max pb-1">
               <CardField label="FULL NAME" value={candidate.full_name} bold />
               <CardField label="CANDIDATE CODE" value={candidate.candidate_code ?? "—"} />
