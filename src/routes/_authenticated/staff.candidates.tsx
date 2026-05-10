@@ -393,7 +393,7 @@ function StaffCandidatesPage() {
           </label>
         );
       })()}
-      <div className="space-y-4">
+      <div className="space-y-2">
         {filtered.map((c) => (
           <CandidateCard
             key={c.id}
