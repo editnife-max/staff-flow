@@ -308,13 +308,13 @@ function StaffCandidatesPage() {
                 key={t.key}
                 onClick={() => setTab(t.key)}
                 className={cn(
-                  "pb-3 text-base font-medium transition-colors",
+                  "pb-2 text-xs font-medium transition-colors",
                   tab === t.key
                     ? "text-primary border-b-2 border-primary -mb-px"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {t.label} <span className="ml-1 text-xs opacity-70">({counts[t.key] ?? 0})</span>
+                {t.label} <span className="ml-1 text-[10px] opacity-70">({counts[t.key] ?? 0})</span>
               </button>
             ))}
           </div>
