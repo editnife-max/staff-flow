@@ -38,7 +38,7 @@ export const Route = createFileRoute("/_authenticated/staff/candidates")({
 const TABS: { key: Status; label: string }[] = [
   { key: "available", label: "Available" },
   { key: "processing", label: "Processing" },
-  { key: "arrived", label: "Arrived" },
+  { key: "arrived", label: "Employee" },
 ];
 
 const initialForm = {
@@ -336,7 +336,7 @@ function StaffCandidatesPage() {
                 <SelectContent>
                   <SelectItem value="available">Available</SelectItem>
                   <SelectItem value="processing">Processing</SelectItem>
-                  <SelectItem value="arrived">Arrived</SelectItem>
+                  <SelectItem value="arrived">Employee (Arrived)</SelectItem>
                   <SelectItem value="canceled">Canceled</SelectItem>
                 </SelectContent>
               </Select>
@@ -436,7 +436,7 @@ function StaffCandidatesPage() {
                 <SelectContent>
                   <SelectItem value="available">Available</SelectItem>
                   <SelectItem value="processing">Processing</SelectItem>
-                  <SelectItem value="arrived">Arrived</SelectItem>
+                  <SelectItem value="arrived">Employee (Arrived)</SelectItem>
                   <SelectItem value="canceled">Canceled</SelectItem>
                 </SelectContent>
               </Select>
