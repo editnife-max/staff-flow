@@ -27,58 +27,31 @@ function StaffLayout() {
   return (
     <div className="min-h-screen flex flex-col bg-muted/30">
       <header className="border-b bg-background">
-        <div className="px-6 py-3 flex items-start gap-8">
+        <div className="px-6 py-3 flex items-center gap-8">
           {/* Logo block */}
-          <Link to="/staff/candidates" className="flex items-center gap-3 shrink-0 pt-1">
-            <div className="flex flex-col items-center leading-none">
-              <span className="text-xs tracking-[0.3em] text-primary font-bold">مساند</span>
-              <span className="text-[10px] tracking-[0.25em] text-muted-foreground mt-0.5">MUSANED</span>
-            </div>
-            <span className="h-10 w-px bg-border" />
+          <Link to="/staff/candidates" className="flex items-center gap-3 shrink-0">
             <div className="h-9 w-9 rounded-md bg-primary/10 grid place-items-center">
-              <Home className="h-4 w-4 text-primary" />
+              <Building2 className="h-4 w-4 text-primary" />
             </div>
-            <span className="text-sm font-semibold text-muted-foreground">AR</span>
+            <span className="text-sm font-semibold tracking-tight">Staff-Flow</span>
           </Link>
 
-          {/* Nav columns */}
-          <nav className="flex-1 flex flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
-              {NAV_TOP.map((n) => {
-                const Icon = n.icon;
-                return (
-                  <Link
-                    key={n.label}
-                    to={n.to}
-                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary data-[status=active]:text-primary data-[status=active]:font-semibold data-[status=active]:border-b-2 data-[status=active]:border-primary py-2"
-                    activeProps={{ className: "text-primary font-semibold border-b-2 border-primary py-2 flex items-center gap-2" }}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {n.label}
-                  </Link>
-                );
-              })}
-              {NAV_DISABLED_TOP.map((n) => {
-                const Icon = n.icon;
-                return (
-                  <span key={n.label} className="flex items-center gap-2 text-sm text-muted-foreground/60 cursor-not-allowed py-2">
-                    <Icon className="h-4 w-4" />
-                    {n.label}
-                  </span>
-                );
-              })}
-            </div>
-            <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
-              {NAV_DISABLED_BOTTOM.map((n) => {
-                const Icon = n.icon;
-                return (
-                  <span key={n.label} className="flex items-center gap-2 text-sm text-muted-foreground/60 cursor-not-allowed">
-                    <Icon className="h-4 w-4" />
-                    {n.label}
-                  </span>
-                );
-              })}
-            </div>
+          {/* Nav */}
+          <nav className="flex-1 flex flex-wrap items-center gap-x-8 gap-y-2">
+            {NAV_TOP.map((n) => {
+              const Icon = n.icon;
+              return (
+                <Link
+                  key={n.label}
+                  to={n.to}
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary py-2"
+                  activeProps={{ className: "text-primary font-semibold border-b-2 border-primary py-2 flex items-center gap-2" }}
+                >
+                  <Icon className="h-4 w-4" />
+                  {n.label}
+                </Link>
+              );
+            })}
           </nav>
 
           {/* User menu */}
