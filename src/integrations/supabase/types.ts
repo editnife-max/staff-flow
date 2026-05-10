@@ -17,6 +17,7 @@ export type Database = {
       candidates: {
         Row: {
           age: number | null
+          assigned_staff_id: string | null
           country: string | null
           created_at: string
           dob: string | null
@@ -38,6 +39,7 @@ export type Database = {
         }
         Insert: {
           age?: number | null
+          assigned_staff_id?: string | null
           country?: string | null
           created_at?: string
           dob?: string | null
@@ -59,6 +61,7 @@ export type Database = {
         }
         Update: {
           age?: number | null
+          assigned_staff_id?: string | null
           country?: string | null
           created_at?: string
           dob?: string | null
@@ -78,7 +81,15 @@ export type Database = {
           status?: Database["public"]["Enums"]["candidate_status"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "candidates_assigned_staff_id_fkey"
+            columns: ["assigned_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       foreign_agencies: {
         Row: {
