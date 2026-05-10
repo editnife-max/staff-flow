@@ -230,7 +230,7 @@ function StaffCandidatesPage() {
       dob: c.dob ?? "", occupation: c.occupation ?? "", country: c.country ?? "",
       age: c.age ?? "", gender: c.gender ?? "", religion: c.religion ?? "",
       marital_status: c.marital_status ?? "", education: c.education ?? "",
-      skills: c.skills ?? "", status: c.status, photo_url: c.photo_url ?? "",
+      skills: c.skills ?? "", status: c.status as Status, photo_url: c.photo_url ?? "",
     });
     setOpen(true);
   };
