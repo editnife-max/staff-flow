@@ -321,6 +321,57 @@ function StaffCandidatesPage() {
         </CardContent>
       </Card>
 
+      {/* Bulk actions */}
+      {selected.size > 0 && (
+        <Card className="border-primary/40 bg-primary/5">
+          <CardContent className="p-3 flex flex-wrap items-center gap-3">
+            <span className="text-sm font-semibold pl-1">
+              {selected.size} selected
+            </span>
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <Select onValueChange={(v) => bulkStatusMut.mutate(v as Status)}>
+                <SelectTrigger className="h-9 w-[180px]">
+                  <SelectValue placeholder="Update status..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="available">Available</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="arrived">Employee (Arrived)</SelectItem>
+                  <SelectItem value="canceled">Canceled</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select onValueChange={(v) => bulkAssignMut.mutate(v === "__none__" ? null : v)}>
+                <SelectTrigger className="h-9 w-[200px]">
+                  <UserCheck className="h-4 w-4 mr-1 text-primary" />
+                  <SelectValue placeholder="Assign to staff..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Unassign —</SelectItem>
+                  {staffList.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                variant="destructive"
+                className="gap-1"
+                disabled={bulkDeleteMut.isPending}
+                onClick={() => {
+                  if (confirm(`Delete ${selected.size} candidate(s)? This cannot be undone.`))
+                    bulkDeleteMut.mutate();
+                }}
+              >
+                <Trash2 className="h-4 w-4" /> Delete
+              </Button>
+              <Button size="sm" variant="ghost" className="gap-1" onClick={clearSelection}>
+                <X className="h-4 w-4" /> Clear
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Candidate cards */}
       <div className="space-y-4">
         {filtered.map((c) => (
