@@ -21,7 +21,11 @@ import {
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
-import { upsertCandidate, deleteCandidate } from "@/lib/candidates.functions";
+import {
+  upsertCandidate, deleteCandidate,
+  bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff,
+} from "@/lib/candidates.functions";
+import { UserCheck, X } from "lucide-react";
 
 type Status = Database["public"]["Enums"]["candidate_status"];
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"];
