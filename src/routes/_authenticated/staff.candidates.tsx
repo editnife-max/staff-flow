@@ -22,12 +22,12 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import {
-  upsertCandidate, deleteCandidate,
+  upsertCandidate, deleteCandidate, updateCandidateField,
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff,
 } from "@/lib/candidates.functions";
 import { UserCheck, X } from "lucide-react";
 
-type Status = Database["public"]["Enums"]["candidate_status"];
+type Status = "available" | "selected" | "private" | "unavailable";
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"];
 
 export const Route = createFileRoute("/_authenticated/staff/candidates")({
@@ -37,9 +37,17 @@ export const Route = createFileRoute("/_authenticated/staff/candidates")({
 
 const TABS: { key: Status; label: string }[] = [
   { key: "available", label: "Available" },
-  { key: "processing", label: "Processing" },
-  { key: "arrived", label: "Arrived" },
+  { key: "selected", label: "Selected" },
+  { key: "private", label: "Private" },
+  { key: "unavailable", label: "Unavailable" },
 ];
+
+const MEDICAL_OPTIONS = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired"];
+const AVAILABILITY_OPTIONS: Status[] = ["available", "selected", "private", "unavailable"];
+const COC_OPTIONS = ["Done", "No", "Booked", "Placed", "Yitazez", "Pending release"];
+const MUSANED_OPTIONS = ["Saudi", "Kuwait"];
+const OFFICE_OPTIONS = ["Riyadh", "Jeddah", "Dammam", "Other"];
+const PASSPORT_OPTIONS = ["Pending", "Submitted", "Received", "Expired"];
 
 const initialForm = {
   full_name: "",
