@@ -17,6 +17,24 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
   }
 });
 
+// Attach the Supabase access token to every server-fn request so server
+// middleware (`requireSupabaseAuth`) can authenticate the caller.
+const authedServerFnFetch: typeof fetch = async (input, init = {}) => {
+  const headers = new Headers(init.headers);
+  if (typeof window !== "undefined" && !headers.has("authorization")) {
+    try {
+      const { supabase } = await import("./integrations/supabase/client");
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (token) headers.set("authorization", `Bearer ${token}`);
+    } catch {
+      /* noop */
+    }
+  }
+  return fetch(input, { ...init, headers });
+};
+
 export const startInstance = createStart(() => ({
   requestMiddleware: [errorMiddleware],
+  serverFns: { fetch: authedServerFnFetch },
 }));
