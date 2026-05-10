@@ -277,6 +277,8 @@ function StaffCandidatesPage() {
           <CandidateCard
             key={c.id}
             candidate={c}
+            selected={selected.has(c.id)}
+            onToggleSelect={() => toggleSelect(c.id)}
             onEdit={() => openEdit(c)}
             onDelete={() => removeMut.mutate(c.id)}
           />
