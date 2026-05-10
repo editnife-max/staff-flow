@@ -1,11 +1,12 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import {
-  Search, FilePlus, FileText, Pencil, Trash2,
+  Search, FilePlus, FileText, Pencil, Trash2, FileSignature,
   Briefcase, GraduationCap, Users, Calendar, Wrench, HeartHandshake, Circle, BookOpen,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -56,8 +57,12 @@ const initialForm = {
 function StaffCandidatesPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const upsert = useServerFn(upsertCandidate);
   const remove = useServerFn(deleteCandidate);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const toggleSelect = (id: string) =>
+    setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const [tab, setTab] = useState<Status>("available");
   const [search, setSearch] = useState("");
@@ -177,9 +182,24 @@ function StaffCandidatesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Candidates</h1>
-        <Button size="lg" className="gap-2" onClick={openCreate}>
-          <FilePlus className="h-5 w-5" /> ADD NEW CANDIDATE
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="lg"
+            variant="secondary"
+            className="gap-2"
+            disabled={selected.size === 0}
+            onClick={() => {
+              const first = Array.from(selected)[0];
+              if (first) navigate({ to: "/staff/cv-generator", search: { id: first } });
+            }}
+          >
+            <FileSignature className="h-5 w-5" />
+            GENERATE CV{selected.size > 0 ? ` (${selected.size})` : ""}
+          </Button>
+          <Button size="lg" className="gap-2" onClick={openCreate}>
+            <FilePlus className="h-5 w-5" /> ADD NEW CANDIDATE
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -257,6 +277,8 @@ function StaffCandidatesPage() {
           <CandidateCard
             key={c.id}
             candidate={c}
+            selected={selected.has(c.id)}
+            onToggleSelect={() => toggleSelect(c.id)}
             onEdit={() => openEdit(c)}
             onDelete={() => removeMut.mutate(c.id)}
           />
@@ -312,8 +334,14 @@ function StaffCandidatesPage() {
 }
 
 function CandidateCard({
-  candidate, onEdit, onDelete,
-}: { candidate: Candidate; onEdit: () => void; onDelete: () => void }) {
+  candidate, selected, onToggleSelect, onEdit, onDelete,
+}: {
+  candidate: Candidate;
+  selected: boolean;
+  onToggleSelect: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const statusStyles: Record<Status, string> = {
     available: "bg-success text-success-foreground",
     processing: "bg-warning text-foreground",
@@ -324,7 +352,7 @@ function CandidateCard({
     available: "AVAILABLE", processing: "PROCESSING", arrived: "EMPLOYEE", canceled: "CANCELED",
   };
   return (
-    <Card className="relative overflow-visible">
+    <Card className={cn("relative overflow-visible transition-colors", selected && "ring-2 ring-primary")}>
       <span className={cn(
         "absolute -top-2 left-4 rounded px-2 py-0.5 text-xs font-semibold tracking-wide",
         statusStyles[candidate.status],
@@ -332,7 +360,8 @@ function CandidateCard({
         {statusLabel[candidate.status]}
       </span>
       <CardContent className="p-5">
-        <div className="grid grid-cols-[80px_1fr_auto] gap-6 items-center">
+        <div className="grid grid-cols-[28px_80px_1fr_auto] gap-6 items-center">
+          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <Avatar className="h-16 w-16">
             {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
             <AvatarFallback>{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
@@ -386,7 +415,7 @@ function FilterSelect({
 }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="border-0 bg-transparent shadow-none w-auto h-auto p-0 gap-2 font-medium hover:text-primary">
+      <SelectTrigger className="border-0 bg-transparent shadow-none w-auto h-auto p-0 gap-2 font-bold hover:text-primary">
         <Icon className="h-4 w-4 text-primary" />
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
