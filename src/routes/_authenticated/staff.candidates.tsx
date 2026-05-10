@@ -373,6 +373,26 @@ function StaffCandidatesPage() {
       )}
 
       {/* Candidate cards */}
+      {filtered.length > 0 && (() => {
+        const allSelected = filtered.every((c) => selected.has(c.id));
+        const someSelected = !allSelected && filtered.some((c) => selected.has(c.id));
+        return (
+          <label className="flex items-center gap-2 px-1 text-sm font-medium cursor-pointer w-fit">
+            <Checkbox
+              checked={allSelected ? true : someSelected ? "indeterminate" : false}
+              onCheckedChange={(v) => {
+                setSelected((prev) => {
+                  const n = new Set(prev);
+                  if (v) filtered.forEach((c) => n.add(c.id));
+                  else filtered.forEach((c) => n.delete(c.id));
+                  return n;
+                });
+              }}
+            />
+            Select all ({filtered.length})
+          </label>
+        );
+      })()}
       <div className="space-y-4">
         {filtered.map((c) => (
           <CandidateCard
