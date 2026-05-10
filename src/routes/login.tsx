@@ -64,12 +64,9 @@ function LoginPage() {
             <Button type="submit" className="w-full" disabled={submitting}>
               {submitting ? "Signing in..." : "Sign in"}
             </Button>
-            <div className="text-center text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Link to="/signup" className="text-accent hover:underline font-medium">
-                Sign up
-              </Link>
-            </div>
+            <p className="text-center text-xs text-muted-foreground">
+              Staff accounts are created by your manager.
+            </p>
           </form>
         </CardContent>
       </Card>
