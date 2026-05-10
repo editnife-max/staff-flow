@@ -57,8 +57,12 @@ const initialForm = {
 function StaffCandidatesPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const upsert = useServerFn(upsertCandidate);
   const remove = useServerFn(deleteCandidate);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const toggleSelect = (id: string) =>
+    setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const [tab, setTab] = useState<Status>("available");
   const [search, setSearch] = useState("");
