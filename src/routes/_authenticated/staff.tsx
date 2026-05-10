@@ -1,8 +1,6 @@
 import { Outlet, createFileRoute, Navigate, Link, useNavigate } from "@tanstack/react-router";
-import {
-  LogOut, LayoutDashboard, Building2, Users, Handshake, Briefcase,
-  ArrowLeftRight, FileBadge, UserCog, ChevronDown, Home,
-} from "lucide-react";
+import { LogOut, LayoutDashboard, Users, ChevronDown, Building2 } from "lucide-react";
+
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
