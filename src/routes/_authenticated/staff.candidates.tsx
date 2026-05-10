@@ -182,9 +182,24 @@ function StaffCandidatesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Candidates</h1>
-        <Button size="lg" className="gap-2" onClick={openCreate}>
-          <FilePlus className="h-5 w-5" /> ADD NEW CANDIDATE
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="lg"
+            variant="secondary"
+            className="gap-2"
+            disabled={selected.size === 0}
+            onClick={() => {
+              const first = Array.from(selected)[0];
+              if (first) navigate({ to: "/staff/cv-generator", search: { id: first } });
+            }}
+          >
+            <FileSignature className="h-5 w-5" />
+            GENERATE CV{selected.size > 0 ? ` (${selected.size})` : ""}
+          </Button>
+          <Button size="lg" className="gap-2" onClick={openCreate}>
+            <FilePlus className="h-5 w-5" /> ADD NEW CANDIDATE
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
