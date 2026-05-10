@@ -102,6 +102,16 @@ function StaffCandidatesPage() {
     },
   });
 
+  const { data: staffList = [] } = useQuery({
+    queryKey: ["team-staff", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("staff").select("id,name").eq("status", "active");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const counts = useMemo(() => {
     const c: Record<string, number> = { available: 0, processing: 0, arrived: 0 };
     candidates.forEach((x) => { c[x.status] = (c[x.status] ?? 0) + 1; });
