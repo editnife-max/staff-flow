@@ -19,6 +19,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
 import { Route as AuthenticatedManagerRouteImport } from './routes/_authenticated/manager'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedManagerSubscriptionRouteImport } from './routes/_authenticated/manager.subscription'
 import { Route as AuthenticatedManagerStaffRouteImport } from './routes/_authenticated/manager.staff'
 import { Route as AuthenticatedManagerDashboardRouteImport } from './routes/_authenticated/manager.dashboard'
 import { Route as AuthenticatedManagerCandidatesRouteImport } from './routes/_authenticated/manager.candidates'
@@ -73,6 +74,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedManagerSubscriptionRoute =
+  AuthenticatedManagerSubscriptionRouteImport.update({
+    id: '/subscription',
+    path: '/subscription',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
 const AuthenticatedManagerStaffRoute =
   AuthenticatedManagerStaffRouteImport.update({
     id: '/staff',
@@ -112,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
   '/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
   '/manager/staff': typeof AuthenticatedManagerStaffRoute
+  '/manager/subscription': typeof AuthenticatedManagerSubscriptionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -127,6 +135,7 @@ export interface FileRoutesByTo {
   '/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
   '/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
   '/manager/staff': typeof AuthenticatedManagerStaffRoute
+  '/manager/subscription': typeof AuthenticatedManagerSubscriptionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -144,6 +153,7 @@ export interface FileRoutesById {
   '/_authenticated/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
   '/_authenticated/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
   '/_authenticated/manager/staff': typeof AuthenticatedManagerStaffRoute
+  '/_authenticated/manager/subscription': typeof AuthenticatedManagerSubscriptionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -161,6 +171,7 @@ export interface FileRouteTypes {
     | '/manager/candidates'
     | '/manager/dashboard'
     | '/manager/staff'
+    | '/manager/subscription'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -176,6 +187,7 @@ export interface FileRouteTypes {
     | '/manager/candidates'
     | '/manager/dashboard'
     | '/manager/staff'
+    | '/manager/subscription'
   id:
     | '__root__'
     | '/'
@@ -192,6 +204,7 @@ export interface FileRouteTypes {
     | '/_authenticated/manager/candidates'
     | '/_authenticated/manager/dashboard'
     | '/_authenticated/manager/staff'
+    | '/_authenticated/manager/subscription'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -276,6 +289,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/manager/subscription': {
+      id: '/_authenticated/manager/subscription'
+      path: '/subscription'
+      fullPath: '/manager/subscription'
+      preLoaderRoute: typeof AuthenticatedManagerSubscriptionRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
     '/_authenticated/manager/staff': {
       id: '/_authenticated/manager/staff'
       path: '/staff'
@@ -312,6 +332,7 @@ interface AuthenticatedManagerRouteChildren {
   AuthenticatedManagerCandidatesRoute: typeof AuthenticatedManagerCandidatesRoute
   AuthenticatedManagerDashboardRoute: typeof AuthenticatedManagerDashboardRoute
   AuthenticatedManagerStaffRoute: typeof AuthenticatedManagerStaffRoute
+  AuthenticatedManagerSubscriptionRoute: typeof AuthenticatedManagerSubscriptionRoute
 }
 
 const AuthenticatedManagerRouteChildren: AuthenticatedManagerRouteChildren = {
@@ -319,6 +340,7 @@ const AuthenticatedManagerRouteChildren: AuthenticatedManagerRouteChildren = {
   AuthenticatedManagerCandidatesRoute: AuthenticatedManagerCandidatesRoute,
   AuthenticatedManagerDashboardRoute: AuthenticatedManagerDashboardRoute,
   AuthenticatedManagerStaffRoute: AuthenticatedManagerStaffRoute,
+  AuthenticatedManagerSubscriptionRoute: AuthenticatedManagerSubscriptionRoute,
 }
 
 const AuthenticatedManagerRouteWithChildren =
