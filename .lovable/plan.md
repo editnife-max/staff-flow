@@ -1,98 +1,72 @@
-## Staff-Flow — Candidates Spreadsheet Dashboard
+## Staff-Flow Agency — Phase 1 Plan
 
-Rebuild `/staff/candidates` as a SaaS spreadsheet for managing candidate records end-to-end. Manager Kanban and other routes stay untouched.
+Build the foundation plus **Manager** and **Staff** roles. Admin and Foreign Agency come in later phases.
 
-### 1. Database (single migration)
+### Brand & design tokens
+- Name: **Staff-Flow Agency** (new brand, Musaned screenshots used as visual reference only).
+- Palette in `src/styles.css` (oklch): white background `#ffffff`, surface `#f5f7fa`, deep navy `#1a3a52` (primary), teal `#5cb8c4` (accent / CTAs).
+- Typography: Inter. Rounded 10–12px, soft shadows, 24px gutters, card + table heavy SaaS layout.
+- All shadcn components themed via semantic tokens — no raw color classes in components.
 
-Extend `public.candidates`:
+### Backend (Lovable Cloud)
+Enable Cloud, then create:
+- **Auth**: email/password + Google sign-in. Public `/login` and `/signup` routes.
+- **profiles** table (id → auth.users, full_name, avatar_url) with auto-insert trigger on signup.
+- **user_roles** table with `app_role` enum (`admin`, `manager`, `staff`, `agency`) + `has_role()` SECURITY DEFINER function. RLS everywhere.
+- **staff** table (manager_id, user_id, name, role_title, status).
+- **foreign_agencies** table (manager_id, name, country, status, contact).
+- **candidates** table (manager_id, full_name, passport_number, serial_number, dob, country, occupation, education, skills, experience, marital_status, gender, religion, age, photo_url, status enum: available/processing/arrived/canceled, created_at).
+- RLS: managers see their own org rows; staff see candidates of their assigned manager; service-role bypass only inside server fns.
 
-New enums:
-- `medical_status` — `pending | fit | unfit`
-- `passport_status` — `pending | submitted | received | expired`
-- `doc_status` — `pending | in_progress | done | rejected` (used for COC + Musaned)
-- `office_name` — `saudi | kuwait | uae | qatar | bahrain | oman | other`
-
-New columns on `candidates`:
-- `candidate_code text unique` (auto-generated `CND-XXXXXX` via trigger when null)
-- `birth_place text`, `living_town text`, `labour_id text`
-- `office office_name`
-- `passport_status passport_status default 'pending'`
-- `coc_status doc_status default 'pending'`
-- `musaned_status doc_status default 'pending'`
-- `medical_status medical_status default 'pending'`
-- `medical_date date`
-- `selected_by text`, `cv_sent_to text`, `cv_sent_date date`
-- `narrative text`, `notes text`
-- `deleted_at timestamptz` (soft delete)
-
-Indexes: `(manager_id, deleted_at)`, `(manager_id, status)`, `(manager_id, medical_status)`, `(manager_id, office)`, plus a trigram index on `full_name` and `candidate_code` for search.
-
-RLS: keep existing policies, add `deleted_at IS NULL` filter to SELECT policies (and a separate "view trashed" SELECT for managers only — out of scope for v1, just enforce filter at query level).
-
-### 2. Server functions (`src/lib/candidates.functions.ts`)
-
-Add / update:
-- `listCandidates({ search?, filters?, sort?, includeDeleted? })` — returns rows where `deleted_at IS NULL`, ordered server-side.
-- `updateCandidateField({ id, field, value })` — whitelisted field set, used by inline edits.
-- `softDeleteCandidate({ id })` and `bulkSoftDelete({ ids })` — set `deleted_at = now()`.
-- `bulkUpdateField({ ids, field, value })` — generic for medical / availability / office / passport / coc / musaned.
-- Existing `upsertCandidate` extended to accept new fields.
-
-All gated by `requireSupabaseAuth` + manager scope (existing `resolveManagerId`).
-
-### 3. Page rewrite — `src/routes/_authenticated/staff.candidates.tsx`
-
-Replace current implementation with a spreadsheet shell composed of small components in `src/components/candidates/`:
-
-```text
-candidates/
-  CandidatesToolbar.tsx     search, filters, column toggle, export, add
-  CandidatesTable.tsx       table + sort headers + row checkboxes
-  EditableCell.tsx          text inline edit (input on click, save on blur/Enter)
-  EditableSelectCell.tsx    select inline edit with enum options
-  StatusPill.tsx            colored pill per status type
-  BulkActionBar.tsx         floating bar shown when selection > 0
-  ColumnVisibilityMenu.tsx  dropdown of toggles + Show All / Reset
-  DeleteConfirmDialog.tsx   single + bulk delete confirm
-  useCandidatesView.ts      hook: search/filter/sort state + derived rows
+### Routing (TanStack Start file-based)
 ```
+src/routes/
+  __root.tsx           shell
+  index.tsx            public landing (hero + Go to Dashboard)
+  about.tsx            About Staff-Flow
+  contact.tsx          Contact
+  faq.tsx              FAQ
+  login.tsx            email + Google
+  signup.tsx
+  _authenticated.tsx   beforeLoad guard → /login
+  _authenticated/
+    _manager.tsx       role guard for "manager"
+    _manager/
+      dashboard.tsx
+      staff.tsx
+      agencies.tsx
+      candidates.tsx
+      subscription.tsx
+    _staff.tsx         role guard for "staff"
+    _staff/
+      candidates.tsx
+      cv-generator.tsx
+```
+Each route gets its own `head()` metadata. Sidebar adapts via the role guard layout.
 
-Behavior:
-- TanStack Query `useQuery(['candidates', filters, sort])` calls `listCandidates`.
-- Inline edits use `useMutation` with optimistic update + sonner toast on success/error.
-- Selection state is `Set<string>` of row ids; checkbox column + header "select all (filtered)".
-- Sorting: 3-state (asc / desc / none) per column; icons in header.
-- Column visibility persisted under `localStorage["staff-flow.candidates.columns.v1"]`.
-- CSV export: builds rows from currently visible columns and current filtered set; filename `candidates_YYYY-MM-DD.csv`; values escaped per RFC 4180.
-- Soft delete: confirm dialog → call server fn → invalidate query.
+### Shared UI components
+- `AppShell` with shadcn `Sidebar` (collapsible icon mode), top header with user menu + sign-out.
+- `StatCard` (analytics tiles), `StatusBadge` (available/processing/arrived/canceled pills), `DataTable` wrapper around shadcn Table with hover + action column, `PageHeader`.
 
-### 4. Filters (combine with AND)
+### Manager role
+- **Dashboard**: 4 stat cards (Total Candidates, Processing, Arrived, Canceled) + recent candidates table.
+- **Staff**: table (Name, Role, Assigned Tasks count, Actions) + Add Staff dialog.
+- **Foreign Agencies**: table (Name, Country, Status, Actions) + Add Agency dialog.
+- **Candidates**: Kanban board, 4 columns (Available/Processing/Arrived/Canceled), draggable cards (dnd-kit) with Name, Country, status badge, View button.
+- **Subscription Upgrade**: 3 plan cards (Basic/Standard/Pro) + screenshot upload (Cloud Storage bucket `payment-proofs`) + submit. Stored in `subscription_requests` table for the future Admin role.
 
-- Search: `ilike` on `full_name` or `candidate_code`.
-- Medical: `fit | pending | unfit | all`.
-- Availability: existing `available | processing | arrived | canceled | all`.
-- Office: enum values + `all`.
+### Staff role
+- **Candidates**: top bar (search 400px, filter dropdown, status quick filters) + table (Avatar+Name, Age, Country, Status, Actions: View / Update Status / Generate CV). Row 64px.
+- **CV Generator**: split layout — left 420px scrollable candidate list with search; right pane renders 720×900 CV preview (Name header, Personal details, Experience, Skills) + Download button (client-side `react-to-print` or `html2pdf.js`).
 
-All filters live in URL search params via TanStack Router so views are shareable; pagination resets when any filter changes (page size 50, server-side `range()`).
+### Server functions
+All data reads/writes go through `*.functions.ts` files using `requireSupabaseAuth`. Loaders only run inside `_authenticated/*` (so SSR has a session). No protected fn loaders on public routes.
 
-### 5. Default visible columns
+### Out of scope (Phase 2+)
+- Admin role (subscription approval, manager management, payments review).
+- Foreign Agency role (browse + select candidates).
+- Real payment processing.
+- AR localization toggle.
 
-`full_name, candidate_code, passport_number, labour_id, office, passport_status, coc_status, medical_status, status, notes`.
-
-All other fields available via column menu.
-
-### 6. Out of scope (this phase)
-
-- Trash / restore UI (rows are soft-deleted but no recovery screen yet).
-- Photo upload changes (existing `photo_url` field reused as-is).
-- Manager Kanban changes.
-- Realtime subscriptions.
-
-### 7. Deliverables checklist
-
-- [ ] Migration applied (enums, columns, indexes, code-generation trigger).
-- [ ] Server fns updated + soft delete enforced everywhere.
-- [ ] New components under `src/components/candidates/`.
-- [ ] `/staff/candidates` rewritten using the new shell.
-- [ ] Column prefs persist; CSV export downloads cleanly; bulk + inline edits show toasts.
-- [ ] Build passes; manual smoke on the route.
+### Deliverable
+A working multi-page SaaS with email + Google auth, role-guarded Manager and Staff dashboards, full CRUD on candidates / staff / agencies, Kanban pipeline, and CV generator with PDF download — all themed in the Musaned teal palette.
