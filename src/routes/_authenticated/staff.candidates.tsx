@@ -549,8 +549,8 @@ function FilterSelect({
 
 function DateField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
-    <label className="flex items-center gap-2 text-sm font-bold cursor-pointer">
-      <Calendar className="h-4 w-4 text-primary" />
+    <label className="flex items-center gap-2 text-xs font-bold cursor-pointer">
+      <Calendar className="h-3.5 w-3.5 text-primary" />
       {value ? <span>{new Date(value).toLocaleDateString()}</span> : <span className="text-muted-foreground font-bold">{label}</span>}
       <input type="date" value={value} onChange={(e) => onChange(e.target.value)} className="sr-only" />
     </label>
