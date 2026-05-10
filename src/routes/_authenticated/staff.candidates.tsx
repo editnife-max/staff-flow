@@ -334,8 +334,14 @@ function StaffCandidatesPage() {
 }
 
 function CandidateCard({
-  candidate, onEdit, onDelete,
-}: { candidate: Candidate; onEdit: () => void; onDelete: () => void }) {
+  candidate, selected, onToggleSelect, onEdit, onDelete,
+}: {
+  candidate: Candidate;
+  selected: boolean;
+  onToggleSelect: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const statusStyles: Record<Status, string> = {
     available: "bg-success text-success-foreground",
     processing: "bg-warning text-foreground",
@@ -346,7 +352,7 @@ function CandidateCard({
     available: "AVAILABLE", processing: "PROCESSING", arrived: "EMPLOYEE", canceled: "CANCELED",
   };
   return (
-    <Card className="relative overflow-visible">
+    <Card className={cn("relative overflow-visible transition-colors", selected && "ring-2 ring-primary")}>
       <span className={cn(
         "absolute -top-2 left-4 rounded px-2 py-0.5 text-xs font-semibold tracking-wide",
         statusStyles[candidate.status],
@@ -354,7 +360,8 @@ function CandidateCard({
         {statusLabel[candidate.status]}
       </span>
       <CardContent className="p-5">
-        <div className="grid grid-cols-[80px_1fr_auto] gap-6 items-center">
+        <div className="grid grid-cols-[28px_80px_1fr_auto] gap-6 items-center">
+          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <Avatar className="h-16 w-16">
             {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
             <AvatarFallback>{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
