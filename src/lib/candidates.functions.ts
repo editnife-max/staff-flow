@@ -135,7 +135,7 @@ export const updateCandidateField = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => FieldUpdateInput.parse(input))
   .handler(async ({ data, context }) => {
     const managerId = await resolveManagerId(context.userId);
-    const patch: Record<string, unknown> = { [data.field]: data.value };
+    const patch = { [data.field]: data.value } as never;
     const { error } = await supabaseAdmin
       .from("candidates")
       .update(patch)
@@ -192,7 +192,7 @@ export const bulkUpdateField = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => BulkFieldInput.parse(input))
   .handler(async ({ data, context }) => {
     const managerId = await resolveManagerId(context.userId);
-    const patch: Record<string, unknown> = { [data.field]: data.value };
+    const patch = { [data.field]: data.value } as never;
     const { error, count } = await supabaseAdmin
       .from("candidates")
       .update(patch, { count: "exact" })
