@@ -182,6 +182,38 @@ function StaffCandidatesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const bulkDeleteMut = useMutation({
+    mutationFn: async () => bulkDel({ data: { ids: Array.from(selected) } }),
+    onSuccess: (r) => {
+      toast.success(`Deleted ${r.count} candidate(s)`);
+      qc.invalidateQueries({ queryKey: ["staff-candidates"] });
+      clearSelection();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const bulkStatusMut = useMutation({
+    mutationFn: async (status: Status) =>
+      bulkStatus({ data: { ids: Array.from(selected), status } }),
+    onSuccess: (r) => {
+      toast.success(`Updated ${r.count} candidate(s)`);
+      qc.invalidateQueries({ queryKey: ["staff-candidates"] });
+      clearSelection();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const bulkAssignMut = useMutation({
+    mutationFn: async (staffId: string | null) =>
+      bulkAssign({ data: { ids: Array.from(selected), staff_id: staffId } }),
+    onSuccess: (r) => {
+      toast.success(`Assigned ${r.count} candidate(s)`);
+      qc.invalidateQueries({ queryKey: ["staff-candidates"] });
+      clearSelection();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const openCreate = () => { setEditing(null); setForm({ ...initialForm, status: tab }); setOpen(true); };
   const openEdit = (c: Candidate) => {
     setEditing(c);
