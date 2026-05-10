@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import {
-  Search, FilePlus, FileText, Pencil, Trash2, FileSignature,
+  Search, FilePlus, FileText, Pencil, Trash2, FileSignature, Files,
   Briefcase, GraduationCap, Users, Calendar, Wrench, HeartHandshake, Circle, BookOpen,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
