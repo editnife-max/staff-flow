@@ -21,6 +21,7 @@ import { Route as AuthenticatedManagerRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedManagerStaffRouteImport } from './routes/_authenticated/manager.staff'
 import { Route as AuthenticatedManagerDashboardRouteImport } from './routes/_authenticated/manager.dashboard'
+import { Route as AuthenticatedManagerAgenciesRouteImport } from './routes/_authenticated/manager.agencies'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -83,6 +84,12 @@ const AuthenticatedManagerDashboardRoute =
     path: '/dashboard',
     getParentRoute: () => AuthenticatedManagerRoute,
   } as any)
+const AuthenticatedManagerAgenciesRoute =
+  AuthenticatedManagerAgenciesRouteImport.update({
+    id: '/agencies',
+    path: '/agencies',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/manager': typeof AuthenticatedManagerRouteWithChildren
   '/staff': typeof AuthenticatedStaffRoute
+  '/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
   '/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
   '/manager/staff': typeof AuthenticatedManagerStaffRoute
 }
@@ -107,6 +115,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/manager': typeof AuthenticatedManagerRouteWithChildren
   '/staff': typeof AuthenticatedStaffRoute
+  '/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
   '/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
   '/manager/staff': typeof AuthenticatedManagerStaffRoute
 }
@@ -122,6 +131,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/manager': typeof AuthenticatedManagerRouteWithChildren
   '/_authenticated/staff': typeof AuthenticatedStaffRoute
+  '/_authenticated/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
   '/_authenticated/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
   '/_authenticated/manager/staff': typeof AuthenticatedManagerStaffRoute
 }
@@ -137,6 +147,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/manager'
     | '/staff'
+    | '/manager/agencies'
     | '/manager/dashboard'
     | '/manager/staff'
   fileRoutesByTo: FileRoutesByTo
@@ -150,6 +161,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/manager'
     | '/staff'
+    | '/manager/agencies'
     | '/manager/dashboard'
     | '/manager/staff'
   id:
@@ -164,6 +176,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/manager'
     | '/_authenticated/staff'
+    | '/_authenticated/manager/agencies'
     | '/_authenticated/manager/dashboard'
     | '/_authenticated/manager/staff'
   fileRoutesById: FileRoutesById
@@ -264,15 +277,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedManagerDashboardRouteImport
       parentRoute: typeof AuthenticatedManagerRoute
     }
+    '/_authenticated/manager/agencies': {
+      id: '/_authenticated/manager/agencies'
+      path: '/agencies'
+      fullPath: '/manager/agencies'
+      preLoaderRoute: typeof AuthenticatedManagerAgenciesRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
   }
 }
 
 interface AuthenticatedManagerRouteChildren {
+  AuthenticatedManagerAgenciesRoute: typeof AuthenticatedManagerAgenciesRoute
   AuthenticatedManagerDashboardRoute: typeof AuthenticatedManagerDashboardRoute
   AuthenticatedManagerStaffRoute: typeof AuthenticatedManagerStaffRoute
 }
 
 const AuthenticatedManagerRouteChildren: AuthenticatedManagerRouteChildren = {
+  AuthenticatedManagerAgenciesRoute: AuthenticatedManagerAgenciesRoute,
   AuthenticatedManagerDashboardRoute: AuthenticatedManagerDashboardRoute,
   AuthenticatedManagerStaffRoute: AuthenticatedManagerStaffRoute,
 }
