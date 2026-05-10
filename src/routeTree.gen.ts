@@ -21,6 +21,7 @@ import { Route as AuthenticatedManagerRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedManagerStaffRouteImport } from './routes/_authenticated/manager.staff'
 import { Route as AuthenticatedManagerDashboardRouteImport } from './routes/_authenticated/manager.dashboard'
+import { Route as AuthenticatedManagerCandidatesRouteImport } from './routes/_authenticated/manager.candidates'
 import { Route as AuthenticatedManagerAgenciesRouteImport } from './routes/_authenticated/manager.agencies'
 
 const SignupRoute = SignupRouteImport.update({
@@ -84,6 +85,12 @@ const AuthenticatedManagerDashboardRoute =
     path: '/dashboard',
     getParentRoute: () => AuthenticatedManagerRoute,
   } as any)
+const AuthenticatedManagerCandidatesRoute =
+  AuthenticatedManagerCandidatesRouteImport.update({
+    id: '/candidates',
+    path: '/candidates',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
 const AuthenticatedManagerAgenciesRoute =
   AuthenticatedManagerAgenciesRouteImport.update({
     id: '/agencies',
@@ -102,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/manager': typeof AuthenticatedManagerRouteWithChildren
   '/staff': typeof AuthenticatedStaffRoute
   '/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
+  '/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
   '/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
   '/manager/staff': typeof AuthenticatedManagerStaffRoute
 }
@@ -116,6 +124,7 @@ export interface FileRoutesByTo {
   '/manager': typeof AuthenticatedManagerRouteWithChildren
   '/staff': typeof AuthenticatedStaffRoute
   '/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
+  '/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
   '/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
   '/manager/staff': typeof AuthenticatedManagerStaffRoute
 }
@@ -132,6 +141,7 @@ export interface FileRoutesById {
   '/_authenticated/manager': typeof AuthenticatedManagerRouteWithChildren
   '/_authenticated/staff': typeof AuthenticatedStaffRoute
   '/_authenticated/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
+  '/_authenticated/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
   '/_authenticated/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
   '/_authenticated/manager/staff': typeof AuthenticatedManagerStaffRoute
 }
@@ -148,6 +158,7 @@ export interface FileRouteTypes {
     | '/manager'
     | '/staff'
     | '/manager/agencies'
+    | '/manager/candidates'
     | '/manager/dashboard'
     | '/manager/staff'
   fileRoutesByTo: FileRoutesByTo
@@ -162,6 +173,7 @@ export interface FileRouteTypes {
     | '/manager'
     | '/staff'
     | '/manager/agencies'
+    | '/manager/candidates'
     | '/manager/dashboard'
     | '/manager/staff'
   id:
@@ -177,6 +189,7 @@ export interface FileRouteTypes {
     | '/_authenticated/manager'
     | '/_authenticated/staff'
     | '/_authenticated/manager/agencies'
+    | '/_authenticated/manager/candidates'
     | '/_authenticated/manager/dashboard'
     | '/_authenticated/manager/staff'
   fileRoutesById: FileRoutesById
@@ -277,6 +290,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedManagerDashboardRouteImport
       parentRoute: typeof AuthenticatedManagerRoute
     }
+    '/_authenticated/manager/candidates': {
+      id: '/_authenticated/manager/candidates'
+      path: '/candidates'
+      fullPath: '/manager/candidates'
+      preLoaderRoute: typeof AuthenticatedManagerCandidatesRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
     '/_authenticated/manager/agencies': {
       id: '/_authenticated/manager/agencies'
       path: '/agencies'
@@ -289,12 +309,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedManagerRouteChildren {
   AuthenticatedManagerAgenciesRoute: typeof AuthenticatedManagerAgenciesRoute
+  AuthenticatedManagerCandidatesRoute: typeof AuthenticatedManagerCandidatesRoute
   AuthenticatedManagerDashboardRoute: typeof AuthenticatedManagerDashboardRoute
   AuthenticatedManagerStaffRoute: typeof AuthenticatedManagerStaffRoute
 }
 
 const AuthenticatedManagerRouteChildren: AuthenticatedManagerRouteChildren = {
   AuthenticatedManagerAgenciesRoute: AuthenticatedManagerAgenciesRoute,
+  AuthenticatedManagerCandidatesRoute: AuthenticatedManagerCandidatesRoute,
   AuthenticatedManagerDashboardRoute: AuthenticatedManagerDashboardRoute,
   AuthenticatedManagerStaffRoute: AuthenticatedManagerStaffRoute,
 }
