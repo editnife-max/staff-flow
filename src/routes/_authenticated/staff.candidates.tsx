@@ -231,23 +231,23 @@ function StaffCandidatesPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Candidates</h1>
+        <h1 className="text-xl font-bold tracking-tight">Candidates</h1>
         <div className="flex items-center gap-2">
           <Button
-            size="lg"
+            size="sm"
             variant="secondary"
-            className="gap-2"
+            className="gap-2 text-xs h-8"
             disabled={selected.size === 0}
             onClick={() => {
               const first = Array.from(selected)[0];
               if (first) navigate({ to: "/staff/cv-generator", search: { id: first } });
             }}
           >
-            <FileSignature className="h-5 w-5" />
+            <FileSignature className="h-4 w-4" />
             GENERATE CV{selected.size > 0 ? ` (${selected.size})` : ""}
           </Button>
-          <Button size="lg" className="gap-2" onClick={openCreate}>
-            <FilePlus className="h-5 w-5" /> ADD NEW CANDIDATE
+          <Button size="sm" className="gap-2 text-xs h-8" onClick={openCreate}>
+            <FilePlus className="h-4 w-4" /> ADD NEW CANDIDATE
           </Button>
         </div>
       </div>
@@ -288,12 +288,12 @@ function StaffCandidatesPage() {
           </div>
           <div className="mt-3 flex flex-wrap gap-3">
             <div className="relative w-60">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-9" placeholder="Passport Number" value={passport} onChange={(e) => setPassport(e.target.value)} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input className="pl-9 h-8 text-xs" placeholder="Passport Number" value={passport} onChange={(e) => setPassport(e.target.value)} />
             </div>
             <div className="relative w-60">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-9" placeholder="Laborer Name" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input className="pl-9 h-8 text-xs" placeholder="Laborer Name" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
           </div>
         </CardContent>
@@ -308,13 +308,13 @@ function StaffCandidatesPage() {
                 key={t.key}
                 onClick={() => setTab(t.key)}
                 className={cn(
-                  "pb-3 text-base font-medium transition-colors",
+                  "pb-2 text-xs font-medium transition-colors",
                   tab === t.key
                     ? "text-primary border-b-2 border-primary -mb-px"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {t.label} <span className="ml-1 text-xs opacity-70">({counts[t.key] ?? 0})</span>
+                {t.label} <span className="ml-1 text-[10px] opacity-70">({counts[t.key] ?? 0})</span>
               </button>
             ))}
           </div>
@@ -534,13 +534,13 @@ function FilterSelect({
 }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="border-0 bg-transparent shadow-none w-auto h-auto p-0 gap-2 font-bold hover:text-primary">
-        <Icon className="h-4 w-4 text-primary" />
+      <SelectTrigger className="border-0 bg-transparent shadow-none w-auto h-auto p-0 gap-2 text-xs font-bold hover:text-primary">
+        <Icon className="h-3.5 w-3.5 text-primary" />
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
         {options.map((o) => (
-          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+          <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
         ))}
       </SelectContent>
     </Select>
@@ -549,8 +549,8 @@ function FilterSelect({
 
 function DateField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
-    <label className="flex items-center gap-2 text-sm font-bold cursor-pointer">
-      <Calendar className="h-4 w-4 text-primary" />
+    <label className="flex items-center gap-2 text-xs font-bold cursor-pointer">
+      <Calendar className="h-3.5 w-3.5 text-primary" />
       {value ? <span>{new Date(value).toLocaleDateString()}</span> : <span className="text-muted-foreground font-bold">{label}</span>}
       <input type="date" value={value} onChange={(e) => onChange(e.target.value)} className="sr-only" />
     </label>
