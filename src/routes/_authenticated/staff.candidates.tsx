@@ -510,7 +510,6 @@ function CandidateCard({
           </div>
         </div>
       </CardContent>
-      </CardContent>
     </Card>
   );
 }
