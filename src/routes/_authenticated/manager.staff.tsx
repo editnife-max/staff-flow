@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -12,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { createStaffAccount, deleteStaffAccount } from "@/lib/staff-accounts.functions";
 
 export const Route = createFileRoute("/_authenticated/manager/staff")({
   head: () => ({ meta: [{ title: "Staff — Staff-Flow" }] }),
@@ -21,9 +23,13 @@ export const Route = createFileRoute("/_authenticated/manager/staff")({
 function StaffPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const create = useServerFn(createStaffAccount);
+  const remove = useServerFn(deleteStaffAccount);
+
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [roleTitle, setRoleTitle] = useState("");
 
   const { data: staff = [] } = useQuery({
@@ -36,57 +42,52 @@ function StaffPage() {
     },
   });
 
-  const create = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("staff").insert({
-        manager_id: user!.id,
-        name,
-        email: email || null,
-        role_title: roleTitle || null,
-      });
-      if (error) throw error;
-    },
+  const createMut = useMutation({
+    mutationFn: async () =>
+      create({ data: { name, email, password, roleTitle: roleTitle || null } }),
     onSuccess: () => {
-      toast.success("Staff member added");
+      toast.success("Staff account created");
       qc.invalidateQueries({ queryKey: ["staff"] });
       setOpen(false);
-      setName(""); setEmail(""); setRoleTitle("");
+      setName(""); setEmail(""); setPassword(""); setRoleTitle("");
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const remove = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("staff").delete().eq("id", id);
-      if (error) throw error;
-    },
+  const removeMut = useMutation({
+    mutationFn: async (staffId: string) => remove({ data: { staffId } }),
     onSuccess: () => {
       toast.success("Removed");
       qc.invalidateQueries({ queryKey: ["staff"] });
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   return (
     <div>
       <PageHeader
         title="Staff"
-        description="Manage your team members."
+        description="Create login accounts for your team. They can sign in with the email & password you set."
         actions={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-2" /> Add staff</Button>
+              <Button><Plus className="h-4 w-4 mr-2" /> Create staff account</Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>Add a staff member</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>Create a staff account</DialogTitle></DialogHeader>
               <div className="space-y-4">
-                <div className="space-y-2"><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
+                <div className="space-y-2"><Label>Full name</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
                 <div className="space-y-2"><Label>Email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Role title</Label><Input value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} /></div>
+                <div className="space-y-2"><Label>Password</Label><Input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" /></div>
+                <div className="space-y-2"><Label>Role title (optional)</Label><Input value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} /></div>
               </div>
               <DialogFooter>
                 <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-                <Button onClick={() => create.mutate()} disabled={!name || create.isPending}>
-                  {create.isPending ? "Adding..." : "Add"}
+                <Button
+                  onClick={() => createMut.mutate()}
+                  disabled={!name || !email || password.length < 6 || createMut.isPending}
+                >
+                  {createMut.isPending ? "Creating..." : "Create account"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -113,14 +114,14 @@ function StaffPage() {
                   <TableCell>{s.role_title ?? "—"}</TableCell>
                   <TableCell><span className="inline-flex rounded-full bg-success/15 text-success px-2 py-0.5 text-xs">{s.status}</span></TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => remove.mutate(s.id)}>
+                    <Button variant="ghost" size="icon" onClick={() => removeMut.mutate(s.id)}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </TableCell>
                 </TableRow>
               ))}
               {staff.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">No staff yet.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">No staff yet. Create the first account above.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
