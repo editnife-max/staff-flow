@@ -121,10 +121,20 @@ function StaffCandidatesPage() {
   });
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { available: 0, processing: 0, arrived: 0 };
+    const c: Record<string, number> = { available: 0, selected: 0, private: 0, unavailable: 0 };
     candidates.forEach((x) => { c[x.status] = (c[x.status] ?? 0) + 1; });
     return c;
   }, [candidates]);
+
+  const updateField = useServerFn(updateCandidateField);
+  const fieldMut = useMutation({
+    mutationFn: async (input: { id: string; field: string; value: string | null }) =>
+      updateField({ data: input as never }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["staff-candidates"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const opts = useMemo(() => {
     const uniq = (k: keyof Candidate) =>
