@@ -490,12 +490,12 @@ function CandidateCard({
 }) {
   const statusStyles: Record<Status, string> = {
     available: "bg-success text-success-foreground",
-    selected: "bg-warning text-foreground",
-    private: "bg-info text-info-foreground",
-    unavailable: "bg-destructive text-destructive-foreground",
+    processing: "bg-warning text-foreground",
+    arrived: "bg-info text-info-foreground",
+    canceled: "bg-destructive text-destructive-foreground",
   };
   const statusLabel: Record<Status, string> = {
-    available: "AVAILABLE", selected: "SELECTED", private: "PRIVATE", unavailable: "UNAVAILABLE",
+    available: "AVAILABLE", processing: "PROCESSING", arrived: "ARRIVED", canceled: "CANCELED",
   };
   const statusKey = (candidate.status in statusStyles ? candidate.status : "available") as Status;
 
