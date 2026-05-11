@@ -353,9 +353,9 @@ function StaffCandidatesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="selected">Selected</SelectItem>
-                  <SelectItem value="private">Private</SelectItem>
-                  <SelectItem value="unavailable">Unavailable</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="arrived">Arrived</SelectItem>
+                  <SelectItem value="canceled">Canceled</SelectItem>
                 </SelectContent>
               </Select>
               <Select onValueChange={(v) => bulkAssignMut.mutate(v === "__none__" ? null : v)}>
