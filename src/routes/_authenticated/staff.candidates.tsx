@@ -145,25 +145,30 @@ function StaffCandidatesPage() {
     const uniq = (k: keyof Candidate) =>
       Array.from(new Set(candidates.map((c) => (c[k] as string | null) ?? "").filter(Boolean))).sort();
     return {
-      job: uniq("occupation"),
-      skill: uniq("skills"),
       education: uniq("education"),
       marital: uniq("marital_status"),
       gender: uniq("gender"),
       religion: uniq("religion"),
+      narrative: uniq("narrative"),
+      experience: uniq("experience"),
+      cv_sent_to: uniq("cv_sent_to"),
     };
   }, [candidates]);
 
   const filtered = useMemo(() => {
     let list = candidates.filter((c) => c.status === tab);
-    if (search) list = list.filter((c) => c.full_name.toLowerCase().includes(search.toLowerCase()));
     if (passport) list = list.filter((c) => (c.passport_number ?? "").toLowerCase().includes(passport.toLowerCase()));
-    if (filters.job !== "all") list = list.filter((c) => c.occupation === filters.job);
-    if (filters.skill !== "all") list = list.filter((c) => c.skills === filters.skill);
     if (filters.education !== "all") list = list.filter((c) => c.education === filters.education);
     if (filters.marital !== "all") list = list.filter((c) => c.marital_status === filters.marital);
     if (filters.gender !== "all") list = list.filter((c) => c.gender === filters.gender);
     if (filters.religion !== "all") list = list.filter((c) => c.religion === filters.religion);
+    if (filters.medical !== "all") list = list.filter((c) => c.medical_status === filters.medical);
+    if (filters.narrative !== "all") list = list.filter((c) => c.narrative === filters.narrative);
+    if (filters.experience !== "all") list = list.filter((c) => c.experience === filters.experience);
+    if (filters.coc !== "all") list = list.filter((c) => c.coc_status === filters.coc);
+    if (filters.musaned !== "all") list = list.filter((c) => c.musaned_status === filters.musaned);
+    if (filters.cv_sent_to !== "all") list = list.filter((c) => c.cv_sent_to === filters.cv_sent_to);
+    if (filters.availability !== "all") list = list.filter((c) => c.status === filters.availability);
     if (filters.age !== "all") {
       const [min, max] = filters.age.split("-").map(Number);
       list = list.filter((c) => c.age != null && c.age >= min && c.age <= max);
@@ -176,7 +181,7 @@ function StaffCandidatesPage() {
         : a.created_at.localeCompare(b.created_at),
     );
     return list;
-  }, [candidates, tab, search, passport, filters]);
+  }, [candidates, tab, passport, filters]);
 
   const saveMut = useMutation({
     mutationFn: async () => {
