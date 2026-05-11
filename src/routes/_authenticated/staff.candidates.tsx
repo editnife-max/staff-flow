@@ -82,17 +82,21 @@ function StaffCandidatesPage() {
   const clearSelection = () => setSelected(new Set());
 
   const [tab, setTab] = useState<Status>("available");
-  const [search, setSearch] = useState("");
   const [passport, setPassport] = useState("");
   const [filters, setFilters] = useState({
     sort: "newest",
-    job: "all",
-    skill: "all",
     education: "all",
     age: "all",
     marital: "all",
     gender: "all",
     religion: "all",
+    medical: "all",
+    narrative: "all",
+    experience: "all",
+    coc: "all",
+    musaned: "all",
+    cv_sent_to: "all",
+    availability: "all",
     from: "",
     to: "",
   });
