@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-const StatusEnum = z.enum(["available", "selected", "private", "unavailable"]);
+const StatusEnum = z.enum(["available", "processing", "arrived", "canceled"]);
 
 const CandidateInput = z.object({
   full_name: z.string().min(1).max(200),

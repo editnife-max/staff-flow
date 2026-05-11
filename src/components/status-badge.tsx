@@ -1,12 +1,12 @@
 import { cn } from "@/lib/utils";
 
-export type Status = "available" | "selected" | "private" | "unavailable";
+export type Status = "available" | "processing" | "arrived" | "canceled";
 
 const styles: Record<Status, string> = {
   available: "bg-success/15 text-success border-success/30",
-  selected: "bg-warning/20 text-foreground border-warning/40",
-  private: "bg-info/15 text-info border-info/30",
-  unavailable: "bg-destructive/15 text-destructive border-destructive/30",
+  processing: "bg-warning/20 text-foreground border-warning/40",
+  arrived: "bg-info/15 text-info border-info/30",
+  canceled: "bg-destructive/15 text-destructive border-destructive/30",
 };
 
 export function StatusBadge({ status, className }: { status: string; className?: string }) {

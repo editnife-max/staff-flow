@@ -27,7 +27,7 @@ import {
 } from "@/lib/candidates.functions";
 import { UserCheck, X } from "lucide-react";
 
-type Status = "available" | "selected" | "private" | "unavailable";
+type Status = "available" | "processing" | "arrived" | "canceled";
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"];
 
 export const Route = createFileRoute("/_authenticated/staff/candidates")({
@@ -37,13 +37,13 @@ export const Route = createFileRoute("/_authenticated/staff/candidates")({
 
 const TABS: { key: Status; label: string }[] = [
   { key: "available", label: "Available" },
-  { key: "selected", label: "Selected" },
-  { key: "private", label: "Private" },
-  { key: "unavailable", label: "Unavailable" },
+  { key: "processing", label: "Processing" },
+  { key: "arrived", label: "Arrived" },
+  { key: "canceled", label: "Canceled" },
 ];
 
 const MEDICAL_OPTIONS = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired"];
-const AVAILABILITY_OPTIONS: Status[] = ["available", "selected", "private", "unavailable"];
+const AVAILABILITY_OPTIONS: Status[] = ["available", "processing", "arrived", "canceled"];
 const COC_OPTIONS = ["Done", "No", "Booked", "Placed", "Yitazez", "Pending release"];
 const MUSANED_OPTIONS = ["Saudi", "Kuwait"];
 const OFFICE_OPTIONS = ["Riyadh", "Jeddah", "Dammam", "Other"];
@@ -121,7 +121,7 @@ function StaffCandidatesPage() {
   });
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { available: 0, selected: 0, private: 0, unavailable: 0 };
+    const c: Record<string, number> = { available: 0, processing: 0, arrived: 0, canceled: 0 };
     candidates.forEach((x) => { c[x.status] = (c[x.status] ?? 0) + 1; });
     return c;
   }, [candidates]);
@@ -353,9 +353,9 @@ function StaffCandidatesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="selected">Selected</SelectItem>
-                  <SelectItem value="private">Private</SelectItem>
-                  <SelectItem value="unavailable">Unavailable</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="arrived">Arrived</SelectItem>
+                  <SelectItem value="canceled">Canceled</SelectItem>
                 </SelectContent>
               </Select>
               <Select onValueChange={(v) => bulkAssignMut.mutate(v === "__none__" ? null : v)}>
@@ -454,9 +454,9 @@ function StaffCandidatesPage() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="selected">Selected</SelectItem>
-                  <SelectItem value="private">Private</SelectItem>
-                  <SelectItem value="unavailable">Unavailable</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="arrived">Arrived</SelectItem>
+                  <SelectItem value="canceled">Canceled</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -490,12 +490,12 @@ function CandidateCard({
 }) {
   const statusStyles: Record<Status, string> = {
     available: "bg-success text-success-foreground",
-    selected: "bg-warning text-foreground",
-    private: "bg-info text-info-foreground",
-    unavailable: "bg-destructive text-destructive-foreground",
+    processing: "bg-warning text-foreground",
+    arrived: "bg-info text-info-foreground",
+    canceled: "bg-destructive text-destructive-foreground",
   };
   const statusLabel: Record<Status, string> = {
-    available: "AVAILABLE", selected: "SELECTED", private: "PRIVATE", unavailable: "UNAVAILABLE",
+    available: "AVAILABLE", processing: "PROCESSING", arrived: "ARRIVED", canceled: "CANCELED",
   };
   const statusKey = (candidate.status in statusStyles ? candidate.status : "available") as Status;
 
