@@ -27,7 +27,7 @@ import {
 } from "@/lib/candidates.functions";
 import { UserCheck, X } from "lucide-react";
 
-type Status = "available" | "selected" | "private" | "unavailable";
+type Status = "available" | "processing" | "arrived" | "canceled";
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"];
 
 export const Route = createFileRoute("/_authenticated/staff/candidates")({
@@ -37,13 +37,13 @@ export const Route = createFileRoute("/_authenticated/staff/candidates")({
 
 const TABS: { key: Status; label: string }[] = [
   { key: "available", label: "Available" },
-  { key: "selected", label: "Selected" },
-  { key: "private", label: "Private" },
-  { key: "unavailable", label: "Unavailable" },
+  { key: "processing", label: "Processing" },
+  { key: "arrived", label: "Arrived" },
+  { key: "canceled", label: "Canceled" },
 ];
 
 const MEDICAL_OPTIONS = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired"];
-const AVAILABILITY_OPTIONS: Status[] = ["available", "selected", "private", "unavailable"];
+const AVAILABILITY_OPTIONS: Status[] = ["available", "processing", "arrived", "canceled"];
 const COC_OPTIONS = ["Done", "No", "Booked", "Placed", "Yitazez", "Pending release"];
 const MUSANED_OPTIONS = ["Saudi", "Kuwait"];
 const OFFICE_OPTIONS = ["Riyadh", "Jeddah", "Dammam", "Other"];
