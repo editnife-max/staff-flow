@@ -121,7 +121,7 @@ function StaffCandidatesPage() {
   });
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { available: 0, selected: 0, private: 0, unavailable: 0 };
+    const c: Record<string, number> = { available: 0, processing: 0, arrived: 0, canceled: 0 };
     candidates.forEach((x) => { c[x.status] = (c[x.status] ?? 0) + 1; });
     return c;
   }, [candidates]);
