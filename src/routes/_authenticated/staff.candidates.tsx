@@ -4,7 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import {
   Search, FilePlus, FileText, Pencil, Trash2, FileSignature,
-  Briefcase, GraduationCap, Users, Calendar, Wrench, HeartHandshake, Circle, BookOpen,
+  GraduationCap, Users, Calendar, HeartHandshake, Circle, BookOpen,
+  Stethoscope, FileEdit, BriefcaseBusiness, BadgeCheck, Globe, Send, Activity,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
