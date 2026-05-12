@@ -291,50 +291,44 @@ function StaffCandidatesPage() {
               options={[{ value: "newest", label: "Date (Newest)" }, { value: "oldest", label: "Date (Oldest)" }]} />
             <FilterSelect icon={GraduationCap} placeholder="Education level" value={filters.education}
               onChange={(v) => setFilters({ ...filters, education: v })}
-              options={[{ value: "all", label: "All Education" }, ...opts.education.map((o) => ({ value: o, label: o }))]} />
+              options={[{ value: "all", label: "Education" }, ...opts.education.map((o) => ({ value: o, label: o }))]} />
             <FilterSelect icon={Users} placeholder="Age" value={filters.age}
               onChange={(v) => setFilters({ ...filters, age: v })}
               options={[
-                { value: "all", label: "All Ages" },
+                { value: "all", label: "Ages" },
                 { value: "18-25", label: "18-25" }, { value: "26-35", label: "26-35" },
                 { value: "36-45", label: "36-45" }, { value: "46-99", label: "46+" },
               ]} />
             <FilterSelect icon={HeartHandshake} placeholder="Marital Status" value={filters.marital}
               onChange={(v) => setFilters({ ...filters, marital: v })}
-              options={[{ value: "all", label: "All Marital" }, ...opts.marital.map((o) => ({ value: o, label: o }))]} />
+              options={[{ value: "all", label: "Marital" }, ...opts.marital.map((o) => ({ value: o, label: o }))]} />
             <FilterSelect icon={Circle} placeholder="Gender" value={filters.gender}
               onChange={(v) => setFilters({ ...filters, gender: v })}
-              options={[{ value: "all", label: "All Genders" }, ...opts.gender.map((o) => ({ value: o, label: o }))]} />
+              options={[{ value: "all", label: "Genders" }, ...opts.gender.map((o) => ({ value: o, label: o }))]} />
             <FilterSelect icon={BookOpen} placeholder="Religion" value={filters.religion}
               onChange={(v) => setFilters({ ...filters, religion: v })}
-              options={[{ value: "all", label: "All Religion" }, ...opts.religion.map((o) => ({ value: o, label: o }))]} />
+              options={[{ value: "all", label: "Religion" }, ...opts.religion.map((o) => ({ value: o, label: o }))]} />
             <FilterSelect icon={Stethoscope} placeholder="Medical" value={filters.medical}
               onChange={(v) => setFilters({ ...filters, medical: v })}
-              options={[{ value: "all", label: "All Medical" }, ...MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              options={[{ value: "all", label: "Medical" }, ...MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))]} />
             <FilterSelect icon={FileEdit} placeholder="Narrative" value={filters.narrative}
               onChange={(v) => setFilters({ ...filters, narrative: v })}
-              options={[{ value: "all", label: "All Narrative" }, ...opts.narrative.map((o) => ({ value: o, label: o }))]} />
+              options={[{ value: "all", label: "Narrative" }, ...opts.narrative.map((o) => ({ value: o, label: o }))]} />
             <FilterSelect icon={BriefcaseBusiness} placeholder="Experience" value={filters.experience}
               onChange={(v) => setFilters({ ...filters, experience: v })}
-              options={[{ value: "all", label: "All Experience" }, ...opts.experience.map((o) => ({ value: o, label: o }))]} />
+              options={[{ value: "all", label: "Experience" }, ...opts.experience.map((o) => ({ value: o, label: o }))]} />
             <FilterSelect icon={BadgeCheck} placeholder="COC" value={filters.coc}
               onChange={(v) => setFilters({ ...filters, coc: v })}
-              options={[{ value: "all", label: "All COC" }, ...COC_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              options={[{ value: "all", label: "COC" }, ...opts.coc.map((o) => ({ value: o, label: o }))]} />
             <FilterSelect icon={Globe} placeholder="Musaned" value={filters.musaned}
               onChange={(v) => setFilters({ ...filters, musaned: v })}
-              options={[{ value: "all", label: "All Musaned" }, ...MUSANED_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              options={[{ value: "all", label: "Musaned" }, ...opts.musaned.map((o) => ({ value: o, label: o }))]} />
             <FilterSelect icon={Send} placeholder="CV Sent To" value={filters.cv_sent_to}
               onChange={(v) => setFilters({ ...filters, cv_sent_to: v })}
-              options={[{ value: "all", label: "All CV Sent" }, ...opts.cv_sent_to.map((o) => ({ value: o, label: o }))]} />
+              options={[{ value: "all", label: "CV Sent" }, ...opts.cv_sent_to.map((o) => ({ value: o, label: o }))]} />
             <FilterSelect icon={Activity} placeholder="Availability" value={filters.availability}
               onChange={(v) => setFilters({ ...filters, availability: v })}
-              options={[
-                { value: "all", label: "All Availability" },
-                { value: "available", label: "Available" },
-                { value: "processing", label: "Processing" },
-                { value: "arrived", label: "Arrived" },
-                { value: "canceled", label: "Canceled" },
-              ]} />
+              options={[{ value: "all", label: "Availability" }, ...opts.availability.map((o) => ({ value: o, label: o.charAt(0).toUpperCase() + o.slice(1) }))]} />
             <DateField label="From Date" value={filters.from} onChange={(v) => setFilters({ ...filters, from: v })} />
             <DateField label="To Date" value={filters.to} onChange={(v) => setFilters({ ...filters, to: v })} />
           </div>
