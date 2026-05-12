@@ -316,10 +316,10 @@ function StaffCandidatesPage() {
               options={[{ value: "all", label: "Narrative" }, ...opts.narrative.map((o) => ({ value: o, label: o }))]} />
             <FilterSelect icon={BriefcaseBusiness} placeholder="Experience" value={filters.experience}
               onChange={(v) => setFilters({ ...filters, experience: v })}
-              options={[{ value: "all", label: "Experience" }, ...opts.experience.map((o) => ({ value: o, label: o }))]} />
+              options={[{ value: "all", label: "Experience" }, { value: "Experienced", label: "Experienced" }, { value: "Non-Experienced", label: "Non-Experienced" }]} />
             <FilterSelect icon={BadgeCheck} placeholder="COC" value={filters.coc}
               onChange={(v) => setFilters({ ...filters, coc: v })}
-              options={[{ value: "all", label: "COC" }, ...opts.coc.map((o) => ({ value: o, label: o }))]} />
+              options={[{ value: "all", label: "COC" }, ...["Done","No","Booked","Placed","Yitazez","Pending Release"].map((o) => ({ value: o, label: o }))]} />
             <FilterSelect icon={Globe} placeholder="Musaned" value={filters.musaned}
               onChange={(v) => setFilters({ ...filters, musaned: v })}
               options={[{ value: "all", label: "Musaned" }, ...opts.musaned.map((o) => ({ value: o, label: o }))]} />
