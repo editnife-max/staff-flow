@@ -328,7 +328,12 @@ function StaffCandidatesPage() {
               options={[{ value: "all", label: "CV Sent" }, ...opts.cv_sent_to.map((o) => ({ value: o, label: o }))]} />
             <FilterSelect icon={Activity} placeholder="Availability" value={filters.availability}
               onChange={(v) => setFilters({ ...filters, availability: v })}
-              options={[{ value: "all", label: "Availability" }, ...opts.availability.map((o) => ({ value: o, label: o.charAt(0).toUpperCase() + o.slice(1) }))]} />
+              options={[
+                { value: "all", label: "Availability" },
+                ...(["available", "processing", "arrived", "canceled"] as const)
+                  .filter((s) => opts.availability.includes(s))
+                  .map((o) => ({ value: o, label: o.charAt(0).toUpperCase() + o.slice(1) })),
+              ]} />
             <DateField label="From Date" value={filters.from} onChange={(v) => setFilters({ ...filters, from: v })} />
             <DateField label="To Date" value={filters.to} onChange={(v) => setFilters({ ...filters, to: v })} />
           </div>
