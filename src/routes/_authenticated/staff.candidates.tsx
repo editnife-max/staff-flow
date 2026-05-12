@@ -304,10 +304,10 @@ function StaffCandidatesPage() {
               options={[{ value: "all", label: "Marital" }, ...opts.marital.map((o) => ({ value: o, label: o }))]} />
             <FilterSelect icon={Circle} placeholder="Gender" value={filters.gender}
               onChange={(v) => setFilters({ ...filters, gender: v })}
-              options={[{ value: "all", label: "Genders" }, ...opts.gender.map((o) => ({ value: o, label: o }))]} />
+              options={[{ value: "all", label: "Genders" }, { value: "Male", label: "Male" }, { value: "Female", label: "Female" }]} />
             <FilterSelect icon={BookOpen} placeholder="Religion" value={filters.religion}
               onChange={(v) => setFilters({ ...filters, religion: v })}
-              options={[{ value: "all", label: "Religion" }, ...opts.religion.map((o) => ({ value: o, label: o }))]} />
+              options={[{ value: "all", label: "Religion" }, { value: "Muslim", label: "Muslim" }, { value: "Non-muslim", label: "Non-muslim" }]} />
             <FilterSelect icon={Stethoscope} placeholder="Medical" value={filters.medical}
               onChange={(v) => setFilters({ ...filters, medical: v })}
               options={[{ value: "all", label: "Medical" }, ...MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))]} />
@@ -316,10 +316,10 @@ function StaffCandidatesPage() {
               options={[{ value: "all", label: "Narrative" }, ...opts.narrative.map((o) => ({ value: o, label: o }))]} />
             <FilterSelect icon={BriefcaseBusiness} placeholder="Experience" value={filters.experience}
               onChange={(v) => setFilters({ ...filters, experience: v })}
-              options={[{ value: "all", label: "Experience" }, ...opts.experience.map((o) => ({ value: o, label: o }))]} />
+              options={[{ value: "all", label: "Experience" }, { value: "Experienced", label: "Experienced" }, { value: "Non-Experienced", label: "Non-Experienced" }]} />
             <FilterSelect icon={BadgeCheck} placeholder="COC" value={filters.coc}
               onChange={(v) => setFilters({ ...filters, coc: v })}
-              options={[{ value: "all", label: "COC" }, ...opts.coc.map((o) => ({ value: o, label: o }))]} />
+              options={[{ value: "all", label: "COC" }, ...["Done","No","Booked","Placed","Yitazez","Pending Release"].map((o) => ({ value: o, label: o }))]} />
             <FilterSelect icon={Globe} placeholder="Musaned" value={filters.musaned}
               onChange={(v) => setFilters({ ...filters, musaned: v })}
               options={[{ value: "all", label: "Musaned" }, ...opts.musaned.map((o) => ({ value: o, label: o }))]} />
