@@ -152,6 +152,9 @@ function StaffCandidatesPage() {
       narrative: uniq("narrative"),
       experience: uniq("experience"),
       cv_sent_to: uniq("cv_sent_to"),
+      coc: uniq("coc_status"),
+      musaned: uniq("musaned_status"),
+      availability: uniq("status"),
     };
   }, [candidates]);
 
