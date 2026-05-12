@@ -304,10 +304,10 @@ function StaffCandidatesPage() {
               options={[{ value: "all", label: "Marital" }, ...opts.marital.map((o) => ({ value: o, label: o }))]} />
             <FilterSelect icon={Circle} placeholder="Gender" value={filters.gender}
               onChange={(v) => setFilters({ ...filters, gender: v })}
-              options={[{ value: "all", label: "Genders" }, ...opts.gender.map((o) => ({ value: o, label: o }))]} />
+              options={[{ value: "all", label: "Genders" }, { value: "Male", label: "Male" }, { value: "Female", label: "Female" }]} />
             <FilterSelect icon={BookOpen} placeholder="Religion" value={filters.religion}
               onChange={(v) => setFilters({ ...filters, religion: v })}
-              options={[{ value: "all", label: "Religion" }, ...opts.religion.map((o) => ({ value: o, label: o }))]} />
+              options={[{ value: "all", label: "Religion" }, { value: "Muslim", label: "Muslim" }, { value: "Non-muslim", label: "Non-muslim" }]} />
             <FilterSelect icon={Stethoscope} placeholder="Medical" value={filters.medical}
               onChange={(v) => setFilters({ ...filters, medical: v })}
               options={[{ value: "all", label: "Medical" }, ...MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))]} />
