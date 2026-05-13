@@ -689,11 +689,16 @@ function FilterSelect({
   options: { value: string; label: string }[];
   placeholder?: string;
 }) {
+  const isReset = value === "all" || !value;
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger className="border-0 bg-transparent shadow-none w-auto h-auto p-0 gap-2 text-xs font-bold hover:text-primary">
         <Icon className="h-3.5 w-3.5 text-primary" />
-        <SelectValue placeholder={placeholder} />
+        {isReset ? (
+          <span className="text-foreground">{placeholder}</span>
+        ) : (
+          <SelectValue placeholder={placeholder} />
+        )}
       </SelectTrigger>
       <SelectContent>
         {options.map((o) => (
