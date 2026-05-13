@@ -60,9 +60,31 @@ export const upsertCandidate = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
       return { ok: true, id: data.id };
     }
+    // Resolve "Added By" name from staff record (if creator is staff) or profile
+    let createdByName: string | null = null;
+    const { data: staffRow } = await supabaseAdmin
+      .from("staff")
+      .select("name")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (staffRow?.name) {
+      createdByName = staffRow.name.trim().split(/\s+/)[0];
+    } else {
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("full_name")
+        .eq("id", context.userId)
+        .maybeSingle();
+      if (profile?.full_name) createdByName = profile.full_name.trim().split(/\s+/)[0];
+    }
     const { data: row, error } = await supabaseAdmin
       .from("candidates")
-      .insert({ ...data.data, manager_id: managerId })
+      .insert({
+        ...data.data,
+        manager_id: managerId,
+        created_by_user_id: context.userId,
+        created_by_name: createdByName,
+      } as never)
       .select("id")
       .single();
     if (error) throw new Error(error.message);
