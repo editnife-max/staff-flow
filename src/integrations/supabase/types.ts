@@ -23,6 +23,8 @@ export type Database = {
           coc_status: string
           country: string | null
           created_at: string
+          created_by_name: string | null
+          created_by_user_id: string | null
           cv_sent_date: string | null
           cv_sent_to: string | null
           deleted_at: string | null
@@ -61,6 +63,8 @@ export type Database = {
           coc_status?: string
           country?: string | null
           created_at?: string
+          created_by_name?: string | null
+          created_by_user_id?: string | null
           cv_sent_date?: string | null
           cv_sent_to?: string | null
           deleted_at?: string | null
@@ -99,6 +103,8 @@ export type Database = {
           coc_status?: string
           country?: string | null
           created_at?: string
+          created_by_name?: string | null
+          created_by_user_id?: string | null
           cv_sent_date?: string | null
           cv_sent_to?: string | null
           deleted_at?: string | null
