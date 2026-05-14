@@ -727,8 +727,15 @@ function FilterSelect({
   const isReset = value === "all" || !value;
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="border-0 bg-transparent shadow-none w-auto h-auto p-0 gap-2 text-xs font-bold hover:text-primary">
-        <Icon className="h-3.5 w-3.5 text-primary" />
+      <SelectTrigger
+        className={cn(
+          "border-0 shadow-none w-auto h-auto gap-2 text-xs font-bold transition-colors rounded-md",
+          isReset
+            ? "bg-transparent p-0 hover:text-primary"
+            : "bg-primary/10 text-primary px-2 py-1 ring-1 ring-primary/30",
+        )}
+      >
+        <Icon className={cn("h-3.5 w-3.5", isReset ? "text-primary" : "text-primary")} />
         {isReset ? (
           <span className="text-foreground">{placeholder}</span>
         ) : (
