@@ -6,6 +6,7 @@ import {
   Search, FilePlus, FileText, Pencil, Trash2, FileSignature,
   GraduationCap, Users, Calendar, HeartHandshake, Circle, BookOpen,
   Stethoscope, FileEdit, BriefcaseBusiness, BadgeCheck, Globe, Send, Activity,
+  SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
