@@ -7,6 +7,7 @@ import {
   Users, Calendar, Circle, BookOpen,
   Stethoscope, FileEdit, BriefcaseBusiness, BadgeCheck, Globe, Send, Activity,
   UserPlus, UserCheck, X,
+  SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
