@@ -84,7 +84,8 @@ function StaffCandidatesPage() {
 
   const [tab, setTab] = useState<Status>("available");
   const [passport, setPassport] = useState("");
-  const [filters, setFilters] = useState({
+  const [showFilters, setShowFilters] = useState(true);
+  const initialFilters = {
     sort: "newest",
     education: "all",
     age: "all",
@@ -100,7 +101,11 @@ function StaffCandidatesPage() {
     availability: "all",
     from: "",
     to: "",
-  });
+  };
+  const [filters, setFilters] = useState(initialFilters);
+  const activeCount = Object.entries(filters).filter(([k, v]) =>
+    k !== "sort" && v && v !== "all"
+  ).length;
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Candidate | null>(null);
