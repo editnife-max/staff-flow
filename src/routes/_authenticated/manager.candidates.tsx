@@ -7,6 +7,7 @@ import {
   Users, Calendar, Circle, BookOpen,
   Stethoscope, FileEdit, BriefcaseBusiness, BadgeCheck, Globe, Send, Activity,
   UserPlus, UserCheck, X,
+  SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -89,7 +90,8 @@ function ManagerCandidatesPage() {
 
   const [tab, setTab] = useState<Status>("available");
   const [passport, setPassport] = useState("");
-  const [filters, setFilters] = useState({
+  const [showFilters, setShowFilters] = useState(true);
+  const initialFilters = {
     sort: "newest",
     education: "all",
     age: "all",
@@ -106,7 +108,11 @@ function ManagerCandidatesPage() {
     added_by: "all",
     from: "",
     to: "",
-  });
+  };
+  const [filters, setFilters] = useState(initialFilters);
+  const activeCount = Object.entries(filters).filter(([k, v]) =>
+    k !== "sort" && v && v !== "all"
+  ).length;
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Candidate | null>(null);
@@ -293,7 +299,34 @@ function ManagerCandidatesPage() {
 
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setShowFilters((s) => !s)}
+              className="flex items-center gap-2 text-xs font-bold text-foreground hover:text-primary transition-colors"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
+              Filters
+              {activeCount > 0 && (
+                <span className="rounded-full bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+                  {activeCount}
+                </span>
+              )}
+              {showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 gap-1 text-xs"
+              onClick={() => { setFilters(initialFilters); setPassport(""); }}
+              disabled={activeCount === 0 && !passport}
+            >
+              <RotateCcw className="h-3.5 w-3.5" /> Reset
+            </Button>
+          </div>
+          {showFilters && (
+          <>
+          <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-3">
             <FilterSelect icon={Calendar} value={filters.sort} onChange={(v) => setFilters({ ...filters, sort: v })}
               options={[{ value: "newest", label: "Date (Newest)" }, { value: "oldest", label: "Date (Oldest)" }]} />
             <FilterSelect icon={Users} placeholder="Age" value={filters.age}
@@ -347,6 +380,8 @@ function ManagerCandidatesPage() {
               <Input className="pl-9 h-8 text-xs" placeholder="Passport Number" value={passport} onChange={(e) => setPassport(e.target.value)} />
             </div>
           </div>
+          </>
+          )}
         </CardContent>
       </Card>
 
@@ -690,7 +725,14 @@ function FilterSelect({
   const isReset = value === "all" || !value;
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="border-0 bg-transparent shadow-none w-auto h-auto p-0 gap-2 text-xs font-bold hover:text-primary">
+      <SelectTrigger
+        className={cn(
+          "border-0 shadow-none w-auto h-auto gap-2 text-xs font-bold transition-colors rounded-md",
+          isReset
+            ? "bg-transparent p-0 hover:text-primary"
+            : "bg-primary/10 text-primary px-2 py-1 ring-1 ring-primary/30",
+        )}
+      >
         <Icon className="h-3.5 w-3.5 text-primary" />
         {isReset ? (
           <span className="text-foreground">{placeholder}</span>
