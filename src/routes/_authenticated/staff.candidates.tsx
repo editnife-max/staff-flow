@@ -28,6 +28,7 @@ import {
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff,
 } from "@/lib/candidates.functions";
 import { UserCheck, X } from "lucide-react";
+import { ProcessingDialog } from "@/components/processing-dialog";
 
 type Status = "available" | "processing" | "arrived" | "canceled";
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"];
