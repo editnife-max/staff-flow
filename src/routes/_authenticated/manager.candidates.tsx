@@ -118,6 +118,7 @@ function ManagerCandidatesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Candidate | null>(null);
   const [form, setForm] = useState(initialForm);
+  const [processing, setProcessing] = useState<Candidate | null>(null);
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["manager-candidates", user?.id],
