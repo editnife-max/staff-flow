@@ -530,6 +530,13 @@ function StaffCandidatesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ProcessingDialog
+        candidate={processing}
+        open={!!processing}
+        onOpenChange={(v) => { if (!v) setProcessing(null); }}
+        invalidateKey={["staff-candidates", user?.id]}
+      />
     </div>
   );
 }
