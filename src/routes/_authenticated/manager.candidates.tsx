@@ -28,6 +28,7 @@ import {
   upsertCandidate, deleteCandidate, updateCandidateField,
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff,
 } from "@/lib/candidates.functions";
+import { ProcessingDialog } from "@/components/processing-dialog";
 
 type Status = "available" | "processing" | "arrived" | "canceled";
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"] & {
