@@ -487,6 +487,7 @@ function ManagerCandidatesPage() {
             onToggleSelect={() => toggleSelect(c.id)}
             onEdit={() => openEdit(c)}
             onDelete={() => removeMut.mutate(c.id)}
+            onProcess={() => setProcessing(c)}
             onUpdateField={(field, value) => fieldMut.mutate({ id: c.id, field, value })}
           />
         ))}
