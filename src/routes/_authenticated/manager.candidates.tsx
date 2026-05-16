@@ -654,6 +654,9 @@ function CandidateCard({
                 <FileText className="h-3 w-3 mr-1" /> VIEW
               </Link>
             </Button>
+            <button onClick={onProcess} className="text-[10px] text-warning hover:underline flex items-center gap-1">
+              <Activity className="h-2.5 w-2.5" /> Process
+            </button>
             <button onClick={onEdit} className="text-[10px] text-primary hover:underline flex items-center gap-1">
               <Pencil className="h-2.5 w-2.5" /> Edit
             </button>
