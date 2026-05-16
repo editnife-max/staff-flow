@@ -539,13 +539,14 @@ type EditableField =
   | "musaned_status" | "coc_status";
 
 function CandidateCard({
-  candidate, selected, onToggleSelect, onEdit, onDelete, onUpdateField,
+  candidate, selected, onToggleSelect, onEdit, onDelete, onProcess, onUpdateField,
 }: {
   candidate: Candidate;
   selected: boolean;
   onToggleSelect: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onProcess: () => void;
   onUpdateField: (field: EditableField, value: string | null) => void;
 }) {
   const statusStyles: Record<Status, string> = {
