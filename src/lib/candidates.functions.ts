@@ -91,6 +91,49 @@ export const upsertCandidate = createServerFn({ method: "POST" })
     return { ok: true, id: row.id };
   });
 
+const ProcessingSchema = z.object({
+  id: z.string().uuid(),
+  data: z.object({
+    narrative: z.string().max(500).nullable().optional(),
+    narrative_phone: z.string().max(80).nullable().optional(),
+    contract_date: z.string().nullable().optional(),
+    emergency_contact: z.string().max(200).nullable().optional(),
+    medical_status: z.string().max(80).nullable().optional(),
+    medical_date: z.string().nullable().optional(),
+    medical_days: z.number().int().nullable().optional(),
+    coc_status: z.string().max(80).nullable().optional(),
+    tasheer_status: z.string().max(80).nullable().optional(),
+    tasheer_date: z.string().nullable().optional(),
+    wokala_status: z.string().max(80).nullable().optional(),
+    embassy_date: z.string().nullable().optional(),
+    visa_status: z.string().max(120).nullable().optional(),
+    insurance_status: z.string().max(40).nullable().optional(),
+    unfilled_lmis: z.string().max(120).nullable().optional(),
+    lmis_status: z.string().max(120).nullable().optional(),
+    ticket_status: z.string().max(80).nullable().optional(),
+    ticket_date: z.string().nullable().optional(),
+    arrival_city: z.string().max(80).nullable().optional(),
+    processing_notes: z.string().max(2000).nullable().optional(),
+  }),
+});
+
+export const updateCandidateProcessing = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => ProcessingSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    const payload: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(data.data)) {
+      payload[k] = v === "" ? null : v;
+    }
+    const { error } = await (supabaseAdmin.from("candidates") as any)
+      .update(payload)
+      .eq("id", data.id)
+      .eq("manager_id", managerId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 export const updateCandidateField = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InlineFieldSchema.parse(input))
