@@ -536,6 +536,13 @@ function ManagerCandidatesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ProcessingDialog
+        candidate={processing}
+        open={!!processing}
+        onOpenChange={(v) => { if (!v) setProcessing(null); }}
+        invalidateKey={["manager-candidates", user?.id]}
+      />
     </div>
   );
 }
