@@ -28,7 +28,6 @@ import {
   upsertCandidate, deleteCandidate, updateCandidateField,
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff,
 } from "@/lib/candidates.functions";
-import { ProcessingDialog } from "@/components/processing-dialog";
 
 type Status = "available" | "processing" | "arrived" | "canceled";
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"] & {
@@ -118,7 +117,6 @@ function ManagerCandidatesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Candidate | null>(null);
   const [form, setForm] = useState(initialForm);
-  const [processing, setProcessing] = useState<Candidate | null>(null);
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["manager-candidates", user?.id],
@@ -487,7 +485,6 @@ function ManagerCandidatesPage() {
             onToggleSelect={() => toggleSelect(c.id)}
             onEdit={() => openEdit(c)}
             onDelete={() => removeMut.mutate(c.id)}
-            onProcess={() => setProcessing(c)}
             onUpdateField={(field, value) => fieldMut.mutate({ id: c.id, field, value })}
           />
         ))}
@@ -536,13 +533,6 @@ function ManagerCandidatesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <ProcessingDialog
-        candidate={processing}
-        open={!!processing}
-        onOpenChange={(v) => { if (!v) setProcessing(null); }}
-        invalidateKey={["manager-candidates", user?.id]}
-      />
     </div>
   );
 }
@@ -553,14 +543,13 @@ type EditableField =
   | "musaned_status" | "coc_status";
 
 function CandidateCard({
-  candidate, selected, onToggleSelect, onEdit, onDelete, onProcess, onUpdateField,
+  candidate, selected, onToggleSelect, onEdit, onDelete, onUpdateField,
 }: {
   candidate: Candidate;
   selected: boolean;
   onToggleSelect: () => void;
   onEdit: () => void;
   onDelete: () => void;
-  onProcess: () => void;
   onUpdateField: (field: EditableField, value: string | null) => void;
 }) {
   const statusStyles: Record<Status, string> = {
@@ -661,9 +650,6 @@ function CandidateCard({
                 <FileText className="h-3 w-3 mr-1" /> VIEW
               </Link>
             </Button>
-            <button onClick={onProcess} className="text-[10px] text-warning hover:underline flex items-center gap-1">
-              <Activity className="h-2.5 w-2.5" /> Process
-            </button>
             <button onClick={onEdit} className="text-[10px] text-primary hover:underline flex items-center gap-1">
               <Pencil className="h-2.5 w-2.5" /> Edit
             </button>

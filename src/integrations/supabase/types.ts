@@ -17,12 +17,10 @@ export type Database = {
       candidates: {
         Row: {
           age: number | null
-          arrival_city: string | null
           assigned_staff_id: string | null
           birth_place: string | null
           candidate_code: string | null
           coc_status: string
-          contract_date: string | null
           country: string | null
           created_at: string
           created_by_name: string | null
@@ -32,53 +30,37 @@ export type Database = {
           deleted_at: string | null
           dob: string | null
           education: string | null
-          embassy_date: string | null
-          emergency_contact: string | null
           experience: string | null
           full_name: string
           gender: string | null
           id: string
-          insurance_status: string | null
           labour_id: string | null
           living_town: string | null
-          lmis_status: string | null
           manager_id: string
           marital_status: string | null
           medical_date: string | null
-          medical_days: number | null
           medical_status: string
           musaned_status: string
           narrative: string | null
-          narrative_phone: string | null
           notes: string | null
           occupation: string | null
           office: string | null
           passport_number: string | null
           passport_status: string
           photo_url: string | null
-          processing_notes: string | null
           religion: string | null
           selected_by: string | null
           serial_number: string | null
           skills: string | null
           status: string
-          tasheer_date: string | null
-          tasheer_status: string | null
-          ticket_date: string | null
-          ticket_status: string | null
-          unfilled_lmis: string | null
           updated_at: string
-          visa_status: string | null
-          wokala_status: string | null
         }
         Insert: {
           age?: number | null
-          arrival_city?: string | null
           assigned_staff_id?: string | null
           birth_place?: string | null
           candidate_code?: string | null
           coc_status?: string
-          contract_date?: string | null
           country?: string | null
           created_at?: string
           created_by_name?: string | null
@@ -88,53 +70,37 @@ export type Database = {
           deleted_at?: string | null
           dob?: string | null
           education?: string | null
-          embassy_date?: string | null
-          emergency_contact?: string | null
           experience?: string | null
           full_name: string
           gender?: string | null
           id?: string
-          insurance_status?: string | null
           labour_id?: string | null
           living_town?: string | null
-          lmis_status?: string | null
           manager_id: string
           marital_status?: string | null
           medical_date?: string | null
-          medical_days?: number | null
           medical_status?: string
           musaned_status?: string
           narrative?: string | null
-          narrative_phone?: string | null
           notes?: string | null
           occupation?: string | null
           office?: string | null
           passport_number?: string | null
           passport_status?: string
           photo_url?: string | null
-          processing_notes?: string | null
           religion?: string | null
           selected_by?: string | null
           serial_number?: string | null
           skills?: string | null
           status?: string
-          tasheer_date?: string | null
-          tasheer_status?: string | null
-          ticket_date?: string | null
-          ticket_status?: string | null
-          unfilled_lmis?: string | null
           updated_at?: string
-          visa_status?: string | null
-          wokala_status?: string | null
         }
         Update: {
           age?: number | null
-          arrival_city?: string | null
           assigned_staff_id?: string | null
           birth_place?: string | null
           candidate_code?: string | null
           coc_status?: string
-          contract_date?: string | null
           country?: string | null
           created_at?: string
           created_by_name?: string | null
@@ -144,44 +110,30 @@ export type Database = {
           deleted_at?: string | null
           dob?: string | null
           education?: string | null
-          embassy_date?: string | null
-          emergency_contact?: string | null
           experience?: string | null
           full_name?: string
           gender?: string | null
           id?: string
-          insurance_status?: string | null
           labour_id?: string | null
           living_town?: string | null
-          lmis_status?: string | null
           manager_id?: string
           marital_status?: string | null
           medical_date?: string | null
-          medical_days?: number | null
           medical_status?: string
           musaned_status?: string
           narrative?: string | null
-          narrative_phone?: string | null
           notes?: string | null
           occupation?: string | null
           office?: string | null
           passport_number?: string | null
           passport_status?: string
           photo_url?: string | null
-          processing_notes?: string | null
           religion?: string | null
           selected_by?: string | null
           serial_number?: string | null
           skills?: string | null
           status?: string
-          tasheer_date?: string | null
-          tasheer_status?: string | null
-          ticket_date?: string | null
-          ticket_status?: string | null
-          unfilled_lmis?: string | null
           updated_at?: string
-          visa_status?: string | null
-          wokala_status?: string | null
         }
         Relationships: [
           {
