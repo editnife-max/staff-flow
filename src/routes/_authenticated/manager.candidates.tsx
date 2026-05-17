@@ -23,6 +23,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import {
   upsertCandidate, deleteCandidate, updateCandidateField,
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff,
@@ -336,7 +338,7 @@ function ManagerCandidatesPage() {
           <Button
             size="sm"
             variant="secondary"
-            className="gap-2 text-xs h-8"
+            className="gap-2 text-xs h-8 rounded-none"
             disabled={selected.size === 0}
             onClick={() => {
               const first = Array.from(selected)[0];
@@ -346,13 +348,13 @@ function ManagerCandidatesPage() {
             <FileSignature className="h-4 w-4" />
             GENERATE CV{selected.size > 0 ? ` (${selected.size})` : ""}
           </Button>
-          <Button size="sm" className="gap-2 text-xs h-8" onClick={openCreate}>
+          <Button size="sm" className="gap-2 text-xs h-8 rounded-none" onClick={openCreate}>
             <FilePlus className="h-4 w-4" /> ADD NEW CANDIDATE
           </Button>
         </div>
       </div>
 
-      <Card>
+      <Card className="rounded-none">
         <CardContent className="p-4">
           <div className="flex items-center justify-between gap-2">
             <button
@@ -363,7 +365,7 @@ function ManagerCandidatesPage() {
               <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
               Filters
               {activeCount > 0 && (
-                <span className="rounded-full bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+                <span className="rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
                   {activeCount}
                 </span>
               )}
@@ -433,7 +435,7 @@ function ManagerCandidatesPage() {
           <div className="mt-3 flex flex-wrap gap-3">
             <div className="relative w-60">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input className="pl-9 h-8 text-xs" placeholder="Passport Number" value={passport} onChange={(e) => setPassport(e.target.value)} />
+              <Input className="pl-9 h-8 text-xs rounded-none" placeholder="Passport Number" value={passport} onChange={(e) => setPassport(e.target.value)} />
             </div>
           </div>
           </>
@@ -441,7 +443,7 @@ function ManagerCandidatesPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="rounded-none">
         <CardContent className="p-4">
           <div className="flex items-center gap-8 border-b border-border">
             {TABS.map((t) => (
@@ -700,17 +702,17 @@ function CandidateCard({
               </tbody>
             </table>
           </div>
-          <div className="flex flex-col items-end gap-0.5">
-            <Button asChild size="sm" className="h-6 w-16 text-[10px] px-2">
+          <div className="flex flex-col items-end gap-1 mb-[8px] pt-[10px] pr-[12px] pb-[10px] pl-[4px]">
+            <Button asChild size="sm" className="h-6 w-18 text-[12px] px-2 rounded-none">
               <Link to="/staff/cv-generator" search={{ id: candidate.id }}>
-                <FileText className="h-3 w-3 mr-1" /> VIEW
+                <FileText className="h-3.5 w-3.5 mr-1" /> VIEW
               </Link>
             </Button>
-            <button onClick={onEdit} className="text-[10px] text-primary hover:underline flex items-center gap-1">
-              <Pencil className="h-2.5 w-2.5" /> Edit
+            <button onClick={onEdit} className="text-[14px] text-primary hover:underline flex items-center gap-1">
+              <Pencil className="h-3.5 w-3.5" /> Edit
             </button>
-            <button onClick={onDelete} className="text-[10px] text-destructive hover:underline flex items-center gap-1">
-              <Trash2 className="h-2.5 w-2.5" /> Delete
+            <button onClick={onDelete} className="text-[14px] text-destructive hover:underline flex items-center gap-1">
+              <Trash2 className="h-3.5 w-3.5" /> Delete
             </button>
           </div>
         </div>
@@ -727,7 +729,7 @@ function InlineText({ value, onSave }: { value: string; onSave: (v: string | nul
       <button
         type="button"
         onClick={() => { setDraft(value); setEditing(true); }}
-        className="text-left rounded px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[40px] block"
+        className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[40px] block"
       >
         {value || <span className="text-muted-foreground">—</span>}
       </button>
@@ -747,7 +749,7 @@ function InlineText({ value, onSave }: { value: string; onSave: (v: string | nul
         if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
         if (e.key === "Escape") { setDraft(value); setEditing(false); }
       }}
-      className="rounded border border-primary bg-background px-1 py-0.5 text-[14px] text-[#181A27] outline-none min-w-[80px]"
+      className="rounded-none border border-primary bg-background px-1 py-0.5 text-[14px] text-[#181A27] outline-none min-w-[80px]"
     />
   );
 }
@@ -833,7 +835,7 @@ function FilterSelect({
         <button
           type="button"
           onClick={() => onChange("all")}
-          className="rounded-full p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          className="rounded-none p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
           aria-label="Clear filter"
         >
           <X className="h-3 w-3" />
@@ -844,18 +846,63 @@ function FilterSelect({
 }
 
 function DateField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const hasValue = !!value;
+  const selected = value ? new Date(value + "T00:00:00") : undefined;
+
+  function handleSelect(date: Date | undefined) {
+    if (date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      onChange(`${y}-${m}-${d}`);
+    } else {
+      onChange("");
+    }
+    setOpen(false);
+  }
+
   return (
     <div className="flex items-center gap-0.5">
-      <label className="flex items-center gap-2 text-xs font-bold cursor-pointer">
-        <Calendar className="h-3.5 w-3.5 text-primary" />
-        {value ? <span>{new Date(value).toLocaleDateString()}</span> : <span className="text-muted-foreground font-bold">{label}</span>}
-        <input type="date" value={value} onChange={(e) => onChange(e.target.value)} className="sr-only" />
-      </label>
-      {value && (
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              "flex items-center gap-1.5 border shadow-none w-auto h-7 px-2 transition-colors rounded-none text-[13px] font-medium cursor-pointer",
+              hasValue
+                ? "bg-black/10 border-black/20 text-[#181A27] dark:bg-white/10 dark:border-white/20 dark:text-white"
+                : "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            <Calendar className="h-3 w-3 shrink-0" />
+            <span>{hasValue ? selected?.toLocaleDateString() : label}</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-auto p-0 rounded-none"
+          align="start"
+          side="bottom"
+          sideOffset={6}
+          collisionPadding={16}
+          avoidCollisions
+        >
+          <CalendarPicker
+            mode="single"
+            selected={selected}
+            onSelect={handleSelect}
+            captionLayout="dropdown"
+            fromYear={2020}
+            toYear={2030}
+            initialFocus
+          />
+        </PopoverContent>
+      </Popover>
+      {hasValue && (
         <button
           type="button"
           onClick={() => onChange("")}
-          className="rounded-full p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          className="rounded-none p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
           aria-label="Clear date"
         >
           <X className="h-3 w-3" />
