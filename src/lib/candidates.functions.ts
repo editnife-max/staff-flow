@@ -19,7 +19,7 @@ const CandidateInput = z.object({
   education: z.string().max(120).optional().nullable(),
   skills: z.string().max(500).optional().nullable(),
   status: StatusEnum.default("available"),
-  photo_url: z.string().url().optional().nullable(),
+  photo_url: z.preprocess((v) => (v === "" ? null : v), z.string().url().optional().nullable()),
 });
 
 const InlineFieldSchema = z.object({
@@ -28,6 +28,12 @@ const InlineFieldSchema = z.object({
     "notes", "narrative", "occupation", "living_town", "selected_by",
     "medical_status", "status", "office", "passport_status",
     "musaned_status", "coc_status",
+    // Processing module
+    "narrative_phone", "contract_date", "medical_date", "medical_days",
+    "tasheer_status", "tasheer_date", "wokala_status", "embassy_date",
+    "visa_status", "insurance_status", "unfilled_lmis", "lmis_status",
+    "ticket_status", "ticket_date", "arrival_city", "emergency_contact",
+    "processing_notes",
   ]),
   value: z.string().nullable(),
 });
@@ -96,9 +102,23 @@ export const updateCandidateField = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => InlineFieldSchema.parse(input))
   .handler(async ({ data, context }) => {
     const managerId = await resolveManagerId(context.userId);
-    const value = data.value === "" ? null : data.value;
+    const raw = data.value === "" ? null : data.value;
+    // medical_days is stored as integer
+    const coerced = data.field === "medical_days" && raw !== null ? Number(raw) : raw;
+    const payload: Record<string, unknown> = { [data.field]: coerced };
+
+    // When selected_by is set on an available candidate, auto-advance to processing
+    if (data.field === "selected_by" && raw) {
+      const { data: cand } = await supabaseAdmin
+        .from("candidates")
+        .select("status")
+        .eq("id", data.id)
+        .maybeSingle();
+      if (cand?.status === "available") payload.status = "processing";
+    }
+
     const { error } = await (supabaseAdmin.from("candidates") as any)
-      .update({ [data.field]: value })
+      .update(payload)
       .eq("id", data.id)
       .eq("manager_id", managerId);
     if (error) throw new Error(error.message);

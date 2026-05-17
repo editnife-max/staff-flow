@@ -1,13 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
-  Search, FilePlus, FileText, Pencil, Trash2, FileSignature,
-  Users, Calendar, Circle, BookOpen,
-  Stethoscope, FileEdit, BriefcaseBusiness, BadgeCheck, Globe, Send, Activity,
-  UserPlus, UserCheck, X,
-  SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
+  Search, FilePlus, FileText, Pencil, Trash2, FileSignature, Calendar,
+  UserCheck, X, SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
+  ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
+  Globe, Send, Activity, UserPlus,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -53,6 +52,51 @@ const COC_OPTIONS = ["Done", "No", "Booked", "Placed", "Yitazez", "Pending relea
 const MUSANED_OPTIONS = ["Saudi", "Kuwait"];
 const OFFICE_OPTIONS = ["Riyadh", "Jeddah", "Dammam", "Other"];
 const PASSPORT_OPTIONS = ["Pending", "Submitted", "Received", "Expired"];
+
+const OPTION_COLORS: Record<string, string> = {
+  "Fit":               "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+  "Unfit":             "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+  "In progress":       "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  "Expired":           "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
+  "No":                "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
+  "Done":              "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+  "Booked":            "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  "Placed":            "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300",
+  "Yitazez":           "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
+  "Pending release":   "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  "Paid":              "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+  "Unpaid":            "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+  "Pending":           "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  "Submitted":         "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  "Received":          "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+  "available":         "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+  "processing":        "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  "arrived":           "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  "canceled":          "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+  "Riyadh":            "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300",
+  "Jeddah":            "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  "Dammam":            "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300",
+  "Other":             "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
+  "Saudi":             "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
+  "Kuwait":            "bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300",
+  // Age ranges
+  "18-25":             "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300",
+  "26-35":             "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  "36-45":             "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300",
+  "46-99":             "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300",
+  // Gender
+  "Male":              "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  "Female":            "bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300",
+  // Religion
+  "Muslim":            "bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300",
+  "Non-muslim":        "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+  // Experience
+  "Experienced":       "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+  "Non-Experienced":   "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
+  // Sort
+  "newest":            "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300",
+  "oldest":            "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+};
 
 const initialForm = {
   full_name: "",
@@ -148,10 +192,21 @@ function ManagerCandidatesPage() {
   const fieldMut = useMutation({
     mutationFn: async (input: { id: string; field: string; value: string | null }) =>
       updateField({ data: input as never }),
-    onSuccess: () => {
+    onMutate: async (input) => {
+      await qc.cancelQueries({ queryKey: ["manager-candidates", user?.id] });
+      const previous = qc.getQueryData<Candidate[]>(["manager-candidates", user?.id]);
+      qc.setQueryData<Candidate[]>(["manager-candidates", user?.id], (old) =>
+        old?.map((c) => c.id === input.id ? { ...c, [input.field]: input.value } : c) ?? []
+      );
+      return { previous };
+    },
+    onError: (e: Error, _, ctx) => {
+      if (ctx?.previous) qc.setQueryData(["manager-candidates", user?.id], ctx.previous);
+      toast.error(e.message);
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["manager-candidates"] });
     },
-    onError: (e: Error) => toast.error(e.message),
   });
 
   const opts = useMemo(() => {
@@ -326,41 +381,42 @@ function ManagerCandidatesPage() {
           </div>
           {showFilters && (
           <>
-          <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-3">
-            <FilterSelect icon={Calendar} value={filters.sort} onChange={(v) => setFilters({ ...filters, sort: v })}
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <FilterSelect value={filters.sort} onChange={(v) => setFilters({ ...filters, sort: v })}
+              icon={ArrowUpDown}
               options={[{ value: "newest", label: "Date (Newest)" }, { value: "oldest", label: "Date (Oldest)" }]} />
-            <FilterSelect icon={Users} placeholder="Age" value={filters.age}
+            <FilterSelect placeholder="Age" value={filters.age} icon={Users}
               onChange={(v) => setFilters({ ...filters, age: v })}
               options={[
                 { value: "all", label: "-----" },
                 { value: "18-25", label: "18-25" }, { value: "26-35", label: "26-35" },
                 { value: "36-45", label: "36-45" }, { value: "46-99", label: "46+" },
               ]} />
-            <FilterSelect icon={Circle} placeholder="Gender" value={filters.gender}
+            <FilterSelect placeholder="Gender" value={filters.gender} icon={User}
               onChange={(v) => setFilters({ ...filters, gender: v })}
               options={[{ value: "all", label: "-----" }, { value: "Male", label: "Male" }, { value: "Female", label: "Female" }]} />
-            <FilterSelect icon={BookOpen} placeholder="Religion" value={filters.religion}
+            <FilterSelect placeholder="Religion" value={filters.religion} icon={BookOpen}
               onChange={(v) => setFilters({ ...filters, religion: v })}
               options={[{ value: "all", label: "-----" }, { value: "Muslim", label: "Muslim" }, { value: "Non-muslim", label: "Non-muslim" }]} />
-            <FilterSelect icon={Stethoscope} placeholder="Medical" value={filters.medical}
+            <FilterSelect placeholder="Medical" value={filters.medical} icon={Stethoscope}
               onChange={(v) => setFilters({ ...filters, medical: v })}
               options={[{ value: "all", label: "-----" }, ...MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))]} />
-            <FilterSelect icon={FileEdit} placeholder="Narrative" value={filters.narrative}
+            <FilterSelect placeholder="Narrative" value={filters.narrative} icon={FileText}
               onChange={(v) => setFilters({ ...filters, narrative: v })}
               options={[{ value: "all", label: "-----" }, ...opts.narrative.map((o) => ({ value: o, label: o }))]} />
-            <FilterSelect icon={BriefcaseBusiness} placeholder="Experience" value={filters.experience}
+            <FilterSelect placeholder="Experience" value={filters.experience} icon={Briefcase}
               onChange={(v) => setFilters({ ...filters, experience: v })}
               options={[{ value: "all", label: "-----" }, { value: "Experienced", label: "Experienced" }, { value: "Non-Experienced", label: "Non-Experienced" }]} />
-            <FilterSelect icon={BadgeCheck} placeholder="COC" value={filters.coc}
+            <FilterSelect placeholder="COC" value={filters.coc} icon={FileCheck}
               onChange={(v) => setFilters({ ...filters, coc: v })}
               options={[{ value: "all", label: "-----" }, ...["Done","No","Booked","Placed","Yitazez","Pending Release"].map((o) => ({ value: o, label: o }))]} />
-            <FilterSelect icon={Globe} placeholder="Musaned" value={filters.musaned}
+            <FilterSelect placeholder="Musaned" value={filters.musaned} icon={Globe}
               onChange={(v) => setFilters({ ...filters, musaned: v })}
               options={[{ value: "all", label: "-----" }, ...opts.musaned.map((o) => ({ value: o, label: o }))]} />
-            <FilterSelect icon={Send} placeholder="CV Sent To" value={filters.cv_sent_to}
+            <FilterSelect placeholder="CV Sent To" value={filters.cv_sent_to} icon={Send}
               onChange={(v) => setFilters({ ...filters, cv_sent_to: v })}
               options={[{ value: "all", label: "-----" }, ...opts.cv_sent_to.map((o) => ({ value: o, label: o }))]} />
-            <FilterSelect icon={Activity} placeholder="Availability" value={filters.availability}
+            <FilterSelect placeholder="Availability" value={filters.availability} icon={Activity}
               onChange={(v) => setFilters({ ...filters, availability: v })}
               options={[
                 { value: "all", label: "-----" },
@@ -368,7 +424,7 @@ function ManagerCandidatesPage() {
                   .filter((s) => opts.availability.includes(s))
                   .map((o) => ({ value: o, label: o.charAt(0).toUpperCase() + o.slice(1) })),
               ]} />
-            <FilterSelect icon={UserPlus} placeholder="Added By" value={filters.added_by}
+            <FilterSelect placeholder="Added By" value={filters.added_by} icon={UserPlus}
               onChange={(v) => setFilters({ ...filters, added_by: v })}
               options={[{ value: "all", label: "-----" }, ...addedByOptions.map((o) => ({ value: o, label: o }))]} />
             <DateField label="From Date" value={filters.from} onChange={(v) => setFilters({ ...filters, from: v })} />
@@ -713,49 +769,99 @@ function InlineSelect({
   );
 }
 
+function OptionPill({ label, className }: { label: string; className?: string }) {
+  const color = OPTION_COLORS[label] ?? "bg-muted text-muted-foreground";
+  return (
+    <span className={cn("inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium leading-none whitespace-nowrap", color, className)}>
+      {label}
+    </span>
+  );
+}
+
 function FilterSelect({
-  icon: Icon, value, onChange, options, placeholder,
+  value, onChange, options, placeholder, icon: Icon,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
   value: string;
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
   placeholder?: string;
+  icon?: React.ElementType;
 }) {
   const isReset = value === "all" || !value;
+  const hasColor = !isReset && !!OPTION_COLORS[value];
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger
-        className={cn(
-          "border-0 shadow-none w-auto h-auto gap-2 text-xs font-bold transition-colors rounded-md",
-          isReset
-            ? "bg-transparent p-0 hover:text-primary"
-            : "bg-primary/10 text-primary px-2 py-1 ring-1 ring-primary/30",
-        )}
-      >
-        <Icon className="h-3.5 w-3.5 text-primary" />
-        {isReset ? (
-          <span className="text-foreground">{placeholder}</span>
-        ) : (
-          <SelectValue placeholder={placeholder} />
-        )}
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((o) => (
-          <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className="flex items-center gap-0.5">
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger
+          className={cn(
+            "border shadow-none w-auto h-7 px-2 gap-1.5 transition-colors rounded-md text-xs font-medium [&>svg]:shrink-0",
+            isReset
+              ? "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+              : hasColor
+                ? cn(OPTION_COLORS[value], "border-transparent")
+                : "bg-primary/10 border-primary/30 text-primary",
+          )}
+        >
+          {Icon && <Icon className="h-3 w-3 shrink-0" />}
+          {isReset ? (
+            <span>{placeholder}</span>
+          ) : hasColor ? (
+            <span>{options.find((o) => o.value === value)?.label ?? value}</span>
+          ) : (
+            <SelectValue placeholder={placeholder} />
+          )}
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((o) => {
+            const isAll = o.value === "all";
+            const color = OPTION_COLORS[o.label] ?? OPTION_COLORS[o.value];
+            return (
+              <SelectItem key={o.value} value={o.value} className="py-1 px-2 focus:bg-muted/50">
+                {isAll ? (
+                  <span className="text-xs text-muted-foreground">{o.label}</span>
+                ) : color ? (
+                  <OptionPill label={o.label} />
+                ) : (
+                  <span className="text-xs">{o.label}</span>
+                )}
+              </SelectItem>
+            );
+          })}
+        </SelectContent>
+      </Select>
+      {!isReset && (
+        <button
+          type="button"
+          onClick={() => onChange("all")}
+          className="rounded-full p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          aria-label="Clear filter"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+    </div>
   );
 }
 
 function DateField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
-    <label className="flex items-center gap-2 text-xs font-bold cursor-pointer">
-      <Calendar className="h-3.5 w-3.5 text-primary" />
-      {value ? <span>{new Date(value).toLocaleDateString()}</span> : <span className="text-muted-foreground font-bold">{label}</span>}
-      <input type="date" value={value} onChange={(e) => onChange(e.target.value)} className="sr-only" />
-    </label>
+    <div className="flex items-center gap-0.5">
+      <label className="flex items-center gap-2 text-xs font-bold cursor-pointer">
+        <Calendar className="h-3.5 w-3.5 text-primary" />
+        {value ? <span>{new Date(value).toLocaleDateString()}</span> : <span className="text-muted-foreground font-bold">{label}</span>}
+        <input type="date" value={value} onChange={(e) => onChange(e.target.value)} className="sr-only" />
+      </label>
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          className="rounded-full p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          aria-label="Clear date"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+    </div>
   );
 }
 

@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Project\\\\flowpath-suite\" -Force | Select-Object Name, @{Name='Type'; Expression={if\\($_.PSIsContainer\\){'DIR'}else{'FILE'}}} | Format-Table -AutoSize)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Project\\\\flowpath-suite\\\\src\" -Recurse -Force | Where-Object {$_.PSIsContainer} | Select-Object FullName | ForEach-Object {$_.FullName.Replace\\(\"C:\\\\Project\\\\flowpath-suite\\\\\", \"\"\\)} | Sort-Object)",
+      "Bash(bun dev *)",
+      "WebFetch(domain:tweakcn.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(gh api *)",
+      "Bash(supabase projects *)",
+      "Bash(supabase status *)",
+      "Bash(supabase link *)",
+      "mcp__supabase__execute_sql",
+      "mcp__supabase__list_tables",
+      "mcp__supabase__apply_migration"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "supabase"
+  ]
+}

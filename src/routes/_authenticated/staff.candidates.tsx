@@ -1,12 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
-  Search, FilePlus, FileText, Pencil, Trash2, FileSignature,
-  GraduationCap, Users, Calendar, HeartHandshake, Circle, BookOpen,
-  Stethoscope, FileEdit, BriefcaseBusiness, BadgeCheck, Globe, Send, Activity,
+  Search, FilePlus, FileText, Pencil, Trash2, FileSignature, Calendar,
   SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
+  ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
+  Globe, Send, Activity,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -50,6 +50,143 @@ const COC_OPTIONS = ["Done", "No", "Booked", "Placed", "Yitazez", "Pending relea
 const MUSANED_OPTIONS = ["Saudi", "Kuwait"];
 const OFFICE_OPTIONS = ["Riyadh", "Jeddah", "Dammam", "Other"];
 const PASSPORT_OPTIONS = ["Pending", "Submitted", "Received", "Expired"];
+const TASHEER_OPTIONS = ["No", "Booked", "Done", "Ready"];
+const WOKALA_OPTIONS = ["Paid", "Unpaid"];
+const VISA_OPTIONS = [
+  "Ready for embassy", "Sent to Embassy", "Privately Sent", "Issued",
+  "Visa canceled", "Arrived KSA", "Returned", "Waiting Replacement",
+];
+const INSURANCE_OPTIONS = ["Done", "Pending", "No", "Expired"];
+const LMIS_OPTIONS = [
+  "No COC", "Not tested", "Placed", "Imported", "Checked",
+  "Verified", "Draft", "Pending", "Issued", "Rejected",
+];
+const UNFILLED_LMIS_OPTIONS = ["INSU", "COC", "ID"];
+const TICKET_OPTIONS = ["No", "Ready", "New Order", "Booked", "Exchange", "Urgent"];
+const ARRIVAL_CITY_OPTIONS = ["RIYADH", "JEDDAH", "DAMMAM", "JOUF", "HAIL", "ABHA", "OTHERS"];
+
+const OPTION_COLORS: Record<string, string> = {
+  // Medical
+  "Fit":               "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+  "Unfit":             "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+  "In progress":       "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  "Expired":           "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
+  "No":                "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
+  // COC / shared
+  "Done":              "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+  "Booked":            "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  "Placed":            "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300",
+  "Yitazez":           "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
+  "Pending release":   "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  // Tasheer
+  "Ready":             "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300",
+  // Wokala
+  "Paid":              "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+  "Unpaid":            "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+  // Visa
+  "Ready for embassy": "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300",
+  "Sent to Embassy":   "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300",
+  "Privately Sent":    "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300",
+  "Issued":            "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+  "Visa canceled":     "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+  "Arrived KSA":       "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
+  "Returned":          "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
+  "Waiting Replacement":"bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  // Insurance
+  "Pending":           "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  // LMIS
+  "No COC":            "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+  "Not tested":        "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
+  "Imported":          "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300",
+  "Checked":           "bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300",
+  "Verified":          "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+  "Draft":             "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
+  "Rejected":          "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+  // Ticket
+  "New Order":         "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  "Exchange":          "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
+  "Urgent":            "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+  // Arrival city
+  "RIYADH":            "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300",
+  "JEDDAH":            "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  "DAMMAM":            "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300",
+  "JOUF":              "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  "HAIL":              "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
+  "ABHA":              "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+  "OTHERS":            "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
+  // Passport
+  "Submitted":         "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  "Received":          "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+  // Availability/status
+  "available":         "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+  "processing":        "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  "arrived":           "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  "canceled":          "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+  // Office
+  "Riyadh":            "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300",
+  "Jeddah":            "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  "Dammam":            "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-300",
+  "Other":             "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
+  // Musaned
+  "Saudi":             "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
+  "Kuwait":            "bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300",
+  // Unfilled LMIS
+  "INSU":              "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300",
+  "COC":               "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
+  "ID":                "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  // Age ranges
+  "18-25":             "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300",
+  "26-35":             "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  "36-45":             "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300",
+  "46-99":             "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300",
+  // Gender
+  "Male":              "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  "Female":            "bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300",
+  // Religion
+  "Muslim":            "bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300",
+  "Non-muslim":        "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+  // Experience
+  "Experienced":       "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+  "Non-Experienced":   "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
+  // Sort
+  "newest":            "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300",
+  "oldest":            "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+};
+
+type ProcessingColDef =
+  | { key: string; header: string; type: "text" | "date" }
+  | { key: string; header: string; type: "select"; options: string[] };
+
+const PROCESSING_COLS: ProcessingColDef[] = [
+  { key: "narrative",         header: "Narrative",         type: "text" },
+  { key: "narrative_phone",   header: "Narrative Phone",   type: "text" },
+  { key: "contract_date",     header: "Contract Date",     type: "date" },
+  { key: "medical_status",    header: "Medical",           type: "select", options: MEDICAL_OPTIONS },
+  { key: "medical_date",      header: "Medical Date",      type: "date" },
+  { key: "medical_days",      header: "Medical Days",      type: "text" },
+  { key: "coc_status",        header: "COC",               type: "select", options: COC_OPTIONS },
+  { key: "tasheer_status",    header: "Tasheer",           type: "select", options: TASHEER_OPTIONS },
+  { key: "tasheer_date",      header: "Tasheer Date",      type: "date" },
+  { key: "wokala_status",     header: "Wokala",            type: "select", options: WOKALA_OPTIONS },
+  { key: "embassy_date",      header: "Embassy Date",      type: "date" },
+  { key: "visa_status",       header: "Visa Status",       type: "select", options: VISA_OPTIONS },
+  { key: "insurance_status",  header: "Insurance",         type: "select", options: INSURANCE_OPTIONS },
+  { key: "unfilled_lmis",     header: "Unfilled LMIS",     type: "select", options: UNFILLED_LMIS_OPTIONS },
+  { key: "lmis_status",       header: "LMIS",              type: "select", options: LMIS_OPTIONS },
+  { key: "ticket_status",     header: "Ticket",            type: "select", options: TICKET_OPTIONS },
+  { key: "ticket_date",       header: "Ticket Date",       type: "date" },
+  { key: "arrival_city",      header: "Arrival City",      type: "select", options: ARRIVAL_CITY_OPTIONS },
+  { key: "processing_notes",  header: "Note",              type: "text" },
+  { key: "emergency_contact", header: "Emergency Contact", type: "text" },
+];
+
+const CANDIDATE_CARD_COLS = [
+  "FULL NAME", "CANDIDATE CODE", "GENDER", "RELIGION", "MARITAL STATUS",
+  "BIRTH PLACE", "LIVING TOWN", "OCCUPATION", "PASSPORT NUMBER", "LABOUR ID",
+  "OFFICE", "PASSPORT STATUS", "COC STATUS", "MUSANED STATUS", "MEDICAL STATUS",
+  "MEDICAL DATE", "AVAILABILITY", "SELECTED BY", "CV SENT TO", "CV SENT DATE",
+  "NARRATIVE", "NOTES",
+] as const;
 
 const initialForm = {
   full_name: "",
@@ -141,10 +278,21 @@ function StaffCandidatesPage() {
   const fieldMut = useMutation({
     mutationFn: async (input: { id: string; field: string; value: string | null }) =>
       updateField({ data: input as never }),
-    onSuccess: () => {
+    onMutate: async (input) => {
+      await qc.cancelQueries({ queryKey: ["staff-candidates", user?.id] });
+      const previous = qc.getQueryData<Candidate[]>(["staff-candidates", user?.id]);
+      qc.setQueryData<Candidate[]>(["staff-candidates", user?.id], (old) =>
+        old?.map((c) => c.id === input.id ? { ...c, [input.field]: input.value } : c) ?? []
+      );
+      return { previous };
+    },
+    onError: (e: Error, _, ctx) => {
+      if (ctx?.previous) qc.setQueryData(["staff-candidates", user?.id], ctx.previous);
+      toast.error(e.message);
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["staff-candidates"] });
     },
-    onError: (e: Error) => toast.error(e.message),
   });
 
   const opts = useMemo(() => {
@@ -319,41 +467,42 @@ function StaffCandidatesPage() {
           </div>
           {showFilters && (
           <>
-          <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-3">
-            <FilterSelect icon={Calendar} value={filters.sort} onChange={(v) => setFilters({ ...filters, sort: v })}
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <FilterSelect value={filters.sort} onChange={(v) => setFilters({ ...filters, sort: v })}
+              icon={ArrowUpDown}
               options={[{ value: "newest", label: "Date (Newest)" }, { value: "oldest", label: "Date (Oldest)" }]} />
-            <FilterSelect icon={Users} placeholder="Age" value={filters.age}
+            <FilterSelect placeholder="Age" value={filters.age} icon={Users}
               onChange={(v) => setFilters({ ...filters, age: v })}
               options={[
                 { value: "all", label: "-----" },
                 { value: "18-25", label: "18-25" }, { value: "26-35", label: "26-35" },
                 { value: "36-45", label: "36-45" }, { value: "46-99", label: "46+" },
               ]} />
-            <FilterSelect icon={Circle} placeholder="Gender" value={filters.gender}
+            <FilterSelect placeholder="Gender" value={filters.gender} icon={User}
               onChange={(v) => setFilters({ ...filters, gender: v })}
               options={[{ value: "all", label: "-----" }, { value: "Male", label: "Male" }, { value: "Female", label: "Female" }]} />
-            <FilterSelect icon={BookOpen} placeholder="Religion" value={filters.religion}
+            <FilterSelect placeholder="Religion" value={filters.religion} icon={BookOpen}
               onChange={(v) => setFilters({ ...filters, religion: v })}
               options={[{ value: "all", label: "-----" }, { value: "Muslim", label: "Muslim" }, { value: "Non-muslim", label: "Non-muslim" }]} />
-            <FilterSelect icon={Stethoscope} placeholder="Medical" value={filters.medical}
+            <FilterSelect placeholder="Medical" value={filters.medical} icon={Stethoscope}
               onChange={(v) => setFilters({ ...filters, medical: v })}
               options={[{ value: "all", label: "-----" }, ...MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))]} />
-            <FilterSelect icon={FileEdit} placeholder="Narrative" value={filters.narrative}
+            <FilterSelect placeholder="Narrative" value={filters.narrative} icon={FileText}
               onChange={(v) => setFilters({ ...filters, narrative: v })}
               options={[{ value: "all", label: "-----" }, ...opts.narrative.map((o) => ({ value: o, label: o }))]} />
-            <FilterSelect icon={BriefcaseBusiness} placeholder="Experience" value={filters.experience}
+            <FilterSelect placeholder="Experience" value={filters.experience} icon={Briefcase}
               onChange={(v) => setFilters({ ...filters, experience: v })}
               options={[{ value: "all", label: "-----" }, { value: "Experienced", label: "Experienced" }, { value: "Non-Experienced", label: "Non-Experienced" }]} />
-            <FilterSelect icon={BadgeCheck} placeholder="COC" value={filters.coc}
+            <FilterSelect placeholder="COC" value={filters.coc} icon={FileCheck}
               onChange={(v) => setFilters({ ...filters, coc: v })}
               options={[{ value: "all", label: "-----" }, ...["Done","No","Booked","Placed","Yitazez","Pending Release"].map((o) => ({ value: o, label: o }))]} />
-            <FilterSelect icon={Globe} placeholder="Musaned" value={filters.musaned}
+            <FilterSelect placeholder="Musaned" value={filters.musaned} icon={Globe}
               onChange={(v) => setFilters({ ...filters, musaned: v })}
               options={[{ value: "all", label: "-----" }, ...opts.musaned.map((o) => ({ value: o, label: o }))]} />
-            <FilterSelect icon={Send} placeholder="CV Sent To" value={filters.cv_sent_to}
+            <FilterSelect placeholder="CV Sent To" value={filters.cv_sent_to} icon={Send}
               onChange={(v) => setFilters({ ...filters, cv_sent_to: v })}
               options={[{ value: "all", label: "-----" }, ...opts.cv_sent_to.map((o) => ({ value: o, label: o }))]} />
-            <FilterSelect icon={Activity} placeholder="Availability" value={filters.availability}
+            <FilterSelect placeholder="Availability" value={filters.availability} icon={Activity}
               onChange={(v) => setFilters({ ...filters, availability: v })}
               options={[
                 { value: "all", label: "-----" },
@@ -448,43 +597,26 @@ function StaffCandidatesPage() {
         </Card>
       )}
 
-      {/* Candidate cards */}
-      {filtered.length > 0 && (() => {
-        const allSelected = filtered.every((c) => selected.has(c.id));
-        const someSelected = !allSelected && filtered.some((c) => selected.has(c.id));
-        return (
-          <label className="flex items-center gap-2 px-1 text-sm font-medium cursor-pointer w-fit">
-            <Checkbox
-              checked={allSelected ? true : someSelected ? "indeterminate" : false}
-              onCheckedChange={(v) => {
-                setSelected((prev) => {
-                  const n = new Set(prev);
-                  if (v) filtered.forEach((c) => n.add(c.id));
-                  else filtered.forEach((c) => n.delete(c.id));
-                  return n;
-                });
-              }}
-            />
-            Select all ({filtered.length})
-          </label>
-        );
-      })()}
-      <div className="space-y-2">
-        {filtered.map((c) => (
-          <CandidateCard
-            key={c.id}
-            candidate={c}
-            selected={selected.has(c.id)}
-            onToggleSelect={() => toggleSelect(c.id)}
-            onEdit={() => openEdit(c)}
-            onDelete={() => removeMut.mutate(c.id)}
-            onUpdateField={(field, value) => fieldMut.mutate({ id: c.id, field, value })}
-          />
-        ))}
-        {filtered.length === 0 && (
-          <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates here yet.</CardContent></Card>
-        )}
-      </div>
+      {/* Candidate cards / Processing table */}
+      {tab === "processing" ? (
+        <ProcessingTable
+          candidates={filtered}
+          selected={selected}
+          onToggleSelect={toggleSelect}
+          onUpdateField={(id, field, value) => fieldMut.mutate({ id, field, value })}
+          onEdit={openEdit}
+          onDelete={(id) => removeMut.mutate(id)}
+        />
+      ) : (
+        <CandidateCardList
+          candidates={filtered}
+          selected={selected}
+          onToggleSelect={toggleSelect}
+          onEdit={openEdit}
+          onDelete={(id) => removeMut.mutate(id)}
+          onUpdateField={(id, field, value) => fieldMut.mutate({ id, field, value })}
+        />
+      )}
 
       {/* Add / Edit dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
@@ -534,13 +666,96 @@ function StaffCandidatesPage() {
 type EditableField =
   | "notes" | "narrative" | "occupation" | "living_town" | "selected_by"
   | "medical_status" | "status" | "office" | "passport_status"
-  | "musaned_status" | "coc_status";
+  | "musaned_status" | "coc_status"
+  | "narrative_phone" | "contract_date" | "medical_date" | "medical_days"
+  | "tasheer_status" | "tasheer_date" | "wokala_status" | "embassy_date"
+  | "visa_status" | "insurance_status" | "unfilled_lmis" | "lmis_status"
+  | "ticket_status" | "ticket_date" | "arrival_city" | "emergency_contact"
+  | "processing_notes";
+
+function CandidateCardList({
+  candidates, selected, onToggleSelect, onEdit, onDelete, onUpdateField,
+}: {
+  candidates: Candidate[];
+  selected: Set<string>;
+  onToggleSelect: (id: string) => void;
+  onEdit: (c: Candidate) => void;
+  onDelete: (id: string) => void;
+  onUpdateField: (id: string, field: string, value: string | null) => void;
+}) {
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
+  const [showColPicker, setShowColPicker] = useState(false);
+  const allSel = candidates.length > 0 && candidates.every((c) => selected.has(c.id));
+  const someSel = !allSel && candidates.some((c) => selected.has(c.id));
+
+  return (
+    <div className="space-y-2">
+      {candidates.length > 0 && (
+        <div className="flex items-center justify-between px-1">
+          <label className="flex items-center gap-2 text-sm font-medium cursor-pointer w-fit">
+            <Checkbox
+              checked={allSel ? true : someSel ? "indeterminate" : false}
+              onCheckedChange={(v) =>
+                candidates.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
+              }
+            />
+            Select all ({candidates.length})
+          </label>
+          <div className="relative">
+            <Button
+              size="sm" variant="outline" className="h-7 gap-1.5 text-xs"
+              onClick={() => setShowColPicker((v) => !v)}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Columns
+              {hiddenCols.size > 0 && (
+                <span className="ml-1 rounded-full bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+                  {hiddenCols.size} hidden
+                </span>
+              )}
+            </Button>
+            {showColPicker && (
+              <div className="absolute right-0 top-8 z-50 bg-popover border border-border rounded-lg shadow-xl p-3 w-[340px] grid grid-cols-2 gap-x-4 gap-y-1">
+                {CANDIDATE_CARD_COLS.map((label) => (
+                  <label key={label} className="flex items-center gap-1.5 text-xs cursor-pointer py-1 hover:text-primary">
+                    <Checkbox
+                      checked={!hiddenCols.has(label)}
+                      onCheckedChange={(v) =>
+                        setHiddenCols((prev) => { const n = new Set(prev); v ? n.delete(label) : n.add(label); return n; })
+                      }
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {candidates.length === 0 ? (
+        <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates here yet.</CardContent></Card>
+      ) : candidates.map((c) => (
+        <CandidateCard
+          key={c.id}
+          candidate={c}
+          selected={selected.has(c.id)}
+          hiddenCols={hiddenCols}
+          onToggleSelect={() => onToggleSelect(c.id)}
+          onEdit={() => onEdit(c)}
+          onDelete={() => onDelete(c.id)}
+          onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
+        />
+      ))}
+    </div>
+  );
+}
 
 function CandidateCard({
-  candidate, selected, onToggleSelect, onEdit, onDelete, onUpdateField,
+  candidate, selected, hiddenCols, onToggleSelect, onEdit, onDelete, onUpdateField,
 }: {
   candidate: Candidate;
   selected: boolean;
+  hiddenCols: Set<string>;
   onToggleSelect: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -586,6 +801,7 @@ function CandidateCard({
     { label: "NARRATIVE", value: candidate.narrative ?? "", edit: "text", field: "narrative" },
     { label: "NOTES", value: candidate.notes ?? "", edit: "text", field: "notes" },
   ];
+  const visibleFields = fields.filter((f) => !hiddenCols.has(f.label));
 
   return (
     <Card className={cn("relative overflow-visible transition-colors", selected && "ring-2 ring-primary")}>
@@ -603,39 +819,24 @@ function CandidateCard({
             <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="overflow-x-auto no-scrollbar">
-            <table className="text-[11px] border-collapse">
-              <thead>
-                <tr>
-                  {fields.map((f) => (
-                    <th key={f.label} className="text-left text-[9px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap pr-6 pb-1">
-                      {f.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  {fields.map((f) => (
-                    <td key={f.label} className={cn("whitespace-nowrap pr-6 align-top", "bold" in f && f.bold && "font-semibold")}>
-                      {"edit" in f && f.edit === "text" ? (
-                        <InlineText
-                          value={f.value}
-                          onSave={(v) => onUpdateField(f.field, v)}
-                        />
-                      ) : "edit" in f && f.edit === "select" ? (
-                        <InlineSelect
-                          value={f.value}
-                          options={f.options}
-                          onSave={(v) => onUpdateField(f.field, v)}
-                        />
-                      ) : (
-                        ("value" in f ? f.value : "—") || "—"
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              </tbody>
-            </table>
+            <div className="flex gap-5 items-start">
+              {visibleFields.map((f) => (
+                <div key={f.label} className="shrink-0">
+                  <div className="text-[9px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-0.5">
+                    {f.label}
+                  </div>
+                  <div className={cn("text-[11px] whitespace-nowrap", "bold" in f && f.bold && "font-semibold")}>
+                    {"edit" in f && f.edit === "text" ? (
+                      <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
+                    ) : "edit" in f && f.edit === "select" ? (
+                      <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
+                    ) : (
+                      ("value" in f ? f.value : "—") || "—"
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
           <div className="flex flex-col items-end gap-0.5">
             <Button asChild size="sm" className="h-6 w-16 text-[10px] px-2">
@@ -653,6 +854,189 @@ function CandidateCard({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function ProcessingTable({
+  candidates, selected, onToggleSelect, onUpdateField, onEdit, onDelete,
+}: {
+  candidates: Candidate[];
+  selected: Set<string>;
+  onToggleSelect: (id: string) => void;
+  onUpdateField: (id: string, field: string, value: string | null) => void;
+  onEdit: (c: Candidate) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
+  const [showColPicker, setShowColPicker] = useState(false);
+  const visibleCols = PROCESSING_COLS.filter((col) => !hiddenCols.has(col.key));
+  const allSel = candidates.length > 0 && candidates.every((c) => selected.has(c.id));
+  const someSel = !allSel && candidates.some((c) => selected.has(c.id));
+
+  return (
+    <div className="space-y-2">
+      {/* Toolbar: select-all + column picker */}
+      {candidates.length > 0 && (
+        <div className="flex items-center justify-between px-1">
+          <label className="flex items-center gap-2 text-sm font-medium cursor-pointer w-fit">
+            <Checkbox
+              checked={allSel ? true : someSel ? "indeterminate" : false}
+              onCheckedChange={(v) =>
+                candidates.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
+              }
+            />
+            Select all ({candidates.length})
+          </label>
+          <div className="relative">
+            <Button
+              size="sm" variant="outline" className="h-7 gap-1.5 text-xs"
+              onClick={() => setShowColPicker((v) => !v)}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Columns
+              {hiddenCols.size > 0 && (
+                <span className="ml-1 rounded-full bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+                  {hiddenCols.size} hidden
+                </span>
+              )}
+            </Button>
+            {showColPicker && (
+              <div className="absolute right-0 top-8 z-50 bg-popover border border-border rounded-lg shadow-xl p-3 w-[340px] grid grid-cols-2 gap-x-4 gap-y-1">
+                {PROCESSING_COLS.map((col) => (
+                  <label key={col.key} className="flex items-center gap-1.5 text-xs cursor-pointer py-1 hover:text-primary">
+                    <Checkbox
+                      checked={!hiddenCols.has(col.key)}
+                      onCheckedChange={(v) =>
+                        setHiddenCols((prev) => { const n = new Set(prev); v ? n.delete(col.key) : n.add(col.key); return n; })
+                      }
+                    />
+                    {col.header}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Processing cards (same layout as other tabs) */}
+      {candidates.length === 0 ? (
+        <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates in processing.</CardContent></Card>
+      ) : candidates.map((c) => (
+        <ProcessingCard
+          key={c.id}
+          candidate={c}
+          selected={selected.has(c.id)}
+          visibleCols={visibleCols}
+          onToggleSelect={() => onToggleSelect(c.id)}
+          onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
+          onEdit={() => onEdit(c)}
+          onDelete={() => onDelete(c.id)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ProcessingCard({
+  candidate, selected, visibleCols, onToggleSelect, onUpdateField, onEdit, onDelete,
+}: {
+  candidate: Candidate;
+  selected: boolean;
+  visibleCols: ProcessingColDef[];
+  onToggleSelect: () => void;
+  onUpdateField: (field: string, value: string | null) => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <Card className={cn("relative overflow-visible transition-colors", selected && "ring-2 ring-primary")}>
+      <span className="absolute -top-2 left-3 rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-wide bg-warning text-foreground">
+        PROCESSING
+      </span>
+      <CardContent className="p-2.5">
+        <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-center">
+          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
+          <Avatar className="h-10 w-10">
+            {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
+            <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <div className="overflow-x-auto no-scrollbar">
+            <div className="flex gap-5 items-start">
+              <div className="shrink-0">
+                <div className="text-[9px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-0.5">Full Name</div>
+                <div className="text-[11px] font-semibold whitespace-nowrap">{candidate.full_name}</div>
+              </div>
+              {visibleCols.map((col) => {
+                const raw = candidate[col.key as keyof Candidate];
+                const strVal = raw == null ? "" : String(raw);
+                return (
+                  <div key={col.key} className="shrink-0">
+                    <div className="text-[9px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-0.5">
+                      {col.header}
+                    </div>
+                    <div className="text-[11px] whitespace-nowrap">
+                      {col.type === "text" ? (
+                        <InlineText value={strVal} onSave={(v) => onUpdateField(col.key, v)} />
+                      ) : col.type === "date" ? (
+                        <InlineDate value={strVal} onSave={(v) => onUpdateField(col.key, v)} />
+                      ) : (
+                        <InlineSelect value={strVal} options={col.options} onSave={(v) => onUpdateField(col.key, v)} />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-0.5">
+            <Button asChild size="sm" className="h-6 w-16 text-[10px] px-2">
+              <Link to="/staff/cv-generator" search={{ id: candidate.id }}>
+                <FileText className="h-3 w-3 mr-1" /> VIEW
+              </Link>
+            </Button>
+            <button onClick={onEdit} className="text-[10px] text-primary hover:underline flex items-center gap-1">
+              <Pencil className="h-2.5 w-2.5" /> Edit
+            </button>
+            <button onClick={onDelete} className="text-[10px] text-destructive hover:underline flex items-center gap-1">
+              <Trash2 className="h-2.5 w-2.5" /> Delete
+            </button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function InlineDate({ value, onSave }: { value: string; onSave: (v: string | null) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const fmt = (v: string) =>
+    v ? new Date(v + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) : "";
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => { setDraft(value); setEditing(true); }}
+        className="text-left rounded px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block"
+      >
+        {value ? fmt(value) : <span className="text-muted-foreground">—</span>}
+      </button>
+    );
+  }
+  return (
+    <input
+      autoFocus
+      type="date"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => { setEditing(false); if (draft !== value) onSave(draft || null); }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+        if (e.key === "Escape") { setDraft(value); setEditing(false); }
+      }}
+      className="rounded border border-primary bg-background px-1 py-0.5 text-[11px] outline-none min-w-[110px]"
+    />
   );
 }
 
@@ -689,17 +1073,28 @@ function InlineText({ value, onSave }: { value: string; onSave: (v: string | nul
   );
 }
 
+function OptionPill({ label, className }: { label: string; className?: string }) {
+  const color = OPTION_COLORS[label] ?? "bg-muted text-muted-foreground";
+  return (
+    <span className={cn("inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium leading-none whitespace-nowrap", color, className)}>
+      {label}
+    </span>
+  );
+}
+
 function InlineSelect({
   value, options, onSave,
 }: { value: string; options: string[]; onSave: (v: string | null) => void }) {
   return (
     <Select value={value || undefined} onValueChange={(v) => onSave(v)}>
-      <SelectTrigger className="h-6 w-auto min-w-[90px] gap-1 border-transparent bg-transparent px-1 py-0 text-[11px] shadow-none hover:border-border hover:bg-muted/60 focus:ring-0">
-        <SelectValue placeholder="—" />
+      <SelectTrigger className="h-auto w-auto min-w-[80px] gap-1 border-transparent bg-transparent p-0 shadow-none focus:ring-0 [&>svg]:shrink-0">
+        <SelectValue placeholder={<span className="text-muted-foreground text-[11px] px-1">—</span>} />
       </SelectTrigger>
       <SelectContent>
         {options.map((o) => (
-          <SelectItem key={o} value={o} className="text-xs capitalize">{o}</SelectItem>
+          <SelectItem key={o} value={o} className="py-1 px-2 focus:bg-muted/50">
+            <OptionPill label={o} />
+          </SelectItem>
         ))}
       </SelectContent>
     </Select>
@@ -716,48 +1111,89 @@ function CardField({ label, value, bold }: { label: string; value: string; bold?
 }
 
 function FilterSelect({
-  icon: Icon, value, onChange, options, placeholder,
+  value, onChange, options, placeholder, icon: Icon,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
   value: string;
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
   placeholder?: string;
+  icon?: React.ElementType;
 }) {
   const isReset = value === "all" || !value;
+  const hasColor = !isReset && !!OPTION_COLORS[value];
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger
-        className={cn(
-          "border-0 shadow-none w-auto h-auto gap-2 text-xs font-bold transition-colors rounded-md",
-          isReset
-            ? "bg-transparent p-0 hover:text-primary"
-            : "bg-primary/10 text-primary px-2 py-1 ring-1 ring-primary/30",
-        )}
-      >
-        <Icon className={cn("h-3.5 w-3.5", isReset ? "text-primary" : "text-primary")} />
-        {isReset ? (
-          <span className="text-foreground">{placeholder}</span>
-        ) : (
-          <SelectValue placeholder={placeholder} />
-        )}
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((o) => (
-          <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className="flex items-center gap-0.5">
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger
+          className={cn(
+            "border shadow-none w-auto h-7 px-2 gap-1.5 transition-colors rounded-md text-xs font-medium [&>svg]:shrink-0",
+            isReset
+              ? "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+              : hasColor
+                ? cn(OPTION_COLORS[value], "border-transparent")
+                : "bg-primary/10 border-primary/30 text-primary",
+          )}
+        >
+          {Icon && <Icon className="h-3 w-3 shrink-0" />}
+          {isReset ? (
+            <span>{placeholder}</span>
+          ) : hasColor ? (
+            <span>{options.find((o) => o.value === value)?.label ?? value}</span>
+          ) : (
+            <SelectValue />
+          )}
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((o) => {
+            const isAll = o.value === "all";
+            const color = OPTION_COLORS[o.label] ?? OPTION_COLORS[o.value];
+            return (
+              <SelectItem key={o.value} value={o.value} className="py-1 px-2 focus:bg-muted/50">
+                {isAll ? (
+                  <span className="text-xs text-muted-foreground">{o.label}</span>
+                ) : color ? (
+                  <OptionPill label={o.label} />
+                ) : (
+                  <span className="text-xs">{o.label}</span>
+                )}
+              </SelectItem>
+            );
+          })}
+        </SelectContent>
+      </Select>
+      {!isReset && (
+        <button
+          type="button"
+          onClick={() => onChange("all")}
+          className="rounded-full p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          aria-label="Clear filter"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+    </div>
   );
 }
 
 function DateField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
-    <label className="flex items-center gap-2 text-xs font-bold cursor-pointer">
-      <Calendar className="h-3.5 w-3.5 text-primary" />
-      {value ? <span>{new Date(value).toLocaleDateString()}</span> : <span className="text-muted-foreground font-bold">{label}</span>}
-      <input type="date" value={value} onChange={(e) => onChange(e.target.value)} className="sr-only" />
-    </label>
+    <div className="flex items-center gap-0.5">
+      <label className="flex items-center gap-2 text-xs font-bold cursor-pointer">
+        <Calendar className="h-3.5 w-3.5 text-primary" />
+        {value ? <span>{new Date(value).toLocaleDateString()}</span> : <span className="text-muted-foreground font-bold">{label}</span>}
+        <input type="date" value={value} onChange={(e) => onChange(e.target.value)} className="sr-only" />
+      </label>
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          className="rounded-full p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          aria-label="Clear date"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+    </div>
   );
 }
 
