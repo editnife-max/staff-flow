@@ -18,7 +18,18 @@
       "PowerShell(Get-Content *)",
       "PowerShell(Select-String -Path \"C:\\\\Project\\\\flowpath-suite\\\\dist\\\\server\\\\server.js\" -Pattern \"_build|assets/\" | Select-Object -First 5 | ForEach-Object { $_.Line.Substring\\([Math]::Max\\(0, $_.Matches[0].Index - 20\\), [Math]::Min\\(100, $_.Line.Length - [Math]::Max\\(0, $_.Matches[0].Index - 20\\)\\)\\) })",
       "PowerShell(Select-String -Path \"C:\\\\Project\\\\flowpath-suite\\\\dist\\\\server\\\\assets\\\\_tanstack-start-manifest_v-DtJflfcI.js\" -Pattern \"href|src\" | Select-Object -First 5 | ForEach-Object { $_.Line.Substring\\(0, [Math]::Min\\(200, $_.Line.Length\\)\\) })",
-      "WebFetch(domain:tawtheeq.musaned.com.sa)"
+      "WebFetch(domain:tawtheeq.musaned.com.sa)",
+      "PowerShell(bun dev *)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(npm run *)",
+      "PowerShell(Test-NetConnection *)",
+      "PowerShell(powershell -c \"irm bun.sh/install.ps1 | iex\")",
+      "PowerShell(Stop-Process *)",
+      "Bash(xargs grep -l \"tanstack-start-server-entry\")",
+      "Bash(xargs grep -l \"resolveId\\\\|virtual:\")",
+      "Bash(xargs grep -l \"resolveId\")",
+      "Bash(xargs grep -l \"createStartHandler\")",
+      "PowerShell(Get-Process *)"
     ]
   },
   "enableAllProjectMcpServers": true,

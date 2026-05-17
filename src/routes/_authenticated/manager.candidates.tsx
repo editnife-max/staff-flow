@@ -54,48 +54,48 @@ const OFFICE_OPTIONS = ["Riyadh", "Jeddah", "Dammam", "Other"];
 const PASSPORT_OPTIONS = ["Pending", "Submitted", "Received", "Expired"];
 
 const OPTION_COLORS: Record<string, string> = {
-  "Fit":               "bg-emerald-100/50 text-black dark:bg-emerald-900/40 dark:text-emerald-300",
-  "Unfit":             "bg-red-100/50 text-black dark:bg-red-900/40 dark:text-red-300",
-  "In progress":       "bg-amber-100/50 text-black dark:bg-amber-900/40 dark:text-amber-300",
-  "Expired":           "bg-orange-100/50 text-black dark:bg-orange-900/40 dark:text-orange-300",
-  "No":                "bg-zinc-100/50 text-black dark:bg-zinc-800 dark:text-zinc-400",
-  "Done":              "bg-emerald-100/50 text-black dark:bg-emerald-900/40 dark:text-emerald-300",
-  "Booked":            "bg-blue-100/50 text-black dark:bg-blue-900/40 dark:text-blue-300",
-  "Placed":            "bg-violet-100/50 text-black dark:bg-violet-900/40 dark:text-violet-300",
-  "Yitazez":           "bg-orange-100/50 text-black dark:bg-orange-900/40 dark:text-orange-300",
-  "Pending release":   "bg-amber-100/50 text-black dark:bg-amber-900/40 dark:text-amber-300",
-  "Paid":              "bg-emerald-100/50 text-black dark:bg-emerald-900/40 dark:text-emerald-300",
-  "Unpaid":            "bg-red-100/50 text-black dark:bg-red-900/40 dark:text-red-300",
-  "Pending":           "bg-amber-100/50 text-black dark:bg-amber-900/40 dark:text-amber-300",
-  "Submitted":         "bg-blue-100/50 text-black dark:bg-blue-900/40 dark:text-blue-300",
-  "Received":          "bg-emerald-100/50 text-black dark:bg-emerald-900/40 dark:text-emerald-300",
-  "available":         "bg-emerald-100/50 text-black dark:bg-emerald-900/40 dark:text-emerald-300",
-  "processing":        "bg-amber-100/50 text-black dark:bg-amber-900/40 dark:text-amber-300",
-  "arrived":           "bg-blue-100/50 text-black dark:bg-blue-900/40 dark:text-blue-300",
-  "canceled":          "bg-red-100/50 text-black dark:bg-red-900/40 dark:text-red-300",
-  "Riyadh":            "bg-violet-100/50 text-black dark:bg-violet-900/40 dark:text-violet-300",
-  "Jeddah":            "bg-blue-100/50 text-black dark:bg-blue-900/40 dark:text-blue-300",
-  "Dammam":            "bg-cyan-100/50 text-black dark:bg-cyan-900/40 dark:text-cyan-300",
-  "Other":             "bg-zinc-100/50 text-black dark:bg-zinc-800 dark:text-zinc-400",
-  "Saudi":             "bg-green-100/50 text-black dark:bg-green-900/40 dark:text-green-300",
-  "Kuwait":            "bg-teal-100/50 text-black dark:bg-teal-900/40 dark:text-teal-300",
+  "Fit":               "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
+  "Unfit":             "bg-red-100/50 text-[#181A27] dark:bg-red-900/40 dark:text-red-300",
+  "In progress":       "bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
+  "Expired":           "bg-orange-100/50 text-[#181A27] dark:bg-orange-900/40 dark:text-orange-300",
+  "No":                "bg-zinc-100/50 text-[#181A27] dark:bg-zinc-800 dark:text-zinc-400",
+  "Done":              "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
+  "Booked":            "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
+  "Placed":            "bg-violet-100/50 text-[#181A27] dark:bg-violet-900/40 dark:text-violet-300",
+  "Yitazez":           "bg-orange-100/50 text-[#181A27] dark:bg-orange-900/40 dark:text-orange-300",
+  "Pending release":   "bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
+  "Paid":              "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
+  "Unpaid":            "bg-red-100/50 text-[#181A27] dark:bg-red-900/40 dark:text-red-300",
+  "Pending":           "bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
+  "Submitted":         "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
+  "Received":          "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
+  "available":         "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
+  "processing":        "bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
+  "arrived":           "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
+  "canceled":          "bg-red-100/50 text-[#181A27] dark:bg-red-900/40 dark:text-red-300",
+  "Riyadh":            "bg-violet-100/50 text-[#181A27] dark:bg-violet-900/40 dark:text-violet-300",
+  "Jeddah":            "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
+  "Dammam":            "bg-cyan-100/50 text-[#181A27] dark:bg-cyan-900/40 dark:text-cyan-300",
+  "Other":             "bg-zinc-100/50 text-[#181A27] dark:bg-zinc-800 dark:text-zinc-400",
+  "Saudi":             "bg-green-100/50 text-[#181A27] dark:bg-green-900/40 dark:text-green-300",
+  "Kuwait":            "bg-teal-100/50 text-[#181A27] dark:bg-teal-900/40 dark:text-teal-300",
   // Age ranges
-  "18-25":             "bg-sky-100/50 text-black dark:bg-sky-900/40 dark:text-sky-300",
-  "26-35":             "bg-blue-100/50 text-black dark:bg-blue-900/40 dark:text-blue-300",
-  "36-45":             "bg-violet-100/50 text-black dark:bg-violet-900/40 dark:text-violet-300",
-  "46-99":             "bg-indigo-100/50 text-black dark:bg-indigo-900/40 dark:text-indigo-300",
+  "18-25":             "bg-sky-100/50 text-[#181A27] dark:bg-sky-900/40 dark:text-sky-300",
+  "26-35":             "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
+  "36-45":             "bg-violet-100/50 text-[#181A27] dark:bg-violet-900/40 dark:text-violet-300",
+  "46-99":             "bg-indigo-100/50 text-[#181A27] dark:bg-indigo-900/40 dark:text-indigo-300",
   // Gender
-  "Male":              "bg-blue-100/50 text-black dark:bg-blue-900/40 dark:text-blue-300",
-  "Female":            "bg-pink-100/50 text-black dark:bg-pink-900/40 dark:text-pink-300",
+  "Male":              "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
+  "Female":            "bg-pink-100/50 text-[#181A27] dark:bg-pink-900/40 dark:text-pink-300",
   // Religion
-  "Muslim":            "bg-teal-100/50 text-black dark:bg-teal-900/40 dark:text-teal-300",
-  "Non-muslim":        "bg-slate-100/50 text-black dark:bg-slate-800 dark:text-slate-400",
+  "Muslim":            "bg-teal-100/50 text-[#181A27] dark:bg-teal-900/40 dark:text-teal-300",
+  "Non-muslim":        "bg-slate-100/50 text-[#181A27] dark:bg-slate-800 dark:text-slate-400",
   // Experience
-  "Experienced":       "bg-emerald-100/50 text-black dark:bg-emerald-900/40 dark:text-emerald-300",
-  "Non-Experienced":   "bg-orange-100/50 text-black dark:bg-orange-900/40 dark:text-orange-300",
+  "Experienced":       "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
+  "Non-Experienced":   "bg-orange-100/50 text-[#181A27] dark:bg-orange-900/40 dark:text-orange-300",
   // Sort
-  "newest":            "bg-sky-100/50 text-black dark:bg-sky-900/40 dark:text-sky-300",
-  "oldest":            "bg-amber-100/50 text-black dark:bg-amber-900/40 dark:text-amber-300",
+  "newest":            "bg-sky-100/50 text-[#181A27] dark:bg-sky-900/40 dark:text-sky-300",
+  "oldest":            "bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
 };
 
 const initialForm = {
@@ -651,14 +651,14 @@ function CandidateCard({
   ];
 
   return (
-    <Card className={cn("relative overflow-visible transition-colors rounded-none", selected && "ring-2 ring-primary")}>
+    <Card className={cn("relative overflow-visible transition-colors rounded-none mb-[15px]", selected && "ring-2 ring-primary")}>
       <span className={cn(
-        "absolute -top-2 left-3 rounded px-1.5 py-0.5 text-[16px] font-semibold tracking-wide",
+        "absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[16px] font-semibold tracking-wide",
         statusStyles[statusKey],
       )}>
         {statusLabel[statusKey]}
       </span>
-      <CardContent className="p-2.5">
+      <CardContent className="pt-[20px] pr-[25px] pb-[20px] pl-[7px]">
         <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-center">
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <Avatar className="h-10 w-10">
@@ -666,7 +666,7 @@ function CandidateCard({
             <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="overflow-x-auto no-scrollbar">
-            <table className="text-[11px] border-collapse">
+            <table className="text-[14px] text-[#181A27] border-collapse">
               <thead>
                 <tr>
                   {fields.map((f) => (
@@ -747,7 +747,7 @@ function InlineText({ value, onSave }: { value: string; onSave: (v: string | nul
         if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
         if (e.key === "Escape") { setDraft(value); setEditing(false); }
       }}
-      className="rounded border border-primary bg-background px-1 py-0.5 text-[11px] outline-none min-w-[80px]"
+      className="rounded border border-primary bg-background px-1 py-0.5 text-[14px] text-[#181A27] outline-none min-w-[80px]"
     />
   );
 }
@@ -757,7 +757,7 @@ function InlineSelect({
 }: { value: string; options: string[]; onSave: (v: string | null) => void }) {
   return (
     <Select value={value || undefined} onValueChange={(v) => onSave(v)}>
-      <SelectTrigger className="h-6 w-auto min-w-[90px] gap-1 border-transparent bg-transparent px-1 py-0 text-[11px] shadow-none hover:border-border hover:bg-muted/60 focus:ring-0">
+      <SelectTrigger className="h-6 w-auto min-w-[90px] gap-1 border-transparent bg-transparent px-1 py-0 text-[14px] text-[#181A27] shadow-none hover:border-border hover:bg-muted/60 focus:ring-0">
         <SelectValue placeholder="—" />
       </SelectTrigger>
       <SelectContent>
@@ -772,7 +772,7 @@ function InlineSelect({
 function OptionPill({ label, className }: { label: string; className?: string }) {
   const color = OPTION_COLORS[label] ?? "bg-muted text-muted-foreground";
   return (
-    <span className={cn("inline-flex items-center rounded px-1.5 py-0.5 text-[14px] font-medium leading-none whitespace-nowrap", color, className)}>
+    <span className={cn("inline-flex items-center rounded-none px-1.5 py-0.5 text-[14px] font-medium leading-none whitespace-nowrap", color, className)}>
       {label}
     </span>
   );
@@ -794,12 +794,12 @@ function FilterSelect({
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger
           className={cn(
-            "border shadow-none w-auto h-7 px-2 gap-1.5 transition-colors rounded-md text-[13px] font-medium [&>svg]:shrink-0",
+            "border shadow-none w-auto h-7 px-2 gap-1.5 transition-colors rounded-none text-[13px] font-medium [&>svg]:shrink-0",
             isReset
               ? "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
               : hasColor
                 ? cn(OPTION_COLORS[value], "border-transparent")
-                : "bg-black/10 border-black/20 text-black dark:bg-white/10 dark:border-white/20 dark:text-white",
+                : "bg-black/10 border-black/20 text-[#181A27] dark:bg-white/10 dark:border-white/20 dark:text-white",
           )}
         >
           {Icon && <Icon className="h-3 w-3 shrink-0" />}
@@ -822,7 +822,7 @@ function FilterSelect({
                 ) : color ? (
                   <OptionPill label={o.label} />
                 ) : (
-                  <span className="text-[14px] text-black dark:text-white">{o.label}</span>
+                  <span className="text-[14px] text-[#181A27] dark:text-white">{o.label}</span>
                 )}
               </SelectItem>
             );
