@@ -8,6 +8,7 @@ let _handler: FetchHandler | undefined
 async function getHandler(): Promise<FetchHandler> {
   if (!_handler) {
     // dist/server/server.js is created by `vite build` before Vercel builds this function
+    // @ts-ignore – no types for the esbuild bundle output
     const mod = (await import('../dist/server/bundle.js')) as { default: FetchHandler }
     _handler = mod.default
   }
