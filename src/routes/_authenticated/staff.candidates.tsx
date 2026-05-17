@@ -533,13 +533,13 @@ function StaffCandidatesPage() {
                 key={t.key}
                 onClick={() => setTab(t.key)}
                 className={cn(
-                  "pb-2 text-xs font-medium transition-colors",
+                  "pb-2 text-[16px] font-medium transition-colors",
                   tab === t.key
                     ? "text-primary border-b-2 border-primary -mb-px"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {t.label} <span className="ml-1 text-[10px] opacity-70">({counts[t.key] ?? 0})</span>
+                {t.label} <span className="ml-1 text-[16px] opacity-70">({counts[t.key] ?? 0})</span>
               </button>
             ))}
           </div>
@@ -1035,7 +1035,7 @@ function InlineDate({ value, onSave }: { value: string; onSave: (v: string | nul
         if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
         if (e.key === "Escape") { setDraft(value); setEditing(false); }
       }}
-      className="rounded border border-primary bg-background px-1 py-0.5 text-[14px] outline-none min-w-[110px]"
+      className="rounded border border-primary bg-background px-1 py-0.5 text-[14px] text-[#181A27] outline-none min-w-[110px]"
     />
   );
 }
@@ -1068,7 +1068,7 @@ function InlineText({ value, onSave }: { value: string; onSave: (v: string | nul
         if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
         if (e.key === "Escape") { setDraft(value); setEditing(false); }
       }}
-      className="rounded border border-primary bg-background px-1 py-0.5 text-[14px] outline-none min-w-[80px]"
+      className="rounded border border-primary bg-background px-1 py-0.5 text-[14px] text-[#181A27] outline-none min-w-[80px]"
     />
   );
 }
@@ -1105,7 +1105,7 @@ function CardField({ label, value, bold }: { label: string; value: string; bold?
   return (
     <div className="shrink-0">
       <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap">{label}</div>
-      <div className={cn("mt-0.5 text-[14px] whitespace-nowrap", bold && "font-semibold")}>{value}</div>
+      <div className={cn("mt-0.5 text-[14px] text-[#181A27] whitespace-nowrap", bold && "font-semibold")}>{value}</div>
     </div>
   );
 }
