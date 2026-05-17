@@ -1,9 +1,9 @@
 {
-  "buildCommand": "bun run build",
+  "buildCommand": "bun run build && ./node_modules/.bin/esbuild dist/server/server.js --bundle --platform=node --format=esm --outfile=dist/server/bundle.js",
   "outputDirectory": "dist/client",
   "functions": {
     "api/server.ts": {
-      "includeFiles": "dist/server/**",
+      "includeFiles": "dist/server/bundle.js",
       "memory": 1024,
       "maxDuration": 30
     }
