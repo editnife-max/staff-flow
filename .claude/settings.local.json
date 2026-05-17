@@ -12,7 +12,12 @@
       "Bash(supabase link *)",
       "mcp__supabase__execute_sql",
       "mcp__supabase__list_tables",
-      "mcp__supabase__apply_migration"
+      "mcp__supabase__apply_migration",
+      "Bash(bun build *)",
+      "PowerShell(Get-Command *)",
+      "PowerShell(Get-Content *)",
+      "PowerShell(Select-String -Path \"C:\\\\Project\\\\flowpath-suite\\\\dist\\\\server\\\\server.js\" -Pattern \"_build|assets/\" | Select-Object -First 5 | ForEach-Object { $_.Line.Substring\\([Math]::Max\\(0, $_.Matches[0].Index - 20\\), [Math]::Min\\(100, $_.Line.Length - [Math]::Max\\(0, $_.Matches[0].Index - 20\\)\\)\\) })",
+      "PowerShell(Select-String -Path \"C:\\\\Project\\\\flowpath-suite\\\\dist\\\\server\\\\assets\\\\_tanstack-start-manifest_v-DtJflfcI.js\" -Pattern \"href|src\" | Select-Object -First 5 | ForEach-Object { $_.Line.Substring\\(0, [Math]::Min\\(200, $_.Line.Length\\)\\) })"
     ]
   },
   "enableAllProjectMcpServers": true,
