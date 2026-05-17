@@ -167,7 +167,8 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-family: "Cairo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-family: "Frutiger LT Arabic", "Cairo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 14px;
     letter-spacing: 0em;
   }
 }
