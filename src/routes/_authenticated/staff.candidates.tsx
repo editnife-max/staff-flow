@@ -806,7 +806,7 @@ function CandidateCard({
   return (
     <Card className={cn("relative overflow-visible transition-colors rounded-none", selected && "ring-2 ring-primary")}>
       <span className={cn(
-        "absolute -top-2 left-3 rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-wide",
+        "absolute -top-2 left-3 rounded px-1.5 py-0.5 text-[16px] font-semibold tracking-wide",
         statusStyles[statusKey],
       )}>
         {statusLabel[statusKey]}
@@ -822,7 +822,7 @@ function CandidateCard({
             <div className="flex gap-5 items-start">
               {visibleFields.map((f) => (
                 <div key={f.label} className="shrink-0">
-                  <div className="text-[9px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-0.5">
+                  <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-0.5">
                     {f.label}
                   </div>
                   <div className={cn("text-[11px] whitespace-nowrap", "bold" in f && f.bold && "font-semibold")}>
@@ -964,7 +964,7 @@ function ProcessingCard({
           <div className="overflow-x-auto no-scrollbar">
             <div className="flex gap-5 items-start">
               <div className="shrink-0">
-                <div className="text-[9px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-0.5">Full Name</div>
+                <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-0.5">Full Name</div>
                 <div className="text-[11px] font-semibold whitespace-nowrap">{candidate.full_name}</div>
               </div>
               {visibleCols.map((col) => {
@@ -972,7 +972,7 @@ function ProcessingCard({
                 const strVal = raw == null ? "" : String(raw);
                 return (
                   <div key={col.key} className="shrink-0">
-                    <div className="text-[9px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-0.5">
+                    <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-0.5">
                       {col.header}
                     </div>
                     <div className="text-[11px] whitespace-nowrap">
@@ -1076,7 +1076,7 @@ function InlineText({ value, onSave }: { value: string; onSave: (v: string | nul
 function OptionPill({ label, className }: { label: string; className?: string }) {
   const color = OPTION_COLORS[label] ?? "bg-muted text-muted-foreground";
   return (
-    <span className={cn("inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium leading-none whitespace-nowrap", color, className)}>
+    <span className={cn("inline-flex items-center rounded px-1.5 py-0.5 text-[14px] font-medium leading-none whitespace-nowrap", color, className)}>
       {label}
     </span>
   );
@@ -1104,7 +1104,7 @@ function InlineSelect({
 function CardField({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
     <div className="shrink-0">
-      <div className="text-[9px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap">{label}</div>
+      <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap">{label}</div>
       <div className={cn("mt-0.5 text-[11px] whitespace-nowrap", bold && "font-semibold")}>{value}</div>
     </div>
   );
@@ -1126,7 +1126,7 @@ function FilterSelect({
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger
           className={cn(
-            "border shadow-none w-auto h-7 px-2 gap-1.5 transition-colors rounded-md text-xs font-medium [&>svg]:shrink-0",
+            "border shadow-none w-auto h-7 px-2 gap-1.5 transition-colors rounded-md text-[13px] font-medium [&>svg]:shrink-0",
             isReset
               ? "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
               : hasColor
@@ -1150,11 +1150,11 @@ function FilterSelect({
             return (
               <SelectItem key={o.value} value={o.value} className="py-1 px-2 focus:bg-muted/50">
                 {isAll ? (
-                  <span className="text-xs text-muted-foreground">{o.label}</span>
+                  <span className="text-[13px] text-muted-foreground">{o.label}</span>
                 ) : color ? (
                   <OptionPill label={o.label} />
                 ) : (
-                  <span className="text-xs text-black dark:text-white">{o.label}</span>
+                  <span className="text-[14px] text-black dark:text-white">{o.label}</span>
                 )}
               </SelectItem>
             );

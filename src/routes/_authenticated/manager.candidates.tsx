@@ -653,7 +653,7 @@ function CandidateCard({
   return (
     <Card className={cn("relative overflow-visible transition-colors rounded-none", selected && "ring-2 ring-primary")}>
       <span className={cn(
-        "absolute -top-2 left-3 rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-wide",
+        "absolute -top-2 left-3 rounded px-1.5 py-0.5 text-[16px] font-semibold tracking-wide",
         statusStyles[statusKey],
       )}>
         {statusLabel[statusKey]}
@@ -670,7 +670,7 @@ function CandidateCard({
               <thead>
                 <tr>
                   {fields.map((f) => (
-                    <th key={f.label} className="text-left text-[9px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap pr-6 pb-1">
+                    <th key={f.label} className="text-left text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap pr-6 pb-1">
                       {f.label}
                     </th>
                   ))}
@@ -772,7 +772,7 @@ function InlineSelect({
 function OptionPill({ label, className }: { label: string; className?: string }) {
   const color = OPTION_COLORS[label] ?? "bg-muted text-muted-foreground";
   return (
-    <span className={cn("inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium leading-none whitespace-nowrap", color, className)}>
+    <span className={cn("inline-flex items-center rounded px-1.5 py-0.5 text-[14px] font-medium leading-none whitespace-nowrap", color, className)}>
       {label}
     </span>
   );
@@ -794,7 +794,7 @@ function FilterSelect({
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger
           className={cn(
-            "border shadow-none w-auto h-7 px-2 gap-1.5 transition-colors rounded-md text-xs font-medium [&>svg]:shrink-0",
+            "border shadow-none w-auto h-7 px-2 gap-1.5 transition-colors rounded-md text-[13px] font-medium [&>svg]:shrink-0",
             isReset
               ? "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
               : hasColor
@@ -818,11 +818,11 @@ function FilterSelect({
             return (
               <SelectItem key={o.value} value={o.value} className="py-1 px-2 focus:bg-muted/50">
                 {isAll ? (
-                  <span className="text-xs text-muted-foreground">{o.label}</span>
+                  <span className="text-[13px] text-muted-foreground">{o.label}</span>
                 ) : color ? (
                   <OptionPill label={o.label} />
                 ) : (
-                  <span className="text-xs text-black dark:text-white">{o.label}</span>
+                  <span className="text-[14px] text-black dark:text-white">{o.label}</span>
                 )}
               </SelectItem>
             );
