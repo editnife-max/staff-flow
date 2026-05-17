@@ -804,7 +804,7 @@ function CandidateCard({
   const visibleFields = fields.filter((f) => !hiddenCols.has(f.label));
 
   return (
-    <Card className={cn("relative overflow-visible transition-colors", selected && "ring-2 ring-primary")}>
+    <Card className={cn("relative overflow-visible transition-colors rounded-none", selected && "ring-2 ring-primary")}>
       <span className={cn(
         "absolute -top-2 left-3 rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-wide",
         statusStyles[statusKey],
@@ -950,7 +950,7 @@ function ProcessingCard({
   onDelete: () => void;
 }) {
   return (
-    <Card className={cn("relative overflow-visible transition-colors", selected && "ring-2 ring-primary")}>
+    <Card className={cn("relative overflow-visible transition-colors rounded-none", selected && "ring-2 ring-primary")}>
       <span className="absolute -top-2 left-3 rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-wide bg-warning text-foreground">
         PROCESSING
       </span>
