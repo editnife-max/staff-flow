@@ -1131,7 +1131,7 @@ function FilterSelect({
               ? "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
               : hasColor
                 ? cn(OPTION_COLORS[value], "border-transparent")
-                : "bg-primary/10 border-primary/30 text-primary",
+                : "bg-black/10 border-black/20 text-black dark:bg-white/10 dark:border-white/20 dark:text-white",
           )}
         >
           {Icon && <Icon className="h-3 w-3 shrink-0" />}
@@ -1154,7 +1154,7 @@ function FilterSelect({
                 ) : color ? (
                   <OptionPill label={o.label} />
                 ) : (
-                  <span className="text-xs">{o.label}</span>
+                  <span className="text-xs text-black dark:text-white">{o.label}</span>
                 )}
               </SelectItem>
             );
