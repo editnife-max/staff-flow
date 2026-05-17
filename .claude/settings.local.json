@@ -29,7 +29,16 @@
       "Bash(xargs grep -l \"resolveId\\\\|virtual:\")",
       "Bash(xargs grep -l \"resolveId\")",
       "Bash(xargs grep -l \"createStartHandler\")",
-      "PowerShell(Get-Process *)"
+      "PowerShell(Get-Process *)",
+      "WebFetch(domain:flowpath-suite.vercel.app)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('type:', d.get\\('type','none'\\)\\); print\\('engines:', d.get\\('engines','none'\\)\\)\")",
+      "Bash(bunx esbuild *)",
+      "Bash(bun x *)",
+      "Bash(npx esbuild *)",
+      "Bash(./node_modules/.bin/esbuild dist/server/server.js --bundle --platform=node --format=esm --outfile=dist/server/bundle.js)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
     ]
   },
   "enableAllProjectMcpServers": true,
