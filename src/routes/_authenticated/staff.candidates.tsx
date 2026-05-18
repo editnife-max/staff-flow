@@ -153,9 +153,11 @@ const OPTION_COLORS: Record<string, string> = {
   // Religion
   "Muslim":            "bg-teal-100/50 text-[#181A27] dark:bg-teal-900/40 dark:text-teal-300",
   "Non-muslim":        "bg-slate-100/50 text-[#181A27] dark:bg-slate-800 dark:text-slate-400",
-  // Experience
+  // Experience / Languages
   "Experienced":       "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
   "Non-Experienced":   "bg-orange-100/50 text-[#181A27] dark:bg-orange-900/40 dark:text-orange-300",
+  "Yes":               "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
+  "None":              "bg-zinc-100/50 text-[#181A27] dark:bg-zinc-800 dark:text-zinc-400",
   // Sort
   "newest":            "bg-sky-100/50 text-[#181A27] dark:bg-sky-900/40 dark:text-sky-300",
   "oldest":            "bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
@@ -319,7 +321,7 @@ function parsePasteData(text: string): Partial<typeof initialForm> {
     "notes": "notes",
   };
 
-  const SKIP_VALUES = new Set(["none", "n/a", "-", "preview", "na"]);
+  const SKIP_VALUES = new Set(["n/a", "-", "preview", "na"]);
   const result: Record<string, string> = {};
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
 
@@ -679,7 +681,7 @@ function StaffCandidatesPage() {
               options={[{ value: "all", label: "-----" }, ...opts.narrative.map((o) => ({ value: o, label: o }))]} />
             <FilterSelect placeholder="Experience" value={filters.experience} icon={Briefcase}
               onChange={(v) => setFilters({ ...filters, experience: v })}
-              options={[{ value: "all", label: "-----" }, { value: "Experienced", label: "Experienced" }, { value: "Non-Experienced", label: "Non-Experienced" }]} />
+              options={[{ value: "all", label: "-----" }, { value: "Yes", label: "Yes" }, { value: "No", label: "No" }, { value: "None", label: "None" }]} />
             <FilterSelect placeholder="COC" value={filters.coc} icon={FileCheck}
               onChange={(v) => setFilters({ ...filters, coc: v })}
               options={[{ value: "all", label: "-----" }, ...["Done","No","Booked","Placed","Yitazez","Pending Release"].map((o) => ({ value: o, label: o }))]} />
@@ -878,10 +880,10 @@ function StaffCandidatesPage() {
             {/* Languages & Experience */}
             <FormSection title="Languages & Experience">
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Spoken Languages" value={form.spoken_languages} onChange={(v) => setForm({ ...form, spoken_languages: v })} />
+                <FormSelect label="Spoken Languages" value={form.spoken_languages} onChange={(v) => setForm({ ...form, spoken_languages: v })} options={["Yes", "No", "None"]} />
                 <FormSelect label="English Level" value={form.english_level} onChange={(v) => setForm({ ...form, english_level: v })} options={["Basic", "Fair", "Good", "Very Good", "Fluent"]} />
                 <FormSelect label="Arabic Level" value={form.arabic_level} onChange={(v) => setForm({ ...form, arabic_level: v })} options={["Basic", "Fair", "Good", "Very Good", "Fluent"]} />
-                <FormSelect label="Experience" value={form.experience} onChange={(v) => setForm({ ...form, experience: v })} options={["Experienced", "Non-Experienced"]} />
+                <FormSelect label="Work Experience" value={form.experience} onChange={(v) => setForm({ ...form, experience: v })} options={["Yes", "No", "None"]} />
               </div>
             </FormSection>
 
