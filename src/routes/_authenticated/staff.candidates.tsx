@@ -914,6 +914,11 @@ function ProcessingTable({
 }) {
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
   const [showColPicker, setShowColPicker] = useState(false);
+  const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [candidates.length]);
+  const PAGE_SIZE = 20;
+  const totalPages = Math.max(1, Math.ceil(candidates.length / PAGE_SIZE));
+  const paginated = candidates.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const visibleCols = PROCESSING_COLS.filter((col) => !hiddenCols.has(col.key));
   const allSel = candidates.length > 0 && candidates.every((c) => selected.has(c.id));
   const someSel = !allSel && candidates.some((c) => selected.has(c.id));
@@ -967,7 +972,7 @@ function ProcessingTable({
       {/* Processing cards (same layout as other tabs) */}
       {candidates.length === 0 ? (
         <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates in processing.</CardContent></Card>
-      ) : candidates.map((c) => (
+      ) : paginated.map((c) => (
         <ProcessingCard
           key={c.id}
           candidate={c}
@@ -979,6 +984,42 @@ function ProcessingTable({
           onDelete={() => onDelete(c.id)}
         />
       ))}
+
+      {candidates.length > 0 && (
+        <div className="flex items-center justify-between pt-2 border-t border-border">
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
+              onClick={() => { setPage((p) => p - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((n) => n === 1 || n === totalPages || Math.abs(n - page) <= 1)
+              .map((n, i, arr) => (
+                <React.Fragment key={n}>
+                  {i > 0 && n - arr[i - 1] > 1 && <span className="text-xs text-muted-foreground px-0.5">…</span>}
+                  <Button size="sm" variant={page === n ? "default" : "outline"}
+                    className="h-7 w-7 p-0 rounded-none text-xs"
+                    onClick={() => { setPage(n); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+                    {n}
+                  </Button>
+                </React.Fragment>
+              ))}
+            <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === totalPages}
+              onClick={() => { setPage((p) => p + 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, candidates.length)} of {candidates.length}
+            </span>
+            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
+              <ChevronUp className="h-3.5 w-3.5" /> Back to top
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
