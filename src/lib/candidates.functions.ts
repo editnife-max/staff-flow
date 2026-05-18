@@ -139,10 +139,11 @@ export const updateCandidateField = createServerFn({ method: "POST" })
     if (data.field === "selected_by" && raw) {
       const { data: cand } = await supabaseAdmin
         .from("candidates")
-        .select("status")
+        .select("status, contract_date")
         .eq("id", data.id)
         .maybeSingle();
       if (cand?.status === "available") payload.status = "processing";
+      if (!cand?.contract_date) payload.contract_date = new Date().toISOString().split("T")[0];
     }
 
     const { error } = await (supabaseAdmin.from("candidates") as any)

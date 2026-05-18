@@ -1160,6 +1160,7 @@ function CandidateCard({
   type FieldDef =
     | { label: string; value: string; bold?: boolean }
     | { label: string; value: string; edit: "text"; field: EditableField }
+    | { label: string; value: string; edit: "date"; field: EditableField }
     | { label: string; value: string; edit: "select"; field: EditableField; options: string[] };
 
   const fields: FieldDef[] = [
@@ -1181,6 +1182,7 @@ function CandidateCard({
     { label: "MEDICAL DATE", value: candidate.medical_date ? new Date(candidate.medical_date).toLocaleDateString() : "—" },
     { label: "AVAILABILITY", value: statusKey, edit: "select", field: "status", options: AVAILABILITY_OPTIONS },
     { label: "SELECTED BY", value: candidate.selected_by ?? "", edit: "text", field: "selected_by" },
+    { label: "CONTRACT DATE", value: candidate.contract_date ?? "", edit: "date", field: "contract_date" },
     { label: "CV SENT TO", value: candidate.cv_sent_to ?? "—" },
     { label: "CV SENT DATE", value: candidate.cv_sent_date ? new Date(candidate.cv_sent_date).toLocaleDateString() : "—" },
     { label: "NARRATIVE", value: candidate.narrative ?? "", edit: "text", field: "narrative" },
@@ -1216,6 +1218,8 @@ function CandidateCard({
                   <div className={cn("text-[14px] text-[#181A27] whitespace-nowrap", "bold" in f && f.bold && "font-semibold")}>
                     {"edit" in f && f.edit === "text" ? (
                       <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
+                    ) : "edit" in f && f.edit === "date" ? (
+                      <InlineDate value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
                     ) : "edit" in f && f.edit === "select" ? (
                       <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
                     ) : (
