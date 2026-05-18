@@ -696,7 +696,7 @@ function CandidateCard({
   ];
 
   return (
-    <Card className={cn("relative overflow-visible transition-colors rounded-none mb-[15px]", selected && "ring-2 ring-primary")}>
+    <Card className={cn("relative overflow-visible transition-colors rounded-none mx-[5px]", selected && "ring-2 ring-primary")}>
       <span className={cn(
         "absolute -top-2 left-3 rounded-none px-1.5 py-0.5 font-semibold tracking-wide",
         statusKey === "available" ? "text-[10px]" : "text-[16px]",
