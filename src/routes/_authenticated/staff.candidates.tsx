@@ -902,6 +902,13 @@ function CandidateCard({
   );
 }
 
+const INITIAL_PROC_FILTERS = {
+  medical_status: "all", coc_status: "all", tasheer_status: "all",
+  wokala_status: "all", visa_status: "all", insurance_status: "all",
+  unfilled_lmis: "all", lmis_status: "all", ticket_status: "all",
+  arrival_city: "all",
+};
+
 function ProcessingTable({
   candidates, selected, onToggleSelect, onUpdateField, onEdit, onDelete,
 }: {
@@ -914,34 +921,105 @@ function ProcessingTable({
 }) {
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
   const [showColPicker, setShowColPicker] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [procFilters, setProcFilters] = useState(INITIAL_PROC_FILTERS);
+  const f = procFilters;
+
+  const activeCount = Object.values(procFilters).filter((v) => v !== "all").length;
+
+  const filteredCandidates = useMemo(() => {
+    let list = candidates;
+    if (f.medical_status !== "all")   list = list.filter((c) => c.medical_status   === f.medical_status);
+    if (f.coc_status     !== "all")   list = list.filter((c) => c.coc_status       === f.coc_status);
+    if (f.tasheer_status !== "all")   list = list.filter((c) => c.tasheer_status   === f.tasheer_status);
+    if (f.wokala_status  !== "all")   list = list.filter((c) => c.wokala_status    === f.wokala_status);
+    if (f.visa_status    !== "all")   list = list.filter((c) => c.visa_status      === f.visa_status);
+    if (f.insurance_status !== "all") list = list.filter((c) => c.insurance_status === f.insurance_status);
+    if (f.unfilled_lmis  !== "all")   list = list.filter((c) => c.unfilled_lmis    === f.unfilled_lmis);
+    if (f.lmis_status    !== "all")   list = list.filter((c) => c.lmis_status      === f.lmis_status);
+    if (f.ticket_status  !== "all")   list = list.filter((c) => c.ticket_status    === f.ticket_status);
+    if (f.arrival_city   !== "all")   list = list.filter((c) => c.arrival_city     === f.arrival_city);
+    return list;
+  }, [candidates, f.medical_status, f.coc_status, f.tasheer_status, f.wokala_status,
+      f.visa_status, f.insurance_status, f.unfilled_lmis, f.lmis_status,
+      f.ticket_status, f.arrival_city]);
+
   const [page, setPage] = useState(1);
-  useEffect(() => { setPage(1); }, [candidates.length]);
+  useEffect(() => { setPage(1); }, [filteredCandidates.length]);
   const PAGE_SIZE = 20;
-  const totalPages = Math.max(1, Math.ceil(candidates.length / PAGE_SIZE));
-  const paginated = candidates.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filteredCandidates.length / PAGE_SIZE));
+  const paginated = filteredCandidates.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const visibleCols = PROCESSING_COLS.filter((col) => !hiddenCols.has(col.key));
-  const allSel = candidates.length > 0 && candidates.every((c) => selected.has(c.id));
-  const someSel = !allSel && candidates.some((c) => selected.has(c.id));
+  const allSel = filteredCandidates.length > 0 && filteredCandidates.every((c) => selected.has(c.id));
+  const someSel = !allSel && filteredCandidates.some((c) => selected.has(c.id));
+
+  const set = (key: keyof typeof INITIAL_PROC_FILTERS) => (v: string) =>
+    setProcFilters((p) => ({ ...p, [key]: v }));
 
   return (
     <div className="space-y-2">
+      {/* Filter bar */}
+      <Card className="rounded-none">
+        <CardContent className="p-3">
+          <div className="flex items-center justify-between gap-2">
+            <button type="button" onClick={() => setShowFilters((s) => !s)}
+              className="flex items-center gap-2 text-xs font-bold text-foreground hover:text-primary transition-colors">
+              <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
+              Filters
+              {activeCount > 0 && (
+                <span className="rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+                  {activeCount}
+                </span>
+              )}
+              {showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
+            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"
+              onClick={() => setProcFilters(INITIAL_PROC_FILTERS)} disabled={activeCount === 0}>
+              <RotateCcw className="h-3.5 w-3.5" /> Reset
+            </Button>
+          </div>
+          {showFilters && (
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <FilterSelect value={f.medical_status} onChange={set("medical_status")} placeholder="Medical" icon={Stethoscope}
+                options={[{ value: "all", label: "-----" }, ...MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <FilterSelect value={f.coc_status} onChange={set("coc_status")} placeholder="COC" icon={FileCheck}
+                options={[{ value: "all", label: "-----" }, ...COC_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <FilterSelect value={f.tasheer_status} onChange={set("tasheer_status")} placeholder="Tasheer"
+                options={[{ value: "all", label: "-----" }, ...TASHEER_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <FilterSelect value={f.wokala_status} onChange={set("wokala_status")} placeholder="Wokala"
+                options={[{ value: "all", label: "-----" }, ...WOKALA_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <FilterSelect value={f.visa_status} onChange={set("visa_status")} placeholder="Visa"
+                options={[{ value: "all", label: "-----" }, ...VISA_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <FilterSelect value={f.insurance_status} onChange={set("insurance_status")} placeholder="Insurance"
+                options={[{ value: "all", label: "-----" }, ...INSURANCE_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <FilterSelect value={f.unfilled_lmis} onChange={set("unfilled_lmis")} placeholder="Unfilled LMIS"
+                options={[{ value: "all", label: "-----" }, ...UNFILLED_LMIS_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <FilterSelect value={f.lmis_status} onChange={set("lmis_status")} placeholder="LMIS"
+                options={[{ value: "all", label: "-----" }, ...LMIS_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <FilterSelect value={f.ticket_status} onChange={set("ticket_status")} placeholder="Ticket"
+                options={[{ value: "all", label: "-----" }, ...TICKET_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <FilterSelect value={f.arrival_city} onChange={set("arrival_city")} placeholder="Arrival City"
+                options={[{ value: "all", label: "-----" }, ...ARRIVAL_CITY_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Toolbar: select-all + column picker */}
-      {candidates.length > 0 && (
+      {filteredCandidates.length > 0 && (
         <div className="flex items-center justify-between px-1">
           <label className="flex items-center gap-2 text-sm font-medium cursor-pointer w-fit">
             <Checkbox
               checked={allSel ? true : someSel ? "indeterminate" : false}
               onCheckedChange={(v) =>
-                candidates.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
+                filteredCandidates.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
               }
             />
-            Select all ({candidates.length})
+            Select all ({filteredCandidates.length})
           </label>
           <div className="relative">
-            <Button
-              size="sm" variant="outline" className="h-7 gap-1.5 text-xs"
-              onClick={() => setShowColPicker((v) => !v)}
-            >
+            <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs"
+              onClick={() => setShowColPicker((v) => !v)}>
               <SlidersHorizontal className="h-3.5 w-3.5" />
               Columns
               {hiddenCols.size > 0 && (
@@ -969,9 +1047,11 @@ function ProcessingTable({
         </div>
       )}
 
-      {/* Processing cards (same layout as other tabs) */}
+      {/* Processing cards */}
       {candidates.length === 0 ? (
         <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates in processing.</CardContent></Card>
+      ) : filteredCandidates.length === 0 ? (
+        <Card><CardContent className="p-8 text-center text-muted-foreground">No matches for the selected filters.</CardContent></Card>
       ) : paginated.map((c) => (
         <ProcessingCard
           key={c.id}
@@ -1011,7 +1091,7 @@ function ProcessingTable({
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">
-              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, candidates.length)} of {candidates.length}
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredCandidates.length)} of {filteredCandidates.length}
             </span>
             <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
