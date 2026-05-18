@@ -5,6 +5,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-sans: 'Frutiger LT Arabic', sans-serif;
+  --font-mono: 'Frutiger LT Arabic', sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -163,11 +165,13 @@
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
+  * {
+    border-color: var(--color-border);
+    font-family: 'Frutiger LT Arabic', sans-serif;
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-family: 'Frutiger LT Arabic', sans-serif;
     font-size: 14px;
     letter-spacing: 0em;
   }
