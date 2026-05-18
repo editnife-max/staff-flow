@@ -267,26 +267,47 @@ const initialFilters = {
 };
 
 function parsePasteData(text: string): Partial<typeof initialForm> {
-  const FIELD_MAP: Record<string, string> = {
+  const LABEL_MAP: Record<string, string> = {
+    // EPRO / alternating-line labels
+    "surname": "last_name",
+    "given names": "first_name",
+    "given name": "first_name",
+    "date of birth": "dob",
+    "gender": "gender",
+    "marital status": "marital_status",
+    "religion": "religion",
+    "job": "occupation",
+    "education level": "education",
+    "skills": "skills",
+    "id number": "labour_id",
+    "mobile number": "narrative_phone",
+    "phone": "narrative_phone",
+    "languages": "spoken_languages",
+    "number of children": "children",
+    "work experience": "experience",
+    "passport number": "passport_number",
+    "passport issue place": "place_of_issue",
+    "passport issue date": "passport_issue_date",
+    "passport expiry date": "passport_expiry_date",
+    "city": "living_town",
+    // colon-format labels
     "first name": "first_name", "firstname": "first_name",
     "last name": "last_name", "lastname": "last_name",
     "serial number": "serial_number", "serial no": "serial_number", "serial": "serial_number",
     "candidate code": "candidate_code",
-    "gender": "gender",
-    "date of birth": "dob", "dob": "dob", "birth date": "dob",
-    "religion": "religion",
+    "dob": "dob", "birth date": "dob",
     "birth place": "birth_place", "birthplace": "birth_place", "place of birth": "birth_place",
     "living town": "living_town", "place of residence": "living_town",
-    "marital status": "marital_status", "marital": "marital_status",
+    "marital": "marital_status",
     "children": "children",
     "education": "education",
     "occupation": "occupation",
-    "passport number": "passport_number", "passport no": "passport_number",
+    "passport no": "passport_number",
     "labour id": "labour_id", "labour": "labour_id",
-    "passport issue date": "passport_issue_date", "issue date": "passport_issue_date",
-    "passport expiry date": "passport_expiry_date", "expiry date": "passport_expiry_date", "expire date": "passport_expiry_date",
+    "issue date": "passport_issue_date",
+    "expiry date": "passport_expiry_date", "expire date": "passport_expiry_date",
     "place of issue": "place_of_issue",
-    "spoken languages": "spoken_languages", "languages": "spoken_languages",
+    "spoken languages": "spoken_languages",
     "english level": "english_level", "english": "english_level",
     "arabic level": "arabic_level", "arabic": "arabic_level",
     "experience": "experience",
@@ -297,15 +318,40 @@ function parsePasteData(text: string): Partial<typeof initialForm> {
     "remark": "remark",
     "notes": "notes",
   };
+
+  const SKIP_VALUES = new Set(["none", "n/a", "-", "preview", "na"]);
   const result: Record<string, string> = {};
-  for (const line of text.split("\n")) {
-    const idx = line.indexOf(":");
-    if (idx < 1) continue;
-    const key = line.slice(0, idx).trim().toLowerCase();
-    const val = line.slice(idx + 1).trim();
-    const field = FIELD_MAP[key];
-    if (field && val) result[field] = val;
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+
+  // Detect format: if enough lines contain "key: value" use colon mode
+  const colonLines = lines.filter((l) => /^[^:]+:[^:]+/.test(l)).length;
+
+  if (colonLines > lines.length / 3) {
+    // "Key: Value" per line
+    for (const line of lines) {
+      const idx = line.indexOf(":");
+      if (idx < 1) continue;
+      const key = line.slice(0, idx).trim().toLowerCase();
+      const val = line.slice(idx + 1).trim();
+      const field = LABEL_MAP[key];
+      if (field && val && !SKIP_VALUES.has(val.toLowerCase())) result[field] = val;
+    }
+  } else {
+    // Alternating label / value lines (EPRO-style)
+    for (let i = 0; i < lines.length - 1; i++) {
+      const key = lines[i].toLowerCase();
+      const field = LABEL_MAP[key];
+      if (field) {
+        const val = lines[i + 1].trim();
+        // Consume next line as value whether or not we use it
+        i++;
+        if (val && !LABEL_MAP[val.toLowerCase()] && !SKIP_VALUES.has(val.toLowerCase())) {
+          result[field] = val;
+        }
+      }
+    }
   }
+
   return result as Partial<typeof initialForm>;
 }
 
