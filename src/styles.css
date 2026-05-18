@@ -52,17 +52,17 @@
 
   /* Teal #5cb8c4 as primary */
   --background:          oklch(0.9700 0.0050 210);
-  --foreground:          oklch(0.1884 0.0128 248.5103);
+  --foreground:          #181A27;
   --card:                oklch(1.0000 0 0);
-  --card-foreground:     oklch(0.1884 0.0128 248.5103);
+  --card-foreground:     #181A27;
   --popover:             oklch(1.0000 0 0);
-  --popover-foreground:  oklch(0.1884 0.0128 248.5103);
+  --popover-foreground:  #181A27;
   --primary:             oklch(0.7382 0.0910 202.4);
   --primary-foreground:  oklch(1.0000 0 0);
-  --secondary:           oklch(0.1884 0.0128 248.5103);
+  --secondary:           #181A27;
   --secondary-foreground:oklch(1.0000 0 0);
   --muted:               oklch(0.9222 0.0013 286.3737);
-  --muted-foreground:    oklch(0.1884 0.0128 248.5103);
+  --muted-foreground:    #8C8D93;
   --accent:              oklch(0.9500 0.0150 202);
   --accent-foreground:   oklch(0.7382 0.0910 202.4);
   --destructive:         oklch(0.6188 0.2376 25.7658);
@@ -171,9 +171,13 @@
   }
   body {
     background-color: var(--color-background);
-    color: var(--color-foreground);
+    color: #181A27;
     font-size: 14px;
     letter-spacing: 0em;
+  }
+  /* 10px labels use muted colour */
+  .text-muted-foreground {
+    color: #8C8D93;
   }
 }
 
