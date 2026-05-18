@@ -208,6 +208,24 @@ const initialForm = {
   photo_url: "",
 };
 
+const initialFilters = {
+  sort: "newest",
+  education: "all",
+  age: "all",
+  marital: "all",
+  gender: "all",
+  religion: "all",
+  medical: "all",
+  narrative: "all",
+  experience: "all",
+  coc: "all",
+  musaned: "all",
+  cv_sent_to: "all",
+  availability: "all",
+  from: "",
+  to: "",
+};
+
 function StaffCandidatesPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -225,27 +243,11 @@ function StaffCandidatesPage() {
   const [tab, setTab] = useState<Status>("available");
   const [passport, setPassport] = useState("");
   const [showFilters, setShowFilters] = useState(true);
-  const initialFilters = {
-    sort: "newest",
-    education: "all",
-    age: "all",
-    marital: "all",
-    gender: "all",
-    religion: "all",
-    medical: "all",
-    narrative: "all",
-    experience: "all",
-    coc: "all",
-    musaned: "all",
-    cv_sent_to: "all",
-    availability: "all",
-    from: "",
-    to: "",
-  };
   const [filters, setFilters] = useState(initialFilters);
   const activeCount = Object.entries(filters).filter(([k, v]) =>
     k !== "sort" && v && v !== "all"
   ).length;
+  useEffect(() => { setFilters(initialFilters); setPassport(""); }, [tab]);
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Candidate | null>(null);
@@ -317,6 +319,8 @@ function StaffCandidatesPage() {
 
   const filtered = useMemo(() => {
     let list = candidates.filter((c) => c.status === tab);
+    // Processing tab handles its own filtering inside ProcessingTable
+    if (tab === "processing") return list;
     if (passport) list = list.filter((c) => (c.passport_number ?? "").toLowerCase().includes(passport.toLowerCase()));
     if (filters.education !== "all") list = list.filter((c) => c.education === filters.education);
     if (filters.marital !== "all") list = list.filter((c) => c.marital_status === filters.marital);
@@ -440,8 +444,8 @@ function StaffCandidatesPage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <Card className="rounded-none">
+      {/* Filters — hidden on Processing tab (ProcessingTable has its own) */}
+      {tab !== "processing" && <Card className="rounded-none">
         <CardContent className="p-4">
           <div className="flex items-center justify-between gap-2">
             <button
@@ -525,7 +529,7 @@ function StaffCandidatesPage() {
           </>
           )}
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* Status tabs */}
       <Card className="rounded-none">
@@ -922,6 +926,7 @@ function ProcessingTable({
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
   const [showColPicker, setShowColPicker] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [search, setSearch] = useState("");
   const [procFilters, setProcFilters] = useState(INITIAL_PROC_FILTERS);
   const f = procFilters;
 
@@ -929,6 +934,14 @@ function ProcessingTable({
 
   const filteredCandidates = useMemo(() => {
     let list = candidates;
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter((c) =>
+        c.full_name.toLowerCase().includes(q) ||
+        (c.passport_number ?? "").toLowerCase().includes(q) ||
+        (c.serial_number ?? "").toLowerCase().includes(q)
+      );
+    }
     if (f.medical_status !== "all")   list = list.filter((c) => c.medical_status   === f.medical_status);
     if (f.coc_status     !== "all")   list = list.filter((c) => c.coc_status       === f.coc_status);
     if (f.tasheer_status !== "all")   list = list.filter((c) => c.tasheer_status   === f.tasheer_status);
@@ -940,7 +953,7 @@ function ProcessingTable({
     if (f.ticket_status  !== "all")   list = list.filter((c) => c.ticket_status    === f.ticket_status);
     if (f.arrival_city   !== "all")   list = list.filter((c) => c.arrival_city     === f.arrival_city);
     return list;
-  }, [candidates, f.medical_status, f.coc_status, f.tasheer_status, f.wokala_status,
+  }, [candidates, search, f.medical_status, f.coc_status, f.tasheer_status, f.wokala_status,
       f.visa_status, f.insurance_status, f.unfilled_lmis, f.lmis_status,
       f.ticket_status, f.arrival_city]);
 
@@ -974,9 +987,13 @@ function ProcessingTable({
               {showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
             </button>
             <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"
-              onClick={() => setProcFilters(INITIAL_PROC_FILTERS)} disabled={activeCount === 0}>
+              onClick={() => { setProcFilters(INITIAL_PROC_FILTERS); setSearch(""); }} disabled={activeCount === 0 && !search}>
               <RotateCcw className="h-3.5 w-3.5" /> Reset
             </Button>
+          </div>
+          <div className="mt-3 relative w-60">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input className="pl-9 h-8 text-xs rounded-none" placeholder="Name / Passport / Code" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           {showFilters && (
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
