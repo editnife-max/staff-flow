@@ -335,8 +335,6 @@ function StaffCandidatesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Candidate | null>(null);
   const [form, setForm] = useState(initialForm);
-  const [pasteOpen, setPasteOpen] = useState(false);
-  const [pasteText, setPasteText] = useState("");
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["staff-candidates", user?.id],
@@ -751,7 +749,7 @@ function StaffCandidatesPage() {
       )}
 
       {/* Add / Edit dialog */}
-      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setPasteOpen(false); setPasteText(""); } }}>
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <div className="flex items-center justify-between pr-6">
@@ -761,45 +759,24 @@ function StaffCandidatesPage() {
                 size="sm"
                 variant="outline"
                 className="gap-1.5 text-xs h-7 rounded-none"
-                onClick={() => setPasteOpen((p) => !p)}
+                onClick={async () => {
+                  try {
+                    const text = await navigator.clipboard.readText();
+                    const parsed = parsePasteData(text);
+                    const count = Object.keys(parsed).length;
+                    if (count === 0) { toast.info("No recognizable fields found in clipboard"); return; }
+                    setForm((f) => ({ ...f, ...parsed }));
+                    toast.success(`Filled ${count} field${count !== 1 ? "s" : ""} from clipboard`);
+                  } catch {
+                    toast.error("Clipboard access denied — copy data first");
+                  }
+                }}
               >
                 <ClipboardPaste className="h-3.5 w-3.5" />
                 Paste Data
               </Button>
             </div>
           </DialogHeader>
-
-          {pasteOpen && (
-            <div className="border rounded-none p-3 space-y-2 bg-muted/30 mx-1">
-              <Label className="text-xs font-semibold text-muted-foreground">Paste data (one "Key: Value" per line)</Label>
-              <Textarea
-                rows={5}
-                placeholder={"First Name: MESERET\nLast Name: ALEMU\nPassport Number: EP1234567\nDate of Birth: 1990-05-10\nReligion: Muslim\n..."}
-                value={pasteText}
-                onChange={(e) => setPasteText(e.target.value)}
-                className="text-xs rounded-none font-mono"
-              />
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-7 text-xs rounded-none gap-1"
-                  onClick={() => {
-                    setForm((f) => ({ ...f, ...parsePasteData(pasteText) }));
-                    setPasteOpen(false);
-                    setPasteText("");
-                  }}
-                  disabled={!pasteText.trim()}
-                >
-                  <ClipboardPaste className="h-3.5 w-3.5" /> Fill Form
-                </Button>
-                <Button type="button" size="sm" variant="ghost" className="h-7 text-xs rounded-none"
-                  onClick={() => { setPasteOpen(false); setPasteText(""); }}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
 
           <div className="max-h-[62vh] overflow-y-auto pr-2 space-y-5">
             {/* Names & IDs */}
