@@ -1,13 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, FilePlus, FileText, Pencil, Trash2, FileSignature, Calendar,
   UserCheck, X, SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight,
   ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
-  Globe, Send, Activity, UserPlus,
+  Globe, Send, Activity, UserPlus, Upload, ImageIcon,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -116,6 +116,8 @@ const initialForm = {
   skills: "",
   status: "available" as Status,
   photo_url: "",
+  full_photo_url: "",
+  passport_scan_url: "",
 };
 
 const firstName = (s: string | null | undefined) =>
@@ -272,6 +274,8 @@ function ManagerCandidatesPage() {
         age: form.age === "" ? null : Number(form.age),
         dob: form.dob || null,
         photo_url: form.photo_url || null,
+        full_photo_url: form.full_photo_url || null,
+        passport_scan_url: form.passport_scan_url || null,
       };
       return upsert({ data: { id: editing?.id, data: payload } });
     },
@@ -332,7 +336,10 @@ function ManagerCandidatesPage() {
       dob: c.dob ?? "", occupation: c.occupation ?? "", country: c.country ?? "",
       age: c.age ?? "", gender: c.gender ?? "", religion: c.religion ?? "",
       marital_status: c.marital_status ?? "", education: c.education ?? "",
-      skills: c.skills ?? "", status: c.status as Status, photo_url: c.photo_url ?? "",
+      skills: c.skills ?? "", status: c.status as Status,
+      photo_url: c.photo_url ?? "",
+      full_photo_url: (c as any).full_photo_url ?? "",
+      passport_scan_url: c.passport_scan_url ?? "",
     });
     setOpen(true);
   };
@@ -599,31 +606,38 @@ function ManagerCandidatesPage() {
           <DialogHeader>
             <DialogTitle>{editing ? "Edit candidate" : "Add new candidate"}</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-1">
-            <Field label="Full Name *" value={form.full_name} onChange={(v) => setForm({ ...form, full_name: v })} />
-            <Field label="Serial Number" value={form.serial_number} onChange={(v) => setForm({ ...form, serial_number: v })} />
-            <Field label="Passport Number" value={form.passport_number} onChange={(v) => setForm({ ...form, passport_number: v })} />
-            <Field label="Date of Birth" type="date" value={form.dob} onChange={(v) => setForm({ ...form, dob: v })} />
-            <Field label="Occupation" value={form.occupation} onChange={(v) => setForm({ ...form, occupation: v })} />
-            <Field label="Country" value={form.country} onChange={(v) => setForm({ ...form, country: v })} />
-            <Field label="Age" type="number" value={String(form.age)} onChange={(v) => setForm({ ...form, age: v })} />
-            <Field label="Gender" value={form.gender} onChange={(v) => setForm({ ...form, gender: v })} />
-            <Field label="Religion" value={form.religion} onChange={(v) => setForm({ ...form, religion: v })} />
-            <Field label="Marital Status" value={form.marital_status} onChange={(v) => setForm({ ...form, marital_status: v })} />
-            <Field label="Education" value={form.education} onChange={(v) => setForm({ ...form, education: v })} />
-            <Field label="Skills" value={form.skills} onChange={(v) => setForm({ ...form, skills: v })} />
-            <Field label="Photo URL" value={form.photo_url} onChange={(v) => setForm({ ...form, photo_url: v })} />
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Status })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="processing">Processing</SelectItem>
-                  <SelectItem value="arrived">Arrived</SelectItem>
-                  <SelectItem value="canceled">Canceled</SelectItem>
-                </SelectContent>
-              </Select>
+          <div className="max-h-[65vh] overflow-y-auto pr-1 space-y-4">
+            {/* Photos */}
+            <div className="grid grid-cols-3 gap-3">
+              <PhotoUpload label="Photo" value={form.photo_url} onChange={(url) => setForm((f) => ({ ...f, photo_url: url }))} />
+              <PhotoUpload label="Full Size Photo" value={form.full_photo_url} onChange={(url) => setForm((f) => ({ ...f, full_photo_url: url }))} />
+              <PhotoUpload label="Passport Scan" value={form.passport_scan_url} onChange={(url) => setForm((f) => ({ ...f, passport_scan_url: url }))} accept="image/*,application/pdf" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Full Name *" value={form.full_name} onChange={(v) => setForm({ ...form, full_name: v })} />
+              <Field label="Serial Number" value={form.serial_number} onChange={(v) => setForm({ ...form, serial_number: v })} />
+              <Field label="Passport Number" value={form.passport_number} onChange={(v) => setForm({ ...form, passport_number: v })} />
+              <Field label="Date of Birth" type="date" value={form.dob} onChange={(v) => setForm({ ...form, dob: v })} />
+              <Field label="Occupation" value={form.occupation} onChange={(v) => setForm({ ...form, occupation: v })} />
+              <Field label="Country" value={form.country} onChange={(v) => setForm({ ...form, country: v })} />
+              <Field label="Age" type="number" value={String(form.age)} onChange={(v) => setForm({ ...form, age: v })} />
+              <Field label="Gender" value={form.gender} onChange={(v) => setForm({ ...form, gender: v })} />
+              <Field label="Religion" value={form.religion} onChange={(v) => setForm({ ...form, religion: v })} />
+              <Field label="Marital Status" value={form.marital_status} onChange={(v) => setForm({ ...form, marital_status: v })} />
+              <Field label="Education" value={form.education} onChange={(v) => setForm({ ...form, education: v })} />
+              <Field label="Skills" value={form.skills} onChange={(v) => setForm({ ...form, skills: v })} />
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Status })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="available">Available</SelectItem>
+                    <SelectItem value="processing">Processing</SelectItem>
+                    <SelectItem value="arrived">Arrived</SelectItem>
+                    <SelectItem value="canceled">Canceled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -952,6 +966,62 @@ function DateField({ label, value, onChange }: { label: string; value: string; o
           <X className="h-3 w-3" />
         </button>
       )}
+    </div>
+  );
+}
+
+function PhotoUpload({
+  label, value, onChange, accept = "image/*",
+}: { label: string; value: string; onChange: (url: string) => void; accept?: string }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() ?? "bin";
+      const path = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage.from("candidate-files").upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data } = supabase.storage.from("candidate-files").getPublicUrl(path);
+      onChange(data.publicUrl);
+    } catch (e: any) {
+      toast.error(e.message ?? "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        className={cn(
+          "relative w-full min-h-[72px] border-2 border-dashed rounded-none flex flex-col items-center justify-center gap-1 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-primary",
+          uploading && "opacity-50 pointer-events-none",
+        )}
+      >
+        {value ? (
+          <img src={value} alt={label} className="max-h-[64px] object-contain" />
+        ) : (
+          <>
+            <ImageIcon className="h-5 w-5" />
+            <span>{uploading ? "Uploading…" : "Upload"}</span>
+          </>
+        )}
+        {value && (
+          <span
+            className="absolute top-0.5 right-0.5 p-0.5 rounded-none bg-background/80 text-muted-foreground hover:text-destructive"
+            onClick={(e) => { e.stopPropagation(); onChange(""); }}
+          >
+            <X className="h-3 w-3" />
+          </span>
+        )}
+      </button>
+      <input ref={inputRef} type="file" accept={accept} className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
     </div>
   );
 }
