@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import React, { useState } from "react";
 import {
   Users, Clock, CheckCircle2, XCircle,
-  ChevronDown, ChevronUp, Stethoscope, FileCheck, ClipboardList,
+  ChevronDown, ChevronUp, Stethoscope, FileCheck, ClipboardList, Ticket,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -71,9 +71,10 @@ const STATUS_PILL: Record<string, string> = {
 };
 
 const ALERT_PILL: Record<string, string> = {
-  coc: "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300",
-  medical: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
-  lmis: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+  coc:    "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300",
+  medical:"bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
+  lmis:   "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+  ticket: "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
 };
 
 function AlertSection({
@@ -83,6 +84,7 @@ function AlertSection({
   pillKey,
   candidates,
   valueField,
+  note,
 }: {
   icon: React.ElementType;
   title: string;
@@ -90,6 +92,7 @@ function AlertSection({
   pillKey: keyof typeof ALERT_PILL;
   candidates: Candidate[];
   valueField: keyof Candidate;
+  note?: (c: Candidate) => string | null;
 }) {
   const [open, setOpen] = useState(false);
   if (candidates.length === 0) return null;
@@ -114,35 +117,43 @@ function AlertSection({
       </button>
       {open && (
         <div className="divide-y divide-border border-t border-border">
-          {candidates.map((c) => (
-            <div key={c.id} className="flex items-center gap-3 px-4 py-2.5 bg-muted/20">
-              <Avatar className="h-8 w-8 shrink-0">
-                {c.photo_url && (
-                  <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />
-                )}
-                <AvatarFallback className="text-[10px] rounded-none">
-                  {c.full_name.slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {[c.occupation, c.country].filter(Boolean).join(" · ") || "—"}
-                </p>
+          {candidates.map((c) => {
+            const noteText = note?.(c) ?? null;
+            return (
+              <div key={c.id} className="flex items-center gap-3 px-4 py-2.5 bg-muted/20">
+                <Avatar className="h-8 w-8 shrink-0">
+                  {c.photo_url && (
+                    <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />
+                  )}
+                  <AvatarFallback className="text-[10px] rounded-none">
+                    {c.full_name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {[c.occupation, c.country].filter(Boolean).join(" · ") || "—"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {noteText && (
+                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-muted text-muted-foreground">
+                      {noteText}
+                    </span>
+                  )}
+                  <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-none", ALERT_PILL[pillKey])}>
+                    {String(c[valueField] ?? "—")}
+                  </span>
+                  <span className={cn(
+                    "text-[11px] font-medium px-2 py-0.5 rounded-none capitalize",
+                    STATUS_PILL[c.status] ?? "bg-muted text-muted-foreground",
+                  )}>
+                    {c.status}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-none", ALERT_PILL[pillKey])}>
-                  {String(c[valueField] ?? "—")}
-                </span>
-                <span className={cn(
-                  "text-[11px] font-medium px-2 py-0.5 rounded-none capitalize",
-                  STATUS_PILL[c.status] ?? "bg-muted text-muted-foreground",
-                )}>
-                  {c.status}
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -173,9 +184,24 @@ function StaffDashboard() {
     canceled: candidates.filter((c) => c.status === "canceled").length,
   };
 
-  const cocNotDone = candidates.filter((c) => c.coc_status && c.coc_status !== "Done");
+  const cocNotDone   = candidates.filter((c) => c.coc_status && c.coc_status !== "Done");
   const medicalNotFit = candidates.filter((c) => c.medical_status && c.medical_status !== "Fit");
-  const unfilledLmis = candidates.filter((c) => c.unfilled_lmis && c.unfilled_lmis.trim() !== "");
+  const unfilledLmis  = candidates.filter((c) => c.unfilled_lmis && c.unfilled_lmis.trim() !== "");
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const ticketNotBooked = candidates.filter((c) => {
+    if (!c.contract_date) return false;
+    if (c.ticket_status === "Booked") return false;
+    const contractDay = new Date(c.contract_date + "T00:00:00");
+    const days = Math.floor((today.getTime() - contractDay.getTime()) / 86_400_000);
+    return days > 20;
+  });
+
+  const daysSince = (contractDate: string) => {
+    const d = new Date(contractDate + "T00:00:00");
+    return Math.floor((today.getTime() - d.getTime()) / 86_400_000);
+  };
 
   return (
     <div className="space-y-6 mx-[79.6px]">
@@ -218,7 +244,7 @@ function StaffDashboard() {
       </div>
 
       {/* Alert rows */}
-      {(cocNotDone.length > 0 || medicalNotFit.length > 0 || unfilledLmis.length > 0) && (
+      {(cocNotDone.length > 0 || medicalNotFit.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0) && (
         <div className="space-y-2">
           <AlertSection
             icon={FileCheck}
@@ -243,6 +269,15 @@ function StaffDashboard() {
             pillKey="lmis"
             candidates={unfilledLmis}
             valueField="unfilled_lmis"
+          />
+          <AlertSection
+            icon={Ticket}
+            title="Ticket Not Booked — Over 20 Days"
+            iconColor="text-violet-600 dark:text-violet-400"
+            pillKey="ticket"
+            candidates={ticketNotBooked}
+            valueField="ticket_status"
+            note={(c) => c.contract_date ? `${daysSince(c.contract_date)}d since contract` : null}
           />
         </div>
       )}
