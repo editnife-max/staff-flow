@@ -14,7 +14,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src 'self' data: fonts.gstatic.com *.vercel.com *.vercel-storage.com vercel.live; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; frame-src 'self' vercel.live; worker-src 'self' blob:"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' fonts.googleapis.com fonts.cdnfonts.com; font-src 'self' data: fonts.gstatic.com fonts.cdnfonts.com *.vercel.com *.vercel-storage.com vercel.live; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; frame-src 'self' vercel.live; worker-src 'self' blob:"
         }
       ]
     }
