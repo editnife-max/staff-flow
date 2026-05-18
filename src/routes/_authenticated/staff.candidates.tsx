@@ -291,7 +291,7 @@ function parsePasteData(text: string): Partial<typeof initialForm> {
     "passport issue place": "place_of_issue",
     "passport issue date": "passport_issue_date",
     "passport expiry date": "passport_expiry_date",
-    "city": "living_town",
+    "city": "birth_place",
     // colon-format labels
     "first name": "first_name", "firstname": "first_name",
     "last name": "last_name", "lastname": "last_name",
@@ -318,6 +318,7 @@ function parsePasteData(text: string): Partial<typeof initialForm> {
     "narrative": "narrative",
     "relative name": "narrative",
     "narrative phone": "narrative_phone",
+    "relative phone": "narrative_phone",
     "remark": "remark",
     "notes": "notes",
   };
