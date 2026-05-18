@@ -46,6 +46,7 @@ const CandidateInput = z.object({
   notes: z.string().max(1000).optional().nullable(),
   status: StatusEnum.default("available"),
   photo_url: z.preprocess((v) => (v === "" ? null : v), z.string().url().optional().nullable()),
+  full_photo_url: z.preprocess((v) => (v === "" ? null : v), z.string().url().optional().nullable()),
   passport_scan_url: z.preprocess((v) => (v === "" ? null : v), z.string().url().optional().nullable()),
 });
 

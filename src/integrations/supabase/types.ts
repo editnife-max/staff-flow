@@ -40,6 +40,7 @@ export type Database = {
           experience: string | null
           first_name: string | null
           full_name: string
+          full_photo_url: string | null
           gender: string | null
           height: number | null
           id: string
@@ -109,6 +110,7 @@ export type Database = {
           experience?: string | null
           first_name?: string | null
           full_name: string
+          full_photo_url?: string | null
           gender?: string | null
           height?: number | null
           id?: string

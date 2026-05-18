@@ -204,6 +204,7 @@ const initialForm = {
   last_name: "",
   // Photos
   photo_url: "",
+  full_photo_url: "",
   passport_scan_url: "",
   // Codes
   serial_number: "",
@@ -492,6 +493,7 @@ function StaffCandidatesPage() {
         full_name: fullName,
         dob: form.dob || null,
         photo_url: form.photo_url || null,
+        full_photo_url: form.full_photo_url || null,
         passport_scan_url: form.passport_scan_url || null,
         passport_issue_date: form.passport_issue_date || null,
         passport_expiry_date: form.passport_expiry_date || null,
@@ -567,6 +569,7 @@ function StaffCandidatesPage() {
       first_name: c.first_name ?? "",
       last_name: c.last_name ?? "",
       photo_url: c.photo_url ?? "",
+      full_photo_url: (c as any).full_photo_url ?? "",
       passport_scan_url: c.passport_scan_url ?? "",
       serial_number: c.serial_number ?? "",
       candidate_code: c.candidate_code ?? "",
@@ -845,11 +848,16 @@ function StaffCandidatesPage() {
 
           <div className="max-h-[62vh] overflow-y-auto pr-2 space-y-5">
             {/* Photos */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-3">
               <PhotoUpload
-                label="Full Size Photo"
+                label="Photo"
                 value={form.photo_url}
                 onChange={(url) => setForm((f) => ({ ...f, photo_url: url }))}
+              />
+              <PhotoUpload
+                label="Full Size Photo"
+                value={form.full_photo_url}
+                onChange={(url) => setForm((f) => ({ ...f, full_photo_url: url }))}
               />
               <PhotoUpload
                 label="Passport Scan"
@@ -1809,14 +1817,14 @@ function PhotoUpload({
         tabIndex={0}
         onClick={() => inputRef.current?.click()}
         onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
-        className="border-2 border-dashed border-border rounded-none cursor-pointer hover:border-primary/60 transition-colors flex flex-col items-center justify-center gap-2 min-h-[120px] p-3 bg-muted/20 select-none"
+        className="border-2 border-dashed border-border rounded-none cursor-pointer hover:border-primary/60 transition-colors flex flex-col items-center justify-center gap-1.5 min-h-[88px] p-2 bg-muted/20 select-none"
       >
         {uploading ? (
           <span className="text-xs text-muted-foreground animate-pulse">Uploading…</span>
         ) : value ? (
           <>
             {isImage ? (
-              <img src={value} alt={label} className="max-h-[96px] max-w-full object-contain rounded-none" />
+              <img src={value} alt={label} className="max-h-[60px] max-w-full object-contain rounded-none" />
             ) : (
               <div className="flex flex-col items-center gap-1">
                 <ImageIcon className="h-8 w-8 text-muted-foreground" />
@@ -1827,7 +1835,7 @@ function PhotoUpload({
           </>
         ) : (
           <>
-            <Upload className="h-7 w-7 text-muted-foreground" />
+            <Upload className="h-5 w-5 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">Click to upload</span>
           </>
         )}
