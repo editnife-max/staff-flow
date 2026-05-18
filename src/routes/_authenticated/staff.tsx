@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_authenticated/staff")({
 });
 
 const NAV_TOP = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/staff/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/staff/candidates", label: "HR Pool", icon: Users, exact: false },
 ];
 
