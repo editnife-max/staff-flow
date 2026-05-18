@@ -856,7 +856,7 @@ function CandidateCard({
       )}>
         {statusLabel[statusKey]}
       </span>
-      <CardContent className="py-[20px] px-[7px]">
+      <CardContent className="p-0">
         <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-center">
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <Avatar className="h-10 w-10">
@@ -867,7 +867,7 @@ function CandidateCard({
             <div className="flex gap-5 items-start">
               {visibleFields.map((f) => (
                 <div key={f.label} className="shrink-0">
-                  <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-0.5">
+                  <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">
                     {f.label}
                   </div>
                   <div className={cn("text-[14px] text-[#181A27] whitespace-nowrap", "bold" in f && f.bold && "font-semibold")}>
@@ -999,7 +999,7 @@ function ProcessingCard({
       <span className="absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[9px] font-semibold tracking-wide bg-warning text-foreground">
         PROCESSING
       </span>
-      <CardContent className="py-[20px] px-[7px]">
+      <CardContent className="p-0">
         <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-center">
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <Avatar className="h-10 w-10">
@@ -1009,7 +1009,7 @@ function ProcessingCard({
           <div className="overflow-x-auto no-scrollbar">
             <div className="flex gap-5 items-start">
               <div className="shrink-0">
-                <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-0.5">Full Name</div>
+                <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">Full Name</div>
                 <div className="text-[14px] text-[#181A27] font-semibold whitespace-nowrap">{candidate.full_name}</div>
               </div>
               {visibleCols.map((col) => {
@@ -1017,7 +1017,7 @@ function ProcessingCard({
                 const strVal = raw == null ? "" : String(raw);
                 return (
                   <div key={col.key} className="shrink-0">
-                    <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-0.5">
+                    <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">
                       {col.header}
                     </div>
                     <div className="text-[14px] text-[#181A27] whitespace-nowrap">

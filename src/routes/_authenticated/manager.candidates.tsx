@@ -704,7 +704,7 @@ function CandidateCard({
       )}>
         {statusLabel[statusKey]}
       </span>
-      <CardContent className="py-[20px] px-[7px]">
+      <CardContent className="p-0">
         <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-center">
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <Avatar className="h-10 w-10">
@@ -716,7 +716,7 @@ function CandidateCard({
               <thead>
                 <tr>
                   {fields.map((f) => (
-                    <th key={f.label} className="text-left text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap pr-6 pb-1">
+                    <th key={f.label} className="text-left text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap pr-6 mb-[5px]">
                       {f.label}
                     </th>
                   ))}
