@@ -329,6 +329,7 @@ function ManagerCandidatesPage() {
   });
 
   const [viewing, setViewing] = useState<Candidate | null>(null);
+  const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
 
   const openCreate = () => { setEditing(null); setForm({ ...initialForm, status: tab }); setOpen(true); };
   const openEdit = (c: Candidate) => {
@@ -558,6 +559,7 @@ function ManagerCandidatesPage() {
             selected={selected.has(c.id)}
             onToggleSelect={() => toggleSelect(c.id)}
             onView={() => setViewing(c)}
+            onViewPhotos={() => setViewingPhotos(c)}
             onEdit={() => openEdit(c)}
             onDelete={() => removeMut.mutate(c.id)}
             onUpdateField={(field, value) => fieldMut.mutate({ id: c.id, field, value })}
@@ -604,6 +606,7 @@ function ManagerCandidatesPage() {
         </div>
       )}
 
+      <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
       <CandidateDetailDialog candidate={viewing} onClose={() => setViewing(null)} />
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -663,12 +666,13 @@ type EditableField =
   | "musaned_status" | "coc_status";
 
 function CandidateCard({
-  candidate, selected, onToggleSelect, onView, onEdit, onDelete, onUpdateField,
+  candidate, selected, onToggleSelect, onView, onViewPhotos, onEdit, onDelete, onUpdateField,
 }: {
   candidate: Candidate;
   selected: boolean;
   onToggleSelect: () => void;
   onView: () => void;
+  onViewPhotos: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onUpdateField: (field: EditableField, value: string | null) => void;
@@ -727,7 +731,7 @@ function CandidateCard({
       <CardContent className="p-0">
         <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-center">
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
-          <button type="button" onClick={onView} className="cursor-pointer">
+          <button type="button" onClick={onViewPhotos} className="cursor-pointer">
             <Avatar className="h-10 w-10 hover:ring-2 hover:ring-primary transition-all">
               {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
               <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
@@ -1046,6 +1050,46 @@ function Field({
       <Label>{label}</Label>
       <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} />
     </div>
+  );
+}
+
+function CandidatePhotosDialog({ candidate, onClose }: { candidate: Candidate | null; onClose: () => void }) {
+  if (!candidate) return null;
+  const photos = [
+    { label: "Photo", url: candidate.photo_url },
+    { label: "Full Size Photo", url: (candidate as any).full_photo_url as string | null },
+    { label: "Passport Scan", url: candidate.passport_scan_url },
+  ].filter((p) => p.url);
+
+  return (
+    <Dialog open={!!candidate} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="text-base">{candidate.full_name}</DialogTitle>
+        </DialogHeader>
+        {photos.length === 0 ? (
+          <div className="py-12 text-center text-muted-foreground text-sm">No photos uploaded.</div>
+        ) : (
+          <div className="grid grid-cols-3 gap-4 py-2">
+            {photos.map((p) => (
+              <div key={p.label} className="flex flex-col items-center gap-2">
+                <a href={p.url!} target="_blank" rel="noreferrer" className="block hover:opacity-80 transition-opacity">
+                  <img
+                    src={p.url!}
+                    alt={p.label}
+                    className="w-full max-h-52 object-contain border border-border bg-muted/30"
+                  />
+                </a>
+                <span className="text-[11px] text-muted-foreground font-medium">{p.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
