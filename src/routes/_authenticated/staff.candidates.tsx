@@ -756,7 +756,7 @@ function CandidateCardList({
       ))}
 
       {candidates.length > 0 && (
-        <div className="flex items-center justify-between pt-2 border-t border-border">
+        <div className="sticky bottom-0 z-10 bg-background flex items-center justify-between px-4 py-2 shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
           <div className="flex items-center gap-1">
             <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
               onClick={() => { setPage((p) => p - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
@@ -986,7 +986,7 @@ function ProcessingTable({
       ))}
 
       {candidates.length > 0 && (
-        <div className="flex items-center justify-between pt-2 border-t border-border">
+        <div className="sticky bottom-0 z-10 bg-background flex items-center justify-between px-4 py-2 shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
           <div className="flex items-center gap-1">
             <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
               onClick={() => { setPage((p) => p - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
