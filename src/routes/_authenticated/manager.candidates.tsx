@@ -4,10 +4,10 @@ import { useServerFn } from "@tanstack/react-start";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, FilePlus, FileText, Pencil, Trash2, FileSignature, Calendar,
-  UserCheck, X, SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
+  SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight,
   ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
-  Globe, Send, Activity, UserPlus, Upload, ImageIcon,
+  Globe, Send, Activity, ClipboardPaste, Upload, ImageIcon, UserPlus, AlertTriangle,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -22,6 +22,7 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -30,10 +31,10 @@ import {
   upsertCandidate, deleteCandidate, updateCandidateField,
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff,
 } from "@/lib/candidates.functions";
+import { UserCheck, X } from "lucide-react";
 
 type Status = "available" | "processing" | "arrived" | "canceled";
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"] & {
-  created_by_user_id?: string | null;
   created_by_name?: string | null;
 };
 
@@ -54,7 +55,25 @@ const AVAILABILITY_OPTIONS: Status[] = ["available", "processing", "arrived", "c
 const COC_OPTIONS = ["Done", "No", "Booked", "Placed", "Yitazez", "Pending release"];
 const MUSANED_OPTIONS = ["Saudi", "Kuwait"];
 const OFFICE_OPTIONS = ["Riyadh", "Jeddah", "Dammam", "Other"];
-const PASSPORT_OPTIONS = ["Pending", "Submitted", "Received", "Expired"];
+const PASSPORT_OPTIONS = ["Original", "Scan"];
+const TASHEER_OPTIONS = ["No", "Booked", "Done", "Ready"];
+const WOKALA_OPTIONS = ["Paid", "Unpaid"];
+const VISA_OPTIONS = [
+  "Ready for embassy", "Sent to Embassy", "Privately Sent", "Issued",
+  "Visa canceled", "Arrived KSA", "Returned", "Waiting Replacement",
+];
+const INSURANCE_OPTIONS = ["Done", "Pending", "No", "Expired"];
+const LMIS_OPTIONS = [
+  "No COC", "Not tested", "Placed", "Imported", "Checked",
+  "Verified", "Draft", "Pending", "Issued", "Rejected",
+];
+const UNFILLED_LMIS_OPTIONS = ["INSU", "COC", "ID"];
+const TICKET_OPTIONS = ["No", "Ready", "New Order", "Booked", "Exchange", "Urgent"];
+const ARRIVAL_CITY_OPTIONS = ["RIYADH", "JEDDAH", "DAMMAM", "JOUF", "HAIL", "ABHA", "OTHERS"];
+const SKILLS_LIST = [
+  "Cooking", "Cleaning", "Childcare", "Eldercare", "Ironing",
+  "Driving", "Gardening", "Sewing", "Babysitting", "Pet Care", "Nursing",
+];
 
 const OPTION_COLORS: Record<string, string> = {
   "Fit":               "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
@@ -67,9 +86,35 @@ const OPTION_COLORS: Record<string, string> = {
   "Placed":            "bg-violet-100/50 text-[#181A27] dark:bg-violet-900/40 dark:text-violet-300",
   "Yitazez":           "bg-orange-100/50 text-[#181A27] dark:bg-orange-900/40 dark:text-orange-300",
   "Pending release":   "bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
+  "Ready":             "bg-violet-100/50 text-[#181A27] dark:bg-violet-900/40 dark:text-violet-300",
   "Paid":              "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
   "Unpaid":            "bg-red-100/50 text-[#181A27] dark:bg-red-900/40 dark:text-red-300",
+  "Ready for embassy": "bg-sky-100/50 text-[#181A27] dark:bg-sky-900/40 dark:text-sky-300",
+  "Sent to Embassy":   "bg-violet-100/50 text-[#181A27] dark:bg-violet-900/40 dark:text-violet-300",
+  "Privately Sent":    "bg-cyan-100/50 text-[#181A27] dark:bg-cyan-900/40 dark:text-cyan-300",
+  "Issued":            "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
+  "Visa canceled":     "bg-red-100/50 text-[#181A27] dark:bg-red-900/40 dark:text-red-300",
+  "Arrived KSA":       "bg-green-100/50 text-[#181A27] dark:bg-green-900/40 dark:text-green-300",
+  "Returned":          "bg-orange-100/50 text-[#181A27] dark:bg-orange-900/40 dark:text-orange-300",
+  "Waiting Replacement":"bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
   "Pending":           "bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
+  "No COC":            "bg-red-100/50 text-[#181A27] dark:bg-red-900/40 dark:text-red-300",
+  "Not tested":        "bg-zinc-100/50 text-[#181A27] dark:bg-zinc-800 dark:text-zinc-400",
+  "Imported":          "bg-violet-100/50 text-[#181A27] dark:bg-violet-900/40 dark:text-violet-300",
+  "Checked":           "bg-teal-100/50 text-[#181A27] dark:bg-teal-900/40 dark:text-teal-300",
+  "Verified":          "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
+  "Draft":             "bg-zinc-100/50 text-[#181A27] dark:bg-zinc-800 dark:text-zinc-400",
+  "Rejected":          "bg-red-100/50 text-[#181A27] dark:bg-red-900/40 dark:text-red-300",
+  "New Order":         "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
+  "Exchange":          "bg-orange-100/50 text-[#181A27] dark:bg-orange-900/40 dark:text-orange-300",
+  "Urgent":            "bg-red-100/50 text-[#181A27] dark:bg-red-900/40 dark:text-red-300",
+  "RIYADH":            "bg-violet-100/50 text-[#181A27] dark:bg-violet-900/40 dark:text-violet-300",
+  "JEDDAH":            "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
+  "DAMMAM":            "bg-cyan-100/50 text-[#181A27] dark:bg-cyan-900/40 dark:text-cyan-300",
+  "JOUF":              "bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
+  "HAIL":              "bg-orange-100/50 text-[#181A27] dark:bg-orange-900/40 dark:text-orange-300",
+  "ABHA":              "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
+  "OTHERS":            "bg-zinc-100/50 text-[#181A27] dark:bg-zinc-800 dark:text-zinc-400",
   "Submitted":         "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
   "Received":          "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
   "available":         "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
@@ -82,46 +127,211 @@ const OPTION_COLORS: Record<string, string> = {
   "Other":             "bg-zinc-100/50 text-[#181A27] dark:bg-zinc-800 dark:text-zinc-400",
   "Saudi":             "bg-green-100/50 text-[#181A27] dark:bg-green-900/40 dark:text-green-300",
   "Kuwait":            "bg-teal-100/50 text-[#181A27] dark:bg-teal-900/40 dark:text-teal-300",
-  // Age ranges
+  "INSU":              "bg-rose-100/50 text-[#181A27] dark:bg-rose-900/40 dark:text-rose-300",
+  "COC":               "bg-orange-100/50 text-[#181A27] dark:bg-orange-900/40 dark:text-orange-300",
+  "ID":                "bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
   "18-25":             "bg-sky-100/50 text-[#181A27] dark:bg-sky-900/40 dark:text-sky-300",
   "26-35":             "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
   "36-45":             "bg-violet-100/50 text-[#181A27] dark:bg-violet-900/40 dark:text-violet-300",
   "46-99":             "bg-indigo-100/50 text-[#181A27] dark:bg-indigo-900/40 dark:text-indigo-300",
-  // Gender
   "Male":              "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
   "Female":            "bg-pink-100/50 text-[#181A27] dark:bg-pink-900/40 dark:text-pink-300",
-  // Religion
   "Muslim":            "bg-teal-100/50 text-[#181A27] dark:bg-teal-900/40 dark:text-teal-300",
   "Non-muslim":        "bg-slate-100/50 text-[#181A27] dark:bg-slate-800 dark:text-slate-400",
-  // Experience
   "Experienced":       "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
   "Non-Experienced":   "bg-orange-100/50 text-[#181A27] dark:bg-orange-900/40 dark:text-orange-300",
-  // Sort
+  "Yes":               "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
+  "None":              "bg-zinc-100/50 text-[#181A27] dark:bg-zinc-800 dark:text-zinc-400",
   "newest":            "bg-sky-100/50 text-[#181A27] dark:bg-sky-900/40 dark:text-sky-300",
   "oldest":            "bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
 };
 
+type ProcessingColDef =
+  | { key: string; header: string; type: "text" | "date" }
+  | { key: string; header: string; type: "select"; options: string[] };
+
+const PROCESSING_COLS: ProcessingColDef[] = [
+  { key: "narrative",         header: "Narrative",         type: "text" },
+  { key: "narrative_phone",   header: "Narrative Phone",   type: "text" },
+  { key: "contract_date",     header: "Contract Date",     type: "date" },
+  { key: "medical_status",    header: "Medical",           type: "select", options: MEDICAL_OPTIONS },
+  { key: "medical_date",      header: "Medical Date",      type: "date" },
+  { key: "medical_days",      header: "Medical Days",      type: "text" },
+  { key: "coc_status",        header: "COC",               type: "select", options: COC_OPTIONS },
+  { key: "tasheer_status",    header: "Tasheer",           type: "select", options: TASHEER_OPTIONS },
+  { key: "tasheer_date",      header: "Tasheer Date",      type: "date" },
+  { key: "wokala_status",     header: "Wokala",            type: "select", options: WOKALA_OPTIONS },
+  { key: "embassy_date",      header: "Embassy Date",      type: "date" },
+  { key: "visa_status",       header: "Visa Status",       type: "select", options: VISA_OPTIONS },
+  { key: "insurance_status",  header: "Insurance",         type: "select", options: INSURANCE_OPTIONS },
+  { key: "unfilled_lmis",     header: "Unfilled LMIS",     type: "select", options: UNFILLED_LMIS_OPTIONS },
+  { key: "lmis_status",       header: "LMIS",              type: "select", options: LMIS_OPTIONS },
+  { key: "ticket_status",     header: "Ticket",            type: "select", options: TICKET_OPTIONS },
+  { key: "ticket_date",       header: "Ticket Date",       type: "date" },
+  { key: "arrival_city",      header: "Arrival City",      type: "select", options: ARRIVAL_CITY_OPTIONS },
+  { key: "processing_notes",  header: "Note",              type: "text" },
+  { key: "emergency_contact", header: "Emergency Contact", type: "text" },
+];
+
+const CANDIDATE_CARD_COLS = [
+  "FULL NAME", "ADDED BY", "CANDIDATE CODE", "GENDER", "RELIGION", "MARITAL STATUS",
+  "BIRTH PLACE", "LIVING TOWN", "OCCUPATION", "PASSPORT NUMBER", "LABOUR ID",
+  "OFFICE", "PASSPORT STATUS", "COC STATUS", "MUSANED STATUS", "MEDICAL STATUS",
+  "MEDICAL DATE", "AVAILABILITY", "SELECTED BY", "CV SENT TO", "CV SENT DATE",
+  "NARRATIVE", "NOTES",
+] as const;
+
 const initialForm = {
-  full_name: "",
-  serial_number: "",
-  passport_number: "",
-  dob: "",
-  occupation: "",
-  country: "",
-  age: "" as string | number,
-  gender: "",
-  religion: "",
-  marital_status: "",
-  education: "",
-  skills: "",
-  status: "available" as Status,
+  first_name: "",
+  last_name: "",
   photo_url: "",
   full_photo_url: "",
   passport_scan_url: "",
+  serial_number: "",
+  candidate_code: "",
+  gender: "",
+  dob: "",
+  religion: "",
+  birth_place: "",
+  living_town: "",
+  marital_status: "",
+  children: "" as string | number,
+  education: "",
+  occupation: "",
+  passport_number: "",
+  labour_id: "",
+  passport_issue_date: "",
+  passport_expiry_date: "",
+  place_of_issue: "ADDIS ABABA",
+  spoken_languages: "",
+  english_level: "",
+  arabic_level: "",
+  experience: "",
+  weight: "" as string | number,
+  height: "" as string | number,
+  passport_status: "",
+  medical_status: "",
+  coc_status: "",
+  musaned_status: "",
+  status: "available" as Status,
+  office: "",
+  selected_by: "",
+  narrative: "",
+  narrative_phone: "",
+  skills: "",
+  remark: "",
+  notes: "",
+};
+
+const initialFilters = {
+  sort: "newest",
+  education: "all",
+  age: "all",
+  marital: "all",
+  gender: "all",
+  religion: "all",
+  medical: "all",
+  narrative: "all",
+  experience: "all",
+  coc: "all",
+  musaned: "all",
+  cv_sent_to: "all",
+  availability: "all",
+  added_by: "all",
+  from: "",
+  to: "",
 };
 
 const firstName = (s: string | null | undefined) =>
   (s ?? "").trim().split(/\s+/)[0] || "";
+
+function parsePasteData(text: string): Partial<typeof initialForm> {
+  const LABEL_MAP: Record<string, string | string[]> = {
+    "surname": "last_name",
+    "given names": "first_name",
+    "given name": "first_name",
+    "date of birth": "dob",
+    "gender": "gender",
+    "marital status": "marital_status",
+    "religion": "religion",
+    "job": "occupation",
+    "education level": "education",
+    "skills": "skills",
+    "id number": "labour_id",
+    "mobile number": "narrative_phone",
+    "phone": "narrative_phone",
+    "languages": "spoken_languages",
+    "number of children": "children",
+    "work experience": "experience",
+    "passport number": "passport_number",
+    "passport issue place": "place_of_issue",
+    "passport issue date": "passport_issue_date",
+    "passport expiry date": "passport_expiry_date",
+    "city": ["birth_place", "living_town"],
+    "first name": "first_name", "firstname": "first_name",
+    "last name": "last_name", "lastname": "last_name",
+    "serial number": "serial_number", "serial no": "serial_number", "serial": "serial_number",
+    "candidate code": "candidate_code",
+    "dob": "dob", "birth date": "dob",
+    "birth place": "birth_place", "birthplace": "birth_place", "place of birth": "birth_place",
+    "living town": "living_town", "place of residence": "living_town",
+    "marital": "marital_status",
+    "children": "children",
+    "education": "education",
+    "occupation": "occupation",
+    "passport no": "passport_number",
+    "labour id": "labour_id", "labour": "labour_id",
+    "issue date": "passport_issue_date",
+    "expiry date": "passport_expiry_date", "expire date": "passport_expiry_date",
+    "place of issue": "place_of_issue",
+    "spoken languages": "spoken_languages",
+    "english level": "english_level", "english": "english_level",
+    "arabic level": "arabic_level", "arabic": "arabic_level",
+    "experience": "experience",
+    "weight": "weight", "weight (kg)": "weight",
+    "height": "height", "height (cm)": "height",
+    "narrative": "narrative",
+    "relative name": "narrative",
+    "narrative phone": "narrative_phone",
+    "relative phone": "narrative_phone",
+    "remark": "remark",
+    "notes": "notes",
+  };
+
+  const SKIP_VALUES = new Set(["n/a", "-", "preview", "na"]);
+  const result: Record<string, string> = {};
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const colonLines = lines.filter((l) => /^[^:]+:[^:]+/.test(l)).length;
+
+  if (colonLines > lines.length / 3) {
+    for (const line of lines) {
+      const idx = line.indexOf(":");
+      if (idx < 1) continue;
+      const key = line.slice(0, idx).trim().toLowerCase();
+      const val = line.slice(idx + 1).trim();
+      const field = LABEL_MAP[key];
+      if (field && val && !SKIP_VALUES.has(val.toLowerCase())) {
+        const targets = Array.isArray(field) ? field : [field];
+        for (const t of targets) result[t] = val;
+      }
+    }
+  } else {
+    for (let i = 0; i < lines.length - 1; i++) {
+      const key = lines[i].toLowerCase();
+      const field = LABEL_MAP[key];
+      if (field) {
+        const val = lines[i + 1].trim();
+        i++;
+        if (val && !LABEL_MAP[val.toLowerCase()] && !SKIP_VALUES.has(val.toLowerCase())) {
+          const targets = Array.isArray(field) ? field : [field];
+          for (const t of targets) result[t] = val;
+        }
+      }
+    }
+  }
+
+  return result as Partial<typeof initialForm>;
+}
 
 function ManagerCandidatesPage() {
   const { user } = useAuth();
@@ -138,36 +348,18 @@ function ManagerCandidatesPage() {
   const clearSelection = () => setSelected(new Set());
 
   const [tab, setTab] = useState<Status>("available");
-  const [page, setPage] = useState(1);
-  useEffect(() => { setPage(1); }, [tab]);
   const [passport, setPassport] = useState("");
   const [showFilters, setShowFilters] = useState(true);
-  const initialFilters = {
-    sort: "newest",
-    education: "all",
-    age: "all",
-    marital: "all",
-    gender: "all",
-    religion: "all",
-    medical: "all",
-    narrative: "all",
-    experience: "all",
-    coc: "all",
-    musaned: "all",
-    cv_sent_to: "all",
-    availability: "all",
-    added_by: "all",
-    from: "",
-    to: "",
-  };
   const [filters, setFilters] = useState(initialFilters);
   const activeCount = Object.entries(filters).filter(([k, v]) =>
     k !== "sort" && v && v !== "all"
   ).length;
+  useEffect(() => { setFilters(initialFilters); setPassport(""); }, [tab]);
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Candidate | null>(null);
   const [form, setForm] = useState(initialForm);
+  const [viewing, setViewing] = useState<Candidate | null>(null);
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["manager-candidates", user?.id],
@@ -220,8 +412,14 @@ function ManagerCandidatesPage() {
     const uniq = (k: keyof Candidate) =>
       Array.from(new Set(candidates.map((c) => (c[k] as string | null) ?? "").filter(Boolean))).sort();
     return {
+      education: uniq("education"),
+      marital: uniq("marital_status"),
+      gender: uniq("gender"),
+      religion: uniq("religion"),
       narrative: uniq("narrative"),
+      experience: uniq("experience"),
       cv_sent_to: uniq("cv_sent_to"),
+      coc: uniq("coc_status"),
       musaned: uniq("musaned_status"),
       availability: uniq("status"),
     };
@@ -229,15 +427,16 @@ function ManagerCandidatesPage() {
 
   const addedByOptions = useMemo(() => {
     const fromStaff = staffList.map((s) => firstName(s.name)).filter(Boolean);
-    const fromCands = candidates
-      .map((c) => firstName(c.created_by_name))
-      .filter(Boolean);
+    const fromCands = candidates.map((c) => firstName(c.created_by_name)).filter(Boolean);
     return Array.from(new Set([...fromStaff, ...fromCands])).sort();
   }, [staffList, candidates]);
 
   const filtered = useMemo(() => {
     let list = candidates.filter((c) => c.status === tab);
+    if (tab === "processing") return list;
     if (passport) list = list.filter((c) => (c.passport_number ?? "").toLowerCase().includes(passport.toLowerCase()));
+    if (filters.education !== "all") list = list.filter((c) => c.education === filters.education);
+    if (filters.marital !== "all") list = list.filter((c) => c.marital_status === filters.marital);
     if (filters.gender !== "all") list = list.filter((c) => c.gender === filters.gender);
     if (filters.religion !== "all") list = list.filter((c) => c.religion === filters.religion);
     if (filters.medical !== "all") list = list.filter((c) => c.medical_status === filters.medical);
@@ -247,8 +446,7 @@ function ManagerCandidatesPage() {
     if (filters.musaned !== "all") list = list.filter((c) => c.musaned_status === filters.musaned);
     if (filters.cv_sent_to !== "all") list = list.filter((c) => c.cv_sent_to === filters.cv_sent_to);
     if (filters.availability !== "all") list = list.filter((c) => c.status === filters.availability);
-    if (filters.added_by !== "all")
-      list = list.filter((c) => firstName(c.created_by_name) === filters.added_by);
+    if (filters.added_by !== "all") list = list.filter((c) => firstName(c.created_by_name) === filters.added_by);
     if (filters.age !== "all") {
       const [min, max] = filters.age.split("-").map(Number);
       list = list.filter((c) => c.age != null && c.age >= min && c.age <= max);
@@ -263,19 +461,21 @@ function ManagerCandidatesPage() {
     return list;
   }, [candidates, tab, passport, filters]);
 
-  const PAGE_SIZE = 20;
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
   const saveMut = useMutation({
     mutationFn: async () => {
+      const fullName = [form.first_name, form.last_name].filter(Boolean).join(" ").trim() || "Unknown";
       const payload = {
         ...form,
-        age: form.age === "" ? null : Number(form.age),
+        full_name: fullName,
         dob: form.dob || null,
         photo_url: form.photo_url || null,
         full_photo_url: form.full_photo_url || null,
         passport_scan_url: form.passport_scan_url || null,
+        passport_issue_date: form.passport_issue_date || null,
+        passport_expiry_date: form.passport_expiry_date || null,
+        children: form.children === "" ? null : Number(form.children),
+        weight: form.weight === "" ? null : Number(form.weight),
+        height: form.height === "" ? null : Number(form.height),
       };
       return upsert({ data: { id: editing?.id, data: payload } });
     },
@@ -328,21 +528,60 @@ function ManagerCandidatesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const [viewing, setViewing] = useState<Candidate | null>(null);
-  const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
+  const openCreate = () => {
+    let max = 0;
+    for (const c of candidates) {
+      const m = (c.candidate_code ?? "").match(/(\d+)$/);
+      if (m) max = Math.max(max, parseInt(m[1], 10));
+    }
+    const nextCode = `C-${String(max + 1).padStart(4, "0")}`;
+    setEditing(null);
+    setForm({ ...initialForm, status: tab, candidate_code: nextCode });
+    setOpen(true);
+  };
 
-  const openCreate = () => { setEditing(null); setForm({ ...initialForm, status: tab }); setOpen(true); };
   const openEdit = (c: Candidate) => {
     setEditing(c);
     setForm({
-      full_name: c.full_name, serial_number: c.serial_number ?? "", passport_number: c.passport_number ?? "",
-      dob: c.dob ?? "", occupation: c.occupation ?? "", country: c.country ?? "",
-      age: c.age ?? "", gender: c.gender ?? "", religion: c.religion ?? "",
-      marital_status: c.marital_status ?? "", education: c.education ?? "",
-      skills: c.skills ?? "", status: c.status as Status,
+      first_name: c.first_name ?? "",
+      last_name: c.last_name ?? "",
       photo_url: c.photo_url ?? "",
       full_photo_url: (c as any).full_photo_url ?? "",
       passport_scan_url: c.passport_scan_url ?? "",
+      serial_number: c.serial_number ?? "",
+      candidate_code: c.candidate_code ?? "",
+      gender: c.gender ?? "",
+      dob: c.dob ?? "",
+      religion: c.religion ?? "",
+      birth_place: c.birth_place ?? "",
+      living_town: c.living_town ?? "",
+      marital_status: c.marital_status ?? "",
+      children: c.children ?? "",
+      education: c.education ?? "",
+      occupation: c.occupation ?? "",
+      passport_number: c.passport_number ?? "",
+      labour_id: c.labour_id ?? "",
+      passport_issue_date: c.passport_issue_date ?? "",
+      passport_expiry_date: c.passport_expiry_date ?? "",
+      place_of_issue: c.place_of_issue ?? "ADDIS ABABA",
+      spoken_languages: c.spoken_languages ?? "",
+      english_level: c.english_level ?? "",
+      arabic_level: c.arabic_level ?? "",
+      experience: c.experience ?? "",
+      weight: c.weight ?? "",
+      height: c.height ?? "",
+      passport_status: c.passport_status ?? "",
+      medical_status: c.medical_status ?? "",
+      coc_status: c.coc_status ?? "",
+      musaned_status: c.musaned_status ?? "",
+      status: (c.status as Status) ?? "available",
+      office: c.office ?? "",
+      selected_by: c.selected_by ?? "",
+      narrative: c.narrative ?? "",
+      narrative_phone: c.narrative_phone ?? "",
+      skills: c.skills ?? "",
+      remark: c.remark ?? "",
+      notes: c.notes ?? "",
     });
     setOpen(true);
   };
@@ -371,94 +610,94 @@ function ManagerCandidatesPage() {
         </div>
       </div>
 
-      <Card className="rounded-none">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={() => setShowFilters((s) => !s)}
-              className="flex items-center gap-2 text-xs font-bold text-foreground hover:text-primary transition-colors"
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
-              Filters
-              {activeCount > 0 && (
-                <span className="rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
-                  {activeCount}
-                </span>
-              )}
-              {showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            </button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 gap-1 text-xs"
-              onClick={() => { setFilters(initialFilters); setPassport(""); }}
-              disabled={activeCount === 0 && !passport}
-            >
-              <RotateCcw className="h-3.5 w-3.5" /> Reset
-            </Button>
-          </div>
-          {showFilters && (
-          <>
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            <FilterSelect value={filters.sort} onChange={(v) => setFilters({ ...filters, sort: v })}
-              icon={ArrowUpDown}
-              options={[{ value: "newest", label: "Date (Newest)" }, { value: "oldest", label: "Date (Oldest)" }]} />
-            <FilterSelect placeholder="Age" value={filters.age} icon={Users}
-              onChange={(v) => setFilters({ ...filters, age: v })}
-              options={[
-                { value: "all", label: "-----" },
-                { value: "18-25", label: "18-25" }, { value: "26-35", label: "26-35" },
-                { value: "36-45", label: "36-45" }, { value: "46-99", label: "46+" },
-              ]} />
-            <FilterSelect placeholder="Gender" value={filters.gender} icon={User}
-              onChange={(v) => setFilters({ ...filters, gender: v })}
-              options={[{ value: "all", label: "-----" }, { value: "Male", label: "Male" }, { value: "Female", label: "Female" }]} />
-            <FilterSelect placeholder="Religion" value={filters.religion} icon={BookOpen}
-              onChange={(v) => setFilters({ ...filters, religion: v })}
-              options={[{ value: "all", label: "-----" }, { value: "Muslim", label: "Muslim" }, { value: "Non-muslim", label: "Non-muslim" }]} />
-            <FilterSelect placeholder="Medical" value={filters.medical} icon={Stethoscope}
-              onChange={(v) => setFilters({ ...filters, medical: v })}
-              options={[{ value: "all", label: "-----" }, ...MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))]} />
-            <FilterSelect placeholder="Narrative" value={filters.narrative} icon={FileText}
-              onChange={(v) => setFilters({ ...filters, narrative: v })}
-              options={[{ value: "all", label: "-----" }, ...opts.narrative.map((o) => ({ value: o, label: o }))]} />
-            <FilterSelect placeholder="Experience" value={filters.experience} icon={Briefcase}
-              onChange={(v) => setFilters({ ...filters, experience: v })}
-              options={[{ value: "all", label: "-----" }, { value: "Experienced", label: "Experienced" }, { value: "Non-Experienced", label: "Non-Experienced" }]} />
-            <FilterSelect placeholder="COC" value={filters.coc} icon={FileCheck}
-              onChange={(v) => setFilters({ ...filters, coc: v })}
-              options={[{ value: "all", label: "-----" }, ...["Done","No","Booked","Placed","Yitazez","Pending Release"].map((o) => ({ value: o, label: o }))]} />
-            <FilterSelect placeholder="Musaned" value={filters.musaned} icon={Globe}
-              onChange={(v) => setFilters({ ...filters, musaned: v })}
-              options={[{ value: "all", label: "-----" }, ...opts.musaned.map((o) => ({ value: o, label: o }))]} />
-            <FilterSelect placeholder="CV Sent To" value={filters.cv_sent_to} icon={Send}
-              onChange={(v) => setFilters({ ...filters, cv_sent_to: v })}
-              options={[{ value: "all", label: "-----" }, ...opts.cv_sent_to.map((o) => ({ value: o, label: o }))]} />
-            <FilterSelect placeholder="Availability" value={filters.availability} icon={Activity}
-              onChange={(v) => setFilters({ ...filters, availability: v })}
-              options={[
-                { value: "all", label: "-----" },
-                ...(["available", "processing", "arrived", "canceled"] as const)
-                  .filter((s) => opts.availability.includes(s))
-                  .map((o) => ({ value: o, label: o.charAt(0).toUpperCase() + o.slice(1) })),
-              ]} />
-            <FilterSelect placeholder="Added By" value={filters.added_by} icon={UserPlus}
-              onChange={(v) => setFilters({ ...filters, added_by: v })}
-              options={[{ value: "all", label: "-----" }, ...addedByOptions.map((o) => ({ value: o, label: o }))]} />
-            <DateField label="From Date" value={filters.from} onChange={(v) => setFilters({ ...filters, from: v })} />
-            <DateField label="To Date" value={filters.to} onChange={(v) => setFilters({ ...filters, to: v })} />
-          </div>
-          <div className="mt-3 flex flex-wrap gap-3">
-            <div className="relative w-60">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input className="pl-9 h-8 text-xs rounded-none" placeholder="Passport Number" value={passport} onChange={(e) => setPassport(e.target.value)} />
+      {tab !== "processing" && (
+        <Card className="rounded-none">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => setShowFilters((s) => !s)}
+                className="flex items-center gap-2 text-xs font-bold text-foreground hover:text-primary transition-colors"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
+                Filters
+                {activeCount > 0 && (
+                  <span className="rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+                    {activeCount}
+                  </span>
+                )}
+                {showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+              <Button
+                size="sm" variant="ghost" className="h-7 gap-1 text-xs"
+                onClick={() => { setFilters(initialFilters); setPassport(""); }}
+                disabled={activeCount === 0 && !passport}
+              >
+                <RotateCcw className="h-3.5 w-3.5" /> Reset
+              </Button>
             </div>
-          </div>
-          </>
-          )}
-        </CardContent>
-      </Card>
+            {showFilters && (
+              <>
+                <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                  <FilterSelect value={filters.sort} onChange={(v) => setFilters({ ...filters, sort: v })}
+                    icon={ArrowUpDown}
+                    options={[{ value: "newest", label: "Date (Newest)" }, { value: "oldest", label: "Date (Oldest)" }]} />
+                  <FilterSelect placeholder="Age" value={filters.age} icon={Users}
+                    onChange={(v) => setFilters({ ...filters, age: v })}
+                    options={[
+                      { value: "all", label: "-----" },
+                      { value: "18-25", label: "18-25" }, { value: "26-35", label: "26-35" },
+                      { value: "36-45", label: "36-45" }, { value: "46-99", label: "46+" },
+                    ]} />
+                  <FilterSelect placeholder="Gender" value={filters.gender} icon={User}
+                    onChange={(v) => setFilters({ ...filters, gender: v })}
+                    options={[{ value: "all", label: "-----" }, { value: "Male", label: "Male" }, { value: "Female", label: "Female" }]} />
+                  <FilterSelect placeholder="Religion" value={filters.religion} icon={BookOpen}
+                    onChange={(v) => setFilters({ ...filters, religion: v })}
+                    options={[{ value: "all", label: "-----" }, { value: "Muslim", label: "Muslim" }, { value: "Non-muslim", label: "Non-muslim" }]} />
+                  <FilterSelect placeholder="Medical" value={filters.medical} icon={Stethoscope}
+                    onChange={(v) => setFilters({ ...filters, medical: v })}
+                    options={[{ value: "all", label: "-----" }, ...MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+                  <FilterSelect placeholder="Narrative" value={filters.narrative} icon={FileText}
+                    onChange={(v) => setFilters({ ...filters, narrative: v })}
+                    options={[{ value: "all", label: "-----" }, ...opts.narrative.map((o) => ({ value: o, label: o }))]} />
+                  <FilterSelect placeholder="Experience" value={filters.experience} icon={Briefcase}
+                    onChange={(v) => setFilters({ ...filters, experience: v })}
+                    options={[{ value: "all", label: "-----" }, { value: "Yes", label: "Yes" }, { value: "No", label: "No" }, { value: "None", label: "None" }]} />
+                  <FilterSelect placeholder="COC" value={filters.coc} icon={FileCheck}
+                    onChange={(v) => setFilters({ ...filters, coc: v })}
+                    options={[{ value: "all", label: "-----" }, ...["Done","No","Booked","Placed","Yitazez","Pending Release"].map((o) => ({ value: o, label: o }))]} />
+                  <FilterSelect placeholder="Musaned" value={filters.musaned} icon={Globe}
+                    onChange={(v) => setFilters({ ...filters, musaned: v })}
+                    options={[{ value: "all", label: "-----" }, ...opts.musaned.map((o) => ({ value: o, label: o }))]} />
+                  <FilterSelect placeholder="CV Sent To" value={filters.cv_sent_to} icon={Send}
+                    onChange={(v) => setFilters({ ...filters, cv_sent_to: v })}
+                    options={[{ value: "all", label: "-----" }, ...opts.cv_sent_to.map((o) => ({ value: o, label: o }))]} />
+                  <FilterSelect placeholder="Availability" value={filters.availability} icon={Activity}
+                    onChange={(v) => setFilters({ ...filters, availability: v })}
+                    options={[
+                      { value: "all", label: "-----" },
+                      ...(["available", "processing", "arrived", "canceled"] as const)
+                        .filter((s) => opts.availability.includes(s))
+                        .map((o) => ({ value: o, label: o.charAt(0).toUpperCase() + o.slice(1) })),
+                    ]} />
+                  <FilterSelect placeholder="Added By" value={filters.added_by} icon={UserPlus}
+                    onChange={(v) => setFilters({ ...filters, added_by: v })}
+                    options={[{ value: "all", label: "-----" }, ...addedByOptions.map((o) => ({ value: o, label: o }))]} />
+                  <DateField label="From Date" value={filters.from} onChange={(v) => setFilters({ ...filters, from: v })} />
+                  <DateField label="To Date" value={filters.to} onChange={(v) => setFilters({ ...filters, to: v })} />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-3">
+                  <div className="relative w-60">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input className="pl-9 h-8 text-xs rounded-none" placeholder="Passport Number" value={passport} onChange={(e) => setPassport(e.target.value)} />
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="rounded-none">
         <CardContent className="p-4">
@@ -484,9 +723,7 @@ function ManagerCandidatesPage() {
       {selected.size > 0 && (
         <Card className="border-primary/40 bg-primary/5">
           <CardContent className="p-3 flex flex-wrap items-center gap-3">
-            <span className="text-sm font-semibold pl-1">
-              {selected.size} selected
-            </span>
+            <span className="text-sm font-semibold pl-1">{selected.size} selected</span>
             <div className="ml-auto flex flex-wrap items-center gap-2">
               <Select onValueChange={(v) => bulkStatusMut.mutate(v as Status)}>
                 <SelectTrigger className="h-9 w-[180px]">
@@ -512,9 +749,7 @@ function ManagerCandidatesPage() {
                 </SelectContent>
               </Select>
               <Button
-                size="sm"
-                variant="destructive"
-                className="gap-1"
+                size="sm" variant="destructive" className="gap-1"
                 disabled={bulkDeleteMut.isPending}
                 onClick={() => {
                   if (confirm(`Delete ${selected.size} candidate(s)? This cannot be undone.`))
@@ -531,46 +766,278 @@ function ManagerCandidatesPage() {
         </Card>
       )}
 
-      {filtered.length > 0 && (() => {
-        const allSelected = filtered.every((c) => selected.has(c.id));
-        const someSelected = !allSelected && filtered.some((c) => selected.has(c.id));
-        return (
-          <label className="flex items-center gap-2 px-1 text-sm font-medium cursor-pointer w-fit">
-            <Checkbox
-              checked={allSelected ? true : someSelected ? "indeterminate" : false}
-              onCheckedChange={(v) => {
-                setSelected((prev) => {
-                  const n = new Set(prev);
-                  if (v) filtered.forEach((c) => n.add(c.id));
-                  else filtered.forEach((c) => n.delete(c.id));
-                  return n;
-                });
-              }}
-            />
-            Select all ({filtered.length})
-          </label>
-        );
-      })()}
-      <div className="space-y-2">
-        {paginated.map((c) => (
-          <CandidateCard
-            key={c.id}
-            candidate={c}
-            selected={selected.has(c.id)}
-            onToggleSelect={() => toggleSelect(c.id)}
-            onView={() => setViewing(c)}
-            onViewPhotos={() => setViewingPhotos(c)}
-            onEdit={() => openEdit(c)}
-            onDelete={() => removeMut.mutate(c.id)}
-            onUpdateField={(field, value) => fieldMut.mutate({ id: c.id, field, value })}
-          />
-        ))}
-        {filtered.length === 0 && (
-          <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates here yet.</CardContent></Card>
-        )}
-      </div>
+      {tab === "processing" ? (
+        <ProcessingTable
+          candidates={filtered}
+          selected={selected}
+          onToggleSelect={toggleSelect}
+          onUpdateField={(id, field, value) => fieldMut.mutate({ id, field, value })}
+          onEdit={openEdit}
+          onDelete={(id) => removeMut.mutate(id)}
+        />
+      ) : (
+        <CandidateCardList
+          candidates={filtered}
+          selected={selected}
+          onToggleSelect={toggleSelect}
+          onView={(c) => setViewing(c)}
+          onEdit={openEdit}
+          onDelete={(id) => removeMut.mutate(id)}
+          onUpdateField={(id, field, value) => fieldMut.mutate({ id, field, value })}
+        />
+      )}
 
-      {filtered.length > 0 && (
+      <CandidateDetailDialog candidate={viewing} onClose={() => setViewing(null)} />
+
+      {/* Add / Edit dialog */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <div className="flex items-center justify-between pr-6">
+              <DialogTitle>{editing ? "Edit candidate" : "Add new candidate"}</DialogTitle>
+              <Button
+                type="button" size="sm" variant="outline"
+                className="gap-1.5 text-xs h-7 rounded-none"
+                onClick={async () => {
+                  try {
+                    const text = await navigator.clipboard.readText();
+                    const parsed = parsePasteData(text);
+                    if (Object.keys(parsed).length === 0) {
+                      toast.info("No matching data found in clipboard");
+                      return;
+                    }
+                    setForm((f) => ({ ...f, ...parsed }));
+                  } catch {
+                    toast.error("Clipboard access denied");
+                  }
+                }}
+              >
+                <ClipboardPaste className="h-3.5 w-3.5" /> Paste Data
+              </Button>
+            </div>
+          </DialogHeader>
+
+          <div className="max-h-[62vh] overflow-y-auto pr-2 space-y-5">
+            <div className="grid grid-cols-3 gap-3">
+              <PhotoUpload label="Photo" value={form.photo_url} onChange={(url) => setForm((f) => ({ ...f, photo_url: url }))} />
+              <PhotoUpload label="Full Size Photo" value={form.full_photo_url} onChange={(url) => setForm((f) => ({ ...f, full_photo_url: url }))} />
+              <PhotoUpload label="Passport Scan" value={form.passport_scan_url} onChange={(url) => setForm((f) => ({ ...f, passport_scan_url: url }))} accept="image/*,application/pdf" />
+            </div>
+
+            <FormSection title="Names & IDs">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="First Name *" value={form.first_name} onChange={(v) => setForm({ ...form, first_name: v })} />
+                <Field label="Last Name *" value={form.last_name} onChange={(v) => setForm({ ...form, last_name: v })} />
+                <Field label="Candidate Code" value={form.candidate_code} onChange={(v) => setForm({ ...form, candidate_code: v })} />
+              </div>
+            </FormSection>
+
+            <FormSection title="Personal">
+              <div className="grid grid-cols-2 gap-3">
+                <FormSelect label="Gender" value={form.gender} onChange={(v) => setForm({ ...form, gender: v })} options={["Male", "Female"]} />
+                <Field label="Date of Birth" type="date" value={form.dob} onChange={(v) => setForm({ ...form, dob: v })} />
+                <FormSelect label="Religion" value={form.religion} onChange={(v) => setForm({ ...form, religion: v })} options={["Muslim", "Non-muslim"]} />
+                <Field label="Birth Place" value={form.birth_place} onChange={(v) => setForm({ ...form, birth_place: v })} />
+                <Field label="Living Town" value={form.living_town} onChange={(v) => setForm({ ...form, living_town: v })} />
+                <FormSelect label="Marital Status" value={form.marital_status} onChange={(v) => setForm({ ...form, marital_status: v })} options={["Single", "Married", "Divorced", "Widowed"]} />
+                <Field label="Children" type="number" value={String(form.children)} onChange={(v) => setForm({ ...form, children: v })} />
+                <Field label="Education" value={form.education} onChange={(v) => setForm({ ...form, education: v })} />
+                <Field label="Occupation" value={form.occupation} onChange={(v) => setForm({ ...form, occupation: v })} />
+              </div>
+            </FormSection>
+
+            <FormSection title="Passport">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Passport Number" value={form.passport_number} onChange={(v) => setForm({ ...form, passport_number: v })} />
+                <Field label="Labour ID" value={form.labour_id} onChange={(v) => setForm({ ...form, labour_id: v })} />
+                <Field label="Issue Date" type="date" value={form.passport_issue_date} onChange={(v) => setForm({ ...form, passport_issue_date: v })} />
+                <Field label="Expiry Date" type="date" value={form.passport_expiry_date} onChange={(v) => setForm({ ...form, passport_expiry_date: v })} />
+                <div className="col-span-2">
+                  <Field label="Place of Issue" value={form.place_of_issue} onChange={(v) => setForm({ ...form, place_of_issue: v })} />
+                </div>
+              </div>
+            </FormSection>
+
+            <FormSection title="Languages & Experience">
+              <div className="grid grid-cols-2 gap-3">
+                <FormSelect label="Spoken Languages" value={form.spoken_languages} onChange={(v) => setForm({ ...form, spoken_languages: v })} options={["Poor", "Little", "Fair", "Good"]} />
+                <FormSelect label="English Level" value={form.english_level} onChange={(v) => setForm({ ...form, english_level: v })} options={["Poor", "Little", "Fair", "Good"]} />
+                <FormSelect label="Arabic Level" value={form.arabic_level} onChange={(v) => setForm({ ...form, arabic_level: v })} options={["Poor", "Little", "Fair", "Good"]} />
+                <FormSelect label="Work Experience" value={form.experience} onChange={(v) => setForm({ ...form, experience: v })} options={["Yes", "No", "None"]} />
+              </div>
+            </FormSection>
+
+            <FormSection title="Physical">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Weight (kg)" type="number" value={String(form.weight)} onChange={(v) => setForm({ ...form, weight: v })} />
+                <Field label="Height (cm)" type="number" value={String(form.height)} onChange={(v) => setForm({ ...form, height: v })} />
+              </div>
+            </FormSection>
+
+            <FormSection title="Skills">
+              {(() => {
+                const skillSet = new Set((form.skills ?? "").split(",").map((s) => s.trim()).filter(Boolean));
+                return (
+                  <div className="flex flex-wrap gap-2">
+                    {SKILLS_LIST.map((skill) => {
+                      const checked = skillSet.has(skill);
+                      return (
+                        <label key={skill} className={cn(
+                          "flex items-center gap-1.5 px-2.5 py-1 rounded-none border cursor-pointer text-xs transition-colors",
+                          checked ? "bg-primary/10 border-primary text-primary" : "border-border text-muted-foreground hover:border-primary/50",
+                        )}>
+                          <Checkbox checked={checked} onCheckedChange={(v) => {
+                            const s = new Set(skillSet);
+                            v ? s.add(skill) : s.delete(skill);
+                            setForm({ ...form, skills: Array.from(s).join(", ") });
+                          }} />
+                          {skill}
+                        </label>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </FormSection>
+
+            <FormSection title="Status">
+              <div className="grid grid-cols-2 gap-3">
+                <FormSelect label="Passport Status" value={form.passport_status} onChange={(v) => setForm({ ...form, passport_status: v })} options={PASSPORT_OPTIONS} />
+                <FormSelect label="Medical Status" value={form.medical_status} onChange={(v) => setForm({ ...form, medical_status: v })} options={MEDICAL_OPTIONS} />
+                <FormSelect label="COC Status" value={form.coc_status} onChange={(v) => setForm({ ...form, coc_status: v })} options={COC_OPTIONS} />
+                <FormSelect label="Musaned" value={form.musaned_status} onChange={(v) => setForm({ ...form, musaned_status: v })} options={MUSANED_OPTIONS} />
+              </div>
+            </FormSection>
+
+            <FormSection title="Narrative">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Narrative" value={form.narrative} onChange={(v) => setForm({ ...form, narrative: v })} />
+                <Field label="Narrative Phone" value={form.narrative_phone} onChange={(v) => setForm({ ...form, narrative_phone: v })} />
+              </div>
+            </FormSection>
+
+            <FormSection title="Notes">
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Remark</Label>
+                  <Textarea rows={2} value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} className="rounded-none text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Notes</Label>
+                  <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-none text-sm" />
+                </div>
+              </div>
+            </FormSection>
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => saveMut.mutate()}
+              disabled={(!form.first_name && !form.last_name) || saveMut.isPending}
+            >
+              {saveMut.isPending ? "Saving..." : editing ? "Save changes" : "Add candidate"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+type EditableField =
+  | "notes" | "narrative" | "occupation" | "living_town" | "selected_by"
+  | "medical_status" | "status" | "office" | "passport_status"
+  | "musaned_status" | "coc_status"
+  | "narrative_phone" | "contract_date" | "medical_date" | "medical_days"
+  | "tasheer_status" | "tasheer_date" | "wokala_status" | "embassy_date"
+  | "visa_status" | "insurance_status" | "unfilled_lmis" | "lmis_status"
+  | "ticket_status" | "ticket_date" | "arrival_city" | "emergency_contact"
+  | "processing_notes";
+
+function CandidateCardList({
+  candidates, selected, onToggleSelect, onView, onEdit, onDelete, onUpdateField,
+}: {
+  candidates: Candidate[];
+  selected: Set<string>;
+  onToggleSelect: (id: string) => void;
+  onView: (c: Candidate) => void;
+  onEdit: (c: Candidate) => void;
+  onDelete: (id: string) => void;
+  onUpdateField: (id: string, field: string, value: string | null) => void;
+}) {
+  const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
+  const [showColPicker, setShowColPicker] = useState(false);
+  const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [candidates.length]);
+  const PAGE_SIZE = 20;
+  const totalPages = Math.max(1, Math.ceil(candidates.length / PAGE_SIZE));
+  const paginated = candidates.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const allSel = candidates.length > 0 && candidates.every((c) => selected.has(c.id));
+  const someSel = !allSel && candidates.some((c) => selected.has(c.id));
+
+  return (
+    <div className="space-y-2">
+      {candidates.length > 0 && (
+        <div className="flex items-center justify-between px-1">
+          <label className="flex items-center gap-2 text-sm font-medium cursor-pointer w-fit">
+            <Checkbox
+              checked={allSel ? true : someSel ? "indeterminate" : false}
+              onCheckedChange={(v) =>
+                candidates.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
+              }
+            />
+            Select all ({candidates.length})
+          </label>
+          <div className="relative">
+            <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs"
+              onClick={() => setShowColPicker((v) => !v)}>
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Columns
+              {hiddenCols.size > 0 && (
+                <span className="ml-1 rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+                  {hiddenCols.size} hidden
+                </span>
+              )}
+            </Button>
+            {showColPicker && (
+              <div className="absolute right-0 top-8 z-50 bg-popover border border-border rounded-none shadow-xl p-3 w-[340px] grid grid-cols-2 gap-x-4 gap-y-1">
+                {CANDIDATE_CARD_COLS.map((label) => (
+                  <label key={label} className="flex items-center gap-1.5 text-xs cursor-pointer py-1 hover:text-primary">
+                    <Checkbox
+                      checked={!hiddenCols.has(label)}
+                      onCheckedChange={(v) =>
+                        setHiddenCols((prev) => { const n = new Set(prev); v ? n.delete(label) : n.add(label); return n; })
+                      }
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {candidates.length === 0 ? (
+        <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates here yet.</CardContent></Card>
+      ) : paginated.map((c) => (
+        <CandidateCard
+          key={c.id}
+          candidate={c}
+          selected={selected.has(c.id)}
+          hiddenCols={hiddenCols}
+          onToggleSelect={() => onToggleSelect(c.id)}
+          onViewPhotos={() => setViewingPhotos(c)}
+          onView={() => onView(c)}
+          onEdit={() => onEdit(c)}
+          onDelete={() => onDelete(c.id)}
+          onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
+        />
+      ))}
+      <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
+
+      {candidates.length > 0 && (
         <div className="sticky bottom-0 z-10 bg-background flex items-center justify-between px-4 py-2 shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
           <div className="flex items-center gap-1">
             <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
@@ -596,7 +1063,7 @@ function ManagerCandidatesPage() {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">
-              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, candidates.length)} of {candidates.length}
             </span>
             <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
@@ -605,74 +1072,19 @@ function ManagerCandidatesPage() {
           </div>
         </div>
       )}
-
-      <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
-      <CandidateDetailDialog candidate={viewing} onClose={() => setViewing(null)} />
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editing ? "Edit candidate" : "Add new candidate"}</DialogTitle>
-          </DialogHeader>
-          <div className="max-h-[65vh] overflow-y-auto pr-1 space-y-4">
-            {/* Photos */}
-            <div className="grid grid-cols-3 gap-3">
-              <PhotoUpload label="Photo" value={form.photo_url} onChange={(url) => setForm((f) => ({ ...f, photo_url: url }))} />
-              <PhotoUpload label="Full Size Photo" value={form.full_photo_url} onChange={(url) => setForm((f) => ({ ...f, full_photo_url: url }))} />
-              <PhotoUpload label="Passport Scan" value={form.passport_scan_url} onChange={(url) => setForm((f) => ({ ...f, passport_scan_url: url }))} accept="image/*,application/pdf" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Full Name *" value={form.full_name} onChange={(v) => setForm({ ...form, full_name: v })} />
-              <Field label="Serial Number" value={form.serial_number} onChange={(v) => setForm({ ...form, serial_number: v })} />
-              <Field label="Passport Number" value={form.passport_number} onChange={(v) => setForm({ ...form, passport_number: v })} />
-              <Field label="Date of Birth" type="date" value={form.dob} onChange={(v) => setForm({ ...form, dob: v })} />
-              <Field label="Occupation" value={form.occupation} onChange={(v) => setForm({ ...form, occupation: v })} />
-              <Field label="Country" value={form.country} onChange={(v) => setForm({ ...form, country: v })} />
-              <Field label="Age" type="number" value={String(form.age)} onChange={(v) => setForm({ ...form, age: v })} />
-              <Field label="Gender" value={form.gender} onChange={(v) => setForm({ ...form, gender: v })} />
-              <Field label="Religion" value={form.religion} onChange={(v) => setForm({ ...form, religion: v })} />
-              <Field label="Marital Status" value={form.marital_status} onChange={(v) => setForm({ ...form, marital_status: v })} />
-              <Field label="Education" value={form.education} onChange={(v) => setForm({ ...form, education: v })} />
-              <Field label="Skills" value={form.skills} onChange={(v) => setForm({ ...form, skills: v })} />
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Status })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="available">Available</SelectItem>
-                    <SelectItem value="processing">Processing</SelectItem>
-                    <SelectItem value="arrived">Arrived</SelectItem>
-                    <SelectItem value="canceled">Canceled</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={() => saveMut.mutate()} disabled={!form.full_name || saveMut.isPending}>
-              {saveMut.isPending ? "Saving..." : editing ? "Save changes" : "Add candidate"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
 
-type EditableField =
-  | "notes" | "narrative" | "occupation" | "living_town" | "selected_by"
-  | "medical_status" | "status" | "office" | "passport_status"
-  | "musaned_status" | "coc_status";
-
 function CandidateCard({
-  candidate, selected, onToggleSelect, onView, onViewPhotos, onEdit, onDelete, onUpdateField,
+  candidate, selected, hiddenCols, onToggleSelect, onViewPhotos, onView, onEdit, onDelete, onUpdateField,
 }: {
   candidate: Candidate;
   selected: boolean;
+  hiddenCols: Set<string>;
   onToggleSelect: () => void;
-  onView: () => void;
   onViewPhotos: () => void;
+  onView: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onUpdateField: (field: EditableField, value: string | null) => void;
@@ -718,6 +1130,7 @@ function CandidateCard({
     { label: "NARRATIVE", value: candidate.narrative ?? "", edit: "text", field: "narrative" },
     { label: "NOTES", value: candidate.notes ?? "", edit: "text", field: "notes" },
   ];
+  const visibleFields = fields.filter((f) => !hiddenCols.has(f.label));
 
   return (
     <Card className={cn("relative overflow-visible transition-colors rounded-none mx-[5px]", selected && "ring-2 ring-primary")}>
@@ -738,43 +1151,28 @@ function CandidateCard({
             </Avatar>
           </button>
           <div className="overflow-x-auto no-scrollbar">
-            <table className="text-[14px] text-[#181A27] border-collapse">
-              <thead>
-                <tr>
-                  {fields.map((f) => (
-                    <th key={f.label} className="text-left text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap pr-6 mb-[5px]">
-                      {f.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  {fields.map((f) => (
-                    <td key={f.label} className={cn("whitespace-nowrap pr-6 align-top", "bold" in f && f.bold && "font-semibold")}>
-                      {"bold" in f && f.bold ? (
-                        <button type="button" onClick={onView} className="font-semibold text-left hover:text-primary hover:underline transition-colors">
-                          {f.value || "—"}
-                        </button>
-                      ) : "edit" in f && f.edit === "text" ? (
-                        <InlineText
-                          value={f.value}
-                          onSave={(v) => onUpdateField(f.field, v)}
-                        />
-                      ) : "edit" in f && f.edit === "select" ? (
-                        <InlineSelect
-                          value={f.value}
-                          options={f.options}
-                          onSave={(v) => onUpdateField(f.field, v)}
-                        />
-                      ) : (
-                        ("value" in f ? f.value : "—") || "—"
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              </tbody>
-            </table>
+            <div className="flex gap-5 items-start">
+              {visibleFields.map((f) => (
+                <div key={f.label} className="shrink-0">
+                  <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">
+                    {f.label}
+                  </div>
+                  <div className={cn("text-[14px] text-[#181A27] whitespace-nowrap", "bold" in f && f.bold && "font-semibold")}>
+                    {"bold" in f && f.bold ? (
+                      <button type="button" onClick={onView} className="font-semibold text-left hover:text-primary hover:underline transition-colors">
+                        {f.value || "—"}
+                      </button>
+                    ) : "edit" in f && f.edit === "text" ? (
+                      <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
+                    ) : "edit" in f && f.edit === "select" ? (
+                      <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
+                    ) : (
+                      ("value" in f ? f.value : "—") || "—"
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
           <div className="flex flex-col items-end gap-1 mb-[8px] pt-[10px] pr-[12px] pb-[10px] pl-[4px]">
             <Button asChild size="sm" className="h-6 w-18 text-[12px] px-2 rounded-none">
@@ -795,30 +1193,315 @@ function CandidateCard({
   );
 }
 
+const INITIAL_PROC_FILTERS = {
+  medical_status: "all", coc_status: "all", tasheer_status: "all",
+  wokala_status: "all", visa_status: "all", insurance_status: "all",
+  unfilled_lmis: "all", lmis_status: "all", ticket_status: "all",
+  arrival_city: "all",
+};
+
+function ProcessingTable({
+  candidates, selected, onToggleSelect, onUpdateField, onEdit, onDelete,
+}: {
+  candidates: Candidate[];
+  selected: Set<string>;
+  onToggleSelect: (id: string) => void;
+  onUpdateField: (id: string, field: string, value: string | null) => void;
+  onEdit: (c: Candidate) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
+  const [showColPicker, setShowColPicker] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [search, setSearch] = useState("");
+  const [procFilters, setProcFilters] = useState(INITIAL_PROC_FILTERS);
+  const f = procFilters;
+
+  const activeCount = Object.values(procFilters).filter((v) => v !== "all").length;
+
+  const filteredCandidates = useMemo(() => {
+    let list = candidates;
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter((c) =>
+        c.full_name.toLowerCase().includes(q) ||
+        (c.passport_number ?? "").toLowerCase().includes(q) ||
+        (c.serial_number ?? "").toLowerCase().includes(q)
+      );
+    }
+    if (f.medical_status !== "all")   list = list.filter((c) => c.medical_status   === f.medical_status);
+    if (f.coc_status     !== "all")   list = list.filter((c) => c.coc_status       === f.coc_status);
+    if (f.tasheer_status !== "all")   list = list.filter((c) => c.tasheer_status   === f.tasheer_status);
+    if (f.wokala_status  !== "all")   list = list.filter((c) => c.wokala_status    === f.wokala_status);
+    if (f.visa_status    !== "all")   list = list.filter((c) => c.visa_status      === f.visa_status);
+    if (f.insurance_status !== "all") list = list.filter((c) => c.insurance_status === f.insurance_status);
+    if (f.unfilled_lmis  !== "all")   list = list.filter((c) => c.unfilled_lmis    === f.unfilled_lmis);
+    if (f.lmis_status    !== "all")   list = list.filter((c) => c.lmis_status      === f.lmis_status);
+    if (f.ticket_status  !== "all")   list = list.filter((c) => c.ticket_status    === f.ticket_status);
+    if (f.arrival_city   !== "all")   list = list.filter((c) => c.arrival_city     === f.arrival_city);
+    return list;
+  }, [candidates, search, f.medical_status, f.coc_status, f.tasheer_status, f.wokala_status,
+      f.visa_status, f.insurance_status, f.unfilled_lmis, f.lmis_status,
+      f.ticket_status, f.arrival_city]);
+
+  const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [filteredCandidates.length]);
+  const PAGE_SIZE = 20;
+  const totalPages = Math.max(1, Math.ceil(filteredCandidates.length / PAGE_SIZE));
+  const paginated = filteredCandidates.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const visibleCols = PROCESSING_COLS.filter((col) => !hiddenCols.has(col.key));
+  const allSel = filteredCandidates.length > 0 && filteredCandidates.every((c) => selected.has(c.id));
+  const someSel = !allSel && filteredCandidates.some((c) => selected.has(c.id));
+
+  const set = (key: keyof typeof INITIAL_PROC_FILTERS) => (v: string) =>
+    setProcFilters((p) => ({ ...p, [key]: v }));
+
+  return (
+    <div className="space-y-2">
+      <Card className="rounded-none">
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button type="button" onClick={() => setShowFilters((s) => !s)}
+              className="flex items-center gap-1.5 text-xs font-bold text-foreground hover:text-primary transition-colors">
+              <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
+              Filters
+              {activeCount > 0 && (
+                <span className="rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">{activeCount}</span>
+              )}
+              {showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
+            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs ml-auto"
+              onClick={() => { setProcFilters(INITIAL_PROC_FILTERS); setSearch(""); }}
+              disabled={activeCount === 0 && !search}>
+              <RotateCcw className="h-3.5 w-3.5" /> Reset
+            </Button>
+            <div className="relative w-48">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input className="pl-8 h-7 text-xs rounded-none" placeholder="Search name / passport…" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+            <div className="relative">
+              <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs"
+                onClick={() => setShowColPicker((v) => !v)}>
+                <SlidersHorizontal className="h-3.5 w-3.5" /> Columns
+                {hiddenCols.size > 0 && (
+                  <span className="ml-1 rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">{hiddenCols.size} hidden</span>
+                )}
+              </Button>
+              {showColPicker && (
+                <div className="absolute right-0 top-8 z-50 bg-popover border border-border rounded-none shadow-xl p-3 w-[340px] grid grid-cols-2 gap-x-4 gap-y-1">
+                  {PROCESSING_COLS.map((col) => (
+                    <label key={col.key} className="flex items-center gap-1.5 text-xs cursor-pointer py-1 hover:text-primary">
+                      <Checkbox checked={!hiddenCols.has(col.key)}
+                        onCheckedChange={(v) =>
+                          setHiddenCols((prev) => { const n = new Set(prev); v ? n.delete(col.key) : n.add(col.key); return n; })
+                        } />
+                      {col.header}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          {showFilters && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              <FilterSelect placeholder="Medical" value={f.medical_status} onChange={set("medical_status")} options={[{ value: "all", label: "-----" }, ...MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <FilterSelect placeholder="COC" value={f.coc_status} onChange={set("coc_status")} options={[{ value: "all", label: "-----" }, ...COC_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <FilterSelect placeholder="Tasheer" value={f.tasheer_status} onChange={set("tasheer_status")} options={[{ value: "all", label: "-----" }, ...TASHEER_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <FilterSelect placeholder="Wokala" value={f.wokala_status} onChange={set("wokala_status")} options={[{ value: "all", label: "-----" }, ...WOKALA_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <FilterSelect placeholder="Visa" value={f.visa_status} onChange={set("visa_status")} options={[{ value: "all", label: "-----" }, ...VISA_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <FilterSelect placeholder="Insurance" value={f.insurance_status} onChange={set("insurance_status")} options={[{ value: "all", label: "-----" }, ...INSURANCE_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <FilterSelect placeholder="Unfilled LMIS" value={f.unfilled_lmis} onChange={set("unfilled_lmis")} options={[{ value: "all", label: "-----" }, ...UNFILLED_LMIS_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <FilterSelect placeholder="LMIS" value={f.lmis_status} onChange={set("lmis_status")} options={[{ value: "all", label: "-----" }, ...LMIS_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <FilterSelect placeholder="Ticket" value={f.ticket_status} onChange={set("ticket_status")} options={[{ value: "all", label: "-----" }, ...TICKET_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <FilterSelect placeholder="Arrival City" value={f.arrival_city} onChange={set("arrival_city")} options={[{ value: "all", label: "-----" }, ...ARRIVAL_CITY_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {candidates.length > 0 && (
+        <label className="flex items-center gap-2 px-1 text-sm font-medium cursor-pointer w-fit">
+          <Checkbox
+            checked={allSel ? true : someSel ? "indeterminate" : false}
+            onCheckedChange={(v) =>
+              filteredCandidates.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
+            }
+          />
+          Select all ({filteredCandidates.length})
+        </label>
+      )}
+
+      {candidates.length === 0 ? (
+        <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates in processing.</CardContent></Card>
+      ) : filteredCandidates.length === 0 ? (
+        <Card><CardContent className="p-8 text-center text-muted-foreground">No matches for the selected filters.</CardContent></Card>
+      ) : paginated.map((c) => (
+        <ProcessingCard
+          key={c.id}
+          candidate={c}
+          selected={selected.has(c.id)}
+          visibleCols={visibleCols}
+          onToggleSelect={() => onToggleSelect(c.id)}
+          onViewPhotos={() => setViewingPhotos(c)}
+          onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
+          onEdit={() => onEdit(c)}
+          onDelete={() => onDelete(c.id)}
+        />
+      ))}
+      <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
+
+      {candidates.length > 0 && (
+        <div className="sticky bottom-0 z-10 bg-background flex items-center justify-between px-4 py-2 shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
+              onClick={() => { setPage((p) => p - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((n) => n === 1 || n === totalPages || Math.abs(n - page) <= 1)
+              .map((n, i, arr) => (
+                <React.Fragment key={n}>
+                  {i > 0 && n - arr[i - 1] > 1 && <span className="text-xs text-muted-foreground px-0.5">…</span>}
+                  <Button size="sm" variant={page === n ? "default" : "outline"}
+                    className="h-7 w-7 p-0 rounded-none text-xs"
+                    onClick={() => { setPage(n); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+                    {n}
+                  </Button>
+                </React.Fragment>
+              ))}
+            <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === totalPages}
+              onClick={() => { setPage((p) => p + 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredCandidates.length)} of {filteredCandidates.length}
+            </span>
+            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
+              <ChevronUp className="h-3.5 w-3.5" /> Back to top
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProcessingCard({
+  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onUpdateField, onEdit, onDelete,
+}: {
+  candidate: Candidate;
+  selected: boolean;
+  visibleCols: ProcessingColDef[];
+  onToggleSelect: () => void;
+  onViewPhotos: () => void;
+  onUpdateField: (field: string, value: string | null) => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <Card className={cn("relative overflow-visible transition-colors rounded-none mx-[5px]", selected && "ring-2 ring-primary")}>
+      <span className="absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[9px] font-semibold tracking-wide bg-warning text-foreground">
+        PROCESSING
+      </span>
+      <CardContent className="p-0">
+        <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-center">
+          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
+          <button type="button" onClick={onViewPhotos} className="cursor-pointer">
+            <Avatar className="h-10 w-10 hover:ring-2 hover:ring-primary transition-all">
+              {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
+              <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+            </Avatar>
+          </button>
+          <div className="overflow-x-auto no-scrollbar">
+            <div className="flex gap-5 items-start">
+              <div className="shrink-0">
+                <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">Full Name</div>
+                <div className="text-[14px] text-[#181A27] font-semibold whitespace-nowrap">{candidate.full_name}</div>
+              </div>
+              {visibleCols.map((col) => {
+                const raw = candidate[col.key as keyof Candidate];
+                const strVal = raw == null ? "" : String(raw);
+                return (
+                  <div key={col.key} className="shrink-0">
+                    <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">
+                      {col.header}
+                    </div>
+                    <div className="text-[14px] text-[#181A27] whitespace-nowrap">
+                      {col.type === "text" ? (
+                        <InlineText value={strVal} onSave={(v) => onUpdateField(col.key, v)} />
+                      ) : col.type === "date" ? (
+                        <InlineDate value={strVal} onSave={(v) => onUpdateField(col.key, v)} />
+                      ) : col.type === "select" ? (
+                        <InlineSelect value={strVal} options={col.options} onSave={(v) => onUpdateField(col.key, v)} />
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-1 mb-[8px] pt-[10px] pr-[12px] pb-[10px] pl-[4px]">
+            <Button asChild size="sm" className="h-6 w-18 text-[12px] px-2 rounded-none">
+              <Link to="/staff/cv-generator" search={{ id: candidate.id }}>
+                <FileText className="h-3.5 w-3.5 mr-1" /> VIEW
+              </Link>
+            </Button>
+            <button onClick={onEdit} className="text-[14px] text-primary hover:underline flex items-center gap-1">
+              <Pencil className="h-3.5 w-3.5" /> Edit
+            </button>
+            <button onClick={onDelete} className="text-[14px] text-destructive hover:underline flex items-center gap-1">
+              <Trash2 className="h-3.5 w-3.5" /> Delete
+            </button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function InlineDate({ value, onSave }: { value: string; onSave: (v: string | null) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const fmt = (v: string) =>
+    v ? new Date(v + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) : "";
+  if (!editing) {
+    return (
+      <button type="button" onClick={() => { setDraft(value); setEditing(true); }}
+        className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block">
+        {value ? fmt(value) : <span className="text-muted-foreground">—</span>}
+      </button>
+    );
+  }
+  return (
+    <input autoFocus type="date" value={draft} onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => { setEditing(false); if (draft !== value) onSave(draft || null); }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+        if (e.key === "Escape") { setDraft(value); setEditing(false); }
+      }}
+      className="rounded-none border border-primary bg-background px-1 py-0.5 text-[14px] text-[#181A27] outline-none min-w-[110px]"
+    />
+  );
+}
+
 function InlineText({ value, onSave }: { value: string; onSave: (v: string | null) => void }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   if (!editing) {
     return (
-      <button
-        type="button"
-        onClick={() => { setDraft(value); setEditing(true); }}
-        className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[40px] block"
-      >
+      <button type="button" onClick={() => { setDraft(value); setEditing(true); }}
+        className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[40px] block">
         {value || <span className="text-muted-foreground">—</span>}
       </button>
     );
   }
-  const commit = () => {
-    setEditing(false);
-    if (draft !== value) onSave(draft.trim() === "" ? null : draft);
-  };
+  const commit = () => { setEditing(false); if (draft !== value) onSave(draft.trim() === "" ? null : draft); };
   return (
-    <input
-      autoFocus
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
+    <input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit}
       onKeyDown={(e) => {
         if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
         if (e.key === "Escape") { setDraft(value); setEditing(false); }
@@ -828,17 +1511,17 @@ function InlineText({ value, onSave }: { value: string; onSave: (v: string | nul
   );
 }
 
-function InlineSelect({
-  value, options, onSave,
-}: { value: string; options: string[]; onSave: (v: string | null) => void }) {
+function InlineSelect({ value, options, onSave }: { value: string; options: string[]; onSave: (v: string | null) => void }) {
   return (
     <Select value={value || undefined} onValueChange={(v) => onSave(v)}>
-      <SelectTrigger className="h-6 w-auto min-w-[90px] gap-1 border-transparent bg-transparent px-1 py-0 text-[14px] text-[#181A27] shadow-none hover:border-border hover:bg-muted/60 focus:ring-0">
-        <SelectValue placeholder="—" />
+      <SelectTrigger className="h-auto w-auto min-w-[80px] gap-1 border-transparent bg-transparent p-0 shadow-none focus:ring-0 [&>svg]:shrink-0">
+        <SelectValue placeholder={<span className="text-muted-foreground text-[14px] px-1">—</span>} />
       </SelectTrigger>
       <SelectContent>
         {options.map((o) => (
-          <SelectItem key={o} value={o} className="text-xs capitalize">{o}</SelectItem>
+          <SelectItem key={o} value={o} className="py-1 px-2 focus:bg-muted/50">
+            <OptionPill label={o} />
+          </SelectItem>
         ))}
       </SelectContent>
     </Select>
@@ -868,16 +1551,14 @@ function FilterSelect({
   return (
     <div className="flex items-center gap-0.5">
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger
-          className={cn(
-            "border shadow-none w-auto h-7 px-2 gap-1.5 transition-colors rounded-none text-[13px] font-medium [&>svg]:shrink-0",
-            isReset
-              ? "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-              : hasColor
-                ? cn(OPTION_COLORS[value], "border-transparent")
-                : "bg-black/10 border-black/20 text-[#181A27] dark:bg-white/10 dark:border-white/20 dark:text-white",
-          )}
-        >
+        <SelectTrigger className={cn(
+          "border shadow-none w-auto h-7 px-2 gap-1.5 transition-colors rounded-none text-[13px] font-medium [&>svg]:shrink-0",
+          isReset
+            ? "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+            : hasColor
+              ? cn(OPTION_COLORS[value], "border-transparent")
+              : "bg-black/10 border-black/20 text-[#181A27] dark:bg-white/10 dark:border-white/20 dark:text-white",
+        )}>
           {Icon && <Icon className="h-3 w-3 shrink-0" />}
           {isReset ? (
             <span>{placeholder}</span>
@@ -906,12 +1587,9 @@ function FilterSelect({
         </SelectContent>
       </Select>
       {!isReset && (
-        <button
-          type="button"
-          onClick={() => onChange("all")}
+        <button type="button" onClick={() => onChange("all")}
           className="rounded-none p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-          aria-label="Clear filter"
-        >
+          aria-label="Clear filter">
           <X className="h-3 w-3" />
         </button>
       )}
@@ -940,45 +1618,25 @@ function DateField({ label, value, onChange }: { label: string; value: string; o
     <div className="flex items-center gap-0.5">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <button
-            type="button"
-            className={cn(
-              "flex items-center gap-1.5 border shadow-none w-auto h-7 px-2 transition-colors rounded-none text-[13px] font-medium cursor-pointer",
-              hasValue
-                ? "bg-black/10 border-black/20 text-[#181A27] dark:bg-white/10 dark:border-white/20 dark:text-white"
-                : "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground",
-            )}
-          >
+          <button type="button" className={cn(
+            "flex items-center gap-1.5 border shadow-none w-auto h-7 px-2 transition-colors rounded-none text-[13px] font-medium cursor-pointer",
+            hasValue
+              ? "bg-black/10 border-black/20 text-[#181A27] dark:bg-white/10 dark:border-white/20 dark:text-white"
+              : "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground",
+          )}>
             <Calendar className="h-3 w-3 shrink-0" />
             <span>{hasValue ? selected?.toLocaleDateString() : label}</span>
           </button>
         </PopoverTrigger>
-        <PopoverContent
-          className="w-auto p-0 rounded-none"
-          align="start"
-          side="bottom"
-          sideOffset={6}
-          collisionPadding={16}
-          avoidCollisions
-        >
-          <CalendarPicker
-            mode="single"
-            selected={selected}
-            onSelect={handleSelect}
-            captionLayout="dropdown"
-            fromYear={2020}
-            toYear={2030}
-            initialFocus
-          />
+        <PopoverContent className="w-auto p-0 rounded-none" align="start" side="bottom" sideOffset={6} collisionPadding={16} avoidCollisions>
+          <CalendarPicker mode="single" selected={selected} onSelect={handleSelect}
+            captionLayout="dropdown" fromYear={2020} toYear={2030} initialFocus />
         </PopoverContent>
       </Popover>
       {hasValue && (
-        <button
-          type="button"
-          onClick={() => onChange("")}
+        <button type="button" onClick={() => onChange("")}
           className="rounded-none p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-          aria-label="Clear date"
-        >
+          aria-label="Clear date">
           <X className="h-3 w-3" />
         </button>
       )}
@@ -986,69 +1644,89 @@ function DateField({ label, value, onChange }: { label: string; value: string; o
   );
 }
 
-function PhotoUpload({
-  label, value, onChange, accept = "image/*",
-}: { label: string; value: string; onChange: (url: string) => void; accept?: string }) {
+function Field({ label, value, onChange, type = "text" }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="rounded-none h-9" />
+    </div>
+  );
+}
+
+function FormSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      <Select value={value || undefined} onValueChange={onChange}>
+        <SelectTrigger className="rounded-none h-9"><SelectValue placeholder="—" /></SelectTrigger>
+        <SelectContent>
+          {options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function PhotoUpload({ label, value, onChange, accept = "image/*" }: { label: string; value: string; onChange: (url: string) => void; accept?: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
   const handleFile = async (file: File) => {
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop() ?? "bin";
+      const ext = file.name.split(".").pop() ?? "jpg";
       const path = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
       const { error } = await supabase.storage.from("candidate-files").upload(path, file, { upsert: true });
       if (error) throw error;
       const { data } = supabase.storage.from("candidate-files").getPublicUrl(path);
       onChange(data.publicUrl);
-    } catch (e: any) {
-      toast.error(e.message ?? "Upload failed");
+    } catch {
+      toast.error("Upload failed");
     } finally {
       setUploading(false);
     }
   };
 
+  const isImage = value && !value.endsWith(".pdf");
+
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className={cn(
-          "relative w-full min-h-[72px] border-2 border-dashed rounded-none flex flex-col items-center justify-center gap-1 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-primary",
-          uploading && "opacity-50 pointer-events-none",
-        )}
-      >
-        {value ? (
-          <img src={value} alt={label} className="max-h-[64px] object-contain" />
+      <div role="button" tabIndex={0} onClick={() => inputRef.current?.click()}
+        onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
+        className="border-2 border-dashed border-border rounded-none cursor-pointer hover:border-primary/60 transition-colors flex flex-col items-center justify-center gap-1.5 min-h-[88px] p-2 bg-muted/20 select-none">
+        {uploading ? (
+          <span className="text-xs text-muted-foreground animate-pulse">Uploading…</span>
+        ) : value ? (
+          <>
+            {isImage ? (
+              <img src={value} alt={label} className="max-h-[60px] max-w-full object-contain rounded-none" />
+            ) : (
+              <div className="flex flex-col items-center gap-1">
+                <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                <span className="text-[10px] text-muted-foreground truncate max-w-[140px]">{value.split("/").pop()}</span>
+              </div>
+            )}
+            <span className="text-[10px] text-primary">Click to replace</span>
+          </>
         ) : (
           <>
-            <ImageIcon className="h-5 w-5" />
-            <span>{uploading ? "Uploading…" : "Upload"}</span>
+            <Upload className="h-5 w-5 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Click to upload</span>
           </>
         )}
-        {value && (
-          <span
-            className="absolute top-0.5 right-0.5 p-0.5 rounded-none bg-background/80 text-muted-foreground hover:text-destructive"
-            onClick={(e) => { e.stopPropagation(); onChange(""); }}
-          >
-            <X className="h-3 w-3" />
-          </span>
-        )}
-      </button>
+      </div>
       <input ref={inputRef} type="file" accept={accept} className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
     </div>
   );
 }
 
-function Field({
-  label, value, onChange, type = "text",
-}: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
+function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} />
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 pb-1 border-b border-border">{title}</p>
+      {children}
     </div>
   );
 }
@@ -1074,11 +1752,7 @@ function CandidatePhotosDialog({ candidate, onClose }: { candidate: Candidate | 
             {photos.map((p) => (
               <div key={p.label} className="flex flex-col items-center gap-2">
                 <a href={p.url!} target="_blank" rel="noreferrer" className="block hover:opacity-80 transition-opacity">
-                  <img
-                    src={p.url!}
-                    alt={p.label}
-                    className="w-full max-h-52 object-contain border border-border bg-muted/30"
-                  />
+                  <img src={p.url!} alt={p.label} className="w-full max-h-52 object-contain border border-border bg-muted/30" />
                 </a>
                 <span className="text-[11px] text-muted-foreground font-medium">{p.label}</span>
               </div>
@@ -1136,7 +1810,6 @@ function CandidateDetailDialog({ candidate, onClose }: { candidate: Candidate | 
           </DialogTitle>
         </DialogHeader>
         <div className="max-h-[70vh] overflow-y-auto pr-1 space-y-5">
-          {/* Photos */}
           {(candidate.photo_url || (candidate as any).full_photo_url || candidate.passport_scan_url) && (
             <div className="flex gap-3">
               {candidate.photo_url && (
@@ -1159,7 +1832,6 @@ function CandidateDetailDialog({ candidate, onClose }: { candidate: Candidate | 
               )}
             </div>
           )}
-
           <DetailSection title="Personal">
             <InfoRow label="Full Name" value={candidate.full_name} />
             <InfoRow label="First Name" value={candidate.first_name} />
@@ -1177,7 +1849,6 @@ function CandidateDetailDialog({ candidate, onClose }: { candidate: Candidate | 
             <InfoRow label="Education" value={candidate.education} />
             <InfoRow label="Experience" value={candidate.experience} />
           </DetailSection>
-
           <DetailSection title="Passport">
             <InfoRow label="Passport Number" value={candidate.passport_number} />
             <InfoRow label="Passport Status" value={candidate.passport_status} />
@@ -1186,7 +1857,6 @@ function CandidateDetailDialog({ candidate, onClose }: { candidate: Candidate | 
             <InfoRow label="Place of Issue" value={candidate.place_of_issue} />
             <InfoRow label="Labour ID" value={candidate.labour_id} />
           </DetailSection>
-
           <DetailSection title="Languages & Physical">
             <InfoRow label="Spoken Languages" value={candidate.spoken_languages} />
             <InfoRow label="English Level" value={candidate.english_level} />
@@ -1194,7 +1864,6 @@ function CandidateDetailDialog({ candidate, onClose }: { candidate: Candidate | 
             <InfoRow label="Weight (kg)" value={candidate.weight} />
             <InfoRow label="Height (cm)" value={candidate.height} />
           </DetailSection>
-
           <DetailSection title="Status">
             <InfoRow label="Medical Status" value={candidate.medical_status} />
             <InfoRow label="Medical Date" value={candidate.medical_date} />
@@ -1206,7 +1875,6 @@ function CandidateDetailDialog({ candidate, onClose }: { candidate: Candidate | 
             <InfoRow label="Narrative" value={candidate.narrative} />
             <InfoRow label="Narrative Phone" value={candidate.narrative_phone} />
           </DetailSection>
-
           {(candidate.skills || candidate.notes || candidate.remark) && (
             <DetailSection title="Other">
               {candidate.skills && <div className="col-span-3"><InfoRow label="Skills" value={candidate.skills} /></div>}
