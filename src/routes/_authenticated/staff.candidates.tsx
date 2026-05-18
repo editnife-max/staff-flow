@@ -497,7 +497,17 @@ function StaffCandidatesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const openCreate = () => { setEditing(null); setForm({ ...initialForm, status: tab }); setOpen(true); };
+  const openCreate = () => {
+    let max = 0;
+    for (const c of candidates) {
+      const m = (c.candidate_code ?? "").match(/(\d+)$/);
+      if (m) max = Math.max(max, parseInt(m[1], 10));
+    }
+    const nextCode = `C-${String(max + 1).padStart(4, "0")}`;
+    setEditing(null);
+    setForm({ ...initialForm, status: tab, candidate_code: nextCode });
+    setOpen(true);
+  };
   const openEdit = (c: Candidate) => {
     setEditing(c);
     setForm({
