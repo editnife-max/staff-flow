@@ -1,10 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Search, FilePlus, FileText, Pencil, Trash2, FileSignature, Calendar,
   SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
+  ChevronLeft, ChevronRight,
   ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
   Globe, Send, Activity,
 } from "lucide-react";
@@ -687,6 +688,11 @@ function CandidateCardList({
 }) {
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
   const [showColPicker, setShowColPicker] = useState(false);
+  const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [candidates.length]);
+  const PAGE_SIZE = 20;
+  const totalPages = Math.max(1, Math.ceil(candidates.length / PAGE_SIZE));
+  const paginated = candidates.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const allSel = candidates.length > 0 && candidates.every((c) => selected.has(c.id));
   const someSel = !allSel && candidates.some((c) => selected.has(c.id));
 
@@ -736,7 +742,7 @@ function CandidateCardList({
       )}
       {candidates.length === 0 ? (
         <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates here yet.</CardContent></Card>
-      ) : candidates.map((c) => (
+      ) : paginated.map((c) => (
         <CandidateCard
           key={c.id}
           candidate={c}
@@ -748,6 +754,42 @@ function CandidateCardList({
           onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
         />
       ))}
+
+      {candidates.length > 0 && (
+        <div className="flex items-center justify-between pt-2 border-t border-border">
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
+              onClick={() => { setPage((p) => p - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((n) => n === 1 || n === totalPages || Math.abs(n - page) <= 1)
+              .map((n, i, arr) => (
+                <React.Fragment key={n}>
+                  {i > 0 && n - arr[i - 1] > 1 && <span className="text-xs text-muted-foreground px-0.5">…</span>}
+                  <Button size="sm" variant={page === n ? "default" : "outline"}
+                    className="h-7 w-7 p-0 rounded-none text-xs"
+                    onClick={() => { setPage(n); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+                    {n}
+                  </Button>
+                </React.Fragment>
+              ))}
+            <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === totalPages}
+              onClick={() => { setPage((p) => p + 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, candidates.length)} of {candidates.length}
+            </span>
+            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
+              <ChevronUp className="h-3.5 w-3.5" /> Back to top
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -814,7 +856,7 @@ function CandidateCard({
       )}>
         {statusLabel[statusKey]}
       </span>
-      <CardContent className="pt-[20px] pr-[25px] pb-[20px] pl-[7px]">
+      <CardContent className="py-[20px] px-[7px]">
         <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-center">
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <Avatar className="h-10 w-10">
@@ -957,7 +999,7 @@ function ProcessingCard({
       <span className="absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[9px] font-semibold tracking-wide bg-warning text-foreground">
         PROCESSING
       </span>
-      <CardContent className="pt-[20px] pr-[25px] pb-[20px] pl-[7px]">
+      <CardContent className="py-[20px] px-[7px]">
         <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-center">
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <Avatar className="h-10 w-10">
