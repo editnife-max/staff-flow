@@ -7,19 +7,46 @@ const StatusEnum = z.enum(["available", "processing", "arrived", "canceled"]);
 
 const CandidateInput = z.object({
   full_name: z.string().min(1).max(200),
+  first_name: z.string().max(100).optional().nullable(),
+  last_name: z.string().max(100).optional().nullable(),
   serial_number: z.string().max(80).optional().nullable(),
+  candidate_code: z.string().max(80).optional().nullable(),
   passport_number: z.string().max(80).optional().nullable(),
+  labour_id: z.string().max(80).optional().nullable(),
   dob: z.string().optional().nullable(),
   occupation: z.string().max(120).optional().nullable(),
   country: z.string().max(120).optional().nullable(),
   age: z.number().int().min(0).max(120).optional().nullable(),
   gender: z.string().max(40).optional().nullable(),
   religion: z.string().max(80).optional().nullable(),
+  birth_place: z.string().max(120).optional().nullable(),
+  living_town: z.string().max(120).optional().nullable(),
   marital_status: z.string().max(40).optional().nullable(),
+  children: z.number().int().min(0).max(30).optional().nullable(),
   education: z.string().max(120).optional().nullable(),
+  passport_issue_date: z.string().optional().nullable(),
+  passport_expiry_date: z.string().optional().nullable(),
+  place_of_issue: z.string().max(120).optional().nullable(),
+  spoken_languages: z.string().max(200).optional().nullable(),
+  english_level: z.string().max(40).optional().nullable(),
+  arabic_level: z.string().max(40).optional().nullable(),
+  experience: z.string().max(120).optional().nullable(),
+  weight: z.number().optional().nullable(),
+  height: z.number().optional().nullable(),
+  passport_status: z.string().max(80).optional().nullable(),
+  medical_status: z.string().max(80).optional().nullable(),
+  coc_status: z.string().max(80).optional().nullable(),
+  musaned_status: z.string().max(80).optional().nullable(),
+  office: z.string().max(80).optional().nullable(),
+  selected_by: z.string().max(200).optional().nullable(),
+  narrative: z.string().max(200).optional().nullable(),
+  narrative_phone: z.string().max(80).optional().nullable(),
   skills: z.string().max(500).optional().nullable(),
+  remark: z.string().max(500).optional().nullable(),
+  notes: z.string().max(1000).optional().nullable(),
   status: StatusEnum.default("available"),
   photo_url: z.preprocess((v) => (v === "" ? null : v), z.string().url().optional().nullable()),
+  passport_scan_url: z.preprocess((v) => (v === "" ? null : v), z.string().url().optional().nullable()),
 });
 
 const InlineFieldSchema = z.object({
@@ -58,8 +85,8 @@ export const upsertCandidate = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const managerId = await resolveManagerId(context.userId);
     if (data.id) {
-      const { error } = await supabaseAdmin
-        .from("candidates")
+      const { error } = await (supabaseAdmin
+        .from("candidates") as any)
         .update({ ...data.data })
         .eq("id", data.id)
         .eq("manager_id", managerId);

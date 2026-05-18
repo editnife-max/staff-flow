@@ -17,10 +17,12 @@ export type Database = {
       candidates: {
         Row: {
           age: number | null
+          arabic_level: string | null
           arrival_city: string | null
           assigned_staff_id: string | null
           birth_place: string | null
           candidate_code: string | null
+          children: number | null
           coc_status: string
           contract_date: string | null
           country: string | null
@@ -34,12 +36,16 @@ export type Database = {
           education: string | null
           embassy_date: string | null
           emergency_contact: string | null
+          english_level: string | null
           experience: string | null
+          first_name: string | null
           full_name: string
           gender: string | null
+          height: number | null
           id: string
           insurance_status: string | null
           labour_id: string | null
+          last_name: string | null
           living_town: string | null
           lmis_status: string | null
           manager_id: string
@@ -53,14 +59,20 @@ export type Database = {
           notes: string | null
           occupation: string | null
           office: string | null
+          passport_expiry_date: string | null
+          passport_issue_date: string | null
           passport_number: string | null
+          passport_scan_url: string | null
           passport_status: string
           photo_url: string | null
+          place_of_issue: string | null
           processing_notes: string | null
           religion: string | null
+          remark: string | null
           selected_by: string | null
           serial_number: string | null
           skills: string | null
+          spoken_languages: string | null
           status: string
           tasheer_date: string | null
           tasheer_status: string | null
@@ -69,14 +81,17 @@ export type Database = {
           unfilled_lmis: string | null
           updated_at: string
           visa_status: string | null
+          weight: number | null
           wokala_status: string | null
         }
         Insert: {
           age?: number | null
+          arabic_level?: string | null
           arrival_city?: string | null
           assigned_staff_id?: string | null
           birth_place?: string | null
           candidate_code?: string | null
+          children?: number | null
           coc_status?: string
           contract_date?: string | null
           country?: string | null
@@ -90,12 +105,16 @@ export type Database = {
           education?: string | null
           embassy_date?: string | null
           emergency_contact?: string | null
+          english_level?: string | null
           experience?: string | null
+          first_name?: string | null
           full_name: string
           gender?: string | null
+          height?: number | null
           id?: string
           insurance_status?: string | null
           labour_id?: string | null
+          last_name?: string | null
           living_town?: string | null
           lmis_status?: string | null
           manager_id: string
@@ -109,14 +128,20 @@ export type Database = {
           notes?: string | null
           occupation?: string | null
           office?: string | null
+          passport_expiry_date?: string | null
+          passport_issue_date?: string | null
           passport_number?: string | null
+          passport_scan_url?: string | null
           passport_status?: string
           photo_url?: string | null
+          place_of_issue?: string | null
           processing_notes?: string | null
           religion?: string | null
+          remark?: string | null
           selected_by?: string | null
           serial_number?: string | null
           skills?: string | null
+          spoken_languages?: string | null
           status?: string
           tasheer_date?: string | null
           tasheer_status?: string | null
@@ -125,6 +150,7 @@ export type Database = {
           unfilled_lmis?: string | null
           updated_at?: string
           visa_status?: string | null
+          weight?: number | null
           wokala_status?: string | null
         }
         Update: {

@@ -7,7 +7,7 @@ import {
   SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight,
   ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
-  Globe, Send, Activity,
+  Globe, Send, Activity, ClipboardPaste,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -22,6 +22,7 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -67,6 +68,10 @@ const LMIS_OPTIONS = [
 const UNFILLED_LMIS_OPTIONS = ["INSU", "COC", "ID"];
 const TICKET_OPTIONS = ["No", "Ready", "New Order", "Booked", "Exchange", "Urgent"];
 const ARRIVAL_CITY_OPTIONS = ["RIYADH", "JEDDAH", "DAMMAM", "JOUF", "HAIL", "ABHA", "OTHERS"];
+const SKILLS_LIST = [
+  "Cooking", "Cleaning", "Childcare", "Eldercare", "Ironing",
+  "Driving", "Gardening", "Sewing", "Babysitting", "Pet Care", "Nursing",
+];
 
 const OPTION_COLORS: Record<string, string> = {
   // Medical
@@ -192,20 +197,55 @@ const CANDIDATE_CARD_COLS = [
 ] as const;
 
 const initialForm = {
-  full_name: "",
-  serial_number: "",
-  passport_number: "",
-  dob: "",
-  occupation: "",
-  country: "",
-  age: "" as string | number,
-  gender: "",
-  religion: "",
-  marital_status: "",
-  education: "",
-  skills: "",
-  status: "available" as Status,
+  // Names
+  first_name: "",
+  last_name: "",
+  // Photos
   photo_url: "",
+  passport_scan_url: "",
+  // Codes
+  serial_number: "",
+  candidate_code: "",
+  // Personal
+  gender: "",
+  dob: "",
+  religion: "",
+  birth_place: "",
+  living_town: "",
+  marital_status: "",
+  children: "" as string | number,
+  education: "",
+  occupation: "",
+  // Passport
+  passport_number: "",
+  labour_id: "",
+  passport_issue_date: "",
+  passport_expiry_date: "",
+  place_of_issue: "ADDIS ABABA",
+  // Languages
+  spoken_languages: "",
+  english_level: "",
+  arabic_level: "",
+  // Experience & physical
+  experience: "",
+  weight: "" as string | number,
+  height: "" as string | number,
+  // Status
+  passport_status: "",
+  medical_status: "",
+  coc_status: "",
+  musaned_status: "",
+  status: "available" as Status,
+  office: "",
+  selected_by: "",
+  // Narrative
+  narrative: "",
+  narrative_phone: "",
+  // Skills (comma-separated)
+  skills: "",
+  // Notes
+  remark: "",
+  notes: "",
 };
 
 const initialFilters = {
@@ -225,6 +265,49 @@ const initialFilters = {
   from: "",
   to: "",
 };
+
+function parsePasteData(text: string): Partial<typeof initialForm> {
+  const FIELD_MAP: Record<string, string> = {
+    "first name": "first_name", "firstname": "first_name",
+    "last name": "last_name", "lastname": "last_name",
+    "serial number": "serial_number", "serial no": "serial_number", "serial": "serial_number",
+    "candidate code": "candidate_code",
+    "gender": "gender",
+    "date of birth": "dob", "dob": "dob", "birth date": "dob",
+    "religion": "religion",
+    "birth place": "birth_place", "birthplace": "birth_place", "place of birth": "birth_place",
+    "living town": "living_town", "place of residence": "living_town",
+    "marital status": "marital_status", "marital": "marital_status",
+    "children": "children",
+    "education": "education",
+    "occupation": "occupation",
+    "passport number": "passport_number", "passport no": "passport_number",
+    "labour id": "labour_id", "labour": "labour_id",
+    "passport issue date": "passport_issue_date", "issue date": "passport_issue_date",
+    "passport expiry date": "passport_expiry_date", "expiry date": "passport_expiry_date", "expire date": "passport_expiry_date",
+    "place of issue": "place_of_issue",
+    "spoken languages": "spoken_languages", "languages": "spoken_languages",
+    "english level": "english_level", "english": "english_level",
+    "arabic level": "arabic_level", "arabic": "arabic_level",
+    "experience": "experience",
+    "weight": "weight", "weight (kg)": "weight",
+    "height": "height", "height (cm)": "height",
+    "narrative": "narrative",
+    "narrative phone": "narrative_phone",
+    "remark": "remark",
+    "notes": "notes",
+  };
+  const result: Record<string, string> = {};
+  for (const line of text.split("\n")) {
+    const idx = line.indexOf(":");
+    if (idx < 1) continue;
+    const key = line.slice(0, idx).trim().toLowerCase();
+    const val = line.slice(idx + 1).trim();
+    const field = FIELD_MAP[key];
+    if (field && val) result[field] = val;
+  }
+  return result as Partial<typeof initialForm>;
+}
 
 function StaffCandidatesPage() {
   const { user } = useAuth();
@@ -252,6 +335,8 @@ function StaffCandidatesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Candidate | null>(null);
   const [form, setForm] = useState(initialForm);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["staff-candidates", user?.id],
@@ -349,11 +434,18 @@ function StaffCandidatesPage() {
 
   const saveMut = useMutation({
     mutationFn: async () => {
+      const fullName = [form.first_name, form.last_name].filter(Boolean).join(" ").trim() || "Unknown";
       const payload = {
         ...form,
-        age: form.age === "" ? null : Number(form.age),
+        full_name: fullName,
         dob: form.dob || null,
         photo_url: form.photo_url || null,
+        passport_scan_url: form.passport_scan_url || null,
+        passport_issue_date: form.passport_issue_date || null,
+        passport_expiry_date: form.passport_expiry_date || null,
+        children: form.children === "" ? null : Number(form.children),
+        weight: form.weight === "" ? null : Number(form.weight),
+        height: form.height === "" ? null : Number(form.height),
       };
       return upsert({ data: { id: editing?.id, data: payload } });
     },
@@ -410,11 +502,44 @@ function StaffCandidatesPage() {
   const openEdit = (c: Candidate) => {
     setEditing(c);
     setForm({
-      full_name: c.full_name, serial_number: c.serial_number ?? "", passport_number: c.passport_number ?? "",
-      dob: c.dob ?? "", occupation: c.occupation ?? "", country: c.country ?? "",
-      age: c.age ?? "", gender: c.gender ?? "", religion: c.religion ?? "",
-      marital_status: c.marital_status ?? "", education: c.education ?? "",
-      skills: c.skills ?? "", status: c.status as Status, photo_url: c.photo_url ?? "",
+      first_name: c.first_name ?? "",
+      last_name: c.last_name ?? "",
+      photo_url: c.photo_url ?? "",
+      passport_scan_url: c.passport_scan_url ?? "",
+      serial_number: c.serial_number ?? "",
+      candidate_code: c.candidate_code ?? "",
+      gender: c.gender ?? "",
+      dob: c.dob ?? "",
+      religion: c.religion ?? "",
+      birth_place: c.birth_place ?? "",
+      living_town: c.living_town ?? "",
+      marital_status: c.marital_status ?? "",
+      children: c.children ?? "",
+      education: c.education ?? "",
+      occupation: c.occupation ?? "",
+      passport_number: c.passport_number ?? "",
+      labour_id: c.labour_id ?? "",
+      passport_issue_date: c.passport_issue_date ?? "",
+      passport_expiry_date: c.passport_expiry_date ?? "",
+      place_of_issue: c.place_of_issue ?? "ADDIS ABABA",
+      spoken_languages: c.spoken_languages ?? "",
+      english_level: c.english_level ?? "",
+      arabic_level: c.arabic_level ?? "",
+      experience: c.experience ?? "",
+      weight: c.weight ?? "",
+      height: c.height ?? "",
+      passport_status: c.passport_status ?? "",
+      medical_status: c.medical_status ?? "",
+      coc_status: c.coc_status ?? "",
+      musaned_status: c.musaned_status ?? "",
+      status: (c.status as Status) ?? "available",
+      office: c.office ?? "",
+      selected_by: c.selected_by ?? "",
+      narrative: c.narrative ?? "",
+      narrative_phone: c.narrative_phone ?? "",
+      skills: c.skills ?? "",
+      remark: c.remark ?? "",
+      notes: c.notes ?? "",
     });
     setOpen(true);
   };
@@ -626,41 +751,198 @@ function StaffCandidatesPage() {
       )}
 
       {/* Add / Edit dialog */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setPasteOpen(false); setPasteText(""); } }}>
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit candidate" : "Add new candidate"}</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-1">
-            <Field label="Full Name *" value={form.full_name} onChange={(v) => setForm({ ...form, full_name: v })} />
-            <Field label="Serial Number" value={form.serial_number} onChange={(v) => setForm({ ...form, serial_number: v })} />
-            <Field label="Passport Number" value={form.passport_number} onChange={(v) => setForm({ ...form, passport_number: v })} />
-            <Field label="Date of Birth" type="date" value={form.dob} onChange={(v) => setForm({ ...form, dob: v })} />
-            <Field label="Occupation" value={form.occupation} onChange={(v) => setForm({ ...form, occupation: v })} />
-            <Field label="Country" value={form.country} onChange={(v) => setForm({ ...form, country: v })} />
-            <Field label="Age" type="number" value={String(form.age)} onChange={(v) => setForm({ ...form, age: v })} />
-            <Field label="Gender" value={form.gender} onChange={(v) => setForm({ ...form, gender: v })} />
-            <Field label="Religion" value={form.religion} onChange={(v) => setForm({ ...form, religion: v })} />
-            <Field label="Marital Status" value={form.marital_status} onChange={(v) => setForm({ ...form, marital_status: v })} />
-            <Field label="Education" value={form.education} onChange={(v) => setForm({ ...form, education: v })} />
-            <Field label="Skills" value={form.skills} onChange={(v) => setForm({ ...form, skills: v })} />
-            <Field label="Photo URL" value={form.photo_url} onChange={(v) => setForm({ ...form, photo_url: v })} />
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Status })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="processing">Processing</SelectItem>
-                  <SelectItem value="arrived">Arrived</SelectItem>
-                  <SelectItem value="canceled">Canceled</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex items-center justify-between pr-6">
+              <DialogTitle>{editing ? "Edit candidate" : "Add new candidate"}</DialogTitle>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="gap-1.5 text-xs h-7 rounded-none"
+                onClick={() => setPasteOpen((p) => !p)}
+              >
+                <ClipboardPaste className="h-3.5 w-3.5" />
+                Paste Data
+              </Button>
             </div>
+          </DialogHeader>
+
+          {pasteOpen && (
+            <div className="border rounded-none p-3 space-y-2 bg-muted/30 mx-1">
+              <Label className="text-xs font-semibold text-muted-foreground">Paste data (one "Key: Value" per line)</Label>
+              <Textarea
+                rows={5}
+                placeholder={"First Name: MESERET\nLast Name: ALEMU\nPassport Number: EP1234567\nDate of Birth: 1990-05-10\nReligion: Muslim\n..."}
+                value={pasteText}
+                onChange={(e) => setPasteText(e.target.value)}
+                className="text-xs rounded-none font-mono"
+              />
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-7 text-xs rounded-none gap-1"
+                  onClick={() => {
+                    setForm((f) => ({ ...f, ...parsePasteData(pasteText) }));
+                    setPasteOpen(false);
+                    setPasteText("");
+                  }}
+                  disabled={!pasteText.trim()}
+                >
+                  <ClipboardPaste className="h-3.5 w-3.5" /> Fill Form
+                </Button>
+                <Button type="button" size="sm" variant="ghost" className="h-7 text-xs rounded-none"
+                  onClick={() => { setPasteOpen(false); setPasteText(""); }}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <div className="max-h-[62vh] overflow-y-auto pr-2 space-y-5">
+            {/* Names & IDs */}
+            <FormSection title="Names & IDs">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="First Name *" value={form.first_name} onChange={(v) => setForm({ ...form, first_name: v })} />
+                <Field label="Last Name *" value={form.last_name} onChange={(v) => setForm({ ...form, last_name: v })} />
+                <Field label="Serial Number" value={form.serial_number} onChange={(v) => setForm({ ...form, serial_number: v })} />
+                <Field label="Candidate Code" value={form.candidate_code} onChange={(v) => setForm({ ...form, candidate_code: v })} />
+              </div>
+            </FormSection>
+
+            {/* Personal */}
+            <FormSection title="Personal">
+              <div className="grid grid-cols-2 gap-3">
+                <FormSelect label="Gender" value={form.gender} onChange={(v) => setForm({ ...form, gender: v })} options={["Male", "Female"]} />
+                <Field label="Date of Birth" type="date" value={form.dob} onChange={(v) => setForm({ ...form, dob: v })} />
+                <FormSelect label="Religion" value={form.religion} onChange={(v) => setForm({ ...form, religion: v })} options={["Muslim", "Non-muslim"]} />
+                <Field label="Birth Place" value={form.birth_place} onChange={(v) => setForm({ ...form, birth_place: v })} />
+                <Field label="Living Town" value={form.living_town} onChange={(v) => setForm({ ...form, living_town: v })} />
+                <FormSelect label="Marital Status" value={form.marital_status} onChange={(v) => setForm({ ...form, marital_status: v })} options={["Single", "Married", "Divorced", "Widowed"]} />
+                <Field label="Children" type="number" value={String(form.children)} onChange={(v) => setForm({ ...form, children: v })} />
+                <Field label="Education" value={form.education} onChange={(v) => setForm({ ...form, education: v })} />
+                <Field label="Occupation" value={form.occupation} onChange={(v) => setForm({ ...form, occupation: v })} />
+              </div>
+            </FormSection>
+
+            {/* Passport */}
+            <FormSection title="Passport">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Passport Number" value={form.passport_number} onChange={(v) => setForm({ ...form, passport_number: v })} />
+                <Field label="Labour ID" value={form.labour_id} onChange={(v) => setForm({ ...form, labour_id: v })} />
+                <Field label="Issue Date" type="date" value={form.passport_issue_date} onChange={(v) => setForm({ ...form, passport_issue_date: v })} />
+                <Field label="Expiry Date" type="date" value={form.passport_expiry_date} onChange={(v) => setForm({ ...form, passport_expiry_date: v })} />
+                <div className="col-span-2">
+                  <Field label="Place of Issue" value={form.place_of_issue} onChange={(v) => setForm({ ...form, place_of_issue: v })} />
+                </div>
+              </div>
+            </FormSection>
+
+            {/* Languages & Experience */}
+            <FormSection title="Languages & Experience">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Spoken Languages" value={form.spoken_languages} onChange={(v) => setForm({ ...form, spoken_languages: v })} />
+                <FormSelect label="English Level" value={form.english_level} onChange={(v) => setForm({ ...form, english_level: v })} options={["Basic", "Fair", "Good", "Very Good", "Fluent"]} />
+                <FormSelect label="Arabic Level" value={form.arabic_level} onChange={(v) => setForm({ ...form, arabic_level: v })} options={["Basic", "Fair", "Good", "Very Good", "Fluent"]} />
+                <FormSelect label="Experience" value={form.experience} onChange={(v) => setForm({ ...form, experience: v })} options={["Experienced", "Non-Experienced"]} />
+              </div>
+            </FormSection>
+
+            {/* Physical */}
+            <FormSection title="Physical">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Weight (kg)" type="number" value={String(form.weight)} onChange={(v) => setForm({ ...form, weight: v })} />
+                <Field label="Height (cm)" type="number" value={String(form.height)} onChange={(v) => setForm({ ...form, height: v })} />
+              </div>
+            </FormSection>
+
+            {/* Skills */}
+            <FormSection title="Skills">
+              {(() => {
+                const skillSet = new Set((form.skills ?? "").split(",").map((s) => s.trim()).filter(Boolean));
+                return (
+                  <div className="flex flex-wrap gap-2">
+                    {SKILLS_LIST.map((skill) => {
+                      const checked = skillSet.has(skill);
+                      return (
+                        <label
+                          key={skill}
+                          className={cn(
+                            "flex items-center gap-1.5 px-2.5 py-1 rounded-none border cursor-pointer text-xs transition-colors",
+                            checked ? "bg-primary/10 border-primary text-primary" : "border-border text-muted-foreground hover:border-primary/50",
+                          )}
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(v) => {
+                              const s = new Set(skillSet);
+                              v ? s.add(skill) : s.delete(skill);
+                              setForm({ ...form, skills: Array.from(s).join(", ") });
+                            }}
+                          />
+                          {skill}
+                        </label>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </FormSection>
+
+            {/* Status & Office */}
+            <FormSection title="Status & Office">
+              <div className="grid grid-cols-2 gap-3">
+                <FormSelect label="Status" value={form.status} onChange={(v) => setForm({ ...form, status: v as Status })} options={["available", "processing", "arrived", "canceled"]} />
+                <FormSelect label="Passport Status" value={form.passport_status} onChange={(v) => setForm({ ...form, passport_status: v })} options={PASSPORT_OPTIONS} />
+                <FormSelect label="Medical Status" value={form.medical_status} onChange={(v) => setForm({ ...form, medical_status: v })} options={MEDICAL_OPTIONS} />
+                <FormSelect label="COC Status" value={form.coc_status} onChange={(v) => setForm({ ...form, coc_status: v })} options={COC_OPTIONS} />
+                <FormSelect label="Musaned" value={form.musaned_status} onChange={(v) => setForm({ ...form, musaned_status: v })} options={MUSANED_OPTIONS} />
+                <FormSelect label="Office" value={form.office} onChange={(v) => setForm({ ...form, office: v })} options={OFFICE_OPTIONS} />
+                <div className="col-span-2">
+                  <Field label="Selected By" value={form.selected_by} onChange={(v) => setForm({ ...form, selected_by: v })} />
+                </div>
+              </div>
+            </FormSection>
+
+            {/* Narrative */}
+            <FormSection title="Narrative">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Narrative" value={form.narrative} onChange={(v) => setForm({ ...form, narrative: v })} />
+                <Field label="Narrative Phone" value={form.narrative_phone} onChange={(v) => setForm({ ...form, narrative_phone: v })} />
+              </div>
+            </FormSection>
+
+            {/* Photos & Documents */}
+            <FormSection title="Photos & Documents">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Photo URL" value={form.photo_url} onChange={(v) => setForm({ ...form, photo_url: v })} />
+                <Field label="Passport Scan URL" value={form.passport_scan_url} onChange={(v) => setForm({ ...form, passport_scan_url: v })} />
+              </div>
+            </FormSection>
+
+            {/* Notes */}
+            <FormSection title="Notes">
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Remark</Label>
+                  <Textarea rows={2} value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} className="rounded-none text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Notes</Label>
+                  <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-none text-sm" />
+                </div>
+              </div>
+            </FormSection>
           </div>
+
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={() => saveMut.mutate()} disabled={!form.full_name || saveMut.isPending}>
+            <Button
+              onClick={() => saveMut.mutate()}
+              disabled={(!form.first_name && !form.last_name) || saveMut.isPending}
+            >
               {saveMut.isPending ? "Saving..." : editing ? "Save changes" : "Add candidate"}
             </Button>
           </DialogFooter>
@@ -1163,9 +1445,9 @@ function ProcessingCard({
                         <InlineText value={strVal} onSave={(v) => onUpdateField(col.key, v)} />
                       ) : col.type === "date" ? (
                         <InlineDate value={strVal} onSave={(v) => onUpdateField(col.key, v)} />
-                      ) : (
+                      ) : col.type === "select" ? (
                         <InlineSelect value={strVal} options={col.options} onSave={(v) => onUpdateField(col.key, v)} />
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 );
@@ -1429,9 +1711,34 @@ function Field({
   label, value, onChange, type = "text",
 }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
   return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} />
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="rounded-none h-9" />
+    </div>
+  );
+}
+
+function FormSelect({
+  label, value, onChange, options,
+}: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      <Select value={value || undefined} onValueChange={onChange}>
+        <SelectTrigger className="rounded-none h-9"><SelectValue placeholder="—" /></SelectTrigger>
+        <SelectContent>
+          {options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 pb-1 border-b border-border">{title}</p>
+      {children}
     </div>
   );
 }

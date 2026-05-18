@@ -10,7 +10,7 @@ function DashboardRouter() {
   if (loading) return <div className="p-8 text-muted-foreground">Loading...</div>;
   if (role === "manager" || role === "admin") return <Navigate to="/manager/dashboard" />;
   if (role === "staff") return <Navigate to="/staff/candidates" />;
-  if (role === "agency") return <Navigate to="/agency/candidates" />;
+  if (role === "agency") return <Navigate to="/manager/candidates" />;
   return (
     <div className="min-h-screen grid place-items-center p-8">
       <div className="text-center">
