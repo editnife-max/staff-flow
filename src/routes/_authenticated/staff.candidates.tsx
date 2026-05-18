@@ -1023,6 +1023,7 @@ function CandidateCardList({
   onDelete: (id: string) => void;
   onUpdateField: (id: string, field: string, value: string | null) => void;
 }) {
+  const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
   const [showColPicker, setShowColPicker] = useState(false);
   const [page, setPage] = useState(1);
@@ -1086,11 +1087,13 @@ function CandidateCardList({
           selected={selected.has(c.id)}
           hiddenCols={hiddenCols}
           onToggleSelect={() => onToggleSelect(c.id)}
+          onViewPhotos={() => setViewingPhotos(c)}
           onEdit={() => onEdit(c)}
           onDelete={() => onDelete(c.id)}
           onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
         />
       ))}
+      <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
 
       {candidates.length > 0 && (
         <div className="sticky bottom-0 z-10 bg-background flex items-center justify-between px-4 py-2 shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
@@ -1132,12 +1135,13 @@ function CandidateCardList({
 }
 
 function CandidateCard({
-  candidate, selected, hiddenCols, onToggleSelect, onEdit, onDelete, onUpdateField,
+  candidate, selected, hiddenCols, onToggleSelect, onViewPhotos, onEdit, onDelete, onUpdateField,
 }: {
   candidate: Candidate;
   selected: boolean;
   hiddenCols: Set<string>;
   onToggleSelect: () => void;
+  onViewPhotos: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onUpdateField: (field: EditableField, value: string | null) => void;
@@ -1196,10 +1200,12 @@ function CandidateCard({
       <CardContent className="p-0">
         <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-center">
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
-          <Avatar className="h-10 w-10">
-            {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
-            <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-          </Avatar>
+          <button type="button" onClick={onViewPhotos} className="cursor-pointer">
+            <Avatar className="h-10 w-10 hover:ring-2 hover:ring-primary transition-all">
+              {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
+              <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+            </Avatar>
+          </button>
           <div className="overflow-x-auto no-scrollbar">
             <div className="flex gap-5 items-start">
               {visibleFields.map((f) => (
@@ -1256,6 +1262,7 @@ function ProcessingTable({
   onEdit: (c: Candidate) => void;
   onDelete: (id: string) => void;
 }) {
+  const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
   const [showColPicker, setShowColPicker] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -1409,11 +1416,13 @@ function ProcessingTable({
           selected={selected.has(c.id)}
           visibleCols={visibleCols}
           onToggleSelect={() => onToggleSelect(c.id)}
+          onViewPhotos={() => setViewingPhotos(c)}
           onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
           onEdit={() => onEdit(c)}
           onDelete={() => onDelete(c.id)}
         />
       ))}
+      <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
 
       {candidates.length > 0 && (
         <div className="sticky bottom-0 z-10 bg-background flex items-center justify-between px-4 py-2 shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
@@ -1455,12 +1464,13 @@ function ProcessingTable({
 }
 
 function ProcessingCard({
-  candidate, selected, visibleCols, onToggleSelect, onUpdateField, onEdit, onDelete,
+  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onUpdateField, onEdit, onDelete,
 }: {
   candidate: Candidate;
   selected: boolean;
   visibleCols: ProcessingColDef[];
   onToggleSelect: () => void;
+  onViewPhotos: () => void;
   onUpdateField: (field: string, value: string | null) => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -1473,10 +1483,12 @@ function ProcessingCard({
       <CardContent className="p-0">
         <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-center">
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
-          <Avatar className="h-10 w-10">
-            {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
-            <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-          </Avatar>
+          <button type="button" onClick={onViewPhotos} className="cursor-pointer">
+            <Avatar className="h-10 w-10 hover:ring-2 hover:ring-primary transition-all">
+              {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
+              <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+            </Avatar>
+          </button>
           <div className="overflow-x-auto no-scrollbar">
             <div className="flex gap-5 items-start">
               <div className="shrink-0">
@@ -1857,5 +1869,45 @@ function FormSection({ title, children }: { title: string; children: React.React
       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 pb-1 border-b border-border">{title}</p>
       {children}
     </div>
+  );
+}
+
+function CandidatePhotosDialog({ candidate, onClose }: { candidate: Candidate | null; onClose: () => void }) {
+  if (!candidate) return null;
+  const photos = [
+    { label: "Photo", url: candidate.photo_url },
+    { label: "Full Size Photo", url: (candidate as any).full_photo_url as string | null },
+    { label: "Passport Scan", url: candidate.passport_scan_url },
+  ].filter((p) => p.url);
+
+  return (
+    <Dialog open={!!candidate} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="text-base">{candidate.full_name}</DialogTitle>
+        </DialogHeader>
+        {photos.length === 0 ? (
+          <div className="py-12 text-center text-muted-foreground text-sm">No photos uploaded.</div>
+        ) : (
+          <div className="grid grid-cols-3 gap-4 py-2">
+            {photos.map((p) => (
+              <div key={p.label} className="flex flex-col items-center gap-2">
+                <a href={p.url!} target="_blank" rel="noreferrer" className="block hover:opacity-80 transition-opacity">
+                  <img
+                    src={p.url!}
+                    alt={p.label}
+                    className="w-full max-h-52 object-contain border border-border bg-muted/30"
+                  />
+                </a>
+                <span className="text-[11px] text-muted-foreground font-medium">{p.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
