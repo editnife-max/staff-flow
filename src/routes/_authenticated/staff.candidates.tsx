@@ -335,6 +335,8 @@ function StaffCandidatesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Candidate | null>(null);
   const [form, setForm] = useState(initialForm);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["staff-candidates", user?.id],
@@ -762,13 +764,10 @@ function StaffCandidatesPage() {
                 onClick={async () => {
                   try {
                     const text = await navigator.clipboard.readText();
-                    const parsed = parsePasteData(text);
-                    const count = Object.keys(parsed).length;
-                    if (count === 0) { toast.info("No recognizable fields found in clipboard"); return; }
-                    setForm((f) => ({ ...f, ...parsed }));
-                    toast.success(`Filled ${count} field${count !== 1 ? "s" : ""} from clipboard`);
+                    setPasteText(text);
+                    setPasteOpen(true);
                   } catch {
-                    toast.error("Clipboard access denied — copy data first");
+                    toast.error("Clipboard access denied");
                   }
                 }}
               >
@@ -777,6 +776,23 @@ function StaffCandidatesPage() {
               </Button>
             </div>
           </DialogHeader>
+
+          {pasteOpen && (
+            <div className="border rounded-none p-3 space-y-2 bg-muted/30 mx-1">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-muted-foreground">Clipboard content</Label>
+                <button type="button" onClick={() => setPasteOpen(false)} className="text-muted-foreground hover:text-foreground">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <Textarea
+                rows={6}
+                value={pasteText}
+                onChange={(e) => setPasteText(e.target.value)}
+                className="text-xs rounded-none font-mono"
+              />
+            </div>
+          )}
 
           <div className="max-h-[62vh] overflow-y-auto pr-2 space-y-5">
             {/* Names & IDs */}
