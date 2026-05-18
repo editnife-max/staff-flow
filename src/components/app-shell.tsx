@@ -103,7 +103,7 @@ export function AppShell({ items, groupLabel, children }: AppShellProps) {
             <SidebarTrigger />
             <div className="flex-1" />
           </header>
-          <main className="flex-1 p-6 overflow-auto">{children}</main>
+          <main className="flex-1 p-6 pb-[110px] overflow-auto">{children}</main>
         </div>
       </div>
     </SidebarProvider>
