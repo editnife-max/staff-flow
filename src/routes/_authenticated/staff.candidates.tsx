@@ -269,7 +269,7 @@ const initialFilters = {
 };
 
 function parsePasteData(text: string): Partial<typeof initialForm> {
-  const LABEL_MAP: Record<string, string> = {
+  const LABEL_MAP: Record<string, string | string[]> = {
     // EPRO / alternating-line labels
     "surname": "last_name",
     "given names": "first_name",
@@ -291,7 +291,7 @@ function parsePasteData(text: string): Partial<typeof initialForm> {
     "passport issue place": "place_of_issue",
     "passport issue date": "passport_issue_date",
     "passport expiry date": "passport_expiry_date",
-    "city": "birth_place",
+    "city": ["birth_place", "living_town"],
     // colon-format labels
     "first name": "first_name", "firstname": "first_name",
     "last name": "last_name", "lastname": "last_name",
@@ -338,7 +338,10 @@ function parsePasteData(text: string): Partial<typeof initialForm> {
       const key = line.slice(0, idx).trim().toLowerCase();
       const val = line.slice(idx + 1).trim();
       const field = LABEL_MAP[key];
-      if (field && val && !SKIP_VALUES.has(val.toLowerCase())) result[field] = val;
+      if (field && val && !SKIP_VALUES.has(val.toLowerCase())) {
+        const targets = Array.isArray(field) ? field : [field];
+        for (const t of targets) result[t] = val;
+      }
     }
   } else {
     // Alternating label / value lines (EPRO-style)
@@ -347,10 +350,10 @@ function parsePasteData(text: string): Partial<typeof initialForm> {
       const field = LABEL_MAP[key];
       if (field) {
         const val = lines[i + 1].trim();
-        // Consume next line as value whether or not we use it
         i++;
         if (val && !LABEL_MAP[val.toLowerCase()] && !SKIP_VALUES.has(val.toLowerCase())) {
-          result[field] = val;
+          const targets = Array.isArray(field) ? field : [field];
+          for (const t of targets) result[t] = val;
         }
       }
     }
