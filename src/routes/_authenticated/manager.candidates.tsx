@@ -328,6 +328,8 @@ function ManagerCandidatesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const [viewing, setViewing] = useState<Candidate | null>(null);
+
   const openCreate = () => { setEditing(null); setForm({ ...initialForm, status: tab }); setOpen(true); };
   const openEdit = (c: Candidate) => {
     setEditing(c);
@@ -555,6 +557,7 @@ function ManagerCandidatesPage() {
             candidate={c}
             selected={selected.has(c.id)}
             onToggleSelect={() => toggleSelect(c.id)}
+            onView={() => setViewing(c)}
             onEdit={() => openEdit(c)}
             onDelete={() => removeMut.mutate(c.id)}
             onUpdateField={(field, value) => fieldMut.mutate({ id: c.id, field, value })}
@@ -600,6 +603,8 @@ function ManagerCandidatesPage() {
           </div>
         </div>
       )}
+
+      <CandidateDetailDialog candidate={viewing} onClose={() => setViewing(null)} />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl">
@@ -658,11 +663,12 @@ type EditableField =
   | "musaned_status" | "coc_status";
 
 function CandidateCard({
-  candidate, selected, onToggleSelect, onEdit, onDelete, onUpdateField,
+  candidate, selected, onToggleSelect, onView, onEdit, onDelete, onUpdateField,
 }: {
   candidate: Candidate;
   selected: boolean;
   onToggleSelect: () => void;
+  onView: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onUpdateField: (field: EditableField, value: string | null) => void;
@@ -721,10 +727,12 @@ function CandidateCard({
       <CardContent className="p-0">
         <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-center">
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
-          <Avatar className="h-10 w-10">
-            {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
-            <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-          </Avatar>
+          <button type="button" onClick={onView} className="cursor-pointer">
+            <Avatar className="h-10 w-10 hover:ring-2 hover:ring-primary transition-all">
+              {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
+              <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+            </Avatar>
+          </button>
           <div className="overflow-x-auto no-scrollbar">
             <table className="text-[14px] text-[#181A27] border-collapse">
               <thead>
@@ -740,7 +748,11 @@ function CandidateCard({
                 <tr>
                   {fields.map((f) => (
                     <td key={f.label} className={cn("whitespace-nowrap pr-6 align-top", "bold" in f && f.bold && "font-semibold")}>
-                      {"edit" in f && f.edit === "text" ? (
+                      {"bold" in f && f.bold ? (
+                        <button type="button" onClick={onView} className="font-semibold text-left hover:text-primary hover:underline transition-colors">
+                          {f.value || "—"}
+                        </button>
+                      ) : "edit" in f && f.edit === "text" ? (
                         <InlineText
                           value={f.value}
                           onSave={(v) => onUpdateField(f.field, v)}
@@ -1034,5 +1046,135 @@ function Field({
       <Label>{label}</Label>
       <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} />
     </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string | number | null | undefined }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className="text-[13px] text-foreground">{value || "—"}</span>
+    </div>
+  );
+}
+
+function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border pb-1">{title}</h3>
+      <div className="grid grid-cols-3 gap-x-6 gap-y-3">{children}</div>
+    </div>
+  );
+}
+
+function CandidateDetailDialog({ candidate, onClose }: { candidate: Candidate | null; onClose: () => void }) {
+  if (!candidate) return null;
+  const statusStyles: Record<Status, string> = {
+    available: "bg-emerald-100 text-emerald-800",
+    processing: "bg-amber-100 text-amber-800",
+    arrived: "bg-blue-100 text-blue-800",
+    canceled: "bg-red-100 text-red-800",
+  };
+  const statusKey = (candidate.status as Status) ?? "available";
+
+  return (
+    <Dialog open={!!candidate} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-3">
+            <span>{candidate.full_name}</span>
+            {candidate.candidate_code && (
+              <span className="text-xs font-mono font-normal text-muted-foreground">{candidate.candidate_code}</span>
+            )}
+            <span className={cn("ml-auto text-[11px] font-semibold px-2 py-0.5 rounded-none capitalize", statusStyles[statusKey])}>
+              {statusKey}
+            </span>
+          </DialogTitle>
+        </DialogHeader>
+        <div className="max-h-[70vh] overflow-y-auto pr-1 space-y-5">
+          {/* Photos */}
+          {(candidate.photo_url || (candidate as any).full_photo_url || candidate.passport_scan_url) && (
+            <div className="flex gap-3">
+              {candidate.photo_url && (
+                <div className="flex flex-col items-center gap-1">
+                  <img src={candidate.photo_url} alt="Photo" className="h-24 w-20 object-cover border border-border" />
+                  <span className="text-[10px] text-muted-foreground">Photo</span>
+                </div>
+              )}
+              {(candidate as any).full_photo_url && (
+                <div className="flex flex-col items-center gap-1">
+                  <img src={(candidate as any).full_photo_url} alt="Full Photo" className="h-24 w-20 object-cover border border-border" />
+                  <span className="text-[10px] text-muted-foreground">Full Photo</span>
+                </div>
+              )}
+              {candidate.passport_scan_url && (
+                <div className="flex flex-col items-center gap-1">
+                  <img src={candidate.passport_scan_url} alt="Passport" className="h-24 w-20 object-cover border border-border" />
+                  <span className="text-[10px] text-muted-foreground">Passport Scan</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DetailSection title="Personal">
+            <InfoRow label="Full Name" value={candidate.full_name} />
+            <InfoRow label="First Name" value={candidate.first_name} />
+            <InfoRow label="Last Name" value={candidate.last_name} />
+            <InfoRow label="Date of Birth" value={candidate.dob} />
+            <InfoRow label="Age" value={candidate.age} />
+            <InfoRow label="Gender" value={candidate.gender} />
+            <InfoRow label="Religion" value={candidate.religion} />
+            <InfoRow label="Marital Status" value={candidate.marital_status} />
+            <InfoRow label="Children" value={candidate.children} />
+            <InfoRow label="Birth Place" value={candidate.birth_place} />
+            <InfoRow label="Living Town" value={candidate.living_town} />
+            <InfoRow label="Country" value={candidate.country} />
+            <InfoRow label="Occupation" value={candidate.occupation} />
+            <InfoRow label="Education" value={candidate.education} />
+            <InfoRow label="Experience" value={candidate.experience} />
+          </DetailSection>
+
+          <DetailSection title="Passport">
+            <InfoRow label="Passport Number" value={candidate.passport_number} />
+            <InfoRow label="Passport Status" value={candidate.passport_status} />
+            <InfoRow label="Issue Date" value={candidate.passport_issue_date} />
+            <InfoRow label="Expiry Date" value={candidate.passport_expiry_date} />
+            <InfoRow label="Place of Issue" value={candidate.place_of_issue} />
+            <InfoRow label="Labour ID" value={candidate.labour_id} />
+          </DetailSection>
+
+          <DetailSection title="Languages & Physical">
+            <InfoRow label="Spoken Languages" value={candidate.spoken_languages} />
+            <InfoRow label="English Level" value={candidate.english_level} />
+            <InfoRow label="Arabic Level" value={candidate.arabic_level} />
+            <InfoRow label="Weight (kg)" value={candidate.weight} />
+            <InfoRow label="Height (cm)" value={candidate.height} />
+          </DetailSection>
+
+          <DetailSection title="Status">
+            <InfoRow label="Medical Status" value={candidate.medical_status} />
+            <InfoRow label="Medical Date" value={candidate.medical_date} />
+            <InfoRow label="COC Status" value={candidate.coc_status} />
+            <InfoRow label="Musaned Status" value={candidate.musaned_status} />
+            <InfoRow label="Passport Status" value={candidate.passport_status} />
+            <InfoRow label="Office" value={candidate.office} />
+            <InfoRow label="Selected By" value={candidate.selected_by} />
+            <InfoRow label="Narrative" value={candidate.narrative} />
+            <InfoRow label="Narrative Phone" value={candidate.narrative_phone} />
+          </DetailSection>
+
+          {(candidate.skills || candidate.notes || candidate.remark) && (
+            <DetailSection title="Other">
+              {candidate.skills && <div className="col-span-3"><InfoRow label="Skills" value={candidate.skills} /></div>}
+              {candidate.notes && <div className="col-span-3"><InfoRow label="Notes" value={candidate.notes} /></div>}
+              {candidate.remark && <div className="col-span-3"><InfoRow label="Remark" value={candidate.remark} /></div>}
+            </DetailSection>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
