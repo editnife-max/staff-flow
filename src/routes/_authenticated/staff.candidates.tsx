@@ -1,13 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, FilePlus, FileText, Pencil, Trash2, FileSignature, Calendar,
   SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight,
   ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
-  Globe, Send, Activity, ClipboardPaste,
+  Globe, Send, Activity, ClipboardPaste, Upload, ImageIcon,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -840,6 +840,21 @@ function StaffCandidatesPage() {
           </DialogHeader>
 
           <div className="max-h-[62vh] overflow-y-auto pr-2 space-y-5">
+            {/* Photos */}
+            <div className="grid grid-cols-2 gap-4">
+              <PhotoUpload
+                label="Full Size Photo"
+                value={form.photo_url}
+                onChange={(url) => setForm((f) => ({ ...f, photo_url: url }))}
+              />
+              <PhotoUpload
+                label="Passport Scan"
+                value={form.passport_scan_url}
+                onChange={(url) => setForm((f) => ({ ...f, passport_scan_url: url }))}
+                accept="image/*,application/pdf"
+              />
+            </div>
+
             {/* Names & IDs */}
             <FormSection title="Names & IDs">
               <div className="grid grid-cols-2 gap-3">
@@ -943,14 +958,6 @@ function StaffCandidatesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Narrative" value={form.narrative} onChange={(v) => setForm({ ...form, narrative: v })} />
                 <Field label="Narrative Phone" value={form.narrative_phone} onChange={(v) => setForm({ ...form, narrative_phone: v })} />
-              </div>
-            </FormSection>
-
-            {/* Photos & Documents */}
-            <FormSection title="Photos & Documents">
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Photo URL" value={form.photo_url} onChange={(v) => setForm({ ...form, photo_url: v })} />
-                <Field label="Passport Scan URL" value={form.passport_scan_url} onChange={(v) => setForm({ ...form, passport_scan_url: v })} />
               </div>
             </FormSection>
 
@@ -1762,6 +1769,72 @@ function FormSelect({
           {options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
         </SelectContent>
       </Select>
+    </div>
+  );
+}
+
+function PhotoUpload({
+  label, value, onChange, accept = "image/*",
+}: { label: string; value: string; onChange: (url: string) => void; accept?: string }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() ?? "jpg";
+      const path = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage.from("candidate-files").upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data } = supabase.storage.from("candidate-files").getPublicUrl(path);
+      onChange(data.publicUrl);
+    } catch {
+      toast.error("Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const isImage = value && !value.endsWith(".pdf");
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => inputRef.current?.click()}
+        onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
+        className="border-2 border-dashed border-border rounded-none cursor-pointer hover:border-primary/60 transition-colors flex flex-col items-center justify-center gap-2 min-h-[120px] p-3 bg-muted/20 select-none"
+      >
+        {uploading ? (
+          <span className="text-xs text-muted-foreground animate-pulse">Uploading…</span>
+        ) : value ? (
+          <>
+            {isImage ? (
+              <img src={value} alt={label} className="max-h-[96px] max-w-full object-contain rounded-none" />
+            ) : (
+              <div className="flex flex-col items-center gap-1">
+                <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                <span className="text-[10px] text-muted-foreground truncate max-w-[140px]">{value.split("/").pop()}</span>
+              </div>
+            )}
+            <span className="text-[10px] text-primary">Click to replace</span>
+          </>
+        ) : (
+          <>
+            <Upload className="h-7 w-7 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Click to upload</span>
+          </>
+        )}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
+      />
     </div>
   );
 }
