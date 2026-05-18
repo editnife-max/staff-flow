@@ -7,7 +7,7 @@ import {
   SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight,
   ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
-  Globe, Send, Activity, ClipboardPaste,
+  Globe, Send, Activity,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -266,48 +266,6 @@ const initialFilters = {
   to: "",
 };
 
-function parsePasteData(text: string): Partial<typeof initialForm> {
-  const FIELD_MAP: Record<string, string> = {
-    "first name": "first_name", "firstname": "first_name",
-    "last name": "last_name", "lastname": "last_name",
-    "serial number": "serial_number", "serial no": "serial_number", "serial": "serial_number",
-    "candidate code": "candidate_code",
-    "gender": "gender",
-    "date of birth": "dob", "dob": "dob", "birth date": "dob",
-    "religion": "religion",
-    "birth place": "birth_place", "birthplace": "birth_place", "place of birth": "birth_place",
-    "living town": "living_town", "place of residence": "living_town",
-    "marital status": "marital_status", "marital": "marital_status",
-    "children": "children",
-    "education": "education",
-    "occupation": "occupation",
-    "passport number": "passport_number", "passport no": "passport_number",
-    "labour id": "labour_id", "labour": "labour_id",
-    "passport issue date": "passport_issue_date", "issue date": "passport_issue_date",
-    "passport expiry date": "passport_expiry_date", "expiry date": "passport_expiry_date", "expire date": "passport_expiry_date",
-    "place of issue": "place_of_issue",
-    "spoken languages": "spoken_languages", "languages": "spoken_languages",
-    "english level": "english_level", "english": "english_level",
-    "arabic level": "arabic_level", "arabic": "arabic_level",
-    "experience": "experience",
-    "weight": "weight", "weight (kg)": "weight",
-    "height": "height", "height (cm)": "height",
-    "narrative": "narrative",
-    "narrative phone": "narrative_phone",
-    "remark": "remark",
-    "notes": "notes",
-  };
-  const result: Record<string, string> = {};
-  for (const line of text.split("\n")) {
-    const idx = line.indexOf(":");
-    if (idx < 1) continue;
-    const key = line.slice(0, idx).trim().toLowerCase();
-    const val = line.slice(idx + 1).trim();
-    const field = FIELD_MAP[key];
-    if (field && val) result[field] = val;
-  }
-  return result as Partial<typeof initialForm>;
-}
 
 function StaffCandidatesPage() {
   const { user } = useAuth();
@@ -335,8 +293,6 @@ function StaffCandidatesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Candidate | null>(null);
   const [form, setForm] = useState(initialForm);
-  const [pasteOpen, setPasteOpen] = useState(false);
-  const [pasteText, setPasteText] = useState("");
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["staff-candidates", user?.id],
@@ -754,45 +710,8 @@ function StaffCandidatesPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <div className="flex items-center justify-between pr-6">
-              <DialogTitle>{editing ? "Edit candidate" : "Add new candidate"}</DialogTitle>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="gap-1.5 text-xs h-7 rounded-none"
-                onClick={async () => {
-                  try {
-                    const text = await navigator.clipboard.readText();
-                    setPasteText(text);
-                    setPasteOpen(true);
-                  } catch {
-                    toast.error("Clipboard access denied");
-                  }
-                }}
-              >
-                <ClipboardPaste className="h-3.5 w-3.5" />
-                Paste Data
-              </Button>
-            </div>
+            <DialogTitle>{editing ? "Edit candidate" : "Add new candidate"}</DialogTitle>
           </DialogHeader>
-
-          {pasteOpen && (
-            <div className="border rounded-none p-3 space-y-2 bg-muted/30 mx-1">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold text-muted-foreground">Clipboard content</Label>
-                <button type="button" onClick={() => setPasteOpen(false)} className="text-muted-foreground hover:text-foreground">
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <Textarea
-                rows={6}
-                value={pasteText}
-                onChange={(e) => setPasteText(e.target.value)}
-                className="text-xs rounded-none font-mono"
-              />
-            </div>
-          )}
 
           <div className="max-h-[62vh] overflow-y-auto pr-2 space-y-5">
             {/* Names & IDs */}
