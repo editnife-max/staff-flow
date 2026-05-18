@@ -53,7 +53,7 @@ const AVAILABILITY_OPTIONS: Status[] = ["available", "processing", "arrived", "c
 const COC_OPTIONS = ["Done", "No", "Booked", "Placed", "Yitazez", "Pending release"];
 const MUSANED_OPTIONS = ["Saudi", "Kuwait"];
 const OFFICE_OPTIONS = ["Riyadh", "Jeddah", "Dammam", "Other"];
-const PASSPORT_OPTIONS = ["Pending", "Submitted", "Received", "Expired"];
+const PASSPORT_OPTIONS = ["Original", "Scan"];
 const TASHEER_OPTIONS = ["No", "Booked", "Done", "Ready"];
 const WOKALA_OPTIONS = ["Paid", "Unpaid"];
 const VISA_OPTIONS = [
@@ -844,7 +844,6 @@ function StaffCandidatesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <Field label="First Name *" value={form.first_name} onChange={(v) => setForm({ ...form, first_name: v })} />
                 <Field label="Last Name *" value={form.last_name} onChange={(v) => setForm({ ...form, last_name: v })} />
-                <Field label="Serial Number" value={form.serial_number} onChange={(v) => setForm({ ...form, serial_number: v })} />
                 <Field label="Candidate Code" value={form.candidate_code} onChange={(v) => setForm({ ...form, candidate_code: v })} />
               </div>
             </FormSection>
@@ -928,18 +927,13 @@ function StaffCandidatesPage() {
               })()}
             </FormSection>
 
-            {/* Status & Office */}
-            <FormSection title="Status & Office">
+            {/* Status */}
+            <FormSection title="Status">
               <div className="grid grid-cols-2 gap-3">
-                <FormSelect label="Status" value={form.status} onChange={(v) => setForm({ ...form, status: v as Status })} options={["available", "processing", "arrived", "canceled"]} />
                 <FormSelect label="Passport Status" value={form.passport_status} onChange={(v) => setForm({ ...form, passport_status: v })} options={PASSPORT_OPTIONS} />
                 <FormSelect label="Medical Status" value={form.medical_status} onChange={(v) => setForm({ ...form, medical_status: v })} options={MEDICAL_OPTIONS} />
                 <FormSelect label="COC Status" value={form.coc_status} onChange={(v) => setForm({ ...form, coc_status: v })} options={COC_OPTIONS} />
                 <FormSelect label="Musaned" value={form.musaned_status} onChange={(v) => setForm({ ...form, musaned_status: v })} options={MUSANED_OPTIONS} />
-                <FormSelect label="Office" value={form.office} onChange={(v) => setForm({ ...form, office: v })} options={OFFICE_OPTIONS} />
-                <div className="col-span-2">
-                  <Field label="Selected By" value={form.selected_by} onChange={(v) => setForm({ ...form, selected_by: v })} />
-                </div>
               </div>
             </FormSection>
 
