@@ -881,8 +881,8 @@ function StaffCandidatesPage() {
             <FormSection title="Languages & Experience">
               <div className="grid grid-cols-2 gap-3">
                 <FormSelect label="Spoken Languages" value={form.spoken_languages} onChange={(v) => setForm({ ...form, spoken_languages: v })} options={["Poor", "Little", "Fair", "Good"]} />
-                <FormSelect label="English Level" value={form.english_level} onChange={(v) => setForm({ ...form, english_level: v })} options={["Basic", "Fair", "Good", "Very Good", "Fluent"]} />
-                <FormSelect label="Arabic Level" value={form.arabic_level} onChange={(v) => setForm({ ...form, arabic_level: v })} options={["Basic", "Fair", "Good", "Very Good", "Fluent"]} />
+                <FormSelect label="English Level" value={form.english_level} onChange={(v) => setForm({ ...form, english_level: v })} options={["Poor", "Little", "Fair", "Good"]} />
+                <FormSelect label="Arabic Level" value={form.arabic_level} onChange={(v) => setForm({ ...form, arabic_level: v })} options={["Poor", "Little", "Fair", "Good"]} />
                 <FormSelect label="Work Experience" value={form.experience} onChange={(v) => setForm({ ...form, experience: v })} options={["Yes", "No", "None"]} />
               </div>
             </FormSection>
