@@ -1304,6 +1304,42 @@ function ProcessingTable({
   useEffect(() => { setPage(1); }, [filteredCandidates.length]);
   const PAGE_SIZE = 20;
   const totalPages = Math.max(1, Math.ceil(filteredCandidates.length / PAGE_SIZE));
+
+  const medExpiryChecked = useRef<Set<string>>(new Set());
+  const arrivedChecked = useRef<Set<string>>(new Set());
+  const [arrivedCheckCandidate, setArrivedCheckCandidate] = useState<Candidate | null>(null);
+
+  useEffect(() => {
+    const today = new Date();
+    for (const c of candidates) {
+      if (medExpiryChecked.current.has(c.id)) continue;
+      if (c.medical_status === "Fit" && c.medical_date) {
+        const medDate = new Date(c.medical_date + "T00:00:00");
+        const diffDays = Math.floor((today.getTime() - medDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays >= 90) {
+          medExpiryChecked.current.add(c.id);
+          onUpdateField(c.id, "medical_status", "Expired");
+        }
+      }
+    }
+  }, [candidates]);
+
+  useEffect(() => {
+    if (arrivedCheckCandidate) return;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (const c of candidates) {
+      if (arrivedChecked.current.has(c.id)) continue;
+      if (c.ticket_status === "Booked" && c.ticket_date && c.status === "processing") {
+        const ticketDate = new Date(c.ticket_date + "T00:00:00");
+        if (today > ticketDate) {
+          arrivedChecked.current.add(c.id);
+          setArrivedCheckCandidate(c);
+          return;
+        }
+      }
+    }
+  }, [candidates, arrivedCheckCandidate]);
   const paginated = filteredCandidates.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const visibleCols = PROCESSING_COLS.filter((col) => !hiddenCols.has(col.key));
   const allSel = filteredCandidates.length > 0 && filteredCandidates.every((c) => selected.has(c.id));
@@ -1426,6 +1462,22 @@ function ProcessingTable({
         />
       ))}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
+      {arrivedCheckCandidate && (
+        <ArrivedCheckDialog
+          candidate={arrivedCheckCandidate}
+          onArrived={() => {
+            onUpdateField(arrivedCheckCandidate.id, "status", "arrived");
+            setArrivedCheckCandidate(null);
+          }}
+          onNotArrived={(reason, problem) => {
+            const note = `[${new Date().toLocaleDateString()}] Not arrived — ${reason}: ${problem}`;
+            const existing = arrivedCheckCandidate.processing_notes ?? "";
+            onUpdateField(arrivedCheckCandidate.id, "processing_notes", existing ? `${existing}\n${note}` : note);
+            setArrivedCheckCandidate(null);
+          }}
+          onClose={() => setArrivedCheckCandidate(null)}
+        />
+      )}
 
       {candidates.length > 0 && (
         <div className="sticky bottom-0 z-10 bg-background flex items-center justify-between px-4 py-2 shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
@@ -1478,7 +1530,30 @@ function ProcessingCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const [requireDate, setRequireDate] = useState<{
+    field: "ticket_date" | "medical_date";
+    label: string;
+    pendingStatus: string;
+    statusField: string;
+  } | null>(null);
+  const [pendingDate, setPendingDate] = useState("");
+
+  function handleColUpdate(colKey: string, value: string | null) {
+    if (colKey === "ticket_status" && value === "Booked" && !candidate.ticket_date) {
+      setRequireDate({ field: "ticket_date", label: "Ticket Date", pendingStatus: "Booked", statusField: "ticket_status" });
+      setPendingDate("");
+      return;
+    }
+    if (colKey === "medical_status" && value === "Fit" && !candidate.medical_date) {
+      setRequireDate({ field: "medical_date", label: "Medical Date", pendingStatus: "Fit", statusField: "medical_status" });
+      setPendingDate("");
+      return;
+    }
+    onUpdateField(colKey, value);
+  }
+
   return (
+    <>
     <Card className={cn("relative overflow-visible transition-colors rounded-none mx-[5px]", selected && "ring-2 ring-primary")}>
       <span className="absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[9px] font-semibold tracking-wide bg-warning text-foreground">
         PROCESSING
@@ -1508,11 +1583,11 @@ function ProcessingCard({
                     </div>
                     <div className="text-[14px] text-[#181A27] whitespace-nowrap">
                       {col.type === "text" ? (
-                        <InlineText value={strVal} onSave={(v) => onUpdateField(col.key, v)} />
+                        <InlineText value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
                       ) : col.type === "date" ? (
-                        <InlineDate value={strVal} onSave={(v) => onUpdateField(col.key, v)} />
+                        <InlineDate value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
                       ) : col.type === "select" ? (
-                        <InlineSelect value={strVal} options={col.options} onSave={(v) => onUpdateField(col.key, v)} />
+                        <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
                       ) : null}
                     </div>
                   </div>
@@ -1536,6 +1611,42 @@ function ProcessingCard({
         </div>
       </CardContent>
     </Card>
+    {requireDate && (
+      <Dialog open onOpenChange={(o) => { if (!o) setRequireDate(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Date Required</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Please fill in the <strong>{requireDate.label}</strong> before setting the status to{" "}
+            <strong>"{requireDate.pendingStatus}"</strong>.
+          </p>
+          <div className="py-2">
+            <Input
+              type="date"
+              value={pendingDate}
+              onChange={(e) => setPendingDate(e.target.value)}
+              className="rounded-none h-9"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRequireDate(null)}>Cancel</Button>
+            <Button
+              disabled={!pendingDate}
+              onClick={() => {
+                if (!pendingDate) return;
+                onUpdateField(requireDate.field, pendingDate);
+                onUpdateField(requireDate.statusField, requireDate.pendingStatus);
+                setRequireDate(null);
+              }}
+            >
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )}
+    </>
   );
 }
 
@@ -1872,6 +1983,78 @@ function FormSection({ title, children }: { title: string; children: React.React
       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 pb-1 border-b border-border">{title}</p>
       {children}
     </div>
+  );
+}
+
+function ArrivedCheckDialog({
+  candidate, onArrived, onNotArrived, onClose,
+}: {
+  candidate: Candidate;
+  onArrived: () => void;
+  onNotArrived: (reason: string, problem: string) => void;
+  onClose: () => void;
+}) {
+  const [notArrived, setNotArrived] = useState(false);
+  const [reason, setReason] = useState("Visa issue");
+  const [problem, setProblem] = useState("");
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Arrival Check — {candidate.full_name}</DialogTitle>
+        </DialogHeader>
+        {!notArrived ? (
+          <>
+            <p className="text-sm text-muted-foreground">
+              The departure date{" "}
+              <strong className="text-foreground">
+                {candidate.ticket_date
+                  ? new Date(candidate.ticket_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+                  : ""}
+              </strong>{" "}
+              has passed. Did <strong className="text-foreground">{candidate.full_name}</strong> arrive?
+            </p>
+            <DialogFooter className="flex-col gap-2 sm:flex-row">
+              <Button variant="ghost" className="sm:mr-auto" onClick={onClose}>Remind Later</Button>
+              <Button variant="outline" onClick={() => setNotArrived(true)}>No — Not Arrived</Button>
+              <Button onClick={onArrived}>Yes — Arrived</Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Reason</Label>
+                <Select value={reason} onValueChange={setReason}>
+                  <SelectTrigger className="rounded-none h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["Visa issue", "Flight issue", "Health issue", "Sponsor issue", "Other"].map((r) => (
+                      <SelectItem key={r} value={r}>{r}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Problem Description</Label>
+                <Textarea
+                  rows={3}
+                  placeholder="Describe the issue..."
+                  value={problem}
+                  onChange={(e) => setProblem(e.target.value)}
+                  className="rounded-none text-sm"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setNotArrived(false)}>Back</Button>
+              <Button disabled={!problem.trim()} onClick={() => onNotArrived(reason, problem)}>
+                Save & Stay in Processing
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
