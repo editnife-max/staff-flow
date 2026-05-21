@@ -1153,7 +1153,7 @@ function CandidateCard({
     canceled: "bg-destructive text-destructive-foreground",
   };
   const statusLabel: Record<Status, string> = {
-    available: "Available", processing: "PROCESSING", arrived: "ARRIVED", canceled: "CANCELED",
+    available: "Available", processing: "Processing", arrived: "Arrived", canceled: "Canceled",
   };
   const statusKey = (candidate.status in statusStyles ? candidate.status : "available") as Status;
 
@@ -1193,8 +1193,7 @@ function CandidateCard({
   return (
     <Card className={cn("relative overflow-visible transition-colors rounded-none mx-[5px]", selected && "ring-2 ring-primary")}>
       <span className={cn(
-        "absolute -top-2 left-3 rounded-none px-1.5 py-0.5 font-semibold tracking-wide",
-        statusKey === "available" ? "text-[10px]" : "text-[16px]",
+        "absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[10px] font-semibold tracking-wide",
         statusStyles[statusKey],
       )}>
         {statusLabel[statusKey]}

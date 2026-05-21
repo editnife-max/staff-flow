@@ -1096,7 +1096,7 @@ function CandidateCard({
     canceled: "bg-destructive text-destructive-foreground",
   };
   const statusLabel: Record<Status, string> = {
-    available: "Available", processing: "PROCESSING", arrived: "ARRIVED", canceled: "CANCELED",
+    available: "Available", processing: "Processing", arrived: "Arrived", canceled: "Canceled",
   };
   const statusKey = (candidate.status in statusStyles ? candidate.status : "available") as Status;
 
