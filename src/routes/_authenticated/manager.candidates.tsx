@@ -773,7 +773,8 @@ function ManagerCandidatesPage() {
           onToggleSelect={toggleSelect}
           onUpdateField={(id, field, value) => fieldMut.mutate({ id, field, value })}
           onEdit={openEdit}
-          onDelete={(id) => removeMut.mutate(id)}
+          cancelMode
+          onDelete={(id) => fieldMut.mutate({ id, field: "status", value: "canceled" })}
         />
       ) : (
         <CandidateCardList
@@ -782,7 +783,12 @@ function ManagerCandidatesPage() {
           onToggleSelect={toggleSelect}
           onView={(c) => setViewing(c)}
           onEdit={openEdit}
-          onDelete={(id) => removeMut.mutate(id)}
+          cancelMode={tab === "available"}
+          onDelete={(id) =>
+            tab === "available"
+              ? fieldMut.mutate({ id, field: "status", value: "canceled" })
+              : removeMut.mutate(id)
+          }
           onUpdateField={(id, field, value) => fieldMut.mutate({ id, field, value })}
         />
       )}
@@ -956,7 +962,7 @@ type EditableField =
   | "processing_notes";
 
 function CandidateCardList({
-  candidates, selected, onToggleSelect, onView, onEdit, onDelete, onUpdateField,
+  candidates, selected, onToggleSelect, onView, onEdit, onDelete, onUpdateField, cancelMode,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -965,6 +971,7 @@ function CandidateCardList({
   onEdit: (c: Candidate) => void;
   onDelete: (id: string) => void;
   onUpdateField: (id: string, field: string, value: string | null) => void;
+  cancelMode?: boolean;
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
@@ -1027,6 +1034,7 @@ function CandidateCardList({
           candidate={c}
           selected={selected.has(c.id)}
           hiddenCols={hiddenCols}
+          cancelMode={cancelMode}
           onToggleSelect={() => onToggleSelect(c.id)}
           onViewPhotos={() => setViewingPhotos(c)}
           onView={() => onView(c)}
@@ -1077,11 +1085,12 @@ function CandidateCardList({
 }
 
 function CandidateCard({
-  candidate, selected, hiddenCols, onToggleSelect, onViewPhotos, onView, onEdit, onDelete, onUpdateField,
+  candidate, selected, hiddenCols, onToggleSelect, onViewPhotos, onView, onEdit, onDelete, onUpdateField, cancelMode,
 }: {
   candidate: Candidate;
   selected: boolean;
   hiddenCols: Set<string>;
+  cancelMode?: boolean;
   onToggleSelect: () => void;
   onViewPhotos: () => void;
   onView: () => void;
@@ -1188,7 +1197,7 @@ function CandidateCard({
               <Pencil className="h-3.5 w-3.5" /> Edit
             </button>
             <button onClick={onDelete} className="text-[14px] text-destructive hover:underline flex items-center gap-1">
-              <Trash2 className="h-3.5 w-3.5" /> Delete
+              <Trash2 className="h-3.5 w-3.5" /> {cancelMode ? "Cancel" : "Delete"}
             </button>
           </div>
         </div>
@@ -1205,7 +1214,7 @@ const INITIAL_PROC_FILTERS = {
 };
 
 function ProcessingTable({
-  candidates, selected, onToggleSelect, onUpdateField, onEdit, onDelete,
+  candidates, selected, onToggleSelect, onUpdateField, onEdit, onDelete, cancelMode,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -1213,6 +1222,7 @@ function ProcessingTable({
   onUpdateField: (id: string, field: string, value: string | null) => void;
   onEdit: (c: Candidate) => void;
   onDelete: (id: string) => void;
+  cancelMode?: boolean;
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
@@ -1382,6 +1392,7 @@ function ProcessingTable({
           candidate={c}
           selected={selected.has(c.id)}
           visibleCols={visibleCols}
+          cancelMode={cancelMode}
           onToggleSelect={() => onToggleSelect(c.id)}
           onViewPhotos={() => setViewingPhotos(c)}
           onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
@@ -1447,11 +1458,12 @@ function ProcessingTable({
 }
 
 function ProcessingCard({
-  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onUpdateField, onEdit, onDelete,
+  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onUpdateField, onEdit, onDelete, cancelMode,
 }: {
   candidate: Candidate;
   selected: boolean;
   visibleCols: ProcessingColDef[];
+  cancelMode?: boolean;
   onToggleSelect: () => void;
   onViewPhotos: () => void;
   onUpdateField: (field: string, value: string | null) => void;
@@ -1533,7 +1545,7 @@ function ProcessingCard({
               <Pencil className="h-3.5 w-3.5" /> Edit
             </button>
             <button onClick={onDelete} className="text-[14px] text-destructive hover:underline flex items-center gap-1">
-              <Trash2 className="h-3.5 w-3.5" /> Delete
+              <Trash2 className="h-3.5 w-3.5" /> {cancelMode ? "Cancel" : "Delete"}
             </button>
           </div>
         </div>
