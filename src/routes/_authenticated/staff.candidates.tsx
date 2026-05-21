@@ -1017,7 +1017,7 @@ type EditableField =
   | "tasheer_status" | "tasheer_date" | "wokala_status" | "embassy_date"
   | "visa_status" | "insurance_status" | "unfilled_lmis" | "lmis_status"
   | "ticket_status" | "ticket_date" | "arrival_city" | "emergency_contact"
-  | "processing_notes";
+  | "processing_notes" | "remark";
 
 function CandidateCardList({
   candidates, selected, onToggleSelect, onEdit, onDelete, onUpdateField, cancelMode,
@@ -1155,6 +1155,7 @@ function CandidateCard({
   onDelete: () => void;
   onUpdateField: (field: EditableField, value: string | null) => void;
 }) {
+  const [cancelOpen, setCancelOpen] = useState(false);
   const statusStyles: Record<Status, string> = {
     available: "bg-success text-success-foreground",
     processing: "bg-warning text-foreground",
@@ -1200,6 +1201,7 @@ function CandidateCard({
   const visibleFields = fields.filter((f) => !hiddenCols.has(f.label));
 
   return (
+    <>
     <Card className={cn("relative overflow-visible transition-colors rounded-none mx-[5px]", selected && "ring-2 ring-primary")}>
       <span className={cn(
         "absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[10px] font-semibold tracking-wide",
@@ -1247,13 +1249,27 @@ function CandidateCard({
             <button onClick={onEdit} className="text-[14px] text-primary hover:underline flex items-center gap-1">
               <Pencil className="h-3.5 w-3.5" /> Edit
             </button>
-            <button onClick={onDelete} className="text-[14px] text-destructive hover:underline flex items-center gap-1">
-              <Trash2 className="h-3.5 w-3.5" /> {cancelMode ? "Cancel" : "Delete"}
+            <button
+              onClick={() => cancelMode ? setCancelOpen(true) : onDelete()}
+              className="text-[14px] text-destructive hover:underline flex items-center gap-1"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Delete
             </button>
           </div>
         </div>
       </CardContent>
     </Card>
+    {cancelOpen && (
+      <CancelReasonDialog
+        onConfirm={(reason) => {
+          onUpdateField("remark", reason);
+          onDelete();
+          setCancelOpen(false);
+        }}
+        onClose={() => setCancelOpen(false)}
+      />
+    )}
+    </>
   );
 }
 
@@ -1549,6 +1565,7 @@ function ProcessingCard({
     statusField: string;
   } | null>(null);
   const [pendingDate, setPendingDate] = useState("");
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   function handleColUpdate(colKey: string, value: string | null) {
     if (colKey === "ticket_status" && value === "Booked" && !candidate.ticket_date) {
@@ -1616,13 +1633,26 @@ function ProcessingCard({
             <button onClick={onEdit} className="text-[14px] text-primary hover:underline flex items-center gap-1">
               <Pencil className="h-3.5 w-3.5" /> Edit
             </button>
-            <button onClick={onDelete} className="text-[14px] text-destructive hover:underline flex items-center gap-1">
-              <Trash2 className="h-3.5 w-3.5" /> {cancelMode ? "Cancel" : "Delete"}
+            <button
+              onClick={() => cancelMode ? setCancelOpen(true) : onDelete()}
+              className="text-[14px] text-destructive hover:underline flex items-center gap-1"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Delete
             </button>
           </div>
         </div>
       </CardContent>
     </Card>
+    {cancelOpen && (
+      <CancelReasonDialog
+        onConfirm={(reason) => {
+          onUpdateField("remark", reason);
+          onDelete();
+          setCancelOpen(false);
+        }}
+        onClose={() => setCancelOpen(false)}
+      />
+    )}
     {requireDate && (
       <Dialog open onOpenChange={(o) => { if (!o) setRequireDate(null); }}>
         <DialogContent className="max-w-sm">
@@ -1995,6 +2025,57 @@ function FormSection({ title, children }: { title: string; children: React.React
       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 pb-1 border-b border-border">{title}</p>
       {children}
     </div>
+  );
+}
+
+function CancelReasonDialog({
+  onConfirm, onClose,
+}: {
+  onConfirm: (reason: string) => void;
+  onClose: () => void;
+}) {
+  const [reason, setReason] = useState("No sponsor");
+  const [notes, setNotes] = useState("");
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Delete Candidate</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Reason *</Label>
+            <Select value={reason} onValueChange={setReason}>
+              <SelectTrigger className="rounded-none h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {["No sponsor", "Candidate withdrew", "Medical issue", "Visa rejected", "Document issue", "Other"].map((r) => (
+                  <SelectItem key={r} value={r}>{r}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Additional Notes</Label>
+            <Textarea
+              rows={2}
+              placeholder="Optional details..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="rounded-none text-sm"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Back</Button>
+          <Button
+            variant="destructive"
+            onClick={() => onConfirm(notes.trim() ? `${reason}: ${notes.trim()}` : reason)}
+          >
+            Confirm Delete
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
