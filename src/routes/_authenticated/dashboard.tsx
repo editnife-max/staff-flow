@@ -8,7 +8,8 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 function DashboardRouter() {
   const { role, loading } = useAuth();
   if (loading) return <div className="p-8 text-muted-foreground">Loading...</div>;
-  if (role === "manager" || role === "admin") return <Navigate to="/manager/dashboard" />;
+  if (role === "admin") return <Navigate to="/admin/dashboard" />;
+  if (role === "manager") return <Navigate to="/manager/dashboard" />;
   if (role === "staff") return <Navigate to="/staff/dashboard" />;
   if (role === "agency") return <Navigate to="/manager/candidates" />;
   return (
