@@ -1211,7 +1211,7 @@ function CandidateCard({
     {cancelOpen && (
       <CancelReasonDialog
         onConfirm={(reason) => {
-          onUpdateField("remark", reason);
+          onUpdateField("notes", reason);
           onDelete();
           setCancelOpen(false);
         }}
@@ -1574,7 +1574,7 @@ function ProcessingCard({
     {cancelOpen && (
       <CancelReasonDialog
         onConfirm={(reason) => {
-          onUpdateField("remark", reason);
+          onUpdateField("notes", reason);
           onDelete();
           setCancelOpen(false);
         }}
