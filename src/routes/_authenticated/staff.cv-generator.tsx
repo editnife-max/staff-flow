@@ -101,8 +101,8 @@ async function buildFilledDocx(templateUrl: string, c: Candidate): Promise<Blob>
   }).join("</w:tr>");
 
   zip.file("word/document.xml", xml);
-  const uint8 = zip.generate({ type: "uint8array" });
-  return new Blob([uint8.buffer as ArrayBuffer], {
+  const ab = zip.generate({ type: "arraybuffer" });
+  return new Blob([ab], {
     type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   });
 }
