@@ -66,7 +66,8 @@ function CvGeneratorPage() {
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
+      const buffer = await res.arrayBuffer();
+      const blob = new Blob([buffer], { type: "application/octet-stream" });
       const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = objectUrl;
