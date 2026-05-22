@@ -5,6 +5,7 @@ import { Search, Download, FileText, CheckCircle2, User } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import PizZip from "pizzip";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -55,11 +56,15 @@ function replaceValueCell(rowXml: string, newValue: string): string {
 }
 
 async function buildFilledDocx(templateUrl: string, c: Candidate): Promise<Blob> {
-  const PizZip = (await import("pizzip")).default;
-  const res = await fetch(templateUrl);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const zip = new PizZip(await res.arrayBuffer());
-  let xml = zip.file("word/document.xml")!.asText();
+  const res = await fetch(templateUrl, { mode: "cors" });
+  if (!res.ok) throw new Error(`Fetch failed: HTTP ${res.status}`);
+  const buffer = await res.arrayBuffer();
+  if (buffer.byteLength === 0) throw new Error("Template file is empty");
+
+  const zip = new PizZip(buffer);
+  const docEntry = zip.file("word/document.xml");
+  if (!docEntry) throw new Error("word/document.xml not found in template");
+  let xml = docEntry.asText();
 
   const fields: Array<[string, string | null | undefined]> = [
     ["FULL NAME",      c.full_name],
@@ -85,7 +90,7 @@ async function buildFilledDocx(templateUrl: string, c: Candidate): Promise<Blob>
   ];
 
   const parts = xml.split("</w:tr>");
-  const filled = parts.map((row) => {
+  xml = parts.map((row) => {
     for (const [label, value] of fields) {
       if (value == null || value === "") continue;
       if (new RegExp(`<w:t[^>]*>${reEscape(label)}<\\/w:t>`).test(row)) {
@@ -93,14 +98,13 @@ async function buildFilledDocx(templateUrl: string, c: Candidate): Promise<Blob>
       }
     }
     return row;
-  });
-  xml = filled.join("</w:tr>");
+  }).join("</w:tr>");
 
   zip.file("word/document.xml", xml);
-  return zip.generate({
-    type: "blob",
-    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  }) as Blob;
+  const uint8 = zip.generate({ type: "uint8array" });
+  return new Blob([uint8.buffer as ArrayBuffer], {
+    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  });
 }
 
 // ── CV helpers ────────────────────────────────────────────────────────────────
