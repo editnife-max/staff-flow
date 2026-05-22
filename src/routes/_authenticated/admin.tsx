@@ -21,3 +21,4 @@ function AdminLayout() {
     </AppShell>
   );
 }
+

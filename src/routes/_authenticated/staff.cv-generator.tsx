@@ -5,7 +5,6 @@ import { Search, Download, FileText, CheckCircle2, User } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import PizZip from "pizzip";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -27,85 +26,7 @@ export const Route = createFileRoute("/_authenticated/staff/cv-generator")({
 type CvTemplate = Database["public"]["Tables"]["cv_templates"]["Row"];
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"];
 
-// ── DOCX fill ────────────────────────────────────────────────────────────────
-
-function xmlEscape(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
-
-function reEscape(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function replaceValueCell(rowXml: string, newValue: string): string {
-  const cut = rowXml.indexOf("</w:tc>");
-  if (cut === -1) return rowXml;
-  const before = rowXml.slice(0, cut + 7);
-  const after = rowXml.slice(cut + 7);
-  // Replace content of the first <w:t …>…</w:t> in the value cell
-  const filled = after.replace(
-    /(<w:t[^>]*>)([\s\S]*?)(<\/w:t>)/,
-    (_, open, _old, close) => `${open}${xmlEscape(newValue)}${close}`,
-  );
-  return before + filled;
-}
-
-async function buildFilledDocx(templateUrl: string, c: Candidate): Promise<Blob> {
-  const res = await fetch(templateUrl, { mode: "cors" });
-  if (!res.ok) throw new Error(`Fetch failed: HTTP ${res.status}`);
-  const buffer = await res.arrayBuffer();
-  if (buffer.byteLength === 0) throw new Error("Template file is empty");
-
-  const zip = new PizZip(buffer);
-  const docEntry = zip.file("word/document.xml");
-  if (!docEntry) throw new Error("word/document.xml not found in template");
-  let xml = docEntry.asText();
-
-  const fields: Array<[string, string | null | undefined]> = [
-    ["FULL NAME",      c.full_name],
-    ["POSITION",       c.occupation],
-    ["NUMBER",         c.passport_number],
-    ["DATE OF ISSUE",  c.passport_issue_date],
-    ["DATE OF EXPIRY", c.passport_expiry_date],
-    ["PLACE OF ISSUE", c.place_of_issue ?? c.country],
-    ["ENGLISH",        c.english_level],
-    ["ARABIC",         c.arabic_level],
-    ["EXPERIENCE",     c.experience],
-    ["NATIONALITY",    c.country],
-    ["RELIGION",       c.religion],
-    ["DATE OF BIRTH",  c.dob],
-    ["PLACE OF BIRTH", c.birth_place],
-    ["LIVING TOWN",    c.living_town],
-    ["AGE",            c.age != null ? String(c.age) : null],
-    ["MARITAL STATUS", c.marital_status],
-    ["CHILDREN",       c.children != null ? String(c.children) : null],
-    ["WEIGHT",         c.weight != null ? `${c.weight} kg` : null],
-    ["HEIGHT",         c.height != null ? `${c.height} cm` : null],
-    ["REMARK",         c.notes ?? c.remark],
-  ];
-
-  const parts = xml.split("</w:tr>");
-  xml = parts.map((row) => {
-    for (const [label, value] of fields) {
-      if (value == null || value === "") continue;
-      if (new RegExp(`<w:t[^>]*>${reEscape(label)}<\\/w:t>`).test(row)) {
-        return replaceValueCell(row, String(value));
-      }
-    }
-    return row;
-  }).join("</w:tr>");
-
-  zip.file("word/document.xml", xml);
-  const ab = zip.generate({ type: "arraybuffer" });
-  return new Blob([ab], { type: "application/octet-stream" });
-}
-
-// ── CV helpers ────────────────────────────────────────────────────────────────
+// ── CV preview helpers ────────────────────────────────────────────────────────
 
 function Row({ label, value }: { label: string; value?: string | number | null }) {
   if (value == null || value === "") return null;
@@ -150,7 +71,7 @@ function CvPreview({ candidate: c, template }: { candidate: Candidate; template:
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" as const }}>
             {c.country && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>🌍 {c.country}</span>}
             {c.candidate_code && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>ID: {c.candidate_code}</span>}
-            {template && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Template: {template.name}</span>}
+            {template && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Ref: {template.name}</span>}
           </div>
         </div>
       </div>
@@ -214,7 +135,9 @@ function CvPreview({ candidate: c, template }: { candidate: Candidate; template:
           </div>
           <div style={{ marginBottom: 22 }}>
             <SectionTitle>Work Experience</SectionTitle>
-            <div style={{ fontSize: 12, color: "#334155", whiteSpace: "pre-line", lineHeight: 1.8 }}>{c.experience || "No experience recorded."}</div>
+            <div style={{ fontSize: 12, color: "#334155", whiteSpace: "pre-line", lineHeight: 1.8 }}>
+              {c.experience || "No experience recorded."}
+            </div>
           </div>
           {c.skills && (
             <div style={{ marginBottom: 22 }}>
@@ -226,7 +149,9 @@ function CvPreview({ candidate: c, template }: { candidate: Candidate; template:
             <div style={{ marginBottom: 22 }}>
               <SectionTitle>Additional Information</SectionTitle>
               <div style={{ fontSize: 12, color: "#334155", whiteSpace: "pre-line", lineHeight: 1.8 }}>{c.narrative}</div>
-              {c.narrative_phone && <div style={{ marginTop: 6, fontSize: 11, color: "#64748b" }}>Contact: {c.narrative_phone}</div>}
+              {c.narrative_phone && (
+                <div style={{ marginTop: 6, fontSize: 11, color: "#64748b" }}>Contact: {c.narrative_phone}</div>
+              )}
             </div>
           )}
         </div>
@@ -234,7 +159,9 @@ function CvPreview({ candidate: c, template }: { candidate: Candidate; template:
 
       {/* Footer */}
       <div style={{ backgroundColor: "#1a3a52", padding: "10px 32px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>{c.serial_number ? `Serial: ${c.serial_number}` : ""}</span>
+        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>
+          {c.serial_number ? `Serial: ${c.serial_number}` : ""}
+        </span>
         <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>Generated by FlowPath</span>
       </div>
     </div>
@@ -273,54 +200,31 @@ function CvGeneratorPage() {
     },
   });
 
-  const filtered = candidates.filter((c) => !query || c.full_name.toLowerCase().includes(query.toLowerCase()));
+  const filtered = candidates.filter(
+    (c) => !query || c.full_name.toLowerCase().includes(query.toLowerCase()),
+  );
   const selected = candidates.find((c) => c.id === selectedId) ?? candidates[0];
 
-  function triggerBlobDownload(blob: Blob, filename: string) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    // Delay revoke — browser reads the blob asynchronously after click()
-    setTimeout(() => URL.revokeObjectURL(url), 30_000);
-  }
-
-  async function downloadRawFile(url: string, filename: string) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const blob = new Blob([await res.arrayBuffer()], { type: "application/octet-stream" });
-    const ext = url.split("?")[0].split(".").pop() ?? "pdf";
-    triggerBlobDownload(blob, `${filename}.${ext}`);
-  }
-
+  // Always generate PDF from the HTML preview
   const handleDownload = async () => {
-    if (!selected) return;
+    if (!selected || !cvRef.current) return;
     setDownloading(true);
     try {
-      if (selectedTemplate) {
-        const isDocx = selectedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
-        const baseName = `${selected.full_name} — ${selectedTemplate.name}`;
-        if (isDocx) {
-          const blob = await buildFilledDocx(selectedTemplate.file_url, selected);
-          triggerBlobDownload(blob, `${baseName}.docx`);
-          toast.success("Filled DOCX downloaded");
-        } else {
-          await downloadRawFile(selectedTemplate.file_url, baseName);
-        }
-        return;
-      }
-      // No template — generate from HTML preview
-      if (!cvRef.current) return;
-      const canvas = await html2canvas(cvRef.current, { scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: false });
+      const canvas = await html2canvas(cvRef.current, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+        allowTaint: false,
+      });
       const pxW = canvas.width / 2;
       const pxH = canvas.height / 2;
       const pdf = new jsPDF({ unit: "px", format: [pxW, pxH] });
       pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pxW, pxH);
-      pdf.save(`${selected.full_name}-cv.pdf`);
-      toast.success("CV downloaded");
+      const name = selectedTemplate
+        ? `${selected.full_name} — ${selectedTemplate.name}`
+        : selected.full_name;
+      pdf.save(`${name}.pdf`);
+      toast.success("CV downloaded as PDF");
     } catch (e: any) {
       toast.error(e.message ?? "Download failed");
     } finally {
@@ -328,16 +232,36 @@ function CvGeneratorPage() {
     }
   };
 
+  // Download the raw template file (for reference)
+  async function downloadTemplateFile(t: CvTemplate) {
+    try {
+      const res = await fetch(t.file_url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = new Blob([await res.arrayBuffer()], { type: "application/octet-stream" });
+      const ext = t.file_url.split("?")[0].split(".").pop() ?? "pdf";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${t.name}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    } catch (e: any) {
+      toast.error(`Download failed: ${e.message}`);
+    }
+  }
+
   return (
     <div>
       <PageHeader
         title="CV Generator"
-        description="Pick a candidate, select a template, then download the CV."
+        description="Pick a candidate and download their CV as PDF."
         actions={
           selected && (
             <Button onClick={handleDownload} disabled={downloading}>
               <Download className="h-4 w-4 mr-2" />
-              {downloading ? "Downloading…" : selectedTemplate ? `Download — ${selectedTemplate.name}` : "Generate CV"}
+              {downloading ? "Generating PDF…" : "Download PDF"}
             </Button>
           )
         }
@@ -349,7 +273,12 @@ function CvGeneratorPage() {
           <CardContent className="p-3 border-b">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-9 rounded-none" placeholder="Search candidates…" value={query} onChange={(e) => setQuery(e.target.value)} />
+              <Input
+                className="pl-9 rounded-none"
+                placeholder="Search candidates…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
             </div>
           </CardContent>
           <ScrollArea className="flex-1">
@@ -360,7 +289,9 @@ function CvGeneratorPage() {
                   onClick={() => setSelectedId(c.id)}
                   className={cn(
                     "w-full text-left rounded-none p-3 flex items-center gap-3 transition border",
-                    selected?.id === c.id ? "border-primary/40 bg-primary/5" : "border-transparent hover:bg-muted",
+                    selected?.id === c.id
+                      ? "border-primary/40 bg-primary/5"
+                      : "border-transparent hover:bg-muted",
                   )}
                 >
                   {c.photo_url ? (
@@ -372,11 +303,15 @@ function CvGeneratorPage() {
                   )}
                   <div className="min-w-0">
                     <div className="font-medium text-sm truncate">{c.full_name}</div>
-                    <div className="text-xs text-muted-foreground truncate">{c.country ?? "—"} · {c.occupation ?? "—"}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {c.country ?? "—"} · {c.occupation ?? "—"}
+                    </div>
                   </div>
                 </button>
               ))}
-              {filtered.length === 0 && <div className="text-center text-sm text-muted-foreground p-6">No candidates.</div>}
+              {filtered.length === 0 && (
+                <div className="text-center text-sm text-muted-foreground p-6">No candidates.</div>
+              )}
             </div>
           </ScrollArea>
         </Card>
@@ -386,34 +321,48 @@ function CvGeneratorPage() {
           <CardContent className="p-3 border-b">
             <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
               <FileText className="h-3.5 w-3.5 text-primary" />
-              CV Templates
+              Templates
             </p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Select a template or leave unselected to auto-generate</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Select to label the PDF, or download the raw file
+            </p>
           </CardContent>
           <ScrollArea className="flex-1">
             <div className="p-2 space-y-1">
               {templates.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-8 px-2">No templates yet. Ask your manager to upload one.</p>
+                <p className="text-xs text-muted-foreground text-center py-8 px-2">
+                  No templates. Ask your manager to upload one.
+                </p>
               ) : (
                 templates.map((t) => (
                   <div
                     key={t.id}
                     className={cn(
                       "rounded-none border p-2.5 cursor-pointer transition-colors",
-                      selectedTemplate?.id === t.id ? "border-primary/40 bg-primary/5" : "border-border/60 bg-muted/20 hover:border-border hover:bg-muted/40",
+                      selectedTemplate?.id === t.id
+                        ? "border-primary/40 bg-primary/5"
+                        : "border-border/60 bg-muted/20 hover:border-border hover:bg-muted/40",
                     )}
                     onClick={() => setSelectedTemplate(selectedTemplate?.id === t.id ? null : t)}
                   >
                     <div className="flex items-start gap-2">
-                      <FileText className={cn("h-3.5 w-3.5 mt-0.5 shrink-0", selectedTemplate?.id === t.id ? "text-primary" : "text-muted-foreground")} />
+                      <FileText className={cn(
+                        "h-3.5 w-3.5 mt-0.5 shrink-0",
+                        selectedTemplate?.id === t.id ? "text-primary" : "text-muted-foreground",
+                      )} />
                       <span className="text-xs font-medium flex-1 leading-tight">{t.name}</span>
-                      {selectedTemplate?.id === t.id && <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />}
+                      {selectedTemplate?.id === t.id && (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                      )}
                     </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className="text-[9px] text-muted-foreground uppercase tracking-wide">
-                        {t.file_url.split("?")[0].endsWith(".docx") ? "DOCX — auto-fill" : "PDF"}
-                      </span>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); downloadTemplateFile(t); }}
+                      className="mt-2 flex items-center gap-1 text-[10px] text-primary hover:underline"
+                    >
+                      <Download className="h-3 w-3" />
+                      Download file
+                    </button>
                   </div>
                 ))
               )}
@@ -421,10 +370,12 @@ function CvGeneratorPage() {
           </ScrollArea>
           {selectedTemplate && (
             <div className="p-3 border-t bg-primary/5">
-              <p className="text-[10px] text-primary font-medium truncate">✓ {selectedTemplate.name}</p>
-              {selectedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx") && (
-                <p className="text-[9px] text-muted-foreground mt-0.5">Candidate data will be filled automatically</p>
-              )}
+              <p className="text-[10px] text-primary font-medium truncate">
+                ✓ {selectedTemplate.name}
+              </p>
+              <p className="text-[9px] text-muted-foreground mt-0.5">
+                PDF will be labelled with this template name
+              </p>
             </div>
           )}
         </Card>
