@@ -87,3 +87,38 @@ export const deleteOffice = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ── CV Templates ─────────────────────────────────────────────────────────────
+
+export const addCvTemplate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      name: z.string().min(1).max(120),
+      file_url: z.string().url(),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    const { data: row, error } = await supabaseAdmin
+      .from("cv_templates")
+      .insert({ manager_id: managerId, name: data.name.trim(), file_url: data.file_url })
+      .select("id, name, file_url, created_at")
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+export const deleteCvTemplate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    const { error } = await supabaseAdmin
+      .from("cv_templates")
+      .delete()
+      .eq("id", data.id)
+      .eq("manager_id", managerId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

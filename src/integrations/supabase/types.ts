@@ -227,6 +227,30 @@ export type Database = {
           },
         ]
       }
+      cv_templates: {
+        Row: {
+          id: string
+          manager_id: string
+          name: string
+          file_url: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          manager_id: string
+          name: string
+          file_url: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          manager_id?: string
+          name?: string
+          file_url?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       assignment_countries: {
         Row: {
           id: string

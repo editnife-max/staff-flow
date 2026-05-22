@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
-import { Plus, Trash2, Globe, Building2, ChevronRight } from "lucide-react";
+import { useRef, useState } from "react";
+import { Plus, Trash2, Globe, Building2, ChevronRight, FileText, Upload, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -12,10 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
-import { addCountry, deleteCountry, addOffice, deleteOffice } from "@/lib/assignments.functions";
+import { addCountry, deleteCountry, addOffice, deleteOffice, addCvTemplate, deleteCvTemplate } from "@/lib/assignments.functions";
 
-type AssignCountry = Database["public"]["Tables"]["assignment_countries"]["Row"];
-type AssignOffice  = Database["public"]["Tables"]["assignment_offices"]["Row"];
+type AssignCountry  = Database["public"]["Tables"]["assignment_countries"]["Row"];
+type AssignOffice   = Database["public"]["Tables"]["assignment_offices"]["Row"];
+type CvTemplate     = Database["public"]["Tables"]["cv_templates"]["Row"];
 
 export const Route = createFileRoute("/_authenticated/manager/assignments")({
   head: () => ({ meta: [{ title: "Assignments — Staff-Flow" }] }),
@@ -28,10 +29,12 @@ function AssignmentsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
 
-  const addCountryFn  = useServerFn(addCountry);
-  const delCountryFn  = useServerFn(deleteCountry);
-  const addOfficeFn   = useServerFn(addOffice);
-  const delOfficeFn   = useServerFn(deleteOffice);
+  const addCountryFn   = useServerFn(addCountry);
+  const delCountryFn   = useServerFn(deleteCountry);
+  const addOfficeFn    = useServerFn(addOffice);
+  const delOfficeFn    = useServerFn(deleteOffice);
+  const addTemplateFn  = useServerFn(addCvTemplate);
+  const delTemplateFn  = useServerFn(deleteCvTemplate);
 
   // ── selected country for office panel ──────────────────────────────────────
   const [activeCountryId, setActiveCountryId] = useState<string | null>(null);
@@ -42,6 +45,11 @@ function AssignmentsPage() {
 
   // ── add-office form ─────────────────────────────────────────────────────────
   const [newOfficeName, setNewOfficeName] = useState("");
+
+  // ── cv template form ─────────────────────────────────────────────────────────
+  const [newTemplateName, setNewTemplateName] = useState("");
+  const [templateUploading, setTemplateUploading] = useState(false);
+  const templateInputRef = useRef<HTMLInputElement>(null);
 
   // ── queries ─────────────────────────────────────────────────────────────────
   const { data: countries = [] } = useQuery({
@@ -67,6 +75,19 @@ function AssignmentsPage() {
         .order("name");
       if (error) throw error;
       return data as AssignOffice[];
+    },
+  });
+
+  const { data: cvTemplates = [] } = useQuery({
+    queryKey: ["cv-templates", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cv_templates")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as CvTemplate[];
     },
   });
 
@@ -115,6 +136,36 @@ function AssignmentsPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const delTemplateMut = useMutation({
+    mutationFn: (id: string) => delTemplateFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Template removed");
+      qc.invalidateQueries({ queryKey: ["cv-templates"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  async function handleTemplateUpload(file: File) {
+    if (!newTemplateName.trim()) { toast.error("Enter a template name first"); return; }
+    setTemplateUploading(true);
+    try {
+      const ext = file.name.split(".").pop() ?? "pdf";
+      const path = `cv-templates/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("candidate-files").upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: urlData } = supabase.storage.from("candidate-files").getPublicUrl(path);
+      await addTemplateFn({ data: { name: newTemplateName.trim(), file_url: urlData.publicUrl } });
+      toast.success(`Template "${newTemplateName.trim()}" uploaded`);
+      qc.invalidateQueries({ queryKey: ["cv-templates"] });
+      setNewTemplateName("");
+    } catch (e: any) {
+      toast.error(e.message ?? "Upload failed");
+    } finally {
+      setTemplateUploading(false);
+      if (templateInputRef.current) templateInputRef.current.value = "";
+    }
+  }
 
   return (
     <div className="space-y-6 mx-[79.6px]">
@@ -297,11 +348,94 @@ function AssignmentsPage() {
         </Card>
       </div>
 
+      {/* ── CV Templates ───────────────────────────────────────────────────── */}
+      <Card className="rounded-none">
+        <CardHeader className="pb-3 border-b">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <FileText className="h-4 w-4 text-primary" />
+            CV Templates
+            <span className="ml-auto text-xs font-normal text-muted-foreground">{cvTemplates.length} uploaded</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 space-y-4">
+          {/* Upload form */}
+          <div className="space-y-2">
+            <Label className="text-xs">Upload New Template</Label>
+            <div className="flex gap-2">
+              <Input
+                className="rounded-none h-9 flex-1"
+                placeholder="Template name…"
+                value={newTemplateName}
+                onChange={(e) => setNewTemplateName(e.target.value)}
+              />
+              <Button
+                size="sm"
+                className="h-9 rounded-none gap-1"
+                disabled={!newTemplateName.trim() || templateUploading}
+                onClick={() => templateInputRef.current?.click()}
+              >
+                <Upload className="h-4 w-4" />
+                {templateUploading ? "Uploading…" : "Upload PDF"}
+              </Button>
+              <input
+                ref={templateInputRef}
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleTemplateUpload(file);
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Template list */}
+          {cvTemplates.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-6">No CV templates uploaded yet.</p>
+          ) : (
+            <div className="space-y-1">
+              {cvTemplates.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center gap-3 px-3 py-2 rounded-none border border-border/60 bg-muted/20 group"
+                >
+                  <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span className="flex-1 text-sm font-medium">{t.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(t.created_at).toLocaleDateString()}
+                  </span>
+                  <a
+                    href={t.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-primary transition-colors"
+                    title="View PDF"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => delTemplateMut.mutate(t.id)}
+                    disabled={delTemplateMut.isPending}
+                    className="text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                    title="Remove template"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Info banner */}
       <div className="rounded-none border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
         Countries and offices added here will instantly appear as selectable options in the{" "}
         <strong>Processing</strong> filters for both Manager and Staff views. Removing a country
-        also removes all its offices.
+        also removes all its offices. CV Templates uploaded here are available to staff in the{" "}
+        <strong>CV Generator</strong>.
       </div>
     </div>
   );
