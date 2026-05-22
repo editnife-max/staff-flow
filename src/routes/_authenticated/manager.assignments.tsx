@@ -150,9 +150,12 @@ function AssignmentsPage() {
     if (!newTemplateName.trim() || !templateFile) return;
     setTemplateUploading(true);
     try {
-      const ext = templateFile.name.split(".").pop() ?? "pdf";
+      const ext = (templateFile.name.split(".").pop() ?? "pdf").toLowerCase();
+      const contentType = ext === "docx"
+        ? "application/octet-stream"
+        : templateFile.type || "application/pdf";
       const path = `cv-templates/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("candidate-files").upload(path, templateFile, { upsert: true });
+      const { error: upErr } = await supabase.storage.from("candidate-files").upload(path, templateFile, { upsert: true, contentType });
       if (upErr) throw new Error(upErr.message);
       const { data: urlData } = supabase.storage.from("candidate-files").getPublicUrl(path);
       await addTemplateFn({ data: { name: newTemplateName.trim(), file_url: urlData.publicUrl } });
@@ -381,7 +384,7 @@ function AssignmentsPage() {
                 {templateFile ? templateFile.name.length > 18 ? templateFile.name.slice(0, 16) + "…" : templateFile.name : "Choose PDF"}
                 <input
                   type="file"
-                  accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  accept=".pdf,.docx"
                   className="hidden"
                   onChange={(e) => setTemplateFile(e.target.files?.[0] ?? null)}
                 />
