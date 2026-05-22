@@ -151,11 +151,8 @@ function AssignmentsPage() {
     setTemplateUploading(true);
     try {
       const ext = (templateFile.name.split(".").pop() ?? "pdf").toLowerCase();
-      const contentType = ext === "docx"
-        ? "application/octet-stream"
-        : templateFile.type || "application/pdf";
       const path = `cv-templates/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("candidate-files").upload(path, templateFile, { upsert: true, contentType });
+      const { error: upErr } = await supabase.storage.from("candidate-files").upload(path, templateFile, { upsert: true });
       if (upErr) throw new Error(upErr.message);
       const { data: urlData } = supabase.storage.from("candidate-files").getPublicUrl(path);
       await addTemplateFn({ data: { name: newTemplateName.trim(), file_url: urlData.publicUrl } });
