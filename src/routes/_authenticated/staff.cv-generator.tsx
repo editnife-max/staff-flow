@@ -284,7 +284,8 @@ function CvGeneratorPage() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // Delay revoke — browser reads the blob asynchronously after click()
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
   }
 
   async function downloadRawFile(url: string, filename: string) {
