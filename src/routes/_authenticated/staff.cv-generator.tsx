@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { Search, Download, FileText, ExternalLink, CheckCircle2 } from "lucide-react";
+import { Search, Download, FileText, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { z } from "zod";
@@ -58,12 +59,47 @@ function CvGeneratorPage() {
   const filtered = candidates.filter((c) => !query || c.full_name.toLowerCase().includes(query.toLowerCase()));
   const selected = candidates.find((c) => c.id === selectedId) ?? candidates[0];
 
-  const downloadPdf = async () => {
+  const [downloading, setDownloading] = useState(false);
+
+  async function downloadFilePdf(url: string, filename: string) {
+    setDownloading(true);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = filename.endsWith(".pdf") ? filename : `${filename}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+    } catch (e: any) {
+      toast.error(`Download failed: ${e.message}`);
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  const handleDownload = async () => {
+    if (selectedTemplate) {
+      const filename = selected
+        ? `${selected.full_name} — ${selectedTemplate.name}`
+        : selectedTemplate.name;
+      await downloadFilePdf(selectedTemplate.file_url, filename);
+      return;
+    }
     if (!cvRef.current) return;
-    const canvas = await html2canvas(cvRef.current, { scale: 2, backgroundColor: "#ffffff" });
-    const pdf = new jsPDF({ unit: "px", format: [720, 900] });
-    pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, 720, 900);
-    pdf.save(`${selected?.full_name ?? "candidate"}-cv.pdf`);
+    setDownloading(true);
+    try {
+      const canvas = await html2canvas(cvRef.current, { scale: 2, backgroundColor: "#ffffff" });
+      const pdf = new jsPDF({ unit: "px", format: [720, 900] });
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, 720, 900);
+      pdf.save(`${selected?.full_name ?? "candidate"}-cv.pdf`);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -73,8 +109,13 @@ function CvGeneratorPage() {
         description="Pick a candidate, select a template, then download the CV."
         actions={
           selected && (
-            <Button onClick={downloadPdf}>
-              <Download className="h-4 w-4 mr-2" /> Download PDF
+            <Button onClick={handleDownload} disabled={downloading}>
+              <Download className="h-4 w-4 mr-2" />
+              {downloading
+                ? "Downloading…"
+                : selectedTemplate
+                ? `Download — ${selectedTemplate.name}`
+                : "Generate CV"}
             </Button>
           )
         }
@@ -161,16 +202,14 @@ function CvGeneratorPage() {
                         <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
                       )}
                     </div>
-                    <div className="mt-2 flex gap-1.5">
-                      <a
-                        href={t.file_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); downloadFilePdf(t.file_url, t.name); }}
                         className="flex items-center gap-1 text-[10px] text-primary hover:underline"
                       >
-                        <ExternalLink className="h-3 w-3" /> View PDF
-                      </a>
+                        <Download className="h-3 w-3" /> Download
+                      </button>
                     </div>
                   </div>
                 ))
@@ -182,14 +221,13 @@ function CvGeneratorPage() {
               <p className="text-[10px] text-primary font-medium truncate">
                 ✓ {selectedTemplate.name}
               </p>
-              <a
-                href={selectedTemplate.file_url}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={() => downloadFilePdf(selectedTemplate.file_url, selectedTemplate.name)}
                 className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"
               >
                 <Download className="h-3 w-3" /> Download template
-              </a>
+              </button>
             </div>
           )}
         </Card>
