@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Plus, Trash2, Globe, Building2, ChevronRight, FileText, Upload, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,8 +48,8 @@ function AssignmentsPage() {
 
   // ── cv template form ─────────────────────────────────────────────────────────
   const [newTemplateName, setNewTemplateName] = useState("");
+  const [templateFile, setTemplateFile] = useState<File | null>(null);
   const [templateUploading, setTemplateUploading] = useState(false);
-  const templateInputRef = useRef<HTMLInputElement>(null);
 
   // ── queries ─────────────────────────────────────────────────────────────────
   const { data: countries = [] } = useQuery({
@@ -146,24 +146,24 @@ function AssignmentsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  async function handleTemplateUpload(file: File) {
-    if (!newTemplateName.trim()) { toast.error("Enter a template name first"); return; }
+  async function handleTemplateUpload() {
+    if (!newTemplateName.trim() || !templateFile) return;
     setTemplateUploading(true);
     try {
-      const ext = file.name.split(".").pop() ?? "pdf";
+      const ext = templateFile.name.split(".").pop() ?? "pdf";
       const path = `cv-templates/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("candidate-files").upload(path, file, { upsert: true });
-      if (upErr) throw upErr;
+      const { error: upErr } = await supabase.storage.from("candidate-files").upload(path, templateFile, { upsert: true });
+      if (upErr) throw new Error(upErr.message);
       const { data: urlData } = supabase.storage.from("candidate-files").getPublicUrl(path);
       await addTemplateFn({ data: { name: newTemplateName.trim(), file_url: urlData.publicUrl } });
       toast.success(`Template "${newTemplateName.trim()}" uploaded`);
       qc.invalidateQueries({ queryKey: ["cv-templates"] });
       setNewTemplateName("");
+      setTemplateFile(null);
     } catch (e: any) {
       toast.error(e.message ?? "Upload failed");
     } finally {
       setTemplateUploading(false);
-      if (templateInputRef.current) templateInputRef.current.value = "";
     }
   }
 
@@ -367,27 +367,40 @@ function AssignmentsPage() {
                 placeholder="Template name…"
                 value={newTemplateName}
                 onChange={(e) => setNewTemplateName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && newTemplateName.trim() && templateFile) handleTemplateUpload(); }}
               />
+              <label
+                className={cn(
+                  "h-9 rounded-none inline-flex items-center gap-1.5 px-3 border text-sm font-medium cursor-pointer transition-colors whitespace-nowrap shrink-0",
+                  templateFile
+                    ? "border-primary/50 bg-primary/5 text-primary"
+                    : "border-input bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+              >
+                <Upload className="h-3.5 w-3.5" />
+                {templateFile ? templateFile.name.length > 18 ? templateFile.name.slice(0, 16) + "…" : templateFile.name : "Choose PDF"}
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={(e) => setTemplateFile(e.target.files?.[0] ?? null)}
+                />
+              </label>
               <Button
                 size="sm"
                 className="h-9 rounded-none gap-1"
-                disabled={!newTemplateName.trim() || templateUploading}
-                onClick={() => templateInputRef.current?.click()}
+                disabled={!newTemplateName.trim() || !templateFile || templateUploading}
+                onClick={handleTemplateUpload}
               >
-                <Upload className="h-4 w-4" />
-                {templateUploading ? "Uploading…" : "Upload PDF"}
+                {templateUploading ? "Uploading…" : "Upload"}
               </Button>
-              <input
-                ref={templateInputRef}
-                type="file"
-                accept="application/pdf"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleTemplateUpload(file);
-                }}
-              />
             </div>
+            {templateFile && (
+              <p className="text-xs text-muted-foreground">
+                Selected: <span className="font-medium text-foreground">{templateFile.name}</span>
+                <button type="button" className="ml-2 text-destructive hover:underline" onClick={() => setTemplateFile(null)}>remove</button>
+              </p>
+            )}
           </div>
 
           {/* Template list */}
