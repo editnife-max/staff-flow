@@ -1341,6 +1341,7 @@ function ProcessingTable({
   const [search, setSearch] = useState("");
   const [procFilters, setProcFilters] = useState(INITIAL_PROC_FILTERS);
   const [activeCountryTab, setActiveCountryTab] = useState("all");
+  const [activeOfficeTab, setActiveOfficeTab] = useState("all");
   const f = procFilters;
 
   const allCols = useMemo((): ProcessingColDef[] => {
@@ -1359,6 +1360,7 @@ function ProcessingTable({
   const filteredCandidates = useMemo(() => {
     let list = candidates;
     if (activeCountryTab !== "all") list = list.filter((c) => c.destination_country === activeCountryTab);
+    if (activeOfficeTab !== "all") list = list.filter((c) => c.office === activeOfficeTab);
     if (search) {
       const q = search.toLowerCase();
       list = list.filter((c) =>
@@ -1380,7 +1382,7 @@ function ProcessingTable({
     return list;
   }, [candidates, search, f.medical_status, f.coc_status, f.tasheer_status, f.wokala_status,
       f.visa_status, f.insurance_status, f.unfilled_lmis, f.lmis_status,
-      f.ticket_status, f.arrival_city, activeCountryTab]);
+      f.ticket_status, f.arrival_city, activeCountryTab, activeOfficeTab]);
 
   const [page, setPage] = useState(1);
   useEffect(() => { setPage(1); }, [filteredCandidates.length]);
@@ -1489,7 +1491,7 @@ function ProcessingTable({
             <div className="flex items-center gap-1 flex-wrap">
               <button
                 type="button"
-                onClick={() => setActiveCountryTab("all")}
+                onClick={() => { setActiveCountryTab("all"); setActiveOfficeTab("all"); }}
                 className={cn(
                   "px-3 py-1.5 text-xs font-medium rounded-none border transition-colors",
                   activeCountryTab === "all"
@@ -1505,7 +1507,11 @@ function ProcessingTable({
                   <button
                     key={c.name}
                     type="button"
-                    onClick={() => setActiveCountryTab(activeCountryTab === c.name ? "all" : c.name)}
+                    onClick={() => {
+                      const next = activeCountryTab === c.name ? "all" : c.name;
+                      setActiveCountryTab(next);
+                      setActiveOfficeTab("all");
+                    }}
                     className={cn(
                       "px-3 py-1.5 text-xs font-medium rounded-none border transition-colors flex items-center gap-1.5",
                       activeCountryTab === c.name
@@ -1515,6 +1521,46 @@ function ProcessingTable({
                   >
                     <span>{c.flag}</span>
                     {c.name}
+                    <span className="opacity-60">({count})</span>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeCountryTab !== "all" && (officesByCountry[activeCountryTab] ?? []).length > 0 && (
+        <Card className="rounded-none">
+          <CardContent className="px-3 py-2">
+            <div className="flex items-center gap-1 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setActiveOfficeTab("all")}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-medium rounded-none border transition-colors",
+                  activeOfficeTab === "all"
+                    ? "border-primary/40 bg-primary/5 text-primary"
+                    : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40",
+                )}
+              >
+                All offices
+              </button>
+              {(officesByCountry[activeCountryTab] ?? []).map((office) => {
+                const count = candidates.filter((c) => c.destination_country === activeCountryTab && c.office === office).length;
+                return (
+                  <button
+                    key={office}
+                    type="button"
+                    onClick={() => setActiveOfficeTab(activeOfficeTab === office ? "all" : office)}
+                    className={cn(
+                      "px-3 py-1.5 text-xs font-medium rounded-none border transition-colors flex items-center gap-1.5",
+                      activeOfficeTab === office
+                        ? "border-primary/40 bg-primary/5 text-primary"
+                        : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40",
+                    )}
+                  >
+                    {office}
                     <span className="opacity-60">({count})</span>
                   </button>
                 );
