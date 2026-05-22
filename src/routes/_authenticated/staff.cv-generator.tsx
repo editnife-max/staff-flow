@@ -70,7 +70,8 @@ function CvGeneratorPage() {
       const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = objectUrl;
-      a.download = filename.endsWith(".pdf") ? filename : `${filename}.pdf`;
+      const ext = url.split("?")[0].split(".").pop() ?? "pdf";
+      a.download = `${filename}.${ext}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

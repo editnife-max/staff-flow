@@ -381,7 +381,7 @@ function AssignmentsPage() {
                 {templateFile ? templateFile.name.length > 18 ? templateFile.name.slice(0, 16) + "…" : templateFile.name : "Choose PDF"}
                 <input
                   type="file"
-                  accept="application/pdf"
+                  accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                   className="hidden"
                   onChange={(e) => setTemplateFile(e.target.files?.[0] ?? null)}
                 />
