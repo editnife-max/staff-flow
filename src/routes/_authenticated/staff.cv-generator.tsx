@@ -102,9 +102,7 @@ async function buildFilledDocx(templateUrl: string, c: Candidate): Promise<Blob>
 
   zip.file("word/document.xml", xml);
   const ab = zip.generate({ type: "arraybuffer" });
-  return new Blob([ab], {
-    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  });
+  return new Blob([ab], { type: "application/octet-stream" });
 }
 
 // ── CV helpers ────────────────────────────────────────────────────────────────
