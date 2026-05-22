@@ -27,8 +27,8 @@ import { Route as AuthenticatedManagerSubscriptionRouteImport } from './routes/_
 import { Route as AuthenticatedManagerStaffRouteImport } from './routes/_authenticated/manager.staff'
 import { Route as AuthenticatedManagerDashboardRouteImport } from './routes/_authenticated/manager.dashboard'
 import { Route as AuthenticatedManagerCandidatesRouteImport } from './routes/_authenticated/manager.candidates'
-import { Route as AuthenticatedManagerAgenciesRouteImport } from './routes/_authenticated/manager.agencies'
 import { Route as AuthenticatedManagerAssignmentsRouteImport } from './routes/_authenticated/manager.assignments'
+import { Route as AuthenticatedManagerAgenciesRouteImport } from './routes/_authenticated/manager.agencies'
 import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin.dashboard'
 
 const SetupAdminRoute = SetupAdminRouteImport.update({
@@ -127,16 +127,16 @@ const AuthenticatedManagerCandidatesRoute =
     path: '/candidates',
     getParentRoute: () => AuthenticatedManagerRoute,
   } as any)
-const AuthenticatedManagerAgenciesRoute =
-  AuthenticatedManagerAgenciesRouteImport.update({
-    id: '/agencies',
-    path: '/agencies',
-    getParentRoute: () => AuthenticatedManagerRoute,
-  } as any)
 const AuthenticatedManagerAssignmentsRoute =
   AuthenticatedManagerAssignmentsRouteImport.update({
     id: '/assignments',
     path: '/assignments',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
+const AuthenticatedManagerAgenciesRoute =
+  AuthenticatedManagerAgenciesRouteImport.update({
+    id: '/agencies',
+    path: '/agencies',
     getParentRoute: () => AuthenticatedManagerRoute,
   } as any)
 const AuthenticatedAdminDashboardRoute =
@@ -422,18 +422,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedManagerCandidatesRouteImport
       parentRoute: typeof AuthenticatedManagerRoute
     }
-    '/_authenticated/manager/agencies': {
-      id: '/_authenticated/manager/agencies'
-      path: '/agencies'
-      fullPath: '/manager/agencies'
-      preLoaderRoute: typeof AuthenticatedManagerAgenciesRouteImport
-      parentRoute: typeof AuthenticatedManagerRoute
-    }
     '/_authenticated/manager/assignments': {
       id: '/_authenticated/manager/assignments'
       path: '/assignments'
       fullPath: '/manager/assignments'
       preLoaderRoute: typeof AuthenticatedManagerAssignmentsRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
+    '/_authenticated/manager/agencies': {
+      id: '/_authenticated/manager/agencies'
+      path: '/agencies'
+      fullPath: '/manager/agencies'
+      preLoaderRoute: typeof AuthenticatedManagerAgenciesRouteImport
       parentRoute: typeof AuthenticatedManagerRoute
     }
     '/_authenticated/admin/dashboard': {

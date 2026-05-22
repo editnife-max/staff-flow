@@ -163,7 +163,7 @@ function DataRow({ lbl, val, ar, bg1=GRAY, bg2=WHITE, span=false }:
 function CvPreview({ candidate: c, template }: { candidate: Candidate; template: CvTemplate | null }) {
   const photo = c.full_photo_url ?? c.photo_url;
   return (
-    <div style={{ width: 720, fontFamily: "Arial, sans-serif", backgroundColor: WHITE }}>
+    <div style={{ width: 720, fontFamily: "Arial, sans-serif", backgroundColor: WHITE, color: DARK }}>
       <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
         <colgroup>
           <col style={{ width: "27%" }} /><col style={{ width: "28%" }} />
@@ -329,6 +329,12 @@ function CvGeneratorPage() {
       if (!cvRef.current) return;
       const canvas = await html2canvas(cvRef.current, {
         scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: false,
+        onclone: (_doc, el) => {
+          // Strip external stylesheets to avoid oklch parsing errors in html2canvas
+          _doc.querySelectorAll('link[rel="stylesheet"], style').forEach(s => s.remove());
+          el.style.color = "#222222";
+          el.style.backgroundColor = "#ffffff";
+        },
       });
       const pxW = canvas.width / 2;
       const pxH = canvas.height / 2;
