@@ -62,6 +62,7 @@ const InlineFieldSchema = z.object({
     "visa_status", "insurance_status", "unfilled_lmis", "lmis_status",
     "ticket_status", "ticket_date", "arrival_city", "emergency_contact",
     "processing_notes", "remark",
+    "destination_country",
   ]),
   value: z.string().nullable(),
 });

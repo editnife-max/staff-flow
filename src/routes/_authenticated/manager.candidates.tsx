@@ -148,7 +148,8 @@ const OPTION_COLORS: Record<string, string> = {
 
 type ProcessingColDef =
   | { key: string; header: string; type: "text" | "date" }
-  | { key: string; header: string; type: "select"; options: string[] };
+  | { key: string; header: string; type: "select"; options: string[] }
+  | { key: string; header: string; type: "select-dynamic" };
 
 const PROCESSING_COLS: ProcessingColDef[] = [
   { key: "narrative",         header: "Narrative",         type: "text" },
@@ -380,6 +381,43 @@ function ManagerCandidatesPage() {
       return data;
     },
   });
+
+  const { data: assignCountries = [] } = useQuery({
+    queryKey: ["assignment-countries", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("assignment_countries").select("*").order("name");
+      if (error) throw error;
+      return data as Database["public"]["Tables"]["assignment_countries"]["Row"][];
+    },
+  });
+
+  const { data: assignOffices = [] } = useQuery({
+    queryKey: ["assignment-offices", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("assignment_offices").select("*").order("name");
+      if (error) throw error;
+      return data as Database["public"]["Tables"]["assignment_offices"]["Row"][];
+    },
+  });
+
+  const countryMeta = useMemo(
+    () => assignCountries.map((c) => ({ name: c.name, flag: c.flag })),
+    [assignCountries],
+  );
+
+  const officesByCountry = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const o of assignOffices) {
+      const country = assignCountries.find((c) => c.id === o.country_id);
+      if (country) {
+        if (!map[country.name]) map[country.name] = [];
+        map[country.name].push(o.name);
+      }
+    }
+    return map;
+  }, [assignCountries, assignOffices]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { available: 0, processing: 0, arrived: 0, canceled: 0 };
@@ -775,6 +813,8 @@ function ManagerCandidatesPage() {
           onEdit={openEdit}
           cancelMode
           onDelete={(id) => fieldMut.mutate({ id, field: "status", value: "canceled" })}
+          countryMeta={countryMeta}
+          officesByCountry={officesByCountry}
         />
       ) : (
         <CandidateCardList
@@ -959,7 +999,7 @@ type EditableField =
   | "tasheer_status" | "tasheer_date" | "wokala_status" | "embassy_date"
   | "visa_status" | "insurance_status" | "unfilled_lmis" | "lmis_status"
   | "ticket_status" | "ticket_date" | "arrival_city" | "emergency_contact"
-  | "processing_notes" | "remark";
+  | "processing_notes" | "remark" | "destination_country";
 
 function CandidateCardList({
   candidates, selected, onToggleSelect, onView, onEdit, onDelete, onUpdateField, cancelMode,
@@ -1231,6 +1271,7 @@ const INITIAL_PROC_FILTERS = {
 
 function ProcessingTable({
   candidates, selected, onToggleSelect, onUpdateField, onEdit, onDelete, cancelMode,
+  countryMeta, officesByCountry,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -1239,6 +1280,8 @@ function ProcessingTable({
   onEdit: (c: Candidate) => void;
   onDelete: (id: string) => void;
   cancelMode?: boolean;
+  countryMeta: Array<{ name: string; flag: string }>;
+  officesByCountry: Record<string, string[]>;
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
@@ -1246,12 +1289,25 @@ function ProcessingTable({
   const [showFilters, setShowFilters] = useState(false);
   const [search, setSearch] = useState("");
   const [procFilters, setProcFilters] = useState(INITIAL_PROC_FILTERS);
+  const [activeCountryTab, setActiveCountryTab] = useState("all");
   const f = procFilters;
+
+  const allCols = useMemo((): ProcessingColDef[] => {
+    const countryNames = countryMeta.map((c) => c.name);
+    return [
+      ...(countryNames.length > 0 ? [
+        { key: "destination_country", header: "Country", type: "select" as const, options: countryNames },
+        { key: "office", header: "Office", type: "select-dynamic" as const },
+      ] : []),
+      ...PROCESSING_COLS,
+    ];
+  }, [countryMeta]);
 
   const activeCount = Object.values(procFilters).filter((v) => v !== "all").length;
 
   const filteredCandidates = useMemo(() => {
     let list = candidates;
+    if (activeCountryTab !== "all") list = list.filter((c) => c.destination_country === activeCountryTab);
     if (search) {
       const q = search.toLowerCase();
       list = list.filter((c) =>
@@ -1271,7 +1327,7 @@ function ProcessingTable({
     if (f.ticket_status  !== "all")   list = list.filter((c) => c.ticket_status    === f.ticket_status);
     if (f.arrival_city   !== "all")   list = list.filter((c) => c.arrival_city     === f.arrival_city);
     return list;
-  }, [candidates, search, f.medical_status, f.coc_status, f.tasheer_status, f.wokala_status,
+  }, [candidates, activeCountryTab, search, f.medical_status, f.coc_status, f.tasheer_status, f.wokala_status,
       f.visa_status, f.insurance_status, f.unfilled_lmis, f.lmis_status,
       f.ticket_status, f.arrival_city]);
 
@@ -1280,7 +1336,7 @@ function ProcessingTable({
   const PAGE_SIZE = 20;
   const totalPages = Math.max(1, Math.ceil(filteredCandidates.length / PAGE_SIZE));
   const paginated = filteredCandidates.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const visibleCols = PROCESSING_COLS.filter((col) => !hiddenCols.has(col.key));
+  const visibleCols = allCols.filter((col) => !hiddenCols.has(col.key));
   const allSel = filteredCandidates.length > 0 && filteredCandidates.every((c) => selected.has(c.id));
   const someSel = !allSel && filteredCandidates.some((c) => selected.has(c.id));
 
@@ -1356,7 +1412,7 @@ function ProcessingTable({
               </Button>
               {showColPicker && (
                 <div className="absolute right-0 top-8 z-50 bg-popover border border-border rounded-none shadow-xl p-3 w-[340px] grid grid-cols-2 gap-x-4 gap-y-1">
-                  {PROCESSING_COLS.map((col) => (
+                  {allCols.map((col) => (
                     <label key={col.key} className="flex items-center gap-1.5 text-xs cursor-pointer py-1 hover:text-primary">
                       <Checkbox checked={!hiddenCols.has(col.key)}
                         onCheckedChange={(v) =>
@@ -1386,6 +1442,47 @@ function ProcessingTable({
         </CardContent>
       </Card>
 
+      {countryMeta.length > 0 && (
+        <Card className="rounded-none">
+          <CardContent className="px-3 py-2">
+            <div className="flex items-center gap-1 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setActiveCountryTab("all")}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-medium rounded-none border transition-colors",
+                  activeCountryTab === "all"
+                    ? "border-primary/40 bg-primary/5 text-primary"
+                    : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40",
+                )}
+              >
+                All ({candidates.length})
+              </button>
+              {countryMeta.map((c) => {
+                const count = candidates.filter((cand) => cand.destination_country === c.name).length;
+                return (
+                  <button
+                    key={c.name}
+                    type="button"
+                    onClick={() => setActiveCountryTab(activeCountryTab === c.name ? "all" : c.name)}
+                    className={cn(
+                      "px-3 py-1.5 text-xs font-medium rounded-none border transition-colors flex items-center gap-1.5",
+                      activeCountryTab === c.name
+                        ? "border-primary/40 bg-primary/5 text-primary"
+                        : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40",
+                    )}
+                  >
+                    <span>{c.flag}</span>
+                    {c.name}
+                    <span className="opacity-60">({count})</span>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {candidates.length > 0 && (
         <label className="flex items-center gap-2 px-1 text-sm font-medium cursor-pointer w-fit">
           <Checkbox
@@ -1414,6 +1511,7 @@ function ProcessingTable({
           onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
           onEdit={() => onEdit(c)}
           onDelete={() => onDelete(c.id)}
+          officesByCountry={officesByCountry}
         />
       ))}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
@@ -1475,6 +1573,7 @@ function ProcessingTable({
 
 function ProcessingCard({
   candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onUpdateField, onEdit, onDelete, cancelMode,
+  officesByCountry,
 }: {
   candidate: Candidate;
   selected: boolean;
@@ -1485,6 +1584,7 @@ function ProcessingCard({
   onUpdateField: (field: string, value: string | null) => void;
   onEdit: () => void;
   onDelete: () => void;
+  officesByCountry: Record<string, string[]>;
 }) {
   const [requireDate, setRequireDate] = useState<{
     field: "ticket_date" | "medical_date";
@@ -1545,6 +1645,12 @@ function ProcessingCard({
                         <InlineDate value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
                       ) : col.type === "select" ? (
                         <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
+                      ) : col.type === "select-dynamic" ? (
+                        <InlineSelect
+                          value={strVal}
+                          options={officesByCountry[candidate.destination_country ?? ""] ?? []}
+                          onSave={(v) => handleColUpdate(col.key, v)}
+                        />
                       ) : null}
                     </div>
                   </div>

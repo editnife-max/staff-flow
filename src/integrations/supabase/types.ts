@@ -29,8 +29,10 @@ export type Database = {
           created_at: string
           created_by_name: string | null
           created_by_user_id: string | null
+          cv_pdf_url: string | null
           cv_sent_date: string | null
           cv_sent_to: string | null
+          destination_country: string | null
           deleted_at: string | null
           dob: string | null
           education: string | null
@@ -99,9 +101,11 @@ export type Database = {
           created_at?: string
           created_by_name?: string | null
           created_by_user_id?: string | null
+          cv_pdf_url?: string | null
           cv_sent_date?: string | null
           cv_sent_to?: string | null
           deleted_at?: string | null
+          destination_country?: string | null
           dob?: string | null
           education?: string | null
           embassy_date?: string | null
@@ -167,9 +171,11 @@ export type Database = {
           created_at?: string
           created_by_name?: string | null
           created_by_user_id?: string | null
+          cv_pdf_url?: string | null
           cv_sent_date?: string | null
           cv_sent_to?: string | null
           deleted_at?: string | null
+          destination_country?: string | null
           dob?: string | null
           education?: string | null
           embassy_date?: string | null
@@ -217,6 +223,62 @@ export type Database = {
             columns: ["assigned_staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assignment_countries: {
+        Row: {
+          id: string
+          manager_id: string
+          name: string
+          flag: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          manager_id: string
+          name: string
+          flag?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          manager_id?: string
+          name?: string
+          flag?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      assignment_offices: {
+        Row: {
+          id: string
+          manager_id: string
+          country_id: string
+          name: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          manager_id: string
+          country_id: string
+          name: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          manager_id?: string
+          country_id?: string
+          name?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignment_offices_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "assignment_countries"
             referencedColumns: ["id"]
           },
         ]

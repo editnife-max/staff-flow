@@ -28,6 +28,7 @@ import { Route as AuthenticatedManagerStaffRouteImport } from './routes/_authent
 import { Route as AuthenticatedManagerDashboardRouteImport } from './routes/_authenticated/manager.dashboard'
 import { Route as AuthenticatedManagerCandidatesRouteImport } from './routes/_authenticated/manager.candidates'
 import { Route as AuthenticatedManagerAgenciesRouteImport } from './routes/_authenticated/manager.agencies'
+import { Route as AuthenticatedManagerAssignmentsRouteImport } from './routes/_authenticated/manager.assignments'
 import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin.dashboard'
 
 const SetupAdminRoute = SetupAdminRouteImport.update({
@@ -132,6 +133,12 @@ const AuthenticatedManagerAgenciesRoute =
     path: '/agencies',
     getParentRoute: () => AuthenticatedManagerRoute,
   } as any)
+const AuthenticatedManagerAssignmentsRoute =
+  AuthenticatedManagerAssignmentsRouteImport.update({
+    id: '/assignments',
+    path: '/assignments',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
 const AuthenticatedAdminDashboardRoute =
   AuthenticatedAdminDashboardRouteImport.update({
     id: '/dashboard',
@@ -152,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/staff': typeof AuthenticatedStaffRouteWithChildren
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
+  '/manager/assignments': typeof AuthenticatedManagerAssignmentsRoute
   '/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
   '/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
   '/manager/staff': typeof AuthenticatedManagerStaffRoute
@@ -173,6 +181,7 @@ export interface FileRoutesByTo {
   '/staff': typeof AuthenticatedStaffRouteWithChildren
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
+  '/manager/assignments': typeof AuthenticatedManagerAssignmentsRoute
   '/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
   '/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
   '/manager/staff': typeof AuthenticatedManagerStaffRoute
@@ -196,6 +205,7 @@ export interface FileRoutesById {
   '/_authenticated/staff': typeof AuthenticatedStaffRouteWithChildren
   '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/_authenticated/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
+  '/_authenticated/manager/assignments': typeof AuthenticatedManagerAssignmentsRoute
   '/_authenticated/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
   '/_authenticated/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
   '/_authenticated/manager/staff': typeof AuthenticatedManagerStaffRoute
@@ -219,6 +229,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/admin/dashboard'
     | '/manager/agencies'
+    | '/manager/assignments'
     | '/manager/candidates'
     | '/manager/dashboard'
     | '/manager/staff'
@@ -240,6 +251,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/admin/dashboard'
     | '/manager/agencies'
+    | '/manager/assignments'
     | '/manager/candidates'
     | '/manager/dashboard'
     | '/manager/staff'
@@ -262,6 +274,7 @@ export interface FileRouteTypes {
     | '/_authenticated/staff'
     | '/_authenticated/admin/dashboard'
     | '/_authenticated/manager/agencies'
+    | '/_authenticated/manager/assignments'
     | '/_authenticated/manager/candidates'
     | '/_authenticated/manager/dashboard'
     | '/_authenticated/manager/staff'
@@ -416,6 +429,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedManagerAgenciesRouteImport
       parentRoute: typeof AuthenticatedManagerRoute
     }
+    '/_authenticated/manager/assignments': {
+      id: '/_authenticated/manager/assignments'
+      path: '/assignments'
+      fullPath: '/manager/assignments'
+      preLoaderRoute: typeof AuthenticatedManagerAssignmentsRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
     '/_authenticated/admin/dashboard': {
       id: '/_authenticated/admin/dashboard'
       path: '/dashboard'
@@ -439,6 +459,7 @@ const AuthenticatedAdminRouteWithChildren =
 
 interface AuthenticatedManagerRouteChildren {
   AuthenticatedManagerAgenciesRoute: typeof AuthenticatedManagerAgenciesRoute
+  AuthenticatedManagerAssignmentsRoute: typeof AuthenticatedManagerAssignmentsRoute
   AuthenticatedManagerCandidatesRoute: typeof AuthenticatedManagerCandidatesRoute
   AuthenticatedManagerDashboardRoute: typeof AuthenticatedManagerDashboardRoute
   AuthenticatedManagerStaffRoute: typeof AuthenticatedManagerStaffRoute
@@ -447,6 +468,7 @@ interface AuthenticatedManagerRouteChildren {
 
 const AuthenticatedManagerRouteChildren: AuthenticatedManagerRouteChildren = {
   AuthenticatedManagerAgenciesRoute: AuthenticatedManagerAgenciesRoute,
+  AuthenticatedManagerAssignmentsRoute: AuthenticatedManagerAssignmentsRoute,
   AuthenticatedManagerCandidatesRoute: AuthenticatedManagerCandidatesRoute,
   AuthenticatedManagerDashboardRoute: AuthenticatedManagerDashboardRoute,
   AuthenticatedManagerStaffRoute: AuthenticatedManagerStaffRoute,

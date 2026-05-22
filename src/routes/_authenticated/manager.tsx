@@ -1,5 +1,5 @@
 import { Outlet, createFileRoute, Navigate } from "@tanstack/react-router";
-import { LayoutDashboard, Users, Globe2, ClipboardList, CreditCard } from "lucide-react";
+import { LayoutDashboard, Users, Globe2, ClipboardList, CreditCard, MapPin } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { AppShell } from "@/components/app-shell";
 
@@ -13,6 +13,7 @@ const items = [
   { title: "Foreign Agencies", url: "/manager/agencies", icon: Globe2 },
   { title: "Candidates", url: "/manager/candidates", icon: ClipboardList },
   { title: "Subscription", url: "/manager/subscription", icon: CreditCard },
+  { title: "Assignments", url: "/manager/assignments", icon: MapPin },
 ];
 
 function ManagerLayout() {
