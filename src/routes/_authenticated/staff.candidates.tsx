@@ -1203,6 +1203,7 @@ function CandidateCard({
   onReturn?: () => void;
 }) {
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
   const statusStyles: Record<Status, string> = {
     available: "bg-success text-success-foreground",
     processing: "bg-warning text-foreground",
@@ -1217,7 +1218,7 @@ function CandidateCard({
 
   type FieldDef =
     | { label: string; value: string; bold?: boolean }
-    | { label: string; value: string; edit: "text"; field: EditableField }
+    | { label: string; value: string; edit: "text"; field: EditableField; long?: boolean }
     | { label: string; value: string; edit: "date"; field: EditableField }
     | { label: string; value: string; edit: "select"; field: EditableField; options: string[] };
 
@@ -1243,8 +1244,8 @@ function CandidateCard({
     { label: "CONTRACT DATE", value: candidate.contract_date ?? "", edit: "date", field: "contract_date" },
     { label: "CV SENT TO", value: candidate.cv_sent_to ?? "—" },
     { label: "CV SENT DATE", value: candidate.cv_sent_date ? new Date(candidate.cv_sent_date).toLocaleDateString() : "—" },
-    { label: "NARRATIVE", value: candidate.narrative ?? "", edit: "text", field: "narrative" },
-    { label: "NOTES", value: candidate.notes ?? "", edit: "text", field: "notes" },
+    { label: "NARRATIVE", value: candidate.narrative ?? "", edit: "text", field: "narrative", long: true },
+    { label: "NOTES", value: candidate.notes ?? "", edit: "text", field: "notes", long: true },
   ];
   const visibleFields = fields.filter((f) => !hiddenCols.has(f.label));
 
@@ -1273,9 +1274,13 @@ function CandidateCard({
                   <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">
                     {f.label}
                   </div>
-                  <div className={cn("text-[14px] text-[#181A27] whitespace-nowrap", "bold" in f && f.bold && "font-semibold")}>
+                  <div className={cn(
+                    "text-[14px] text-[#181A27]",
+                    "edit" in f && "long" in f && f.long ? "whitespace-normal" : "whitespace-nowrap",
+                    "bold" in f && f.bold && "font-semibold",
+                  )}>
                     {"edit" in f && f.edit === "text" ? (
-                      <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
+                      <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} truncate={"long" in f && f.long} />
                     ) : "edit" in f && f.edit === "date" ? (
                       <InlineDate value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
                     ) : "edit" in f && f.edit === "select" ? (
@@ -1299,7 +1304,7 @@ function CandidateCard({
             </button>
             {onReturn && (
               <button
-                onClick={onReturn}
+                onClick={() => setReturnOpen(true)}
                 className="text-[14px] text-orange-600 hover:underline flex items-center gap-1"
               >
                 <RotateCcw className="h-3.5 w-3.5" /> Return
@@ -1323,6 +1328,16 @@ function CandidateCard({
           setCancelOpen(false);
         }}
         onClose={() => setCancelOpen(false)}
+      />
+    )}
+    {returnOpen && onReturn && (
+      <ReturnReasonDialog
+        onConfirm={(reason) => {
+          onUpdateField("remark", reason);
+          onReturn();
+          setReturnOpen(false);
+        }}
+        onClose={() => setReturnOpen(false)}
       />
     )}
     </>
@@ -1892,7 +1907,7 @@ function InlineDate({ value, onSave }: { value: string; onSave: (v: string | nul
   );
 }
 
-function InlineText({ value, onSave }: { value: string; onSave: (v: string | null) => void }) {
+function InlineText({ value, onSave, truncate }: { value: string; onSave: (v: string | null) => void; truncate?: boolean }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   if (!editing) {
@@ -1900,7 +1915,10 @@ function InlineText({ value, onSave }: { value: string; onSave: (v: string | nul
       <button
         type="button"
         onClick={() => { setDraft(value); setEditing(true); }}
-        className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[40px] block"
+        className={cn(
+          "text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[40px] block",
+          truncate && "max-w-[200px] truncate overflow-hidden",
+        )}
       >
         {value || <span className="text-muted-foreground">—</span>}
       </button>
@@ -2240,6 +2258,57 @@ function CancelReasonDialog({
             onClick={() => onConfirm(notes.trim() ? `${reason}: ${notes.trim()}` : reason)}
           >
             Confirm Delete
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ReturnReasonDialog({
+  onConfirm, onClose,
+}: {
+  onConfirm: (reason: string) => void;
+  onClose: () => void;
+}) {
+  const [reason, setReason] = useState("Employer request");
+  const [notes, setNotes] = useState("");
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Mark as Returned</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Return Reason *</Label>
+            <Select value={reason} onValueChange={setReason}>
+              <SelectTrigger className="rounded-none h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {["Employer request", "Medical condition", "Personal reasons", "Contract dispute", "Document issue", "Failed clearance", "Other"].map((r) => (
+                  <SelectItem key={r} value={r}>{r}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Additional Notes</Label>
+            <Textarea
+              rows={3}
+              placeholder="Describe the return reason in detail..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="rounded-none text-sm"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Back</Button>
+          <Button
+            className="bg-orange-500 hover:bg-orange-600 text-white"
+            onClick={() => onConfirm(notes.trim() ? `${reason}: ${notes.trim()}` : reason)}
+          >
+            Confirm Return
           </Button>
         </DialogFooter>
       </DialogContent>

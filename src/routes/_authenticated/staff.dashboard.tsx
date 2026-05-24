@@ -156,13 +156,16 @@ function InlineSelect({ value, options, onSave }: { value: string; options: stri
   );
 }
 
-function InlineText({ value, onSave }: { value: string; onSave: (v: string | null) => void }) {
+function InlineText({ value, onSave, truncate }: { value: string; onSave: (v: string | null) => void; truncate?: boolean }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   if (!editing) {
     return (
       <button type="button" onClick={() => { setDraft(value); setEditing(true); }}
-        className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block text-[14px]">
+        className={cn(
+          "text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block text-[14px]",
+          truncate && "max-w-[200px] truncate overflow-hidden",
+        )}>
         {value || <span className="text-muted-foreground">—</span>}
       </button>
     );
@@ -224,7 +227,7 @@ function DashboardCandidateCard({
 
   type FieldDef =
     | { label: string; value: string; bold?: boolean }
-    | { label: string; value: string; edit: "text"; field: EditableField }
+    | { label: string; value: string; edit: "text"; field: EditableField; long?: boolean }
     | { label: string; value: string; edit: "date"; field: EditableField }
     | { label: string; value: string; edit: "select"; field: EditableField; options: string[] };
 
@@ -259,8 +262,8 @@ function DashboardCandidateCard({
     { label: "INSURANCE",       value: candidate.insurance_status ?? "", edit: "select", field: "insurance_status", options: INSURANCE_OPTIONS },
     { label: "LMIS STATUS",     value: candidate.lmis_status ?? "",    edit: "select", field: "lmis_status",      options: LMIS_OPTIONS },
     { label: "UNFILLED LMIS",   value: candidate.unfilled_lmis ?? "",  edit: "select", field: "unfilled_lmis",    options: UNFILLED_LMIS_OPTIONS },
-    { label: "NARRATIVE",       value: candidate.narrative ?? "",      edit: "text",   field: "narrative" },
-    { label: "NOTES",           value: candidate.notes ?? "",          edit: "text",   field: "notes" },
+    { label: "NARRATIVE",       value: candidate.narrative ?? "",      edit: "text",   field: "narrative", long: true },
+    { label: "NOTES",           value: candidate.notes ?? "",          edit: "text",   field: "notes",     long: true },
   ];
 
   return (
@@ -289,9 +292,13 @@ function DashboardCandidateCard({
                   <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">
                     {f.label}
                   </div>
-                  <div className={cn("text-[14px] text-[#181A27] whitespace-nowrap", "bold" in f && f.bold && "font-semibold")}>
+                  <div className={cn(
+                    "text-[14px] text-[#181A27]",
+                    "edit" in f && "long" in f && f.long ? "whitespace-normal" : "whitespace-nowrap",
+                    "bold" in f && f.bold && "font-semibold",
+                  )}>
                     {"edit" in f && f.edit === "text" ? (
-                      <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
+                      <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} truncate={"long" in f && f.long} />
                     ) : "edit" in f && f.edit === "date" ? (
                       <InlineDate value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
                     ) : "edit" in f && f.edit === "select" ? (
