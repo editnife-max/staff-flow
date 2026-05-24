@@ -417,11 +417,17 @@ function StaffCandidatesPage() {
   });
 
   const { data: agencyOptions = [] } = useQuery({
-    queryKey: ["agencies-names"],
+    queryKey: ["agencies-offices-names"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("foreign_agencies").select("name").order("name");
-      if (error) return [];
-      return data.map((a) => a.name);
+      const [agenciesRes, officesRes] = await Promise.all([
+        supabase.from("foreign_agencies").select("name").order("name"),
+        supabase.from("assignment_offices").select("name").order("name"),
+      ]);
+      const names = [
+        ...(agenciesRes.data ?? []).map((a) => a.name),
+        ...(officesRes.data ?? []).map((o) => o.name),
+      ];
+      return [...new Set(names)].filter(Boolean).sort();
     },
   });
 

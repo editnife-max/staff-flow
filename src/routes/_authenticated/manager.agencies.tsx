@@ -46,6 +46,7 @@ function AgenciesPage() {
     onSuccess: () => {
       toast.success("Agency added");
       qc.invalidateQueries({ queryKey: ["agencies"] });
+      qc.invalidateQueries({ queryKey: ["agencies-offices-names"] });
       setOpen(false); setName(""); setCountry(""); setEmail("");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -56,7 +57,10 @@ function AgenciesPage() {
       const { error } = await supabase.from("foreign_agencies").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["agencies"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["agencies"] });
+      qc.invalidateQueries({ queryKey: ["agencies-offices-names"] });
+    },
   });
 
   return (

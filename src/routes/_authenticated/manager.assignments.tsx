@@ -123,6 +123,7 @@ function AssignmentsPage() {
     onSuccess: (row) => {
       toast.success(`Office "${row.name}" added`);
       qc.invalidateQueries({ queryKey: ["assignment-offices"] });
+      qc.invalidateQueries({ queryKey: ["agencies-offices-names"] });
       setNewOfficeName("");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -133,6 +134,7 @@ function AssignmentsPage() {
     onSuccess: () => {
       toast.success("Office removed");
       qc.invalidateQueries({ queryKey: ["assignment-offices"] });
+      qc.invalidateQueries({ queryKey: ["agencies-offices-names"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
