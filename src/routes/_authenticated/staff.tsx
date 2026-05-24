@@ -1,5 +1,5 @@
 import { Outlet, createFileRoute, Navigate, Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, Users, ChevronDown, Building2 } from "lucide-react";
+import { LogOut, LayoutDashboard, Users, FileText, ChevronDown, Building2 } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ export const Route = createFileRoute("/_authenticated/staff")({
 const NAV_TOP = [
   { to: "/staff/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/staff/candidates", label: "HR Pool", icon: Users, exact: false },
+  { to: "/staff/cv-generator", label: "CV Page", icon: FileText },
 ];
 
 
