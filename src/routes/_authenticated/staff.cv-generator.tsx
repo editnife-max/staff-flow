@@ -507,7 +507,7 @@ function CvGeneratorPage() {
           </div>
 
           {/* Cards */}
-          <div className="flex-1 overflow-y-auto space-y-6 pr-1">
+          <div className="flex-1 overflow-y-auto space-y-6 pr-1 pt-3">
             {filtered.map((c) => (
               <CvCandidateCard
                 key={c.id}
