@@ -803,18 +803,7 @@ function StaffCandidatesPage() {
                   <SelectItem value="canceled">Canceled</SelectItem>
                 </SelectContent>
               </Select>
-              <Select onValueChange={(v) => bulkAssignMut.mutate(v === "__none__" ? null : v)}>
-                <SelectTrigger className="h-9 w-[200px]">
-                  <UserCheck className="h-4 w-4 mr-1 text-primary" />
-                  <SelectValue placeholder="Assign to staff..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">— Unassign —</SelectItem>
-                  {staffList.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+
               <Button
                 size="sm"
                 variant="destructive"
