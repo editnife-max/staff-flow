@@ -386,6 +386,15 @@ function ManagerCandidatesPage() {
     },
   });
 
+  const { data: agencyOptions = [] } = useQuery({
+    queryKey: ["agencies-names"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("foreign_agencies").select("name").order("name");
+      if (error) return [];
+      return data.map((a) => a.name);
+    },
+  });
+
   const { data: assignCountries = [] } = useQuery({
     queryKey: ["assignment-countries", user?.id],
     enabled: !!user,
@@ -829,6 +838,7 @@ function ManagerCandidatesPage() {
           onReturn={tab === "arrived" ? (id) => fieldMut.mutate({ id, field: "status", value: "returned" }) : undefined}
           countryMeta={tab === "available" ? [] : countryMeta}
           officesByCountry={tab === "available" ? {} : officesByCountry}
+          agencyOptions={agencyOptions}
         />
       )}
 
@@ -1001,11 +1011,11 @@ type EditableField =
   | "tasheer_status" | "tasheer_date" | "wokala_status" | "embassy_date"
   | "visa_status" | "insurance_status" | "unfilled_lmis" | "lmis_status"
   | "ticket_status" | "ticket_date" | "arrival_city" | "emergency_contact"
-  | "processing_notes" | "remark" | "destination_country";
+  | "processing_notes" | "remark" | "destination_country" | "cv_sent_to";
 
 function CandidateCardList({
   candidates, selected, onToggleSelect, onView, onEdit, onDelete, onUpdateField, cancelMode, onReturn,
-  countryMeta, officesByCountry,
+  countryMeta, officesByCountry, agencyOptions,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -1018,6 +1028,7 @@ function CandidateCardList({
   onReturn?: (id: string) => void;
   countryMeta: Array<{ name: string; flag: string }>;
   officesByCountry: Record<string, string[]>;
+  agencyOptions: string[];
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
@@ -1155,6 +1166,7 @@ function CandidateCardList({
           onDelete={() => onDelete(c.id)}
           onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
           onReturn={onReturn ? () => onReturn(c.id) : undefined}
+          agencyOptions={agencyOptions}
         />
       ))}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
@@ -1199,7 +1211,7 @@ function CandidateCardList({
 }
 
 function CandidateCard({
-  candidate, selected, hiddenCols, onToggleSelect, onViewPhotos, onView, onEdit, onDelete, onUpdateField, cancelMode, onReturn,
+  candidate, selected, hiddenCols, onToggleSelect, onViewPhotos, onView, onEdit, onDelete, onUpdateField, cancelMode, onReturn, agencyOptions,
 }: {
   candidate: Candidate;
   selected: boolean;
@@ -1212,6 +1224,7 @@ function CandidateCard({
   onDelete: () => void;
   onUpdateField: (field: EditableField, value: string | null) => void;
   onReturn?: () => void;
+  agencyOptions: string[];
 }) {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
@@ -1252,9 +1265,9 @@ function CandidateCard({
     { label: "MEDICAL STATUS", value: candidate.medical_status ?? "", edit: "select", field: "medical_status", options: MEDICAL_OPTIONS },
     { label: "MEDICAL DATE", value: candidate.medical_date ? new Date(candidate.medical_date).toLocaleDateString() : "—" },
     { label: "AVAILABILITY", value: statusKey, edit: "select", field: "status", options: AVAILABILITY_OPTIONS },
-    { label: "SELECTED BY", value: candidate.selected_by ?? "", edit: "text", field: "selected_by" },
+    { label: "SELECTED BY", value: candidate.selected_by ?? "", edit: "select", field: "selected_by", options: agencyOptions },
     { label: "CONTRACT DATE", value: candidate.contract_date ?? "", edit: "date", field: "contract_date" },
-    { label: "CV SENT TO", value: candidate.cv_sent_to ?? "—" },
+    { label: "CV SENT TO", value: candidate.cv_sent_to ?? "", edit: "select", field: "cv_sent_to", options: agencyOptions },
     { label: "CV SENT DATE", value: candidate.cv_sent_date ? new Date(candidate.cv_sent_date).toLocaleDateString() : "—" },
     { label: "NARRATIVE", value: candidate.narrative ?? "", edit: "text", field: "narrative", long: true },
     { label: "NOTES", value: candidate.notes ?? "", edit: "text", field: "notes", long: true },
@@ -1943,11 +1956,12 @@ function InlineText({ value, onSave, truncate }: { value: string; onSave: (v: st
 
 function InlineSelect({ value, options, onSave }: { value: string; options: string[]; onSave: (v: string | null) => void }) {
   return (
-    <Select value={value || undefined} onValueChange={(v) => onSave(v)}>
+    <Select value={value || "__clear__"} onValueChange={(v) => onSave(v === "__clear__" ? null : v)}>
       <SelectTrigger className="h-auto w-auto min-w-[80px] gap-1 border-transparent bg-transparent p-0 shadow-none focus:ring-0 [&>svg]:shrink-0">
         <SelectValue placeholder={<span className="text-muted-foreground text-[14px] px-1">—</span>} />
       </SelectTrigger>
       <SelectContent>
+        <SelectItem value="__clear__" className="py-1 px-2 focus:bg-muted/50 text-muted-foreground">—</SelectItem>
         {options.map((o) => (
           <SelectItem key={o} value={o} className="py-1 px-2 focus:bg-muted/50">
             <OptionPill label={o} />
