@@ -515,7 +515,7 @@ function ActionDialog({
     <Dialog open={!!c} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent
         className="rounded-none p-0 gap-0 overflow-hidden"
-        style={{ maxWidth: 1100, width: "95vw", maxHeight: "92vh", display: "flex", flexDirection: "column" }}
+        style={{ maxWidth: 1400, width: "98vw", maxHeight: "92vh", display: "flex", flexDirection: "column" }}
       >
         <DialogHeader className="px-6 py-4 border-b shrink-0">
           <DialogTitle className="text-base font-semibold">
@@ -527,7 +527,7 @@ function ActionDialog({
         <div className="flex flex-1 min-h-0 overflow-hidden">
 
           {/* Left panel */}
-          <div className="w-[280px] shrink-0 border-r flex flex-col overflow-y-auto">
+          <div className="w-[360px] shrink-0 border-r flex flex-col overflow-y-auto">
 
             {/* Sort Options — collapsible */}
             <div className="border-b">
