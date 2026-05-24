@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Search, Download, FileText, User, ArrowUpDown, ChevronDown, Send, ClipboardPaste } from "lucide-react";
+import { Search, Download, FileText, User, ArrowUpDown, ChevronDown, Send, ClipboardPaste, X } from "lucide-react";
+import { ActionDialog as BulkActionDialog } from "@/components/action-dialog";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -297,8 +298,8 @@ const OPTION_COLORS: Record<string, string> = {
 // ── Candidate card ─────────────────────────────────────────────────────────────
 
 function CvCandidateCard({
-  candidate: c, onAction,
-}: { candidate: Candidate; onAction: () => void }) {
+  candidate: c, selected, onToggleSelect, onAction,
+}: { candidate: Candidate; selected: boolean; onToggleSelect: () => void; onAction: () => void }) {
   type FieldDef = { label: string; value: string; bold?: boolean; badge?: boolean };
   const fields: FieldDef[] = [
     { label: "FULL NAME",      value: c.full_name,                                                   bold: true },
@@ -321,13 +322,14 @@ function CvCandidateCard({
   ];
 
   return (
-    <Card className="relative overflow-visible transition-colors rounded-none mx-[5px]">
+    <Card className={cn("relative overflow-visible transition-colors rounded-none mx-[5px]", selected && "ring-2 ring-primary")}>
       <span className="absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[10px] font-semibold tracking-wide bg-success text-success-foreground">
         Available
       </span>
       <CardContent className="p-0">
-        <div className="grid grid-cols-[40px_1fr_auto] gap-3 items-center">
-          <Avatar className="h-10 w-10 ml-3">
+        <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-center">
+          <Checkbox checked={selected} onCheckedChange={onToggleSelect} className="ml-3" />
+          <Avatar className="h-10 w-10">
             {c.photo_url && <AvatarImage src={c.photo_url} alt={c.full_name} />}
             <AvatarFallback className="text-[10px]">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
@@ -376,9 +378,7 @@ function CvCandidateCard({
   );
 }
 
-// ── Action Dialog ─────────────────────────────────────────────────────────────
-
-function ActionDialog({
+function _unusedActionDialog({
   candidate: c, templates, onClose,
 }: {
   candidate: Candidate | null;
@@ -705,7 +705,12 @@ function CvGeneratorPage() {
   const [query,            setQuery]            = useState("");
   const [filterSelectedBy, setFilterSelectedBy] = useState("all");
   const [filterCvSentTo,   setFilterCvSentTo]   = useState("all");
-  const [actionCandidate,  setActionCandidate]  = useState<Candidate | null>(null);
+  const [selected,         setSelected]         = useState<Set<string>>(new Set());
+  const [actionCandidates, setActionCandidates] = useState<Candidate[]>([]);
+
+  const toggleSelect = (id: string) =>
+    setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const clearSelection = () => setSelected(new Set());
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["cv-candidates", user?.id],
@@ -749,7 +754,7 @@ function CvGeneratorPage() {
     if (initialised.current || !search.id || candidates.length === 0) return;
     initialised.current = true;
     const c = candidates.find((x) => x.id === search.id);
-    if (c) setActionCandidate(c);
+    if (c) setActionCandidates([c]);
   }, [search.id, candidates]);
 
   const filtered = candidates.filter((c) =>
@@ -757,9 +762,12 @@ function CvGeneratorPage() {
     c.medical_status === "Fit" &&
     c.coc_status === "Done" &&
     (!query || c.full_name.toLowerCase().includes(query.toLowerCase())) &&
-    (filterSelectedBy === "all" || c.selected_by === filterSelectedBy) &&
-    (filterCvSentTo   === "all" || c.cv_sent_to  === filterCvSentTo),
+    (filterSelectedBy === "all" || (filterSelectedBy === "__unset__" ? !c.selected_by : c.selected_by === filterSelectedBy)) &&
+    (filterCvSentTo   === "all" || (filterCvSentTo   === "__unset__" ? !c.cv_sent_to  : c.cv_sent_to  === filterCvSentTo)),
   );
+
+  const allSel  = filtered.length > 0 && filtered.every((c) => selected.has(c.id));
+  const someSel = !allSel && filtered.some((c) => selected.has(c.id));
 
   return (
     <div className="flex flex-col h-[calc(100vh-112px)]">
@@ -782,24 +790,26 @@ function CvGeneratorPage() {
           />
         </div>
         <Select value={filterSelectedBy} onValueChange={setFilterSelectedBy}>
-          <SelectTrigger className="h-9 w-44 rounded-none text-xs gap-1">
+          <SelectTrigger className="h-9 w-48 rounded-none text-xs gap-1">
             <ClipboardPaste className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <SelectValue placeholder="Selected By" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all" className="text-xs">All Selected By</SelectItem>
+            <SelectItem value="__unset__" className="text-xs text-muted-foreground">— Not set</SelectItem>
             {agencyOptions.map((o) => (
               <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Select value={filterCvSentTo} onValueChange={setFilterCvSentTo}>
-          <SelectTrigger className="h-9 w-44 rounded-none text-xs gap-1">
+          <SelectTrigger className="h-9 w-48 rounded-none text-xs gap-1">
             <Send className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <SelectValue placeholder="CV Sent To" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all" className="text-xs">All CV Sent To</SelectItem>
+            <SelectItem value="__unset__" className="text-xs text-muted-foreground">— Not set</SelectItem>
             {agencyOptions.map((o) => (
               <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
             ))}
@@ -810,10 +820,48 @@ function CvGeneratorPage() {
         </span>
       </div>
 
+      {/* Select-all + bulk action bar */}
+      {filtered.length > 0 && (
+        <div className="flex items-center justify-between shrink-0 mb-2 px-1">
+          <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+            <Checkbox
+              checked={allSel ? true : someSel ? "indeterminate" : false}
+              onCheckedChange={(v) => filtered.forEach((c) => { if (!!v !== selected.has(c.id)) toggleSelect(c.id); })}
+            />
+            Select all ({filtered.length})
+          </label>
+          {selected.size > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">{selected.size} selected</span>
+              <Button
+                size="sm"
+                className="gap-2 text-xs h-8 rounded-none"
+                onClick={() => {
+                  const sel = filtered.filter((c) => selected.has(c.id));
+                  if (sel.length > 0) setActionCandidates(sel);
+                }}
+              >
+                <FileText className="h-4 w-4" />
+                Action ({selected.size})
+              </Button>
+              <Button size="sm" variant="ghost" className="h-8 gap-1 text-xs rounded-none" onClick={clearSelection}>
+                <X className="h-4 w-4" /> Clear
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Card list */}
-      <div className="flex-1 overflow-y-auto space-y-6 pr-1 pt-3">
+      <div className="flex-1 overflow-y-auto space-y-6 pr-1 pt-1">
         {filtered.map((c) => (
-          <CvCandidateCard key={c.id} candidate={c} onAction={() => setActionCandidate(c)} />
+          <CvCandidateCard
+            key={c.id}
+            candidate={c}
+            selected={selected.has(c.id)}
+            onToggleSelect={() => toggleSelect(c.id)}
+            onAction={() => setActionCandidates([c])}
+          />
         ))}
         {filtered.length === 0 && (
           <div className="text-center text-sm text-muted-foreground py-16">
@@ -822,11 +870,9 @@ function CvGeneratorPage() {
         )}
       </div>
 
-      <ActionDialog
-        candidate={actionCandidate}
-        templates={templates}
-        onClose={() => setActionCandidate(null)}
-      />
+      {actionCandidates.length > 0 && (
+        <BulkActionDialog candidates={actionCandidates} onClose={() => setActionCandidates([])} />
+      )}
     </div>
   );
 }
