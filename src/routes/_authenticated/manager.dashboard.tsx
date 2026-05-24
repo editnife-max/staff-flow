@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import React, { useState } from "react";
 import {
   Users, Clock, CheckCircle2, XCircle, AlertTriangle,
-  UserPlus, Stethoscope, X, ChevronRight,
+  UserPlus, Stethoscope, X, ChevronRight, RotateCcw,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -62,6 +62,16 @@ const STATUS_CONFIG = [
     value_color: "text-red-700 dark:text-red-300",
     bar: "bg-red-500",
   },
+  {
+    key: "returned",
+    label: "Returned",
+    icon: RotateCcw,
+    bg: "bg-orange-50 dark:bg-orange-950/40",
+    icon_bg: "bg-orange-100 dark:bg-orange-900/60",
+    icon_color: "text-orange-600 dark:text-orange-400",
+    value_color: "text-orange-700 dark:text-orange-300",
+    bar: "bg-orange-500",
+  },
 ] as const;
 
 const STATUS_PILL: Record<string, string> = {
@@ -69,6 +79,7 @@ const STATUS_PILL: Record<string, string> = {
   processing: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
   arrived: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
   canceled: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
+  returned: "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300",
 };
 
 function ManagerDashboard() {
@@ -94,6 +105,7 @@ function ManagerDashboard() {
     processing: candidates.filter((c) => c.status === "processing").length,
     arrived: candidates.filter((c) => c.status === "arrived").length,
     canceled: candidates.filter((c) => c.status === "canceled").length,
+    returned: candidates.filter((c) => c.status === "returned").length,
   };
   const total = candidates.length;
 

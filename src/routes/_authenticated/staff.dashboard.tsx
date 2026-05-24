@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import React, { useState } from "react";
 import {
-  Users, Clock, CheckCircle2, XCircle,
+  Users, Clock, CheckCircle2, XCircle, RotateCcw,
   ChevronDown, ChevronUp, Stethoscope, FileCheck, ClipboardList, Ticket, FileText,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +16,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { updateCandidateField } from "@/lib/candidates.functions";
 
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"];
-type Status = "available" | "processing" | "arrived" | "canceled";
+type Status = "available" | "processing" | "arrived" | "canceled" | "returned";
 
 export const Route = createFileRoute("/_authenticated/staff/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Staff-Flow" }] }),
@@ -37,7 +37,7 @@ const LMIS_OPTIONS       = ["No COC", "Not tested", "Placed", "Imported", "Check
 const UNFILLED_LMIS_OPTIONS = ["INSU", "COC", "ID"];
 const TICKET_OPTIONS     = ["No", "Ready", "New Order", "Booked", "Exchange", "Urgent"];
 const ARRIVAL_CITY_OPTIONS = ["RIYADH", "JEDDAH", "DAMMAM", "JOUF", "HAIL", "ABHA", "OTHERS"];
-const AVAILABILITY_OPTIONS: Status[] = ["available", "processing", "arrived", "canceled"];
+const AVAILABILITY_OPTIONS: Status[] = ["available", "processing", "arrived", "returned", "canceled"];
 
 const OPTION_COLORS: Record<string, string> = {
   "Fit":               "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
@@ -76,6 +76,7 @@ const OPTION_COLORS: Record<string, string> = {
   "processing":        "bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
   "arrived":           "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
   "canceled":          "bg-red-100/50 text-[#181A27] dark:bg-red-900/40 dark:text-red-300",
+  "returned":          "bg-orange-100/50 text-[#181A27] dark:bg-orange-900/40 dark:text-orange-300",
 };
 
 // ─── Stat cards ─────────────────────────────────────────────────────────────
@@ -92,6 +93,9 @@ const STATUS_CONFIG = [
   { key: "canceled" as const, label: "Canceled", icon: XCircle,
     bg: "bg-red-50 dark:bg-red-950/40", icon_bg: "bg-red-100 dark:bg-red-900/60",
     icon_color: "text-red-600 dark:text-red-400", value_color: "text-red-700 dark:text-red-300", bar: "bg-red-500" },
+  { key: "returned" as const, label: "Returned", icon: RotateCcw,
+    bg: "bg-orange-50 dark:bg-orange-950/40", icon_bg: "bg-orange-100 dark:bg-orange-900/60",
+    icon_color: "text-orange-600 dark:text-orange-400", value_color: "text-orange-700 dark:text-orange-300", bar: "bg-orange-500" },
 ];
 
 const ALERT_PILL: Record<string, string> = {
@@ -211,9 +215,10 @@ function DashboardCandidateCard({
     processing: "bg-warning text-foreground",
     arrived: "bg-info text-info-foreground",
     canceled: "bg-destructive text-destructive-foreground",
+    returned: "bg-orange-500 text-white",
   };
   const statusLabel: Record<Status, string> = {
-    available: "Available", processing: "Processing", arrived: "Arrived", canceled: "Canceled",
+    available: "Available", processing: "Processing", arrived: "Arrived", canceled: "Canceled", returned: "Returned",
   };
   const statusKey = (candidate.status in statusStyles ? candidate.status : "available") as Status;
 
@@ -395,6 +400,7 @@ function StaffDashboard() {
     processing: candidates.filter((c) => c.status === "processing").length,
     arrived:    candidates.filter((c) => c.status === "arrived").length,
     canceled:   candidates.filter((c) => c.status === "canceled").length,
+    returned:   candidates.filter((c) => c.status === "returned").length,
   };
 
   const cocNotDone    = candidates.filter((c) => c.coc_status && c.coc_status !== "Done");

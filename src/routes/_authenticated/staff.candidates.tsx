@@ -33,7 +33,7 @@ import {
 } from "@/lib/candidates.functions";
 import { UserCheck, X } from "lucide-react";
 
-type Status = "available" | "processing" | "arrived" | "canceled";
+type Status = "available" | "processing" | "arrived" | "canceled" | "returned";
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"];
 
 export const Route = createFileRoute("/_authenticated/staff/candidates")({
@@ -45,11 +45,12 @@ const TABS: { key: Status; label: string }[] = [
   { key: "available", label: "Available" },
   { key: "processing", label: "Processing" },
   { key: "arrived", label: "Arrived" },
+  { key: "returned", label: "Returned" },
   { key: "canceled", label: "Canceled" },
 ];
 
 const MEDICAL_OPTIONS = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired"];
-const AVAILABILITY_OPTIONS: Status[] = ["available", "processing", "arrived", "canceled"];
+const AVAILABILITY_OPTIONS: Status[] = ["available", "processing", "arrived", "returned", "canceled"];
 const COC_OPTIONS = ["Done", "No", "Booked", "Placed", "Yitazez", "Pending release"];
 const MUSANED_OPTIONS = ["Saudi", "Kuwait"];
 const OFFICE_OPTIONS = ["Riyadh", "Jeddah", "Dammam", "Other"];
@@ -130,6 +131,7 @@ const OPTION_COLORS: Record<string, string> = {
   "processing":        "bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
   "arrived":           "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
   "canceled":          "bg-red-100/50 text-[#181A27] dark:bg-red-900/40 dark:text-red-300",
+  "returned":          "bg-orange-100/50 text-[#181A27] dark:bg-orange-900/40 dark:text-orange-300",
   // Office
   "Riyadh":            "bg-violet-100/50 text-[#181A27] dark:bg-violet-900/40 dark:text-violet-300",
   "Jeddah":            "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
@@ -450,7 +452,7 @@ function StaffCandidatesPage() {
   }, [assignCountries, assignOffices]);
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { available: 0, processing: 0, arrived: 0, canceled: 0 };
+    const c: Record<string, number> = { available: 0, processing: 0, arrived: 0, returned: 0, canceled: 0 };
     candidates.forEach((x) => { c[x.status] = (c[x.status] ?? 0) + 1; });
     return c;
   }, [candidates]);
@@ -741,7 +743,7 @@ function StaffCandidatesPage() {
               onChange={(v) => setFilters({ ...filters, availability: v })}
               options={[
                 { value: "all", label: "-----" },
-                ...(["available", "processing", "arrived", "canceled"] as const)
+                ...(["available", "processing", "arrived", "returned", "canceled"] as const)
                   .filter((s) => opts.availability.includes(s))
                   .map((o) => ({ value: o, label: o.charAt(0).toUpperCase() + o.slice(1) })),
               ]} />
@@ -797,6 +799,7 @@ function StaffCandidatesPage() {
                   <SelectItem value="available">Available</SelectItem>
                   <SelectItem value="processing">Processing</SelectItem>
                   <SelectItem value="arrived">Arrived</SelectItem>
+                  <SelectItem value="returned">Returned</SelectItem>
                   <SelectItem value="canceled">Canceled</SelectItem>
                 </SelectContent>
               </Select>
@@ -858,6 +861,7 @@ function StaffCandidatesPage() {
               : removeMut.mutate(id)
           }
           onUpdateField={(id, field, value) => fieldMut.mutate({ id, field, value })}
+          onReturn={tab === "arrived" ? (id) => fieldMut.mutate({ id, field: "status", value: "returned" }) : undefined}
         />
       )}
 
@@ -1060,7 +1064,7 @@ type EditableField =
   | "processing_notes" | "remark";
 
 function CandidateCardList({
-  candidates, selected, onToggleSelect, onEdit, onDelete, onUpdateField, cancelMode,
+  candidates, selected, onToggleSelect, onEdit, onDelete, onUpdateField, cancelMode, onReturn,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -1069,6 +1073,7 @@ function CandidateCardList({
   onDelete: (id: string) => void;
   onUpdateField: (id: string, field: string, value: string | null) => void;
   cancelMode?: boolean;
+  onReturn?: (id: string) => void;
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
@@ -1139,6 +1144,7 @@ function CandidateCardList({
           onEdit={() => onEdit(c)}
           onDelete={() => onDelete(c.id)}
           onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
+          onReturn={onReturn ? () => onReturn(c.id) : undefined}
         />
       ))}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
@@ -1183,7 +1189,7 @@ function CandidateCardList({
 }
 
 function CandidateCard({
-  candidate, selected, hiddenCols, onToggleSelect, onViewPhotos, onEdit, onDelete, onUpdateField, cancelMode,
+  candidate, selected, hiddenCols, onToggleSelect, onViewPhotos, onEdit, onDelete, onUpdateField, cancelMode, onReturn,
 }: {
   candidate: Candidate;
   selected: boolean;
@@ -1194,6 +1200,7 @@ function CandidateCard({
   onEdit: () => void;
   onDelete: () => void;
   onUpdateField: (field: EditableField, value: string | null) => void;
+  onReturn?: () => void;
 }) {
   const [cancelOpen, setCancelOpen] = useState(false);
   const statusStyles: Record<Status, string> = {
@@ -1201,9 +1208,10 @@ function CandidateCard({
     processing: "bg-warning text-foreground",
     arrived: "bg-info text-info-foreground",
     canceled: "bg-destructive text-destructive-foreground",
+    returned: "bg-orange-500 text-white",
   };
   const statusLabel: Record<Status, string> = {
-    available: "Available", processing: "Processing", arrived: "Arrived", canceled: "Canceled",
+    available: "Available", processing: "Processing", arrived: "Arrived", canceled: "Canceled", returned: "Returned",
   };
   const statusKey = (candidate.status in statusStyles ? candidate.status : "available") as Status;
 
@@ -1289,6 +1297,14 @@ function CandidateCard({
             <button onClick={onEdit} className="text-[14px] text-primary hover:underline flex items-center gap-1">
               <Pencil className="h-3.5 w-3.5" /> Edit
             </button>
+            {onReturn && (
+              <button
+                onClick={onReturn}
+                className="text-[14px] text-orange-600 hover:underline flex items-center gap-1"
+              >
+                <RotateCcw className="h-3.5 w-3.5" /> Return
+              </button>
+            )}
             <button
               onClick={() => cancelMode ? setCancelOpen(true) : onDelete()}
               className="text-[14px] text-destructive hover:underline flex items-center gap-1"
