@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Search, Download, FileText, User, ArrowUpDown, ChevronDown, Send, ClipboardPaste, X } from "lucide-react";
 import { ActionDialog as BulkActionDialog } from "@/components/action-dialog";
@@ -701,16 +701,33 @@ function _unusedActionDialog({
 
 function CvGeneratorPage() {
   const { user } = useAuth();
+  const qc       = useQueryClient();
   const search   = Route.useSearch();
   const [query,            setQuery]            = useState("");
   const [filterSelectedBy, setFilterSelectedBy] = useState("all");
   const [filterCvSentTo,   setFilterCvSentTo]   = useState("all");
+  const [unsentOnly,       setUnsentOnly]        = useState(false);
   const [selected,         setSelected]         = useState<Set<string>>(new Set());
+  const [sendOffice,       setSendOffice]        = useState("");
   const [actionCandidates, setActionCandidates] = useState<Candidate[]>([]);
 
   const toggleSelect = (id: string) =>
     setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const clearSelection = () => setSelected(new Set());
+
+  const sendToOfficeMut = useMutation({
+    mutationFn: async ({ ids, office }: { ids: string[]; office: string }) => {
+      const { error } = await supabase.from("candidates").update({ cv_sent_to: office }).in("id", ids);
+      if (error) throw error;
+    },
+    onSuccess: (_, { ids, office }) => {
+      toast.success(`CV sent to "${office}" for ${ids.length} candidate${ids.length > 1 ? "s" : ""}`);
+      qc.invalidateQueries({ queryKey: ["cv-candidates"] });
+      clearSelection();
+      setSendOffice("");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["cv-candidates", user?.id],
@@ -761,6 +778,7 @@ function CvGeneratorPage() {
     c.status === "available" &&
     c.medical_status === "Fit" &&
     c.coc_status === "Done" &&
+    (!unsentOnly || !c.cv_sent_to) &&
     (!query || c.full_name.toLowerCase().includes(query.toLowerCase())) &&
     (filterSelectedBy === "all" || (filterSelectedBy === "__unset__" ? !c.selected_by : c.selected_by === filterSelectedBy)) &&
     (filterCvSentTo   === "all" || (filterCvSentTo   === "__unset__" ? !c.cv_sent_to  : c.cv_sent_to  === filterCvSentTo)),
@@ -815,8 +833,22 @@ function CvGeneratorPage() {
             ))}
           </SelectContent>
         </Select>
+        <button
+          type="button"
+          onClick={() => setUnsentOnly((v) => !v)}
+          className={cn(
+            "h-9 px-3 rounded-none border text-xs font-medium transition-colors shrink-0 flex items-center gap-1.5",
+            unsentOnly
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground",
+          )}
+        >
+          <Send className="h-3.5 w-3.5" />
+          Unsent only
+          {unsentOnly && <X className="h-3 w-3 ml-0.5" />}
+        </button>
         <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap">
-          {filtered.length} available
+          {filtered.length} candidates
         </span>
       </div>
 
@@ -831,8 +863,31 @@ function CvGeneratorPage() {
             Select all ({filtered.length})
           </label>
           {selected.size > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">{selected.size} selected</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-muted-foreground shrink-0">{selected.size} selected</span>
+              <Select value={sendOffice} onValueChange={setSendOffice}>
+                <SelectTrigger className="h-8 w-44 rounded-none text-xs">
+                  <SelectValue placeholder="Send CV to office…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {agencyOptions.map((o) => (
+                    <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 text-xs h-8 rounded-none"
+                disabled={!sendOffice || sendToOfficeMut.isPending}
+                onClick={() => {
+                  const ids = filtered.filter((c) => selected.has(c.id)).map((c) => c.id);
+                  sendToOfficeMut.mutate({ ids, office: sendOffice });
+                }}
+              >
+                <Send className="h-3.5 w-3.5" />
+                {sendToOfficeMut.isPending ? "Sending…" : "Send CV"}
+              </Button>
               <Button
                 size="sm"
                 className="gap-2 text-xs h-8 rounded-none"
