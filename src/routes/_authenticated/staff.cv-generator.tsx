@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Search, Download, FileText, User, ArrowUpDown, ChevronDown } from "lucide-react";
+import { Search, Download, FileText, User, ArrowUpDown, ChevronDown, Send, ClipboardPaste } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -703,6 +703,8 @@ function CvGeneratorPage() {
   const { user } = useAuth();
   const search   = Route.useSearch();
   const [query,            setQuery]            = useState("");
+  const [filterSelectedBy, setFilterSelectedBy] = useState("all");
+  const [filterCvSentTo,   setFilterCvSentTo]   = useState("all");
   const [actionCandidate,  setActionCandidate]  = useState<Candidate | null>(null);
 
   const { data: candidates = [] } = useQuery({
@@ -726,6 +728,21 @@ function CvGeneratorPage() {
     },
   });
 
+  const { data: agencyOptions = [] } = useQuery({
+    queryKey: ["agencies-offices-names"],
+    queryFn: async () => {
+      const [agenciesRes, officesRes] = await Promise.all([
+        supabase.from("foreign_agencies").select("name").order("name"),
+        supabase.from("assignment_offices").select("name").order("name"),
+      ]);
+      const names = [
+        ...(agenciesRes.data ?? []).map((a) => a.name),
+        ...(officesRes.data ?? []).map((o) => o.name),
+      ];
+      return [...new Set(names)].filter((n): n is string => !!n).sort();
+    },
+  });
+
   // Open directly if id param given (e.g. from HR Pool VIEW button)
   const initialised = useRef(false);
   useEffect(() => {
@@ -739,7 +756,9 @@ function CvGeneratorPage() {
     c.status === "available" &&
     c.medical_status === "Fit" &&
     c.coc_status === "Done" &&
-    (!query || c.full_name.toLowerCase().includes(query.toLowerCase())),
+    (!query || c.full_name.toLowerCase().includes(query.toLowerCase())) &&
+    (filterSelectedBy === "all" || c.selected_by === filterSelectedBy) &&
+    (filterCvSentTo   === "all" || c.cv_sent_to  === filterCvSentTo),
   );
 
   return (
@@ -751,9 +770,9 @@ function CvGeneratorPage() {
         />
       </div>
 
-      {/* Search + count */}
-      <div className="flex items-center gap-3 mb-3 shrink-0">
-        <div className="relative flex-1">
+      {/* Search + filters */}
+      <div className="flex flex-wrap items-center gap-2 mb-3 shrink-0">
+        <div className="relative flex-1 min-w-[180px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-9 rounded-none"
@@ -762,6 +781,30 @@ function CvGeneratorPage() {
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
+        <Select value={filterSelectedBy} onValueChange={setFilterSelectedBy}>
+          <SelectTrigger className="h-9 w-44 rounded-none text-xs gap-1">
+            <ClipboardPaste className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <SelectValue placeholder="Selected By" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">All Selected By</SelectItem>
+            {agencyOptions.map((o) => (
+              <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterCvSentTo} onValueChange={setFilterCvSentTo}>
+          <SelectTrigger className="h-9 w-44 rounded-none text-xs gap-1">
+            <Send className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <SelectValue placeholder="CV Sent To" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">All CV Sent To</SelectItem>
+            {agencyOptions.map((o) => (
+              <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap">
           {filtered.length} available
         </span>

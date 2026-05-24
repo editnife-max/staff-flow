@@ -240,6 +240,7 @@ const initialFilters = {
   coc: "all",
   musaned: "all",
   cv_sent_to: "all",
+  selected_by: "all",
   availability: "all",
   added_by: "all",
   from: "",
@@ -502,6 +503,7 @@ function ManagerCandidatesPage() {
     if (filters.coc !== "all") list = list.filter((c) => c.coc_status === filters.coc);
     if (filters.musaned !== "all") list = list.filter((c) => c.musaned_status === filters.musaned);
     if (filters.cv_sent_to !== "all") list = list.filter((c) => c.cv_sent_to === filters.cv_sent_to);
+    if (filters.selected_by !== "all") list = list.filter((c) => c.selected_by === filters.selected_by);
     if (filters.availability !== "all") list = list.filter((c) => c.status === filters.availability);
     if (filters.added_by !== "all") list = list.filter((c) => firstName(c.created_by_name) === filters.added_by);
     if (filters.age !== "all") {
@@ -729,9 +731,12 @@ function ManagerCandidatesPage() {
                   <FilterSelect placeholder="Musaned" value={filters.musaned} icon={Globe}
                     onChange={(v) => setFilters({ ...filters, musaned: v })}
                     options={[{ value: "all", label: "-----" }, ...opts.musaned.map((o) => ({ value: o, label: o }))]} />
+                  <FilterSelect placeholder="Selected By" value={filters.selected_by} icon={ClipboardPaste}
+                    onChange={(v) => setFilters({ ...filters, selected_by: v })}
+                    options={[{ value: "all", label: "-----" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />
                   <FilterSelect placeholder="CV Sent To" value={filters.cv_sent_to} icon={Send}
                     onChange={(v) => setFilters({ ...filters, cv_sent_to: v })}
-                    options={[{ value: "all", label: "-----" }, ...opts.cv_sent_to.map((o) => ({ value: o, label: o }))]} />
+                    options={[{ value: "all", label: "-----" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />
                   <FilterSelect placeholder="Availability" value={filters.availability} icon={Activity}
                     onChange={(v) => setFilters({ ...filters, availability: v })}
                     options={[
