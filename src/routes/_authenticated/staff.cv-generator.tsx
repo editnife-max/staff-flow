@@ -283,10 +283,25 @@ function CvGeneratorPage() {
     },
   });
 
-  const filtered = candidates.filter(
-    (c) => !query || c.full_name.toLowerCase().includes(query.toLowerCase()),
-  );
-  const selected = candidates.find((c) => c.id === selectedId) ?? candidates[0];
+  const REQUIRED_FIELDS: (keyof Candidate)[] = [
+    "full_name", "passport_number", "dob", "occupation",
+    "country", "religion", "birth_place", "marital_status",
+  ];
+
+  function isReady(c: Candidate) {
+    return (
+      c.status === "available" &&
+      c.medical_status === "Fit" &&
+      c.coc_status === "Done" &&
+      REQUIRED_FIELDS.every((f) => !!c[f])
+    );
+  }
+
+  const filtered = candidates.filter((c) => {
+    const matchesQuery = !query || c.full_name.toLowerCase().includes(query.toLowerCase());
+    return isReady(c) && matchesQuery;
+  });
+  const selected = filtered.find((c) => c.id === selectedId) ?? filtered[0];
 
   const handleDownload = async () => {
     if (!selected) return;
@@ -420,7 +435,10 @@ function CvGeneratorPage() {
                 </button>
               ))}
               {filtered.length === 0 && (
-                <div className="text-center text-sm text-muted-foreground p-6">No candidates.</div>
+                <div className="text-center text-xs text-muted-foreground p-6 leading-relaxed">
+                  No ready candidates.<br />
+                  <span className="opacity-70">Must be Available · Medical Fit · COC Done · all required fields filled.</span>
+                </div>
               )}
             </div>
           </ScrollArea>
