@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import PizZip from "pizzip";
+import * as XLSX from "xlsx";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -494,17 +495,26 @@ function ActionDialog({
         toast.success("Summary PDF downloaded");
 
       } else {
-        // Download Excel / Download Excel for Ticket → UTF-8 CSV (opens in Excel)
+        // Download Excel / Download Excel for Ticket → real .xlsx spreadsheet
         const cols = EXPORT_COLUMNS.filter((col) => selectedCols.has(col.key as string));
         if (cols.length === 0) throw new Error("Select at least one column to export.");
-        const header = cols.map((col) => `"${col.label}"`).join(",");
-        const row    = cols.map((col) => `"${String(c[col.key] ?? "").replace(/"/g, '""')}"`).join(",");
-        // BOM (﻿) ensures Excel opens the file with correct UTF-8 encoding
-        const csv  = "﻿" + [header, row].join("\n");
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const header = cols.map((col) => col.label);
+        const row    = cols.map((col) => {
+          const v = c[col.key];
+          return v == null ? "" : typeof v === "number" ? v : String(v);
+        });
+        const ws = XLSX.utils.aoa_to_sheet([header, row]);
+        // Auto-size columns
+        ws["!cols"] = header.map((h, i) => ({
+          wch: Math.max(h.length, String(row[i] ?? "").length, 10),
+        }));
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Candidate");
+        const buf  = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+        const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
         const url  = URL.createObjectURL(blob);
         const a = document.createElement("a");
-        a.href = url; a.download = `${c.full_name} — ${currentType.label}.csv`;
+        a.href = url; a.download = `${c.full_name} — ${currentType.label}.xlsx`;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 30_000);
         toast.success(`${currentType.label} downloaded`);
