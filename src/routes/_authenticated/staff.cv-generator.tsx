@@ -667,7 +667,7 @@ function ActionDialog({
                 <p className="text-xs opacity-60 text-center max-w-[240px]">
                   {downloadType === "summary-pdf"
                     ? "A PDF table will be generated with the selected columns."
-                    : "A CSV file will be generated with the selected columns."}
+                    : "An Excel (.xlsx) spreadsheet will be generated with the selected columns."}
                 </p>
               </div>
             ) : null}
