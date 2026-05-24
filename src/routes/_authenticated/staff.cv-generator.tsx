@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useRef, useState } from "react";
-import { Search, Download, FileText, CheckCircle2, User } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Search, Download, FileText, User, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -14,11 +14,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 
 export const Route = createFileRoute("/_authenticated/staff/cv-generator")({
-  head: () => ({ meta: [{ title: "CV Generator — Staff-Flow" }] }),
+  head: () => ({ meta: [{ title: "CV Page — Staff-Flow" }] }),
   validateSearch: z.object({ id: z.string().optional() }),
   component: CvGeneratorPage,
 });
@@ -26,29 +29,23 @@ export const Route = createFileRoute("/_authenticated/staff/cv-generator")({
 type CvTemplate = Database["public"]["Tables"]["cv_templates"]["Row"];
 type Candidate  = Database["public"]["Tables"]["candidates"]["Row"];
 
-// ── DOCX fill (base64 data-URL — avoids Blob/revokeObjectURL timing issues) ──
+// ── DOCX fill ─────────────────────────────────────────────────────────────────
 
 function xmlEsc(s: string) {
   return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
           .replace(/"/g,"&quot;");
 }
 
-// Find the label cell, navigate to the adjacent value cell, replace the <w:t> text.
-// Specifically matches <w:t> / <w:t ...> tags — NOT <w:tc> / <w:tcPr> (the critical fix).
 function fillField(xml: string, label: string, value: string): string {
   const marker = ">" + label + "</w:t>";
   const pos = xml.indexOf(marker);
   if (pos === -1) return xml;
-
   const cellClose = xml.indexOf("</w:tc>", pos + marker.length);
   if (cellClose === -1) return xml;
-
   const valueCellStart = xml.indexOf("<w:tc", cellClose + 7);
   if (valueCellStart === -1) return xml;
-
   const valueCellEnd = xml.indexOf("</w:tc>", valueCellStart);
   if (valueCellEnd === -1) return xml;
-
   let searchFrom = valueCellStart;
   let tOpenStart = -1, tOpenEnd = -1;
   while (searchFrom < valueCellEnd) {
@@ -56,17 +53,13 @@ function fillField(xml: string, label: string, value: string): string {
     if (idx === -1 || idx >= valueCellEnd) break;
     const ch = xml[idx + 4];
     if (ch === ">" || ch === " " || ch === "\n" || ch === "\t") {
-      tOpenStart = idx;
-      tOpenEnd   = xml.indexOf(">", tOpenStart);
-      break;
+      tOpenStart = idx; tOpenEnd = xml.indexOf(">", tOpenStart); break;
     }
     searchFrom = idx + 1;
   }
   if (tOpenStart === -1 || tOpenEnd === -1 || tOpenEnd >= valueCellEnd) return xml;
-
   const tClose = xml.indexOf("</w:t>", tOpenEnd + 1);
   if (tClose === -1 || tClose >= valueCellEnd) return xml;
-
   return xml.slice(0, tOpenEnd + 1) + xmlEsc(value) + xml.slice(tClose);
 }
 
@@ -75,14 +68,10 @@ async function buildFilledDocxBase64(url: string, c: Candidate): Promise<string>
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const buf = await res.arrayBuffer();
   if (buf.byteLength < 100) throw new Error("Template file is empty");
-
   const zip   = new PizZip(buf);
   const entry = zip.file("word/document.xml");
   if (!entry) throw new Error("word/document.xml missing");
-
-  // Decode as UTF-8 to handle Arabic content correctly
   let xml = new TextDecoder("utf-8").decode(entry.asUint8Array());
-
   const fields: [string, string | null | undefined][] = [
     ["FULL NAME",      c.full_name],
     ["POSITION",       c.occupation],
@@ -105,18 +94,15 @@ async function buildFilledDocxBase64(url: string, c: Candidate): Promise<string>
     ["HEIGHT",         c.height != null ? `${c.height} cm` : null],
     ["REMARK",         c.notes ?? c.remark],
   ];
-
   for (const [label, value] of fields) {
     if (!value) continue;
     xml = fillField(xml, label, String(value));
   }
-
-  // Write back as UTF-8 bytes
   zip.file("word/document.xml", new TextEncoder().encode(xml));
   return zip.generate({ type: "base64" });
 }
 
-// ── CV preview — matches DOCX template layout ─────────────────────────────────
+// ── CV Preview ────────────────────────────────────────────────────────────────
 
 const NAVY  = "#1A3A6B";
 const BLUE  = "#2B5BA8";
@@ -169,7 +155,6 @@ function CvPreview({ candidate: c, template }: { candidate: Candidate; template:
           <col style={{ width: "21%" }} /><col style={{ width: "24%" }} />
         </colgroup>
         <tbody>
-          {/* Header */}
           <tr>
             <td colSpan={2} style={{ backgroundColor: NAVY, padding: "14px 16px", border: "none" }}>
               {template && <div style={{ color: LBLUE, fontSize: 9, marginBottom: 2 }}>{template.name}</div>}
@@ -182,16 +167,12 @@ function CvPreview({ candidate: c, template }: { candidate: Candidate; template:
               <span style={{ color: LBLUE, fontSize: 14 }}>طلب توظيف</span>
             </td>
           </tr>
-
-          {/* Full name */}
           <tr>
             <td style={td({ backgroundColor: NAVY, color: WHITE, fontWeight: "bold", border: "none" })}>FULL NAME</td>
             <td style={td({ backgroundColor: NAVY, color: WHITE, fontWeight: "bold", fontSize: 13, border: "none" })}>{c.full_name}</td>
             <td style={td({ backgroundColor: NAVY, color: LBLUE, fontWeight: "bold", textAlign: "right", border: "none", direction: "rtl" })}>الاسم الكامل</td>
             <td style={td({ backgroundColor: NAVY, border: "none" })}></td>
           </tr>
-
-          {/* Contract / Position */}
           <tr>
             <td style={td({ backgroundColor: BLUE, color: WHITE, fontWeight: "bold", border: "none" })}>CONTRACT PERIOD</td>
             <td style={td({ backgroundColor: BLUE, color: WHITE, border: "none" })}>2 years</td>
@@ -204,25 +185,17 @@ function CvPreview({ candidate: c, template }: { candidate: Candidate; template:
             <td style={td({ backgroundColor: BLUE, color: LBLUE, textAlign: "right", border: "none", direction: "rtl" })}>الوظيفة</td>
             <td style={td({ backgroundColor: BLUE, border: "none" })}></td>
           </tr>
-
-          {/* Passport */}
           <SectionHdr en="PASSPORT DETAIL  |" ar="بيانات جواز السفر" />
           <DataRow lbl="NUMBER"         val={c.passport_number}       ar="رقم الجواز"      bg1={GRAY}  bg2={WHITE} />
           <DataRow lbl="DATE OF ISSUE"  val={c.passport_issue_date}   ar="تاريخ الإصدار"   bg1={WHITE} bg2={GRAY}  />
           <DataRow lbl="DATE OF EXPIRY" val={c.passport_expiry_date}  ar="تاريخ الانتهاء"  bg1={GRAY}  bg2={WHITE} />
           <DataRow lbl="PLACE OF ISSUE" val={c.place_of_issue ?? c.country} ar="مكان الإصدار" bg1={WHITE} bg2={GRAY} />
-
-          {/* Language */}
           <SectionHdr en="LANGUAGE AND EDUCATION  |" ar="اللغة والتعليم" />
           <DataRow lbl="ENGLISH" val={c.english_level} ar="اللغة الإنجليزية" bg1={GRAY}  bg2={WHITE} />
           <DataRow lbl="ARABIC"  val={c.arabic_level}  ar="اللغة العربية"    bg1={WHITE} bg2={GRAY}  />
           <DataRow lbl="EDUCATION" val={c.education}   ar="التعليم"           bg1={GRAY}  bg2={WHITE} />
-
-          {/* Experience */}
           <SectionHdr en="EXPERIENCE ABROAD  |" ar="الخبرة خارج البلد" />
           <DataRow lbl="EXPERIENCE" val={c.experience} ar="الخبرة" span bg1={GRAY} bg2={WHITE} />
-
-          {/* Personal */}
           <SectionHdr en="PERSONAL DATA  |" ar="معلومات شخصية" />
           <DataRow lbl="NATIONALITY"    val={c.country}        ar="الجنسية"           bg1={GRAY}  bg2={WHITE} />
           <DataRow lbl="RELIGION"       val={c.religion}       ar="الديانة"           bg1={WHITE} bg2={GRAY}  />
@@ -234,15 +207,11 @@ function CvPreview({ candidate: c, template }: { candidate: Candidate; template:
           <DataRow lbl="CHILDREN"       val={c.children ?? ""} ar="عدد الأطفال"       bg1={WHITE} bg2={GRAY}  />
           <DataRow lbl="WEIGHT"         val={c.weight != null ? `${c.weight} kg` : ""} ar="الوزن" bg1={GRAY}  bg2={WHITE} />
           <DataRow lbl="HEIGHT"         val={c.height != null ? `${c.height} cm` : ""} ar="الطول" bg1={WHITE} bg2={GRAY}  />
-
-          {/* Skills */}
           <SectionHdr en="SKILLS  |" ar="المهارات" />
           {c.skills
             ? <tr><td colSpan={4} style={td({ backgroundColor: WHITE, color: DARK })}>{c.skills}</td></tr>
             : <tr><td colSpan={4} style={td({ backgroundColor: WHITE, color: "#aaa" })}>—</td></tr>
           }
-
-          {/* Remark */}
           <DataRow lbl="REMARK" val={c.notes ?? c.remark ?? ""} ar="" span bg1={GRAY} bg2={WHITE} />
         </tbody>
       </table>
@@ -250,7 +219,66 @@ function CvPreview({ candidate: c, template }: { candidate: Candidate; template:
   );
 }
 
-// ── CV Candidate Card (exact Available-tab card format) ──────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const DOWNLOAD_TYPES = [
+  { id: "summary-pdf",  label: "Download Summary (PDF)",    group: "export" as const },
+  { id: "excel",        label: "Download Excel",            group: "export" as const },
+  { id: "excel-ticket", label: "Download Excel for Ticket", group: "export" as const },
+  { id: "normal-cv",    label: "Normal CV",                 group: "cv"     as const },
+  { id: "jawa-cv",      label: "Jawa CV",                   group: "cv"     as const },
+  { id: "tadbeer-cv",   label: "Tadbeer CV",                group: "cv"     as const },
+  { id: "milano-cv",    label: "Milano CV",                 group: "cv"     as const },
+  { id: "ghadeer-cv",   label: "Ghadeer CV",                group: "cv"     as const },
+  { id: "normal22-cv",  label: "Normal 22 CV",              group: "cv"     as const },
+];
+
+const EXPORT_COLUMNS: { key: keyof Candidate; label: string }[] = [
+  { key: "full_name",            label: "Full Name" },
+  { key: "candidate_code",       label: "Candidate Code" },
+  { key: "gender",               label: "Gender" },
+  { key: "religion",             label: "Religion" },
+  { key: "marital_status",       label: "Marital Status" },
+  { key: "birth_place",          label: "Birth Place" },
+  { key: "living_town",          label: "Living Town" },
+  { key: "occupation",           label: "Occupation" },
+  { key: "country",              label: "Nationality" },
+  { key: "passport_number",      label: "Passport Number" },
+  { key: "passport_issue_date",  label: "Passport Issue Date" },
+  { key: "passport_expiry_date", label: "Passport Expiry Date" },
+  { key: "place_of_issue",       label: "Place of Issue" },
+  { key: "dob",                  label: "Date of Birth" },
+  { key: "age",                  label: "Age" },
+  { key: "english_level",        label: "English Level" },
+  { key: "arabic_level",         label: "Arabic Level" },
+  { key: "education",            label: "Education" },
+  { key: "experience",           label: "Experience" },
+  { key: "skills",               label: "Skills" },
+  { key: "weight",               label: "Weight" },
+  { key: "height",               label: "Height" },
+  { key: "medical_status",       label: "Medical Status" },
+  { key: "medical_date",         label: "Medical Date" },
+  { key: "coc_status",           label: "COC Status" },
+  { key: "office",               label: "Office" },
+  { key: "selected_by",          label: "Selected By" },
+  { key: "cv_sent_to",           label: "CV Sent To" },
+  { key: "destination_country",  label: "Destination Country" },
+  { key: "notes",                label: "Notes" },
+];
+
+const TICKET_DEFAULT_COLS: (keyof Candidate)[] = [
+  "full_name", "passport_number", "passport_expiry_date",
+  "dob", "country", "occupation", "destination_country", "office",
+];
+
+const SORT_FIELDS = [
+  { key: "full_name",      label: "Full Name" },
+  { key: "occupation",     label: "Occupation" },
+  { key: "country",        label: "Nationality" },
+  { key: "medical_status", label: "Medical Status" },
+  { key: "coc_status",     label: "COC Status" },
+  { key: "office",         label: "Office" },
+];
 
 const OPTION_COLORS: Record<string, string> = {
   Fit:              "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
@@ -265,12 +293,14 @@ const OPTION_COLORS: Record<string, string> = {
   "Pending release":"bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
 };
 
+// ── Candidate card ─────────────────────────────────────────────────────────────
+
 function CvCandidateCard({
-  candidate: c, selected, onSelect,
-}: { candidate: Candidate; selected: boolean; onSelect: () => void }) {
+  candidate: c, onAction,
+}: { candidate: Candidate; onAction: () => void }) {
   type FieldDef = { label: string; value: string; bold?: boolean; badge?: boolean };
   const fields: FieldDef[] = [
-    { label: "FULL NAME",      value: c.full_name,                                                 bold: true },
+    { label: "FULL NAME",      value: c.full_name,                                                   bold: true },
     { label: "CANDIDATE CODE", value: c.candidate_code ?? "—" },
     { label: "GENDER",         value: c.gender ?? "—" },
     { label: "RELIGION",       value: c.religion ?? "—" },
@@ -282,26 +312,25 @@ function CvCandidateCard({
     { label: "PASSPORT #",     value: c.passport_number ?? "—" },
     { label: "DOB",            value: c.dob ?? "—" },
     { label: "OFFICE",         value: c.office ?? "—" },
-    { label: "COC STATUS",     value: c.coc_status ?? "—",    badge: true },
+    { label: "COC STATUS",     value: c.coc_status ?? "—",     badge: true },
     { label: "MEDICAL STATUS", value: c.medical_status ?? "—", badge: true },
     { label: "MEDICAL DATE",   value: c.medical_date ? new Date(c.medical_date).toLocaleDateString() : "—" },
     { label: "SELECTED BY",    value: c.selected_by ?? "—" },
     { label: "CV SENT TO",     value: c.cv_sent_to ?? "—" },
   ];
+
   return (
-    <Card className={cn("relative overflow-visible transition-colors rounded-none mx-[5px]", selected && "ring-2 ring-primary")}>
+    <Card className="relative overflow-visible transition-colors rounded-none mx-[5px]">
       <span className="absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[10px] font-semibold tracking-wide bg-success text-success-foreground">
         Available
       </span>
       <CardContent className="p-0">
         <div className="grid grid-cols-[40px_1fr_auto] gap-3 items-center">
-          {/* Photo */}
           <Avatar className="h-10 w-10 ml-3">
             {c.photo_url && <AvatarImage src={c.photo_url} alt={c.full_name} />}
             <AvatarFallback className="text-[10px]">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
 
-          {/* Scrollable fields — same layout as Available tab */}
           <div className="overflow-x-auto no-scrollbar">
             <div className="flex gap-5 items-start py-3">
               {fields.map((f) => (
@@ -329,16 +358,15 @@ function CvCandidateCard({
             </div>
           </div>
 
-          {/* Generate CV button */}
           <div className="flex flex-col items-end gap-1 pt-[10px] pr-[12px] pb-[10px] pl-[4px]">
             <Button
               size="sm"
-              variant={selected ? "default" : "outline"}
+              variant="outline"
               className="h-6 text-[12px] px-2 rounded-none whitespace-nowrap"
-              onClick={onSelect}
+              onClick={onAction}
             >
               <FileText className="h-3.5 w-3.5 mr-1" />
-              {selected ? "Generating…" : "Generate CV"}
+              Action
             </Button>
           </div>
         </div>
@@ -347,16 +375,297 @@ function CvCandidateCard({
   );
 }
 
-// ── Page ─────────────────────────────────────────────────────────────────────
+// ── Action Dialog ─────────────────────────────────────────────────────────────
+
+function ActionDialog({
+  candidate: c, templates, onClose,
+}: {
+  candidate: Candidate | null;
+  templates: CvTemplate[];
+  onClose: () => void;
+}) {
+  const cvRef = useRef<HTMLDivElement>(null);
+  const [downloadType, setDownloadType] = useState("normal-cv");
+  const [sortBy,  setSortBy]  = useState("full_name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [selectedCols, setSelectedCols] = useState<Set<string>>(
+    new Set(EXPORT_COLUMNS.map((col) => col.key as string)),
+  );
+  const [downloading, setDownloading] = useState(false);
+
+  // Pre-select ticket columns when ticket type chosen
+  useEffect(() => {
+    if (downloadType === "excel-ticket") {
+      setSelectedCols(new Set(TICKET_DEFAULT_COLS as string[]));
+    }
+  }, [downloadType]);
+
+  const currentType = DOWNLOAD_TYPES.find((t) => t.id === downloadType)!;
+  const isCV = currentType.group === "cv";
+
+  const matchedTemplate = isCV && downloadType !== "normal-cv"
+    ? templates.find((t) =>
+        t.name.toLowerCase().includes(
+          currentType.label.toLowerCase().replace(" cv", "").trim(),
+        ),
+      ) ?? null
+    : null;
+
+  const toggleCol = (key: string) =>
+    setSelectedCols((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+
+  const handleDownload = async () => {
+    if (!c) return;
+    setDownloading(true);
+    try {
+      if (downloadType === "normal-cv") {
+        if (!cvRef.current) return;
+        const canvas = await html2canvas(cvRef.current, {
+          scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: false,
+          onclone: (_doc, el) => {
+            _doc.querySelectorAll('link[rel="stylesheet"], style').forEach((s) => s.remove());
+            el.style.color = "#222222";
+            el.style.backgroundColor = "#ffffff";
+          },
+        });
+        const pxW = canvas.width / 2, pxH = canvas.height / 2;
+        const pdf = new jsPDF({ unit: "px", format: [pxW, pxH] });
+        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pxW, pxH);
+        pdf.save(`${c.full_name} — Normal CV.pdf`);
+        toast.success("Normal CV downloaded");
+
+      } else if (isCV && matchedTemplate) {
+        const isDocx = matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
+        if (isDocx) {
+          const b64 = await buildFilledDocxBase64(matchedTemplate.file_url, c);
+          const a = document.createElement("a");
+          a.href = `data:application/octet-stream;base64,${b64}`;
+          a.download = `${c.full_name} — ${currentType.label}.docx`;
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          toast.success(`${currentType.label} downloaded`);
+        } else {
+          const res = await fetch(matchedTemplate.file_url);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const blob = new Blob([await res.arrayBuffer()], { type: "application/octet-stream" });
+          const url  = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = `${c.full_name} — ${currentType.label}.pdf`;
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 30_000);
+          toast.success(`${currentType.label} downloaded`);
+        }
+
+      } else if (downloadType === "summary-pdf") {
+        const cols = EXPORT_COLUMNS.filter((col) => selectedCols.has(col.key as string));
+        const tableEl = document.createElement("div");
+        tableEl.style.cssText = "width:800px;padding:24px;background:#fff;font-family:Arial,sans-serif";
+        tableEl.innerHTML = `
+          <h2 style="margin:0 0 16px;font-size:16px;color:#1a3a52">${c.full_name} — Summary</h2>
+          <table style="width:100%;border-collapse:collapse;font-size:11px">
+            ${cols.map((col) => `
+              <tr>
+                <td style="padding:5px 10px;background:#f2f4f8;font-weight:bold;border:1px solid #ccc;width:40%">${col.label}</td>
+                <td style="padding:5px 10px;border:1px solid #ccc">${c[col.key] ?? "—"}</td>
+              </tr>
+            `).join("")}
+          </table>`;
+        document.body.appendChild(tableEl);
+        const canvas = await html2canvas(tableEl, { scale: 2, backgroundColor: "#ffffff" });
+        document.body.removeChild(tableEl);
+        const pxW = canvas.width / 2, pxH = canvas.height / 2;
+        const pdf = new jsPDF({ unit: "px", format: [pxW, pxH] });
+        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pxW, pxH);
+        pdf.save(`${c.full_name} — Summary.pdf`);
+        toast.success("Summary PDF downloaded");
+
+      } else {
+        // Excel / Excel for Ticket → CSV
+        const cols = EXPORT_COLUMNS.filter((col) => selectedCols.has(col.key as string));
+        const sorted = [c]; // single candidate; sort only matters for bulk
+        const header = cols.map((col) => `"${col.label}"`).join(",");
+        const rows = sorted.map((row) =>
+          cols.map((col) => `"${String(row[col.key] ?? "").replace(/"/g, '""')}"`).join(","),
+        );
+        const csv = [header, ...rows].join("\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const url  = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = `${c.full_name} — ${currentType.label}.csv`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 30_000);
+        toast.success("Excel (CSV) downloaded");
+      }
+    } catch (e: any) {
+      toast.error(e.message ?? "Download failed");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const canDownload = !downloading &&
+    !(isCV && downloadType !== "normal-cv" && !matchedTemplate);
+
+  return (
+    <Dialog open={!!c} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent
+        className="rounded-none p-0 gap-0 overflow-hidden"
+        style={{ maxWidth: 1100, width: "95vw", maxHeight: "92vh", display: "flex", flexDirection: "column" }}
+      >
+        <DialogHeader className="px-6 py-4 border-b shrink-0">
+          <DialogTitle className="text-base font-semibold">
+            Action — {c?.full_name}
+          </DialogTitle>
+        </DialogHeader>
+
+        {/* Body */}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+
+          {/* Left panel */}
+          <div className="w-[280px] shrink-0 border-r flex flex-col overflow-y-auto">
+
+            {/* Sort Options */}
+            <div className="p-4 border-b">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                Sort Options (for Export)
+              </p>
+              <div className="flex items-center gap-2">
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="h-8 text-xs rounded-none flex-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SORT_FIELDS.map((f) => (
+                      <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <button
+                  type="button"
+                  onClick={() => setSortDir((d) => d === "asc" ? "desc" : "asc")}
+                  className="h-8 w-8 shrink-0 flex items-center justify-center border rounded-none text-muted-foreground hover:bg-muted"
+                >
+                  <ArrowUpDown className="h-3.5 w-3.5" />
+                </button>
+                <span className="text-[10px] text-muted-foreground shrink-0">{sortDir.toUpperCase()}</span>
+              </div>
+            </div>
+
+            {/* Choose Download Type */}
+            <div className="p-4 border-b">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                Choose Download Type
+              </p>
+              <div className="space-y-0.5">
+                {DOWNLOAD_TYPES.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setDownloadType(t.id)}
+                    className={cn(
+                      "w-full text-left px-3 py-2 text-sm rounded-none border transition-colors",
+                      downloadType === t.id
+                        ? "border-primary/40 bg-primary/5 text-primary font-medium"
+                        : "border-transparent hover:border-border hover:bg-muted/40 text-muted-foreground",
+                    )}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Select Columns */}
+            <div className="p-4 flex-1 min-h-0">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Select Columns
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCols(new Set(EXPORT_COLUMNS.map((c) => c.key as string)))}
+                    className="text-[9px] text-primary hover:underline"
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCols(new Set())}
+                    className="text-[9px] text-muted-foreground hover:underline"
+                  >
+                    None
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                {EXPORT_COLUMNS.map((col) => (
+                  <label key={col.key as string} className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={selectedCols.has(col.key as string)}
+                      onCheckedChange={() => toggleCol(col.key as string)}
+                      className="rounded-none h-3.5 w-3.5"
+                    />
+                    <span className="text-xs text-foreground">{col.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Right panel — preview */}
+          <div className="flex-1 overflow-auto bg-muted/30 p-4">
+            {c && isCV ? (
+              <div ref={cvRef} className="mx-auto shadow-xl w-fit">
+                <CvPreview candidate={c} template={matchedTemplate} />
+              </div>
+            ) : c ? (
+              <div className="h-full flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                <FileText className="h-14 w-14 opacity-15" />
+                <p className="text-sm font-medium">{currentType.label}</p>
+                <p className="text-xs opacity-60 text-center max-w-[240px]">
+                  {downloadType === "summary-pdf"
+                    ? "A PDF table will be generated with the selected columns."
+                    : "A CSV file will be generated with the selected columns."}
+                </p>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-3 border-t shrink-0 flex items-center justify-between gap-4">
+          {isCV && downloadType !== "normal-cv" && !matchedTemplate ? (
+            <p className="text-xs text-amber-600">
+              Template &ldquo;{currentType.label}&rdquo; not found — upload it in the template manager.
+            </p>
+          ) : (
+            <span />
+          )}
+          <Button
+            onClick={handleDownload}
+            disabled={!canDownload}
+            className="rounded-none shrink-0"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {downloading ? "Downloading…" : `Download — ${currentType.label}`}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 function CvGeneratorPage() {
-  const { user }  = useAuth();
-  const search    = Route.useSearch();
-  const [selectedId,       setSelectedId]       = useState<string | null>(search.id ?? null);
-  const [selectedTemplate, setSelectedTemplate] = useState<CvTemplate | null>(null);
+  const { user } = useAuth();
+  const search   = Route.useSearch();
   const [query,            setQuery]            = useState("");
-  const cvRef = useRef<HTMLDivElement>(null);
-  const [downloading, setDownloading] = useState(false);
+  const [actionCandidate,  setActionCandidate]  = useState<Candidate | null>(null);
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["cv-candidates", user?.id],
@@ -379,217 +688,64 @@ function CvGeneratorPage() {
     },
   });
 
+  // Open directly if id param given (e.g. from HR Pool VIEW button)
+  const initialised = useRef(false);
+  useEffect(() => {
+    if (initialised.current || !search.id || candidates.length === 0) return;
+    initialised.current = true;
+    const c = candidates.find((x) => x.id === search.id);
+    if (c) setActionCandidate(c);
+  }, [search.id, candidates]);
+
   const filtered = candidates.filter((c) =>
     c.status === "available" &&
     c.medical_status === "Fit" &&
     c.coc_status === "Done" &&
     (!query || c.full_name.toLowerCase().includes(query.toLowerCase())),
   );
-  const selected = filtered.find((c) => c.id === selectedId) ?? filtered[0];
-
-  const handleDownload = async () => {
-    if (!selected) return;
-    setDownloading(true);
-    try {
-      const name = selectedTemplate
-        ? `${selected.full_name} — ${selectedTemplate.name}`
-        : selected.full_name;
-
-      // DOCX template selected → fill and download as DOCX via data URL
-      if (selectedTemplate) {
-        const isDocx = selectedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
-        if (isDocx) {
-          const b64 = await buildFilledDocxBase64(selectedTemplate.file_url, selected);
-          const a   = document.createElement("a");
-          a.href    = `data:application/octet-stream;base64,${b64}`;
-          a.download = `${name}.docx`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          toast.success("Filled DOCX downloaded");
-          return;
-        }
-        // PDF template → download raw file
-        const res = await fetch(selectedTemplate.file_url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const blob = new Blob([await res.arrayBuffer()], { type: "application/octet-stream" });
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement("a");
-        a.href     = url;
-        a.download = `${name}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 30_000);
-        return;
-      }
-
-      // No template → generate PDF from HTML preview
-      if (!cvRef.current) return;
-      const canvas = await html2canvas(cvRef.current, {
-        scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: false,
-        onclone: (_doc, el) => {
-          // Strip external stylesheets to avoid oklch parsing errors in html2canvas
-          _doc.querySelectorAll('link[rel="stylesheet"], style').forEach(s => s.remove());
-          el.style.color = "#222222";
-          el.style.backgroundColor = "#ffffff";
-        },
-      });
-      const pxW = canvas.width / 2;
-      const pxH = canvas.height / 2;
-      const pdf = new jsPDF({ unit: "px", format: [pxW, pxH] });
-      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pxW, pxH);
-      pdf.save(`${name}.pdf`);
-      toast.success("CV downloaded as PDF");
-    } catch (e: any) {
-      toast.error(e.message ?? "Download failed");
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  // Download the raw template file for reference
-  async function downloadTemplateFile(t: CvTemplate) {
-    try {
-      const res  = await fetch(t.file_url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const ext  = t.file_url.split("?")[0].split(".").pop() ?? "pdf";
-      const blob = new Blob([await res.arrayBuffer()], { type: "application/octet-stream" });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      a.href     = url;
-      a.download = `${t.name}.${ext}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 30_000);
-    } catch (e: any) {
-      toast.error(`Download failed: ${e.message}`);
-    }
-  }
-
-  const btnLabel = downloading
-    ? "Downloading…"
-    : selectedTemplate
-      ? `Download — ${selectedTemplate.name}`
-      : "Download PDF";
 
   return (
     <div className="flex flex-col h-[calc(100vh-112px)]">
-      {/* Header row */}
-      <div className="flex items-start justify-between mb-4 gap-4 shrink-0">
+      <div className="shrink-0 mb-4">
         <PageHeader
           title="CV Page"
-          description="Available candidates — select one to generate their CV."
+          description="Available candidates with Medical Fit and COC Done."
         />
-        {selected && (
-          <Button onClick={handleDownload} disabled={downloading} className="shrink-0 mt-1">
-            <Download className="h-4 w-4 mr-2" />
-            {btnLabel}
-          </Button>
+      </div>
+
+      {/* Search + count */}
+      <div className="flex items-center gap-3 mb-3 shrink-0">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            className="pl-9 rounded-none"
+            placeholder="Search candidates…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap">
+          {filtered.length} available
+        </span>
+      </div>
+
+      {/* Card list */}
+      <div className="flex-1 overflow-y-auto space-y-6 pr-1 pt-3">
+        {filtered.map((c) => (
+          <CvCandidateCard key={c.id} candidate={c} onAction={() => setActionCandidate(c)} />
+        ))}
+        {filtered.length === 0 && (
+          <div className="text-center text-sm text-muted-foreground py-16">
+            No candidates with Medical Fit and COC Done.
+          </div>
         )}
       </div>
 
-      <div className="flex gap-4 flex-1 min-h-0">
-
-        {/* Left: Candidate card list */}
-        <div className="flex-1 min-w-0 flex flex-col">
-          {/* Search + count */}
-          <div className="flex items-center gap-3 mb-3 shrink-0">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-9 rounded-none" placeholder="Search candidates…"
-                value={query} onChange={(e) => setQuery(e.target.value)} />
-            </div>
-            <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap">
-              {filtered.length} available
-            </span>
-          </div>
-
-          {/* Cards */}
-          <div className="flex-1 overflow-y-auto space-y-6 pr-1 pt-3">
-            {filtered.map((c) => (
-              <CvCandidateCard
-                key={c.id}
-                candidate={c}
-                selected={selected?.id === c.id}
-                onSelect={() => setSelectedId(c.id)}
-              />
-            ))}
-            {filtered.length === 0 && (
-              <div className="text-center text-sm text-muted-foreground py-16">
-                No available candidates found.
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right: Templates + CV Preview */}
-        <div className="w-[480px] shrink-0 flex flex-col gap-3 min-h-0">
-
-          {/* Templates */}
-          <Card className="shrink-0 rounded-none">
-            <CardContent className="p-3">
-              <p className="text-xs font-semibold text-foreground flex items-center gap-1.5 mb-2">
-                <FileText className="h-3.5 w-3.5 text-primary" /> Templates
-                <span className="text-[9px] font-normal text-muted-foreground">
-                  DOCX → filled · PDF → as-is · none → PDF preview
-                </span>
-              </p>
-              <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                {templates.length === 0
-                  ? <p className="text-xs text-muted-foreground py-1">No templates yet.</p>
-                  : templates.map((t) => {
-                      const isDocx = t.file_url.split("?")[0].toLowerCase().endsWith(".docx");
-                      return (
-                        <div key={t.id}
-                          className={cn(
-                            "rounded-none border p-2 cursor-pointer transition-colors shrink-0 w-[150px]",
-                            selectedTemplate?.id === t.id
-                              ? "border-primary/40 bg-primary/5"
-                              : "border-border/60 bg-muted/20 hover:border-border hover:bg-muted/40",
-                          )}
-                          onClick={() => setSelectedTemplate(selectedTemplate?.id === t.id ? null : t)}
-                        >
-                          <div className="flex items-start gap-1.5">
-                            <FileText className={cn("h-3 w-3 mt-0.5 shrink-0",
-                              selectedTemplate?.id === t.id ? "text-primary" : "text-muted-foreground")} />
-                            <span className="text-[11px] font-medium leading-tight line-clamp-2 flex-1">{t.name}</span>
-                            {selectedTemplate?.id === t.id && <CheckCircle2 className="h-3 w-3 text-primary shrink-0" />}
-                          </div>
-                          <div className="mt-1.5 flex items-center justify-between">
-                            <span className="text-[9px] text-muted-foreground uppercase">{isDocx ? "DOCX" : "PDF"}</span>
-                            <button type="button"
-                              onClick={(e) => { e.stopPropagation(); downloadTemplateFile(t); }}
-                              className="text-[9px] text-primary hover:underline flex items-center gap-0.5"
-                            >
-                              <Download className="h-2.5 w-2.5" /> raw
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })
-                }
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* CV Preview */}
-          <div className="flex-1 overflow-auto bg-muted/30 p-4 min-h-0">
-            {selected ? (
-              <div ref={cvRef} className="mx-auto shadow-xl w-fit">
-                <CvPreview candidate={selected} template={selectedTemplate} />
-              </div>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center gap-3 text-muted-foreground">
-                <User className="h-12 w-12 opacity-20" />
-                <p className="text-sm">Select a candidate to preview their CV.</p>
-              </div>
-            )}
-          </div>
-
-        </div>
-      </div>
+      <ActionDialog
+        candidate={actionCandidate}
+        templates={templates}
+        onClose={() => setActionCandidate(null)}
+      />
     </div>
   );
 }
