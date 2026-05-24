@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createAgencyLogin, deleteAgencyLogin } from "@/lib/agencies.functions";
 
 export const Route = createFileRoute("/_authenticated/manager/agencies")({
@@ -28,18 +29,22 @@ type Agency = {
   portal_user_id: string | null;
 };
 
+type Office = { id: string; name: string };
+
 function AgenciesPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
 
-  // Add agency dialog
+  // Add agency + login dialog
   const [addOpen, setAddOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [country, setCountry] = useState("");
-  const [email, setEmail] = useState("");
+  const [addOfficeId, setAddOfficeId] = useState("");
+  const [addName, setAddName] = useState("");
+  const [addEmail, setAddEmail] = useState("");
+  const [addPassword, setAddPassword] = useState("");
 
-  // Create login dialog
+  // Create login for existing agency dialog
   const [loginAgency, setLoginAgency] = useState<Agency | null>(null);
+  const [loginOfficeId, setLoginOfficeId] = useState("");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
@@ -56,22 +61,49 @@ function AgenciesPage() {
     },
   });
 
-  const create = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("foreign_agencies").insert({
-        manager_id: user!.id, name, country, contact_email: email || null,
-      });
+  const { data: offices = [] } = useQuery<Office[]>({
+    queryKey: ["assignment-offices", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("assignment_offices")
+        .select("id,name")
+        .order("name");
       if (error) throw error;
+      return data as Office[];
+    },
+  });
+
+  function officeNameById(id: string) {
+    return offices.find((o) => o.id === id)?.name ?? "";
+  }
+
+  // --- Create agency + portal login ---
+  const createWithLogin = useMutation({
+    mutationFn: async () => {
+      const officeName = officeNameById(addOfficeId);
+      // 1. Insert agency row
+      const { data: row, error: insErr } = await supabase
+        .from("foreign_agencies")
+        .insert({ manager_id: user!.id, name: addName || officeName, country: officeName, contact_email: addEmail || null })
+        .select("id")
+        .single();
+      if (insErr) throw insErr;
+      // 2. Create portal login
+      await createAgencyLogin({
+        data: { agencyId: row.id, agencyName: officeName, email: addEmail, password: addPassword },
+      });
     },
     onSuccess: () => {
-      toast.success("Agency added");
+      toast.success("Agency and portal login created");
       qc.invalidateQueries({ queryKey: ["agencies"] });
       qc.invalidateQueries({ queryKey: ["agencies-offices-names"] });
-      setAddOpen(false); setName(""); setCountry(""); setEmail("");
+      setAddOpen(false); setAddOfficeId(""); setAddName(""); setAddEmail(""); setAddPassword("");
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // --- Remove agency ---
   const remove = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("foreign_agencies").delete().eq("id", id);
@@ -84,26 +116,24 @@ function AgenciesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // --- Create login for existing agency ---
   const createLogin = useMutation({
     mutationFn: async () => {
       if (!loginAgency) return;
+      const officeName = officeNameById(loginOfficeId);
       await createAgencyLogin({
-        data: {
-          agencyId: loginAgency.id,
-          agencyName: loginAgency.name,
-          email: loginEmail,
-          password: loginPassword,
-        },
+        data: { agencyId: loginAgency.id, agencyName: officeName, email: loginEmail, password: loginPassword },
       });
     },
     onSuccess: () => {
       toast.success("Portal login created");
       qc.invalidateQueries({ queryKey: ["agencies"] });
-      setLoginAgency(null); setLoginEmail(""); setLoginPassword("");
+      setLoginAgency(null); setLoginOfficeId(""); setLoginEmail(""); setLoginPassword("");
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // --- Remove login ---
   const removeLogin = useMutation({
     mutationFn: async ({ agencyId, portalUserId }: { agencyId: string; portalUserId: string }) => {
       await deleteAgencyLogin({ data: { agencyId, portalUserId } });
@@ -115,29 +145,18 @@ function AgenciesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const addValid = !!addOfficeId && addEmail.includes("@") && addPassword.length >= 8;
+  const loginValid = !!loginOfficeId && loginEmail.includes("@") && loginPassword.length >= 8;
+
   return (
     <div>
       <PageHeader
         title="Foreign Agencies"
         description="Partner agencies sourcing candidates from abroad."
         actions={
-          <Dialog open={addOpen} onOpenChange={setAddOpen}>
-            <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" /> Add agency</Button></DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Add foreign agency</DialogTitle></DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2"><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Country</Label><Input value={country} onChange={(e) => setCountry(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Contact email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-              </div>
-              <DialogFooter>
-                <Button variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Button>
-                <Button onClick={() => create.mutate()} disabled={!name || !country || create.isPending}>
-                  {create.isPending ? "Adding..." : "Add"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={() => setAddOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Add agency
+          </Button>
         }
       />
 
@@ -147,7 +166,7 @@ function AgenciesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Agency</TableHead>
-                <TableHead>Country</TableHead>
+                <TableHead>Office</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Portal</TableHead>
@@ -158,24 +177,21 @@ function AgenciesPage() {
               {agencies.map((a) => (
                 <TableRow key={a.id}>
                   <TableCell className="font-medium">{a.name}</TableCell>
-                  <TableCell>{a.country}</TableCell>
+                  <TableCell className="text-muted-foreground">{a.country || "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{a.contact_email ?? "—"}</TableCell>
                   <TableCell>
                     <span className="inline-flex rounded-full bg-success/15 text-success px-2 py-0.5 text-xs">{a.status}</span>
                   </TableCell>
                   <TableCell>
-                    {a.portal_user_id ? (
-                      <span className="inline-flex rounded-full bg-primary/15 text-primary px-2 py-0.5 text-xs">Active</span>
-                    ) : (
-                      <span className="text-muted-foreground text-xs">No login</span>
-                    )}
+                    {a.portal_user_id
+                      ? <span className="inline-flex rounded-full bg-primary/15 text-primary px-2 py-0.5 text-xs">Active</span>
+                      : <span className="text-muted-foreground text-xs">No login</span>}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       {a.portal_user_id ? (
                         <Button
-                          variant="ghost" size="icon"
-                          title="Remove portal login"
+                          variant="ghost" size="icon" title="Remove portal login"
                           onClick={() => removeLogin.mutate({ agencyId: a.id, portalUserId: a.portal_user_id! })}
                           disabled={removeLogin.isPending}
                         >
@@ -183,9 +199,8 @@ function AgenciesPage() {
                         </Button>
                       ) : (
                         <Button
-                          variant="ghost" size="icon"
-                          title="Create portal login"
-                          onClick={() => { setLoginAgency(a); setLoginEmail(a.contact_email ?? ""); setLoginPassword(""); }}
+                          variant="ghost" size="icon" title="Create portal login"
+                          onClick={() => { setLoginAgency(a); setLoginEmail(a.contact_email ?? ""); setLoginOfficeId(""); setLoginPassword(""); }}
                         >
                           <KeyRound className="h-4 w-4 text-primary" />
                         </Button>
@@ -198,39 +213,87 @@ function AgenciesPage() {
                 </TableRow>
               ))}
               {agencies.length === 0 && (
-                <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">No agencies yet.</TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">No agencies yet.</TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      {/* Create login dialog */}
-      <Dialog open={!!loginAgency} onOpenChange={(o) => { if (!o) { setLoginAgency(null); setLoginEmail(""); setLoginPassword(""); } }}>
+      {/* Add agency + login dialog */}
+      <Dialog open={addOpen} onOpenChange={(o) => { if (!o) { setAddOpen(false); setAddOfficeId(""); setAddName(""); setAddEmail(""); setAddPassword(""); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add foreign agency</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Office</Label>
+              <Select value={addOfficeId} onValueChange={(v) => { setAddOfficeId(v); if (!addName) setAddName(officeNameById(v)); }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an office…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {offices.map((o) => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Agency name</Label>
+              <Input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Auto-filled from office" />
+            </div>
+            <div className="space-y-2">
+              <Label>Portal email</Label>
+              <Input type="email" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Portal password <span className="text-muted-foreground text-xs">(min 8 chars)</span></Label>
+              <Input type="password" value={addPassword} onChange={(e) => setAddPassword(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setAddOpen(false); setAddOfficeId(""); setAddName(""); setAddEmail(""); setAddPassword(""); }}>Cancel</Button>
+            <Button onClick={() => createWithLogin.mutate()} disabled={!addValid || createWithLogin.isPending}>
+              {createWithLogin.isPending ? "Creating…" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create login for existing agency dialog */}
+      <Dialog open={!!loginAgency} onOpenChange={(o) => { if (!o) { setLoginAgency(null); setLoginOfficeId(""); setLoginEmail(""); setLoginPassword(""); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create portal login — {loginAgency?.name}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            This creates a new account. The agency will log in with these credentials to view their sent candidates.
+            Select which office this agency will see candidates for, then set login credentials.
           </p>
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Office</Label>
+              <Select value={loginOfficeId} onValueChange={setLoginOfficeId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an office…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {offices.map((o) => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label>Email</Label>
               <Input type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Password (min 8 chars)</Label>
+              <Label>Password <span className="text-muted-foreground text-xs">(min 8 chars)</span></Label>
               <Input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => { setLoginAgency(null); setLoginEmail(""); setLoginPassword(""); }}>Cancel</Button>
-            <Button
-              onClick={() => createLogin.mutate()}
-              disabled={!loginEmail || loginPassword.length < 8 || createLogin.isPending}
-            >
-              {createLogin.isPending ? "Creating..." : "Create login"}
+            <Button variant="ghost" onClick={() => { setLoginAgency(null); setLoginOfficeId(""); setLoginEmail(""); setLoginPassword(""); }}>Cancel</Button>
+            <Button onClick={() => createLogin.mutate()} disabled={!loginValid || createLogin.isPending}>
+              {createLogin.isPending ? "Creating…" : "Create login"}
             </Button>
           </DialogFooter>
         </DialogContent>
