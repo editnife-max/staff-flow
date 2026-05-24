@@ -834,8 +834,8 @@ function ManagerCandidatesPage() {
           }
           onUpdateField={(id, field, value) => fieldMut.mutate({ id, field, value })}
           onReturn={tab === "arrived" ? (id) => fieldMut.mutate({ id, field: "status", value: "returned" }) : undefined}
-          countryMeta={countryMeta}
-          officesByCountry={officesByCountry}
+          countryMeta={tab === "available" ? [] : countryMeta}
+          officesByCountry={tab === "available" ? {} : officesByCountry}
         />
       )}
 
