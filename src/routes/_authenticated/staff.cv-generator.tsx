@@ -424,59 +424,68 @@ function ActionDialog({
     if (!c) return;
     setDownloading(true);
     try {
-      if (downloadType === "normal-cv") {
-        if (!cvRef.current) return;
-        const canvas = await html2canvas(cvRef.current, {
-          scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: false,
-          onclone: (_doc, el) => {
-            _doc.querySelectorAll('link[rel="stylesheet"], style').forEach((s) => s.remove());
-            el.style.color = "#222222";
-            el.style.backgroundColor = "#ffffff";
-          },
-        });
-        const pxW = canvas.width / 2, pxH = canvas.height / 2;
-        const pdf = new jsPDF({ unit: "px", format: [pxW, pxH] });
-        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pxW, pxH);
-        pdf.save(`${c.full_name} — Normal CV.pdf`);
-        toast.success("Normal CV downloaded");
 
-      } else if (isCV && matchedTemplate) {
-        const isDocx = matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
-        if (isDocx) {
-          const b64 = await buildFilledDocxBase64(matchedTemplate.file_url, c);
-          const a = document.createElement("a");
-          a.href = `data:application/octet-stream;base64,${b64}`;
-          a.download = `${c.full_name} — ${currentType.label}.docx`;
-          document.body.appendChild(a); a.click(); document.body.removeChild(a);
-          toast.success(`${currentType.label} downloaded`);
+      if (isCV) {
+        if (matchedTemplate) {
+          // Use the matched DOCX or PDF template
+          const isDocx = matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
+          if (isDocx) {
+            const b64 = await buildFilledDocxBase64(matchedTemplate.file_url, c);
+            const a = document.createElement("a");
+            a.href = `data:application/octet-stream;base64,${b64}`;
+            a.download = `${c.full_name} — ${currentType.label}.docx`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            toast.success(`${currentType.label} downloaded`);
+          } else {
+            const res = await fetch(matchedTemplate.file_url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const blob = new Blob([await res.arrayBuffer()], { type: "application/octet-stream" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = `${c.full_name} — ${currentType.label}.pdf`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 30_000);
+            toast.success(`${currentType.label} downloaded`);
+          }
         } else {
-          const res = await fetch(matchedTemplate.file_url);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const blob = new Blob([await res.arrayBuffer()], { type: "application/octet-stream" });
-          const url  = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url; a.download = `${c.full_name} — ${currentType.label}.pdf`;
-          document.body.appendChild(a); a.click(); document.body.removeChild(a);
-          setTimeout(() => URL.revokeObjectURL(url), 30_000);
+          // No matching template — generate PDF from the HTML preview
+          if (downloadType !== "normal-cv") {
+            toast.info(`No template found for "${currentType.label}" — using Normal CV format.`);
+          }
+          if (!cvRef.current) throw new Error("CV preview not ready — please wait and try again.");
+          const canvas = await html2canvas(cvRef.current, {
+            scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: false,
+            onclone: (_doc, el) => {
+              _doc.querySelectorAll('link[rel="stylesheet"], style').forEach((s) => s.remove());
+              el.style.color = "#222222";
+              el.style.backgroundColor = "#ffffff";
+            },
+          });
+          const pxW = canvas.width / 2, pxH = canvas.height / 2;
+          const pdf = new jsPDF({ unit: "px", format: [pxW, pxH] });
+          pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pxW, pxH);
+          pdf.save(`${c.full_name} — ${currentType.label}.pdf`);
           toast.success(`${currentType.label} downloaded`);
         }
 
       } else if (downloadType === "summary-pdf") {
         const cols = EXPORT_COLUMNS.filter((col) => selectedCols.has(col.key as string));
+        if (cols.length === 0) throw new Error("Select at least one column to export.");
         const tableEl = document.createElement("div");
-        tableEl.style.cssText = "width:800px;padding:24px;background:#fff;font-family:Arial,sans-serif";
+        // position off-screen so it renders without flashing on screen
+        tableEl.style.cssText = "position:absolute;left:-9999px;top:0;width:800px;padding:24px;background:#fff;font-family:Arial,sans-serif";
         tableEl.innerHTML = `
-          <h2 style="margin:0 0 16px;font-size:16px;color:#1a3a52">${c.full_name} — Summary</h2>
-          <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <h2 style="margin:0 0 16px;font-size:16px;color:#1a3a52;font-family:Arial,sans-serif">${c.full_name} — Summary</h2>
+          <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:Arial,sans-serif">
             ${cols.map((col) => `
               <tr>
                 <td style="padding:5px 10px;background:#f2f4f8;font-weight:bold;border:1px solid #ccc;width:40%">${col.label}</td>
-                <td style="padding:5px 10px;border:1px solid #ccc">${c[col.key] ?? "—"}</td>
+                <td style="padding:5px 10px;border:1px solid #ccc">${String(c[col.key] ?? "—")}</td>
               </tr>
             `).join("")}
           </table>`;
         document.body.appendChild(tableEl);
-        const canvas = await html2canvas(tableEl, { scale: 2, backgroundColor: "#ffffff" });
+        const canvas = await html2canvas(tableEl, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
         document.body.removeChild(tableEl);
         const pxW = canvas.width / 2, pxH = canvas.height / 2;
         const pdf = new jsPDF({ unit: "px", format: [pxW, pxH] });
@@ -485,22 +494,22 @@ function ActionDialog({
         toast.success("Summary PDF downloaded");
 
       } else {
-        // Excel / Excel for Ticket → CSV
+        // Download Excel / Download Excel for Ticket → UTF-8 CSV (opens in Excel)
         const cols = EXPORT_COLUMNS.filter((col) => selectedCols.has(col.key as string));
-        const sorted = [c]; // single candidate; sort only matters for bulk
+        if (cols.length === 0) throw new Error("Select at least one column to export.");
         const header = cols.map((col) => `"${col.label}"`).join(",");
-        const rows = sorted.map((row) =>
-          cols.map((col) => `"${String(row[col.key] ?? "").replace(/"/g, '""')}"`).join(","),
-        );
-        const csv = [header, ...rows].join("\n");
+        const row    = cols.map((col) => `"${String(c[col.key] ?? "").replace(/"/g, '""')}"`).join(",");
+        // BOM (﻿) ensures Excel opens the file with correct UTF-8 encoding
+        const csv  = "﻿" + [header, row].join("\n");
         const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
         const url  = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url; a.download = `${c.full_name} — ${currentType.label}.csv`;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 30_000);
-        toast.success("Excel (CSV) downloaded");
+        toast.success(`${currentType.label} downloaded`);
       }
+
     } catch (e: any) {
       toast.error(e.message ?? "Download failed");
     } finally {
@@ -508,8 +517,7 @@ function ActionDialog({
     }
   };
 
-  const canDownload = !downloading &&
-    !(isCV && downloadType !== "normal-cv" && !matchedTemplate);
+  const canDownload = !downloading;
 
   return (
     <Dialog open={!!c} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -659,8 +667,8 @@ function ActionDialog({
         {/* Footer */}
         <div className="px-6 py-3 border-t shrink-0 flex items-center justify-between gap-4">
           {isCV && downloadType !== "normal-cv" && !matchedTemplate ? (
-            <p className="text-xs text-amber-600">
-              Template &ldquo;{currentType.label}&rdquo; not found — upload it in the template manager.
+            <p className="text-xs text-muted-foreground">
+              No template for &ldquo;{currentType.label}&rdquo; — will download as Normal CV format.
             </p>
           ) : (
             <span />
