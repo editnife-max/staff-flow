@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ActionDialog } from "@/components/action-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -349,6 +350,7 @@ function ManagerCandidatesPage() {
   const toggleSelect = (id: string) =>
     setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const clearSelection = () => setSelected(new Set());
+  const [actionCandidates, setActionCandidates] = useState<Candidate[]>([]);
 
   const [tab, setTab] = useState<Status>("available");
   const [passport, setPassport] = useState("");
@@ -637,8 +639,10 @@ function ManagerCandidatesPage() {
             className="gap-2 text-xs h-8 rounded-none"
             disabled={selected.size === 0}
             onClick={() => {
-              const first = Array.from(selected)[0];
-              if (first) navigate({ to: "/staff/cv-generator", search: { id: first } });
+              const sel = Array.from(selected)
+                .map((id) => candidates.find((c) => c.id === id))
+                .filter((c): c is Candidate => c != null);
+              if (sel.length > 0) setActionCandidates(sel);
             }}
           >
             <FileSignature className="h-4 w-4" />
@@ -982,6 +986,9 @@ function ManagerCandidatesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {actionCandidates.length > 0 && (
+        <ActionDialog candidates={actionCandidates} onClose={() => setActionCandidates([])} />
+      )}
     </div>
   );
 }
