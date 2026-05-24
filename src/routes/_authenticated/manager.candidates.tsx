@@ -2120,7 +2120,7 @@ function CancelReasonDialog({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Additional Notes</Label>
+            <Label className="text-xs">NOTES</Label>
             <Textarea
               rows={2}
               placeholder="Optional details..."
@@ -2171,7 +2171,7 @@ function ReturnReasonDialog({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Additional Notes *</Label>
+            <Label className="text-xs">NOTES *</Label>
             <Textarea
               rows={3}
               placeholder="Describe the return reason in detail..."
