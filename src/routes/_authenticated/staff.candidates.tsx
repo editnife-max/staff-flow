@@ -1368,7 +1368,7 @@ function ProcessingTable({
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
   const [showColPicker, setShowColPicker] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   const [search, setSearch] = useState("");
   const [procFilters, setProcFilters] = useState(INITIAL_PROC_FILTERS);
   const [activeCountryTab, setActiveCountryTab] = useState("all");
