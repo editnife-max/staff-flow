@@ -834,6 +834,8 @@ function ManagerCandidatesPage() {
           }
           onUpdateField={(id, field, value) => fieldMut.mutate({ id, field, value })}
           onReturn={tab === "arrived" ? (id) => fieldMut.mutate({ id, field: "status", value: "returned" }) : undefined}
+          countryMeta={countryMeta}
+          officesByCountry={officesByCountry}
         />
       )}
 
@@ -1007,6 +1009,7 @@ type EditableField =
 
 function CandidateCardList({
   candidates, selected, onToggleSelect, onView, onEdit, onDelete, onUpdateField, cancelMode, onReturn,
+  countryMeta, officesByCountry,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -1017,30 +1020,99 @@ function CandidateCardList({
   onUpdateField: (id: string, field: string, value: string | null) => void;
   cancelMode?: boolean;
   onReturn?: (id: string) => void;
+  countryMeta: Array<{ name: string; flag: string }>;
+  officesByCountry: Record<string, string[]>;
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
   const [showColPicker, setShowColPicker] = useState(false);
+  const [activeCountryTab, setActiveCountryTab] = useState("all");
+  const [activeOfficeTab, setActiveOfficeTab] = useState("all");
+
+  const filtered = useMemo(() => {
+    let list = candidates;
+    if (activeCountryTab !== "all") list = list.filter((c) => c.destination_country === activeCountryTab);
+    if (activeOfficeTab !== "all") list = list.filter((c) => c.office === activeOfficeTab);
+    return list;
+  }, [candidates, activeCountryTab, activeOfficeTab]);
+
   const [page, setPage] = useState(1);
-  useEffect(() => { setPage(1); }, [candidates.length]);
+  useEffect(() => { setPage(1); }, [filtered.length]);
   const PAGE_SIZE = 20;
-  const totalPages = Math.max(1, Math.ceil(candidates.length / PAGE_SIZE));
-  const paginated = candidates.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const allSel = candidates.length > 0 && candidates.every((c) => selected.has(c.id));
-  const someSel = !allSel && candidates.some((c) => selected.has(c.id));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const allSel = filtered.length > 0 && filtered.every((c) => selected.has(c.id));
+  const someSel = !allSel && filtered.some((c) => selected.has(c.id));
 
   return (
     <div className="space-y-2">
-      {candidates.length > 0 && (
+      {countryMeta.length > 0 && (
+        <Card className="rounded-none">
+          <CardContent className="px-3 py-2">
+            <div className="flex items-center gap-1 flex-wrap">
+              <button type="button"
+                onClick={() => { setActiveCountryTab("all"); setActiveOfficeTab("all"); }}
+                className={cn("px-3 py-1.5 text-xs font-medium rounded-none border transition-colors",
+                  activeCountryTab === "all"
+                    ? "border-primary/40 bg-primary/5 text-primary"
+                    : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40")}>
+                All ({candidates.length})
+              </button>
+              {countryMeta.map((c) => {
+                const count = candidates.filter((cand) => cand.destination_country === c.name).length;
+                return (
+                  <button key={c.name} type="button"
+                    onClick={() => { setActiveCountryTab(activeCountryTab === c.name ? "all" : c.name); setActiveOfficeTab("all"); }}
+                    className={cn("px-3 py-1.5 text-xs font-medium rounded-none border transition-colors flex items-center gap-1.5",
+                      activeCountryTab === c.name
+                        ? "border-primary/40 bg-primary/5 text-primary"
+                        : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40")}>
+                    <span>{c.flag}</span>{c.name}<span className="opacity-60">({count})</span>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      {activeCountryTab !== "all" && (officesByCountry[activeCountryTab] ?? []).length > 0 && (
+        <Card className="rounded-none">
+          <CardContent className="px-3 py-2">
+            <div className="flex items-center gap-1 flex-wrap">
+              <button type="button" onClick={() => setActiveOfficeTab("all")}
+                className={cn("px-3 py-1.5 text-xs font-medium rounded-none border transition-colors",
+                  activeOfficeTab === "all"
+                    ? "border-primary/40 bg-primary/5 text-primary"
+                    : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40")}>
+                All offices
+              </button>
+              {(officesByCountry[activeCountryTab] ?? []).map((office) => {
+                const count = candidates.filter((c) => c.destination_country === activeCountryTab && c.office === office).length;
+                return (
+                  <button key={office} type="button"
+                    onClick={() => setActiveOfficeTab(activeOfficeTab === office ? "all" : office)}
+                    className={cn("px-3 py-1.5 text-xs font-medium rounded-none border transition-colors flex items-center gap-1.5",
+                      activeOfficeTab === office
+                        ? "border-primary/40 bg-primary/5 text-primary"
+                        : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40")}>
+                    {office}<span className="opacity-60">({count})</span>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      {filtered.length > 0 && (
         <div className="flex items-center justify-between px-1">
           <label className="flex items-center gap-2 text-sm font-medium cursor-pointer w-fit">
             <Checkbox
               checked={allSel ? true : someSel ? "indeterminate" : false}
               onCheckedChange={(v) =>
-                candidates.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
+                filtered.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
               }
             />
-            Select all ({candidates.length})
+            Select all ({filtered.length})
           </label>
           <div className="relative">
             <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs"
@@ -1071,7 +1143,7 @@ function CandidateCardList({
           </div>
         </div>
       )}
-      {candidates.length === 0 ? (
+      {filtered.length === 0 ? (
         <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates here yet.</CardContent></Card>
       ) : paginated.map((c) => (
         <CandidateCard
@@ -1091,7 +1163,7 @@ function CandidateCardList({
       ))}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
 
-      {candidates.length > 0 && (
+      {filtered.length > 0 && (
         <div className="sticky bottom-0 z-10 bg-background flex items-center justify-between px-4 py-2 shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
           <div className="flex items-center gap-1">
             <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
@@ -1117,7 +1189,7 @@ function CandidateCardList({
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">
-              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, candidates.length)} of {candidates.length}
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
             </span>
             <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
