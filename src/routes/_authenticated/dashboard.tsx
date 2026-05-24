@@ -11,7 +11,7 @@ function DashboardRouter() {
   if (role === "admin") return <Navigate to="/admin/dashboard" />;
   if (role === "manager") return <Navigate to="/manager/dashboard" />;
   if (role === "staff") return <Navigate to="/staff/dashboard" />;
-  if (role === "agency") return <Navigate to="/manager/candidates" />;
+  if (role === "agency") return <Navigate to="/agency/candidates" />;
   return (
     <div className="min-h-screen grid place-items-center p-8">
       <div className="text-center">

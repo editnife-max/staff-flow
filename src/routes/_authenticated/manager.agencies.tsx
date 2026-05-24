@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, KeyRound, UserMinus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,27 +12,47 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { createAgencyLogin, deleteAgencyLogin } from "@/lib/agencies.functions";
 
 export const Route = createFileRoute("/_authenticated/manager/agencies")({
   head: () => ({ meta: [{ title: "Foreign Agencies — Staff-Flow" }] }),
   component: AgenciesPage,
 });
 
+type Agency = {
+  id: string;
+  name: string;
+  country: string;
+  status: string;
+  contact_email: string | null;
+  portal_user_id: string | null;
+};
+
 function AgenciesPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
+
+  // Add agency dialog
+  const [addOpen, setAddOpen] = useState(false);
   const [name, setName] = useState("");
   const [country, setCountry] = useState("");
   const [email, setEmail] = useState("");
 
-  const { data: agencies = [] } = useQuery({
+  // Create login dialog
+  const [loginAgency, setLoginAgency] = useState<Agency | null>(null);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+
+  const { data: agencies = [] } = useQuery<Agency[]>({
     queryKey: ["agencies", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.from("foreign_agencies").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase
+        .from("foreign_agencies")
+        .select("id,name,country,status,contact_email,portal_user_id")
+        .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      return data as unknown as Agency[];
     },
   });
 
@@ -47,7 +67,7 @@ function AgenciesPage() {
       toast.success("Agency added");
       qc.invalidateQueries({ queryKey: ["agencies"] });
       qc.invalidateQueries({ queryKey: ["agencies-offices-names"] });
-      setOpen(false); setName(""); setCountry(""); setEmail("");
+      setAddOpen(false); setName(""); setCountry(""); setEmail("");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -61,6 +81,38 @@ function AgenciesPage() {
       qc.invalidateQueries({ queryKey: ["agencies"] });
       qc.invalidateQueries({ queryKey: ["agencies-offices-names"] });
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const createLogin = useMutation({
+    mutationFn: async () => {
+      if (!loginAgency) return;
+      await createAgencyLogin({
+        data: {
+          agencyId: loginAgency.id,
+          agencyName: loginAgency.name,
+          email: loginEmail,
+          password: loginPassword,
+        },
+      });
+    },
+    onSuccess: () => {
+      toast.success("Portal login created");
+      qc.invalidateQueries({ queryKey: ["agencies"] });
+      setLoginAgency(null); setLoginEmail(""); setLoginPassword("");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const removeLogin = useMutation({
+    mutationFn: async ({ agencyId, portalUserId }: { agencyId: string; portalUserId: string }) => {
+      await deleteAgencyLogin({ data: { agencyId, portalUserId } });
+    },
+    onSuccess: () => {
+      toast.success("Portal login removed");
+      qc.invalidateQueries({ queryKey: ["agencies"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   return (
@@ -69,7 +121,7 @@ function AgenciesPage() {
         title="Foreign Agencies"
         description="Partner agencies sourcing candidates from abroad."
         actions={
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" /> Add agency</Button></DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>Add foreign agency</DialogTitle></DialogHeader>
@@ -79,7 +131,7 @@ function AgenciesPage() {
                 <div className="space-y-2"><Label>Contact email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
               </div>
               <DialogFooter>
-                <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+                <Button variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Button>
                 <Button onClick={() => create.mutate()} disabled={!name || !country || create.isPending}>
                   {create.isPending ? "Adding..." : "Add"}
                 </Button>
@@ -88,6 +140,7 @@ function AgenciesPage() {
           </Dialog>
         }
       />
+
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -97,7 +150,8 @@ function AgenciesPage() {
                 <TableHead>Country</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-20" />
+                <TableHead>Portal</TableHead>
+                <TableHead className="w-24" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -106,21 +160,81 @@ function AgenciesPage() {
                   <TableCell className="font-medium">{a.name}</TableCell>
                   <TableCell>{a.country}</TableCell>
                   <TableCell className="text-muted-foreground">{a.contact_email ?? "—"}</TableCell>
-                  <TableCell><span className="inline-flex rounded-full bg-success/15 text-success px-2 py-0.5 text-xs">{a.status}</span></TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => remove.mutate(a.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <span className="inline-flex rounded-full bg-success/15 text-success px-2 py-0.5 text-xs">{a.status}</span>
+                  </TableCell>
+                  <TableCell>
+                    {a.portal_user_id ? (
+                      <span className="inline-flex rounded-full bg-primary/15 text-primary px-2 py-0.5 text-xs">Active</span>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">No login</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      {a.portal_user_id ? (
+                        <Button
+                          variant="ghost" size="icon"
+                          title="Remove portal login"
+                          onClick={() => removeLogin.mutate({ agencyId: a.id, portalUserId: a.portal_user_id! })}
+                          disabled={removeLogin.isPending}
+                        >
+                          <UserMinus className="h-4 w-4 text-destructive" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost" size="icon"
+                          title="Create portal login"
+                          onClick={() => { setLoginAgency(a); setLoginEmail(a.contact_email ?? ""); setLoginPassword(""); }}
+                        >
+                          <KeyRound className="h-4 w-4 text-primary" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="icon" onClick={() => remove.mutate(a.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
               {agencies.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">No agencies yet.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">No agencies yet.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      {/* Create login dialog */}
+      <Dialog open={!!loginAgency} onOpenChange={(o) => { if (!o) { setLoginAgency(null); setLoginEmail(""); setLoginPassword(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create portal login — {loginAgency?.name}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            This creates a new account. The agency will log in with these credentials to view their sent candidates.
+          </p>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Password (min 8 chars)</Label>
+              <Input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setLoginAgency(null); setLoginEmail(""); setLoginPassword(""); }}>Cancel</Button>
+            <Button
+              onClick={() => createLogin.mutate()}
+              disabled={!loginEmail || loginPassword.length < 8 || createLogin.isPending}
+            >
+              {createLogin.isPending ? "Creating..." : "Create login"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
