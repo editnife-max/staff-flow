@@ -381,6 +381,8 @@ function CvGeneratorPage() {
 
   const filtered = candidates.filter((c) =>
     c.status === "available" &&
+    c.medical_status === "Fit" &&
+    c.coc_status === "Done" &&
     (!query || c.full_name.toLowerCase().includes(query.toLowerCase())),
   );
   const selected = filtered.find((c) => c.id === selectedId) ?? filtered[0];
