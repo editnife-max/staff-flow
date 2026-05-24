@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { Search, Download, FileText, User, ArrowUpDown } from "lucide-react";
+import { Search, Download, FileText, User, ArrowUpDown, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -392,6 +392,8 @@ function ActionDialog({
     new Set(EXPORT_COLUMNS.map((col) => col.key as string)),
   );
   const [downloading, setDownloading] = useState(false);
+  const [sortOpen,     setSortOpen]     = useState(false);
+  const [typeOpen,     setTypeOpen]     = useState(true);
 
   // Pre-select ticket columns when ticket type chosen
   useEffect(() => {
@@ -527,55 +529,73 @@ function ActionDialog({
           {/* Left panel */}
           <div className="w-[280px] shrink-0 border-r flex flex-col overflow-y-auto">
 
-            {/* Sort Options */}
-            <div className="p-4 border-b">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                Sort Options (for Export)
-              </p>
-              <div className="flex items-center gap-2">
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="h-8 text-xs rounded-none flex-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SORT_FIELDS.map((f) => (
-                      <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <button
-                  type="button"
-                  onClick={() => setSortDir((d) => d === "asc" ? "desc" : "asc")}
-                  className="h-8 w-8 shrink-0 flex items-center justify-center border rounded-none text-muted-foreground hover:bg-muted"
-                >
-                  <ArrowUpDown className="h-3.5 w-3.5" />
-                </button>
-                <span className="text-[10px] text-muted-foreground shrink-0">{sortDir.toUpperCase()}</span>
-              </div>
+            {/* Sort Options — collapsible */}
+            <div className="border-b">
+              <button
+                type="button"
+                onClick={() => setSortOpen((o) => !o)}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors"
+              >
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Sort Options (for Export)
+                </span>
+                <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", sortOpen && "rotate-180")} />
+              </button>
+              {sortOpen && (
+                <div className="px-4 pb-4 flex items-center gap-2">
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="h-8 text-xs rounded-none flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SORT_FIELDS.map((f) => (
+                        <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <button
+                    type="button"
+                    onClick={() => setSortDir((d) => d === "asc" ? "desc" : "asc")}
+                    className="h-8 w-8 shrink-0 flex items-center justify-center border rounded-none text-muted-foreground hover:bg-muted"
+                  >
+                    <ArrowUpDown className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="text-[10px] text-muted-foreground shrink-0">{sortDir.toUpperCase()}</span>
+                </div>
+              )}
             </div>
 
-            {/* Choose Download Type */}
-            <div className="p-4 border-b">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                Choose Download Type
-              </p>
-              <div className="space-y-0.5">
-                {DOWNLOAD_TYPES.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setDownloadType(t.id)}
-                    className={cn(
-                      "w-full text-left px-3 py-2 text-sm rounded-none border transition-colors",
-                      downloadType === t.id
-                        ? "border-primary/40 bg-primary/5 text-primary font-medium"
-                        : "border-transparent hover:border-border hover:bg-muted/40 text-muted-foreground",
-                    )}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
+            {/* Choose Download Type — collapsible */}
+            <div className="border-b">
+              <button
+                type="button"
+                onClick={() => setTypeOpen((o) => !o)}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors"
+              >
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Choose Download Type
+                </span>
+                <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", typeOpen && "rotate-180")} />
+              </button>
+              {typeOpen && (
+                <div className="px-4 pb-4 space-y-0.5">
+                  {DOWNLOAD_TYPES.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setDownloadType(t.id)}
+                      className={cn(
+                        "w-full text-left px-3 py-2 text-sm rounded-none border transition-colors",
+                        downloadType === t.id
+                          ? "border-primary/40 bg-primary/5 text-primary font-medium"
+                          : "border-transparent hover:border-border hover:bg-muted/40 text-muted-foreground",
+                      )}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Select Columns */}
