@@ -2292,7 +2292,7 @@ function ReturnReasonDialog({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Additional Notes</Label>
+            <Label className="text-xs">Additional Notes *</Label>
             <Textarea
               rows={3}
               placeholder="Describe the return reason in detail..."
@@ -2306,7 +2306,8 @@ function ReturnReasonDialog({
           <Button variant="ghost" onClick={onClose}>Back</Button>
           <Button
             className="bg-orange-500 hover:bg-orange-600 text-white"
-            onClick={() => onConfirm(notes.trim() ? `${reason}: ${notes.trim()}` : reason)}
+            disabled={!notes.trim()}
+            onClick={() => onConfirm(`${reason}: ${notes.trim()}`)}
           >
             Confirm Return
           </Button>
