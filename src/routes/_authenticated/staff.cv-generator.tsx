@@ -250,27 +250,43 @@ function CvPreview({ candidate: c, template }: { candidate: Candidate; template:
   );
 }
 
-// ── CV Candidate Card (matches Available-tab card style) ─────────────────────
+// ── CV Candidate Card (exact Available-tab card format) ──────────────────────
 
-const BADGE: Record<string, string> = {
-  Fit:  "bg-emerald-100/50 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
-  Done: "bg-emerald-100/50 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+const OPTION_COLORS: Record<string, string> = {
+  Fit:              "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
+  Done:             "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
+  Unfit:            "bg-red-100/50 text-[#181A27] dark:bg-red-900/40 dark:text-red-300",
+  Booked:           "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
+  "In progress":    "bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
+  Expired:          "bg-orange-100/50 text-[#181A27] dark:bg-orange-900/40 dark:text-orange-300",
+  No:               "bg-zinc-100/50 text-[#181A27] dark:bg-zinc-800 dark:text-zinc-400",
+  Placed:           "bg-violet-100/50 text-[#181A27] dark:bg-violet-900/40 dark:text-violet-300",
+  Yitazez:          "bg-orange-100/50 text-[#181A27] dark:bg-orange-900/40 dark:text-orange-300",
+  "Pending release":"bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
 };
 
 function CvCandidateCard({
   candidate: c, selected, onSelect,
 }: { candidate: Candidate; selected: boolean; onSelect: () => void }) {
-  const fields: { label: string; value: string | null | undefined; bold?: boolean; badge?: boolean }[] = [
-    { label: "FULL NAME",      value: c.full_name,       bold: true },
-    { label: "OCCUPATION",     value: c.occupation },
-    { label: "NATIONALITY",    value: c.country },
-    { label: "PASSPORT #",     value: c.passport_number },
-    { label: "DOB",            value: c.dob },
-    { label: "RELIGION",       value: c.religion },
-    { label: "MARITAL STATUS", value: c.marital_status },
-    { label: "BIRTH PLACE",    value: c.birth_place },
-    { label: "MEDICAL",        value: c.medical_status,  badge: true },
-    { label: "COC",            value: c.coc_status,      badge: true },
+  type FieldDef = { label: string; value: string; bold?: boolean; badge?: boolean };
+  const fields: FieldDef[] = [
+    { label: "FULL NAME",      value: c.full_name,                                                 bold: true },
+    { label: "CANDIDATE CODE", value: c.candidate_code ?? "—" },
+    { label: "GENDER",         value: c.gender ?? "—" },
+    { label: "RELIGION",       value: c.religion ?? "—" },
+    { label: "MARITAL STATUS", value: c.marital_status ?? "—" },
+    { label: "BIRTH PLACE",    value: c.birth_place ?? "—" },
+    { label: "LIVING TOWN",    value: c.living_town ?? "—" },
+    { label: "OCCUPATION",     value: c.occupation ?? "—" },
+    { label: "NATIONALITY",    value: c.country ?? "—" },
+    { label: "PASSPORT #",     value: c.passport_number ?? "—" },
+    { label: "DOB",            value: c.dob ?? "—" },
+    { label: "OFFICE",         value: c.office ?? "—" },
+    { label: "COC STATUS",     value: c.coc_status ?? "—",    badge: true },
+    { label: "MEDICAL STATUS", value: c.medical_status ?? "—", badge: true },
+    { label: "MEDICAL DATE",   value: c.medical_date ? new Date(c.medical_date).toLocaleDateString() : "—" },
+    { label: "SELECTED BY",    value: c.selected_by ?? "—" },
+    { label: "CV SENT TO",     value: c.cv_sent_to ?? "—" },
   ];
   return (
     <Card className={cn("relative overflow-visible transition-colors rounded-none mx-[5px]", selected && "ring-2 ring-primary")}>
@@ -285,7 +301,7 @@ function CvCandidateCard({
             <AvatarFallback className="text-[10px]">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
 
-          {/* Scrollable fields */}
+          {/* Scrollable fields — same layout as Available tab */}
           <div className="overflow-x-auto no-scrollbar">
             <div className="flex gap-5 items-start py-3">
               {fields.map((f) => (
@@ -293,13 +309,19 @@ function CvCandidateCard({
                   <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">
                     {f.label}
                   </div>
-                  {f.badge && f.value ? (
-                    <span className={cn("text-[11px] font-semibold px-1.5 py-0.5 rounded-sm whitespace-nowrap", BADGE[f.value] ?? "bg-muted text-muted-foreground")}>
+                  {f.badge && f.value && f.value !== "—" ? (
+                    <span className={cn(
+                      "text-[11px] font-semibold px-1.5 py-0.5 rounded-sm whitespace-nowrap",
+                      OPTION_COLORS[f.value] ?? "bg-zinc-100/50 text-[#181A27]",
+                    )}>
                       {f.value}
                     </span>
                   ) : (
-                    <div className={cn("text-[14px] text-[#181A27] whitespace-nowrap dark:text-foreground", f.bold && "font-semibold")}>
-                      {f.value || "—"}
+                    <div className={cn(
+                      "text-[14px] text-[#181A27] whitespace-nowrap dark:text-foreground",
+                      f.bold && "font-semibold",
+                    )}>
+                      {f.value}
                     </div>
                   )}
                 </div>
@@ -307,16 +329,16 @@ function CvCandidateCard({
             </div>
           </div>
 
-          {/* Action */}
+          {/* Generate CV button */}
           <div className="flex flex-col items-end gap-1 pt-[10px] pr-[12px] pb-[10px] pl-[4px]">
             <Button
               size="sm"
               variant={selected ? "default" : "outline"}
-              className="h-6 text-[12px] px-2 rounded-none"
+              className="h-6 text-[12px] px-2 rounded-none whitespace-nowrap"
               onClick={onSelect}
             >
               <FileText className="h-3.5 w-3.5 mr-1" />
-              {selected ? "Selected" : "Select"}
+              {selected ? "Generating…" : "Generate CV"}
             </Button>
           </div>
         </div>
@@ -357,24 +379,10 @@ function CvGeneratorPage() {
     },
   });
 
-  const REQUIRED_FIELDS: (keyof Candidate)[] = [
-    "full_name", "passport_number", "dob", "occupation",
-    "country", "religion", "birth_place", "marital_status",
-  ];
-
-  function isReady(c: Candidate) {
-    return (
-      c.status === "available" &&
-      c.medical_status === "Fit" &&
-      c.coc_status === "Done" &&
-      REQUIRED_FIELDS.every((f) => !!c[f])
-    );
-  }
-
-  const filtered = candidates.filter((c) => {
-    const matchesQuery = !query || c.full_name.toLowerCase().includes(query.toLowerCase());
-    return isReady(c) && matchesQuery;
-  });
+  const filtered = candidates.filter((c) =>
+    c.status === "available" &&
+    (!query || c.full_name.toLowerCase().includes(query.toLowerCase())),
+  );
   const selected = filtered.find((c) => c.id === selectedId) ?? filtered[0];
 
   const handleDownload = async () => {
@@ -469,8 +477,8 @@ function CvGeneratorPage() {
       {/* Header row */}
       <div className="flex items-start justify-between mb-4 gap-4 shrink-0">
         <PageHeader
-          title="CV Generator"
-          description={`Ready candidates — Available · Medical Fit · COC Done · all required fields filled.`}
+          title="CV Page"
+          description="Available candidates — select one to generate their CV."
         />
         {selected && (
           <Button onClick={handleDownload} disabled={downloading} className="shrink-0 mt-1">
@@ -492,7 +500,7 @@ function CvGeneratorPage() {
                 value={query} onChange={(e) => setQuery(e.target.value)} />
             </div>
             <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap">
-              {filtered.length} ready
+              {filtered.length} available
             </span>
           </div>
 
@@ -507,10 +515,8 @@ function CvGeneratorPage() {
               />
             ))}
             {filtered.length === 0 && (
-              <div className="text-center text-sm text-muted-foreground py-16 leading-relaxed">
-                No ready candidates.
-                <br />
-                <span className="text-xs opacity-70">Must be Available · Medical Fit · COC Done · all required fields filled.</span>
+              <div className="text-center text-sm text-muted-foreground py-16">
+                No available candidates found.
               </div>
             )}
           </div>
