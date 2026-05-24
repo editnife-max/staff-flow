@@ -158,15 +158,34 @@ function InlineSelect({ value, options, onSave }: { value: string; options: stri
 
 function InlineText({ value, onSave, truncate }: { value: string; onSave: (v: string | null) => void; truncate?: boolean }) {
   const [editing, setEditing] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [draft, setDraft] = useState(value);
+  const words = value.trim().split(/\s+/);
+  const isLong = truncate && words.length > 1;
+  const display = isLong && !expanded ? `${words[0]}...` : (value || null);
   if (!editing) {
+    if (truncate && expanded) {
+      return (
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border block whitespace-normal max-w-[260px] break-words text-[14px]"
+        >
+          {value}
+        </button>
+      );
+    }
     return (
-      <button type="button" onClick={() => { setDraft(value); setEditing(true); }}
+      <button
+        type="button"
+        title={isLong ? value : undefined}
+        onClick={() => { if (isLong) { setExpanded(true); } else { setDraft(value); setEditing(true); } }}
         className={cn(
           "text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block text-[14px]",
-          truncate && "max-w-[200px] truncate overflow-hidden",
-        )}>
-        {value || <span className="text-muted-foreground">—</span>}
+          isLong && "cursor-pointer",
+        )}
+      >
+        {display ?? <span className="text-muted-foreground">—</span>}
       </button>
     );
   }
