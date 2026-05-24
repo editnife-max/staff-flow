@@ -13,8 +13,7 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -251,6 +250,81 @@ function CvPreview({ candidate: c, template }: { candidate: Candidate; template:
   );
 }
 
+// ── CV Candidate Card (matches Available-tab card style) ─────────────────────
+
+const BADGE: Record<string, string> = {
+  Fit:  "bg-emerald-100/50 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+  Done: "bg-emerald-100/50 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
+};
+
+function CvCandidateCard({
+  candidate: c, selected, onSelect,
+}: { candidate: Candidate; selected: boolean; onSelect: () => void }) {
+  const fields: { label: string; value: string | null | undefined; bold?: boolean; badge?: boolean }[] = [
+    { label: "FULL NAME",      value: c.full_name,       bold: true },
+    { label: "OCCUPATION",     value: c.occupation },
+    { label: "NATIONALITY",    value: c.country },
+    { label: "PASSPORT #",     value: c.passport_number },
+    { label: "DOB",            value: c.dob },
+    { label: "RELIGION",       value: c.religion },
+    { label: "MARITAL STATUS", value: c.marital_status },
+    { label: "BIRTH PLACE",    value: c.birth_place },
+    { label: "MEDICAL",        value: c.medical_status,  badge: true },
+    { label: "COC",            value: c.coc_status,      badge: true },
+  ];
+  return (
+    <Card className={cn("relative overflow-visible transition-colors rounded-none mx-[5px]", selected && "ring-2 ring-primary")}>
+      <span className="absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[10px] font-semibold tracking-wide bg-success text-success-foreground">
+        Available
+      </span>
+      <CardContent className="p-0">
+        <div className="grid grid-cols-[40px_1fr_auto] gap-3 items-center">
+          {/* Photo */}
+          <Avatar className="h-10 w-10 ml-3">
+            {c.photo_url && <AvatarImage src={c.photo_url} alt={c.full_name} />}
+            <AvatarFallback className="text-[10px]">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+          </Avatar>
+
+          {/* Scrollable fields */}
+          <div className="overflow-x-auto no-scrollbar">
+            <div className="flex gap-5 items-start py-3">
+              {fields.map((f) => (
+                <div key={f.label} className="shrink-0">
+                  <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">
+                    {f.label}
+                  </div>
+                  {f.badge && f.value ? (
+                    <span className={cn("text-[11px] font-semibold px-1.5 py-0.5 rounded-sm whitespace-nowrap", BADGE[f.value] ?? "bg-muted text-muted-foreground")}>
+                      {f.value}
+                    </span>
+                  ) : (
+                    <div className={cn("text-[14px] text-[#181A27] whitespace-nowrap dark:text-foreground", f.bold && "font-semibold")}>
+                      {f.value || "—"}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Action */}
+          <div className="flex flex-col items-end gap-1 pt-[10px] pr-[12px] pb-[10px] pl-[4px]">
+            <Button
+              size="sm"
+              variant={selected ? "default" : "outline"}
+              className="h-6 text-[12px] px-2 rounded-none"
+              onClick={onSelect}
+            >
+              <FileText className="h-3.5 w-3.5 mr-1" />
+              {selected ? "Selected" : "Select"}
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 function CvGeneratorPage() {
@@ -391,134 +465,122 @@ function CvGeneratorPage() {
       : "Download PDF";
 
   return (
-    <div>
-      <PageHeader
-        title="CV Generator"
-        description="Pick a candidate, optionally select a template, then download."
-        actions={
-          selected && (
-            <Button onClick={handleDownload} disabled={downloading}>
-              <Download className="h-4 w-4 mr-2" />
-              {btnLabel}
-            </Button>
-          )
-        }
-      />
-      <div className="flex gap-4 h-[calc(100vh-220px)]">
+    <div className="flex flex-col h-[calc(100vh-112px)]">
+      {/* Header row */}
+      <div className="flex items-start justify-between mb-4 gap-4 shrink-0">
+        <PageHeader
+          title="CV Generator"
+          description={`Ready candidates — Available · Medical Fit · COC Done · all required fields filled.`}
+        />
+        {selected && (
+          <Button onClick={handleDownload} disabled={downloading} className="shrink-0 mt-1">
+            <Download className="h-4 w-4 mr-2" />
+            {btnLabel}
+          </Button>
+        )}
+      </div>
 
-        {/* Candidates */}
-        <Card className="w-[260px] shrink-0 flex flex-col rounded-none">
-          <CardContent className="p-3 border-b">
-            <div className="relative">
+      <div className="flex gap-4 flex-1 min-h-0">
+
+        {/* Left: Candidate card list */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          {/* Search + count */}
+          <div className="flex items-center gap-3 mb-3 shrink-0">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input className="pl-9 rounded-none" placeholder="Search candidates…"
                 value={query} onChange={(e) => setQuery(e.target.value)} />
             </div>
-          </CardContent>
-          <ScrollArea className="flex-1">
-            <div className="p-2 space-y-1">
-              {filtered.map((c) => (
-                <button key={c.id} onClick={() => setSelectedId(c.id)}
-                  className={cn(
-                    "w-full text-left rounded-none p-3 flex items-center gap-3 transition border",
-                    selected?.id === c.id ? "border-primary/40 bg-primary/5" : "border-transparent hover:bg-muted",
-                  )}
-                >
-                  {c.photo_url
-                    ? <img src={c.photo_url} alt="" className="h-9 w-9 rounded-full object-cover shrink-0" />
-                    : <Avatar className="h-9 w-9 shrink-0"><AvatarFallback>{c.full_name.slice(0,2).toUpperCase()}</AvatarFallback></Avatar>
-                  }
-                  <div className="min-w-0">
-                    <div className="font-medium text-sm truncate">{c.full_name}</div>
-                    <div className="text-xs text-muted-foreground truncate">{c.country ?? "—"} · {c.occupation ?? "—"}</div>
-                  </div>
-                </button>
-              ))}
-              {filtered.length === 0 && (
-                <div className="text-center text-xs text-muted-foreground p-6 leading-relaxed">
-                  No ready candidates.<br />
-                  <span className="opacity-70">Must be Available · Medical Fit · COC Done · all required fields filled.</span>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        </Card>
+            <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap">
+              {filtered.length} ready
+            </span>
+          </div>
 
-        {/* Templates */}
-        <Card className="w-[220px] shrink-0 flex flex-col rounded-none">
-          <CardContent className="p-3 border-b">
-            <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-              <FileText className="h-3.5 w-3.5 text-primary" /> Templates
-            </p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              DOCX → filled &amp; downloaded · PDF → downloaded as-is
-            </p>
-          </CardContent>
-          <ScrollArea className="flex-1">
-            <div className="p-2 space-y-1">
-              {templates.length === 0
-                ? <p className="text-xs text-muted-foreground text-center py-8 px-2">No templates yet.</p>
-                : templates.map((t) => {
-                    const isDocx = t.file_url.split("?")[0].toLowerCase().endsWith(".docx");
-                    return (
-                      <div key={t.id}
-                        className={cn(
-                          "rounded-none border p-2.5 cursor-pointer transition-colors",
-                          selectedTemplate?.id === t.id
-                            ? "border-primary/40 bg-primary/5"
-                            : "border-border/60 bg-muted/20 hover:border-border hover:bg-muted/40",
-                        )}
-                        onClick={() => setSelectedTemplate(selectedTemplate?.id === t.id ? null : t)}
-                      >
-                        <div className="flex items-start gap-2">
-                          <FileText className={cn("h-3.5 w-3.5 mt-0.5 shrink-0",
-                            selectedTemplate?.id === t.id ? "text-primary" : "text-muted-foreground")} />
-                          <span className="text-xs font-medium flex-1 leading-tight">{t.name}</span>
-                          {selectedTemplate?.id === t.id && <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />}
-                        </div>
-                        <div className="mt-1.5 flex items-center justify-between">
-                          <span className="text-[9px] text-muted-foreground uppercase tracking-wide">
-                            {isDocx ? "DOCX – auto-fill" : "PDF"}
-                          </span>
-                          <button type="button"
-                            onClick={(e) => { e.stopPropagation(); downloadTemplateFile(t); }}
-                            className="text-[9px] text-primary hover:underline flex items-center gap-0.5"
-                          >
-                            <Download className="h-2.5 w-2.5" /> raw
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })
-              }
-            </div>
-          </ScrollArea>
-          {selectedTemplate && (
-            <div className="p-3 border-t bg-primary/5">
-              <p className="text-[10px] text-primary font-medium truncate">✓ {selectedTemplate.name}</p>
-              <p className="text-[9px] text-muted-foreground mt-0.5">
-                {selectedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx")
-                  ? "Will be filled with candidate data"
-                  : "PDF template will be downloaded"}
-              </p>
-            </div>
-          )}
-        </Card>
-
-        {/* CV Preview */}
-        <div className="flex-1 overflow-auto bg-muted/30 p-4">
-          {selected ? (
-            <div ref={cvRef} className="mx-auto shadow-xl w-fit">
-              <CvPreview candidate={selected} template={selectedTemplate} />
-            </div>
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center gap-3 text-muted-foreground">
-              <User className="h-12 w-12 opacity-20" />
-              <p className="text-sm">Select a candidate to preview their CV.</p>
-            </div>
-          )}
+          {/* Cards */}
+          <div className="flex-1 overflow-y-auto space-y-6 pr-1">
+            {filtered.map((c) => (
+              <CvCandidateCard
+                key={c.id}
+                candidate={c}
+                selected={selected?.id === c.id}
+                onSelect={() => setSelectedId(c.id)}
+              />
+            ))}
+            {filtered.length === 0 && (
+              <div className="text-center text-sm text-muted-foreground py-16 leading-relaxed">
+                No ready candidates.
+                <br />
+                <span className="text-xs opacity-70">Must be Available · Medical Fit · COC Done · all required fields filled.</span>
+              </div>
+            )}
+          </div>
         </div>
 
+        {/* Right: Templates + CV Preview */}
+        <div className="w-[480px] shrink-0 flex flex-col gap-3 min-h-0">
+
+          {/* Templates */}
+          <Card className="shrink-0 rounded-none">
+            <CardContent className="p-3">
+              <p className="text-xs font-semibold text-foreground flex items-center gap-1.5 mb-2">
+                <FileText className="h-3.5 w-3.5 text-primary" /> Templates
+                <span className="text-[9px] font-normal text-muted-foreground">
+                  DOCX → filled · PDF → as-is · none → PDF preview
+                </span>
+              </p>
+              <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                {templates.length === 0
+                  ? <p className="text-xs text-muted-foreground py-1">No templates yet.</p>
+                  : templates.map((t) => {
+                      const isDocx = t.file_url.split("?")[0].toLowerCase().endsWith(".docx");
+                      return (
+                        <div key={t.id}
+                          className={cn(
+                            "rounded-none border p-2 cursor-pointer transition-colors shrink-0 w-[150px]",
+                            selectedTemplate?.id === t.id
+                              ? "border-primary/40 bg-primary/5"
+                              : "border-border/60 bg-muted/20 hover:border-border hover:bg-muted/40",
+                          )}
+                          onClick={() => setSelectedTemplate(selectedTemplate?.id === t.id ? null : t)}
+                        >
+                          <div className="flex items-start gap-1.5">
+                            <FileText className={cn("h-3 w-3 mt-0.5 shrink-0",
+                              selectedTemplate?.id === t.id ? "text-primary" : "text-muted-foreground")} />
+                            <span className="text-[11px] font-medium leading-tight line-clamp-2 flex-1">{t.name}</span>
+                            {selectedTemplate?.id === t.id && <CheckCircle2 className="h-3 w-3 text-primary shrink-0" />}
+                          </div>
+                          <div className="mt-1.5 flex items-center justify-between">
+                            <span className="text-[9px] text-muted-foreground uppercase">{isDocx ? "DOCX" : "PDF"}</span>
+                            <button type="button"
+                              onClick={(e) => { e.stopPropagation(); downloadTemplateFile(t); }}
+                              className="text-[9px] text-primary hover:underline flex items-center gap-0.5"
+                            >
+                              <Download className="h-2.5 w-2.5" /> raw
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                }
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* CV Preview */}
+          <div className="flex-1 overflow-auto bg-muted/30 p-4 min-h-0">
+            {selected ? (
+              <div ref={cvRef} className="mx-auto shadow-xl w-fit">
+                <CvPreview candidate={selected} template={selectedTemplate} />
+              </div>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                <User className="h-12 w-12 opacity-20" />
+                <p className="text-sm">Select a candidate to preview their CV.</p>
+              </div>
+            )}
+          </div>
+
+        </div>
       </div>
     </div>
   );
