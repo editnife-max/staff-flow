@@ -226,15 +226,30 @@ function AgencyCandidatesPage() {
                 onChange={(v) => setFilters({ ...filters, marital: v })}
                 options={[{ value: "all", label: "-----" }, { value: "Single", label: "Single" }, { value: "Married", label: "Married" }]}
               />
-              <div className="flex items-center gap-1">
-                <Users className="h-3 w-3 text-muted-foreground" />
-                <Input type="number" placeholder="Age from" value={filters.ageFrom}
+              <div className={cn(
+                "flex items-center gap-1 h-7 px-2 border rounded-none text-[13px] font-medium transition-colors",
+                (filters.ageFrom || filters.ageTo)
+                  ? "bg-black/10 border-black/20 text-[#181A27] dark:bg-white/10 dark:border-white/20 dark:text-white"
+                  : "bg-muted/40 border-border text-muted-foreground",
+              )}>
+                <Users className="h-3 w-3 shrink-0" />
+                <input
+                  type="number"
+                  placeholder="Age from"
+                  value={filters.ageFrom}
                   onChange={(e) => setFilters({ ...filters, ageFrom: e.target.value })}
-                  className="h-7 w-20 text-xs rounded-none" min={0} />
-                <span className="text-xs text-muted-foreground">–</span>
-                <Input type="number" placeholder="Age to" value={filters.ageTo}
+                  className="w-14 bg-transparent outline-none text-xs placeholder:text-muted-foreground [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  min={0}
+                />
+                <span className="text-muted-foreground">–</span>
+                <input
+                  type="number"
+                  placeholder="Age to"
+                  value={filters.ageTo}
                   onChange={(e) => setFilters({ ...filters, ageTo: e.target.value })}
-                  className="h-7 w-20 text-xs rounded-none" min={0} />
+                  className="w-14 bg-transparent outline-none text-xs placeholder:text-muted-foreground [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  min={0}
+                />
                 {(filters.ageFrom || filters.ageTo) && (
                   <button type="button" onClick={() => setFilters({ ...filters, ageFrom: "", ageTo: "" })}
                     className="p-0.5 text-muted-foreground hover:text-foreground">
