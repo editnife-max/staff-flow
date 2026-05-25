@@ -17,13 +17,17 @@ export const getAdminStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await requireAdmin(context.userId);
-    const [managersRes, pendingRes, approvedRes] = await Promise.all([
+    const [managersRes, staffRes, agencyRes, pendingRes, approvedRes] = await Promise.all([
       supabaseAdmin.from("user_roles").select("*", { count: "exact", head: true }).eq("role", "manager"),
+      supabaseAdmin.from("user_roles").select("*", { count: "exact", head: true }).eq("role", "staff"),
+      supabaseAdmin.from("user_roles").select("*", { count: "exact", head: true }).eq("role", "agency"),
       supabaseAdmin.from("subscription_requests").select("*", { count: "exact", head: true }).eq("status", "pending"),
       supabaseAdmin.from("subscription_requests").select("*", { count: "exact", head: true }).eq("status", "approved"),
     ]);
     return {
       managers: managersRes.count ?? 0,
+      staff: staffRes.count ?? 0,
+      agencies: agencyRes.count ?? 0,
       pendingSubs: pendingRes.count ?? 0,
       approvedPlans: approvedRes.count ?? 0,
     };
@@ -127,5 +131,116 @@ export const removeManager = createServerFn({ method: "POST" })
       .eq("user_id", data.userId)
       .eq("role", "manager");
     if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// ── All-role user management ────────────────────────────────────────────────
+
+export const getAdminUsers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireAdmin(context.userId);
+
+    const { data: roles } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id, role, manager_id, created_at")
+      .order("created_at", { ascending: false });
+
+    if (!roles || roles.length === 0) return [];
+    const ids = [...new Set(roles.map((r) => r.user_id))];
+
+    const [profilesRes, authRes, managersProfileRes] = await Promise.all([
+      supabaseAdmin.from("profiles").select("id, full_name, agency_name").in("id", ids) as any,
+      supabaseAdmin.auth.admin.listUsers({ perPage: 1000 }),
+      // For staff rows, resolve manager name
+      supabaseAdmin.from("profiles").select("id, full_name"),
+    ]);
+
+    const profileMap = Object.fromEntries(
+      ((profilesRes.data ?? []) as any[]).map((p: any) => [p.id, { full_name: p.full_name, agency_name: p.agency_name }]),
+    );
+    const emailMap = Object.fromEntries(
+      ((authRes.data as any)?.users ?? []).map((u: any) => [u.id, u.email as string]),
+    );
+    const allProfileMap = Object.fromEntries(
+      (managersProfileRes.data ?? []).map((p) => [p.id, p.full_name]),
+    );
+
+    return roles.map((r) => ({
+      id: r.user_id,
+      role: r.role as string,
+      manager_id: r.manager_id as string | null,
+      manager_name: r.manager_id ? (allProfileMap[r.manager_id] ?? null) : null,
+      full_name: (profileMap[r.user_id]?.full_name ?? null) as string | null,
+      agency_name: (profileMap[r.user_id]?.agency_name ?? null) as string | null,
+      email: (emailMap[r.user_id] ?? null) as string | null,
+      joined: r.created_at,
+    }));
+  });
+
+const RoleEnum = z.enum(["admin", "manager", "staff", "agency"]);
+
+export const createAdminUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      role: RoleEnum,
+      full_name: z.string().min(1),
+      email: z.string().email(),
+      password: z.string().min(8),
+      manager_id: z.string().uuid().optional().nullable(),
+      agency_name: z.string().optional().nullable(),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context.userId);
+
+    const { data: newUser, error: authErr } = await supabaseAdmin.auth.admin.createUser({
+      email: data.email,
+      password: data.password,
+      email_confirm: true,
+    });
+    if (authErr) throw new Error(authErr.message);
+    const userId = newUser.user.id;
+
+    const { error: roleErr } = await supabaseAdmin.from("user_roles").insert({
+      user_id: userId,
+      role: data.role,
+      manager_id: data.manager_id ?? null,
+    } as never);
+    if (roleErr) throw new Error(roleErr.message);
+
+    const { error: profErr } = await supabaseAdmin.from("profiles").upsert({
+      id: userId,
+      full_name: data.full_name,
+      agency_name: data.agency_name ?? null,
+    } as never);
+    if (profErr) throw new Error(profErr.message);
+
+    return { ok: true, userId };
+  });
+
+export const removeUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ userId: z.string().uuid(), role: RoleEnum }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context.userId);
+    if (data.userId === context.userId) throw new Error("Cannot remove your own account");
+
+    if (data.role === "agency") {
+      // Agency users are system-created — delete the auth account entirely
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
+      if (error) throw new Error(error.message);
+    } else {
+      // For other roles, revoke the role (keep the auth account)
+      const { error } = await supabaseAdmin
+        .from("user_roles")
+        .delete()
+        .eq("user_id", data.userId)
+        .eq("role", data.role);
+      if (error) throw new Error(error.message);
+    }
     return { ok: true };
   });
