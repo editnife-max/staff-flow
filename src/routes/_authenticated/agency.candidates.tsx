@@ -1,20 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { Search } from "lucide-react";
+import React, { useState } from "react";
+import {
+  Search, SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
+  ArrowUpDown, Users, User, BookOpen, Briefcase, Heart, Globe2,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+import { X } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/agency/candidates")({
   head: () => ({ meta: [{ title: "Candidates — Agency Portal" }] }),
   component: AgencyCandidatesPage,
 });
+
+type Status = "available" | "processing" | "arrived" | "canceled" | "returned";
 
 type Candidate = {
   id: string;
@@ -38,16 +44,38 @@ type Candidate = {
   status: string;
 };
 
+const TABS: { key: Status; label: string }[] = [
+  { key: "available",  label: "Available" },
+  { key: "processing", label: "Processing" },
+  { key: "arrived",    label: "Arrived" },
+  { key: "returned",   label: "Returned" },
+  { key: "canceled",   label: "Canceled" },
+];
+
+const STATUS_STYLES: Record<Status, string> = {
+  available:  "bg-success text-success-foreground",
+  processing: "bg-warning text-foreground",
+  arrived:    "bg-info text-info-foreground",
+  canceled:   "bg-destructive text-destructive-foreground",
+  returned:   "bg-orange-500 text-white",
+};
+
+const initialFilters = {
+  sort:       "newest",
+  occupation: "all",
+  gender:     "all",
+  religion:   "all",
+  experience: "all",
+  marital:    "all",
+  ageFrom:    "",
+  ageTo:      "",
+};
+
 function AgencyCandidatesPage() {
-  const [query, setQuery] = useState("");
-  const [filterOccupation, setFilterOccupation] = useState("all");
-  const [filterGender, setFilterGender] = useState("all");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [filterReligion, setFilterReligion] = useState("all");
-  const [filterExperience, setFilterExperience] = useState("all");
-  const [filterMarital, setFilterMarital] = useState("all");
-  const [ageFrom, setAgeFrom] = useState("");
-  const [ageTo, setAgeTo] = useState("");
+  const [tab, setTab] = useState<Status>("available");
+  const [search, setSearch] = useState("");
+  const [showFilters, setShowFilters] = useState(true);
+  const [filters, setFilters] = useState(initialFilters);
 
   const { data: candidates = [], isLoading } = useQuery<Candidate[]>({
     queryKey: ["agency-candidates"],
@@ -65,156 +93,205 @@ function AgencyCandidatesPage() {
     },
   });
 
-  const occupations   = [...new Set(candidates.map((c) => c.occupation).filter((v): v is string => !!v))].sort();
-  const statuses      = [...new Set(candidates.map((c) => c.status).filter(Boolean))].sort();
-  const religions     = [...new Set(candidates.map((c) => c.religion).filter((v): v is string => !!v))].sort();
-  const experiences   = [...new Set(candidates.map((c) => c.experience).filter((v): v is string => !!v))].sort();
-  const maritalOpts   = [...new Set(candidates.map((c) => c.marital_status).filter((v): v is string => !!v))].sort();
+  // Dynamic filter options from data
+  const occupations = [...new Set(candidates.map((c) => c.occupation).filter((v): v is string => !!v))].sort();
+  const religions   = [...new Set(candidates.map((c) => c.religion).filter((v): v is string => !!v))].sort();
+  const experiences = [...new Set(candidates.map((c) => c.experience).filter((v): v is string => !!v))].sort();
+  const maritals    = [...new Set(candidates.map((c) => c.marital_status).filter((v): v is string => !!v))].sort();
 
-  const ageFromNum = ageFrom !== "" ? Number(ageFrom) : null;
-  const ageToNum   = ageTo   !== "" ? Number(ageTo)   : null;
+  const ageFromNum = filters.ageFrom !== "" ? Number(filters.ageFrom) : null;
+  const ageToNum   = filters.ageTo   !== "" ? Number(filters.ageTo)   : null;
 
-  const filtered = candidates.filter((c) => {
-    if (query && !c.full_name.toLowerCase().includes(query.toLowerCase())) return false;
-    if (filterOccupation !== "all" && c.occupation !== filterOccupation) return false;
-    if (filterGender !== "all" && c.gender !== filterGender) return false;
-    if (filterStatus !== "all" && c.status !== filterStatus) return false;
-    if (filterReligion !== "all" && c.religion !== filterReligion) return false;
-    if (filterExperience !== "all" && c.experience !== filterExperience) return false;
-    if (filterMarital !== "all" && c.marital_status !== filterMarital) return false;
-    if (ageFromNum !== null && (c.age == null || c.age < ageFromNum)) return false;
-    if (ageToNum   !== null && (c.age == null || c.age > ageToNum))   return false;
-    return true;
-  });
+  const filtered = candidates
+    .filter((c) => c.status === tab)
+    .filter((c) => !search || c.full_name.toLowerCase().includes(search.toLowerCase()))
+    .filter((c) => filters.occupation === "all" || c.occupation === filters.occupation)
+    .filter((c) => filters.gender     === "all" || c.gender     === filters.gender)
+    .filter((c) => filters.religion   === "all" || c.religion   === filters.religion)
+    .filter((c) => filters.experience === "all" || c.experience === filters.experience)
+    .filter((c) => filters.marital    === "all" || c.marital_status === filters.marital)
+    .filter((c) => ageFromNum === null || (c.age != null && c.age >= ageFromNum))
+    .filter((c) => ageToNum   === null || (c.age != null && c.age <= ageToNum))
+    .sort((a, b) =>
+      filters.sort === "oldest"
+        ? (a as any).created_at?.localeCompare((b as any).created_at ?? "") ?? 0
+        : ((b as any).created_at ?? "").localeCompare((a as any).created_at ?? "")
+    );
 
-  const activeCount = [
-    filterOccupation !== "all", filterGender !== "all", filterStatus !== "all",
-    filterReligion !== "all", filterExperience !== "all", filterMarital !== "all",
-    ageFrom !== "", ageTo !== "",
-  ].filter(Boolean).length;
+  const activeCount = Object.entries(filters).filter(([k, v]) =>
+    k !== "sort" && v && v !== "all"
+  ).length;
 
   function resetFilters() {
-    setFilterOccupation("all"); setFilterGender("all"); setFilterStatus("all");
-    setFilterReligion("all"); setFilterExperience("all"); setFilterMarital("all");
-    setAgeFrom(""); setAgeTo(""); setQuery("");
+    setFilters(initialFilters);
+    setSearch("");
   }
 
   return (
-    <div className="space-y-4">
+    <div>
       <PageHeader
         title="Candidates"
-        description={`${filtered.length} candidate${filtered.length !== 1 ? "s" : ""} sent to your agency`}
+        description={`${filtered.length} candidate${filtered.length !== 1 ? "s" : ""} — ${tab}`}
       />
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2">
-        <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
+      {/* Filter panel */}
+      <Card className="rounded-none mb-0">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowFilters((s) => !s)}
+                className="flex items-center gap-2 text-xs font-bold text-foreground hover:text-primary transition-colors"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
+                Filters
+                {activeCount > 0 && (
+                  <span className="rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+                    {activeCount}
+                  </span>
+                )}
+                {showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-8 h-7 text-xs rounded-none w-52"
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              disabled={activeCount === 0 && !search}
+            >
+              <RotateCcw className="h-3 w-3" /> Reset
+            </button>
+          </div>
 
-        <Select value={filterOccupation} onValueChange={setFilterOccupation}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Occupation" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All occupations</SelectItem>
-            {occupations.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-          </SelectContent>
-        </Select>
+          {showFilters && (
+            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+              <FilterSelect
+                value={filters.sort}
+                onChange={(v) => setFilters({ ...filters, sort: v })}
+                icon={ArrowUpDown}
+                options={[
+                  { value: "newest", label: "Newest first" },
+                  { value: "oldest", label: "Oldest first" },
+                ]}
+              />
+              <FilterSelect
+                placeholder="Gender" value={filters.gender} icon={User}
+                onChange={(v) => setFilters({ ...filters, gender: v })}
+                options={[
+                  { value: "all", label: "-----" },
+                  { value: "Female", label: "Female" },
+                  { value: "Male", label: "Male" },
+                ]}
+              />
+              <FilterSelect
+                placeholder="Religion" value={filters.religion} icon={BookOpen}
+                onChange={(v) => setFilters({ ...filters, religion: v })}
+                options={[
+                  { value: "all", label: "-----" },
+                  ...religions.map((r) => ({ value: r, label: r })),
+                ]}
+              />
+              <FilterSelect
+                placeholder="Experience" value={filters.experience} icon={Briefcase}
+                onChange={(v) => setFilters({ ...filters, experience: v })}
+                options={[
+                  { value: "all", label: "-----" },
+                  ...experiences.map((e) => ({ value: e, label: e })),
+                ]}
+              />
+              <FilterSelect
+                placeholder="Marital Status" value={filters.marital} icon={Heart}
+                onChange={(v) => setFilters({ ...filters, marital: v })}
+                options={[
+                  { value: "all", label: "-----" },
+                  ...maritals.map((m) => ({ value: m, label: m })),
+                ]}
+              />
+              <FilterSelect
+                placeholder="Occupation" value={filters.occupation} icon={Globe2}
+                onChange={(v) => setFilters({ ...filters, occupation: v })}
+                options={[
+                  { value: "all", label: "-----" },
+                  ...occupations.map((o) => ({ value: o, label: o })),
+                ]}
+              />
+              {/* Age from / to */}
+              <div className="flex items-center gap-1">
+                <Users className="h-3 w-3 text-muted-foreground" />
+                <Input
+                  type="number"
+                  placeholder="Age from"
+                  value={filters.ageFrom}
+                  onChange={(e) => setFilters({ ...filters, ageFrom: e.target.value })}
+                  className="h-7 w-20 text-xs rounded-none"
+                  min={0}
+                />
+                <span className="text-xs text-muted-foreground">–</span>
+                <Input
+                  type="number"
+                  placeholder="Age to"
+                  value={filters.ageTo}
+                  onChange={(e) => setFilters({ ...filters, ageTo: e.target.value })}
+                  className="h-7 w-20 text-xs rounded-none"
+                  min={0}
+                />
+                {(filters.ageFrom || filters.ageTo) && (
+                  <button
+                    type="button"
+                    onClick={() => setFilters({ ...filters, ageFrom: "", ageTo: "" })}
+                    className="p-0.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-        <Select value={filterGender} onValueChange={setFilterGender}>
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Gender" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All genders</SelectItem>
-            <SelectItem value="Female">Female</SelectItem>
-            <SelectItem value="Male">Male</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={filterReligion} onValueChange={setFilterReligion}>
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Religion" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All religions</SelectItem>
-            {religions.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-          </SelectContent>
-        </Select>
-
-        <Select value={filterExperience} onValueChange={setFilterExperience}>
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Experience" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All experience</SelectItem>
-            {experiences.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-          </SelectContent>
-        </Select>
-
-        <Select value={filterMarital} onValueChange={setFilterMarital}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Marital Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            {maritalOpts.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-          </SelectContent>
-        </Select>
-
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            {statuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-          </SelectContent>
-        </Select>
-
-        {/* Age range */}
-        <Input
-          type="number"
-          placeholder="Age from"
-          value={ageFrom}
-          onChange={(e) => setAgeFrom(e.target.value)}
-          className="w-24"
-          min={0}
-        />
-        <Input
-          type="number"
-          placeholder="Age to"
-          value={ageTo}
-          onChange={(e) => setAgeTo(e.target.value)}
-          className="w-24"
-          min={0}
-        />
-
-        {activeCount > 0 && (
-          <button
-            type="button"
-            onClick={resetFilters}
-            className="text-xs text-muted-foreground hover:text-foreground underline self-center"
-          >
-            Reset ({activeCount})
-          </button>
-        )}
-      </div>
+      {/* Status tabs */}
+      <Card className="rounded-none mb-3">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-8 border-b border-border">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={cn(
+                  "pb-2 text-[16px] font-medium transition-colors",
+                  tab === t.key
+                    ? "text-primary border-b-2 border-primary -mb-px"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {t.label}
+                <span className="ml-1.5 text-xs text-muted-foreground">
+                  ({candidates.filter((c) => c.status === t.key).length})
+                </span>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Results */}
       {isLoading ? (
-        <div className="text-muted-foreground py-12 text-center">Loading…</div>
+        <Card className="rounded-none"><CardContent className="p-8 text-center text-sm text-muted-foreground">Loading…</CardContent></Card>
       ) : filtered.length === 0 ? (
-        <div className="text-muted-foreground py-12 text-center">No candidates found.</div>
+        <Card className="rounded-none"><CardContent className="p-8 text-center text-sm text-muted-foreground">No candidates found.</CardContent></Card>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="flex flex-col gap-3">
           {filtered.map((c) => <AgencyCandidateCard key={c.id} candidate={c} />)}
         </div>
       )}
@@ -223,54 +300,60 @@ function AgencyCandidatesPage() {
 }
 
 function AgencyCandidateCard({ candidate: c }: { candidate: Candidate }) {
-  const rows: [string, string | number | null][] = [
-    ["Occupation", c.occupation],
-    ["Country", c.country],
-    ["Age", c.age],
-    ["Gender", c.gender],
-    ["Religion", c.religion],
-    ["Marital", c.marital_status],
-    ["Experience", c.experience],
-    ["Education", c.education],
-    ["English", c.english_level],
-    ["Arabic", c.arabic_level],
+  const statusKey = (c.status in STATUS_STYLES ? c.status : "available") as Status;
+  const STATUS_LABEL: Record<Status, string> = {
+    available: "Available", processing: "Processing", arrived: "Arrived",
+    canceled: "Canceled", returned: "Returned",
+  };
+
+  const fields: [string, string | number | null][] = [
+    ["FULL NAME",     c.full_name],
+    ["OCCUPATION",    c.occupation],
+    ["COUNTRY",       c.country],
+    ["AGE",           c.age],
+    ["GENDER",        c.gender],
+    ["RELIGION",      c.religion],
+    ["MARITAL",       c.marital_status],
+    ["EXPERIENCE",    c.experience],
+    ["EDUCATION",     c.education],
+    ["ENGLISH",       c.english_level],
+    ["ARABIC",        c.arabic_level],
+    ["MEDICAL",       c.medical_status],
+    ["COC",           c.coc_status],
+    ["PASSPORT",      c.passport_status],
   ];
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="relative overflow-visible rounded-none mx-[5px]">
+      <span className={cn(
+        "absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[10px] font-semibold tracking-wide",
+        STATUS_STYLES[statusKey],
+      )}>
+        {STATUS_LABEL[statusKey]}
+      </span>
       <CardContent className="p-0">
-        {/* Photo header */}
-        <div className="relative h-40 bg-muted flex items-center justify-center">
-          {c.photo_url ? (
-            <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />
-          ) : (
-            <div className="h-16 w-16 rounded-full bg-primary/10 grid place-items-center text-primary font-semibold text-xl">
-              {c.full_name.charAt(0)}
+        <div className="grid grid-cols-[40px_1fr] gap-3 items-center">
+          <div className="flex items-center justify-center pl-3">
+            <Avatar className="h-10 w-10">
+              {c.photo_url && <AvatarImage src={c.photo_url} alt={c.full_name} />}
+              <AvatarFallback className="text-[10px]">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+            </Avatar>
+          </div>
+          <div className="overflow-x-auto no-scrollbar">
+            <div className="flex gap-5 items-start py-3">
+              {fields.map(([label, val]) =>
+                val != null ? (
+                  <div key={label} className="shrink-0">
+                    <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">
+                      {label}
+                    </div>
+                    <div className="text-[14px] text-[#181A27] whitespace-nowrap">
+                      {val}
+                    </div>
+                  </div>
+                ) : null
+              )}
             </div>
-          )}
-          <div className="absolute top-2 right-2">
-            <StatusBadge status={c.status} />
-          </div>
-        </div>
-
-        <div className="p-3 space-y-2">
-          <p className="font-semibold text-sm truncate">{c.full_name}</p>
-
-          <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
-            {rows.map(([label, val]) =>
-              val != null ? (
-                <div key={label} className="contents">
-                  <span className="text-muted-foreground">{label}</span>
-                  <span className="truncate">{val}</span>
-                </div>
-              ) : null
-            )}
-          </div>
-
-          <div className="flex flex-wrap gap-1 pt-1">
-            {c.medical_status && <Badge variant="outline" className="text-xs">{c.medical_status}</Badge>}
-            {c.coc_status && <Badge variant="outline" className="text-xs">COC: {c.coc_status}</Badge>}
-            {c.passport_status && <Badge variant="outline" className="text-xs">PP: {c.passport_status}</Badge>}
           </div>
         </div>
       </CardContent>
@@ -278,17 +361,53 @@ function AgencyCandidateCard({ candidate: c }: { candidate: Candidate }) {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    available: "bg-success/15 text-success",
-    processing: "bg-blue-500/15 text-blue-600",
-    arrived: "bg-primary/15 text-primary",
-    canceled: "bg-destructive/15 text-destructive",
-    returned: "bg-orange-500/15 text-orange-600",
-  };
+function FilterSelect({
+  value, onChange, options, placeholder, icon: Icon,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+  icon?: React.ElementType;
+}) {
+  const isReset = value === "all" || !value;
   return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${map[status] ?? "bg-muted text-muted-foreground"}`}>
-      {status}
-    </span>
+    <div className="flex items-center gap-0.5">
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger
+          className={cn(
+            "border shadow-none w-auto h-7 px-2 gap-1.5 transition-colors rounded-none text-[13px] font-medium [&>svg]:shrink-0",
+            isReset
+              ? "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+              : "bg-black/10 border-black/20 text-[#181A27] dark:bg-white/10 dark:border-white/20 dark:text-white",
+          )}
+        >
+          {Icon && <Icon className="h-3 w-3 shrink-0" />}
+          {isReset ? <span>{placeholder}</span> : <SelectValue />}
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((o) => (
+            <SelectItem key={o.value} value={o.value} className="py-1 px-2 focus:bg-muted/50">
+              <span className={cn(
+                "text-[13px]",
+                o.value === "all" ? "text-muted-foreground" : "text-[#181A27] dark:text-white",
+              )}>
+                {o.label}
+              </span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {!isReset && (
+        <button
+          type="button"
+          onClick={() => onChange("all")}
+          className="rounded-none p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          aria-label="Clear filter"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+    </div>
   );
 }
