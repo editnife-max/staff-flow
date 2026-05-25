@@ -1,5 +1,5 @@
 import { Outlet, createFileRoute, Navigate } from "@tanstack/react-router";
-import { LayoutDashboard, Users, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Users, ShieldCheck, Bell, CreditCard } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { AppShell } from "@/components/app-shell";
 
@@ -8,9 +8,11 @@ export const Route = createFileRoute("/_authenticated/admin")({
 });
 
 const items = [
-  { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
-  { title: "Managers",  url: "/admin/managers",  icon: Users },
-  { title: "Admins",    url: "/admin/admins",    icon: ShieldCheck },
+  { title: "Dashboard",     url: "/admin/dashboard",     icon: LayoutDashboard },
+  { title: "Managers",      url: "/admin/managers",      icon: Users },
+  { title: "Admins",        url: "/admin/admins",        icon: ShieldCheck },
+  { title: "Subscriptions", url: "/admin/subscriptions", icon: Bell },
+  { title: "Payments",      url: "/admin/payments",      icon: CreditCard },
 ];
 
 function AdminLayout() {

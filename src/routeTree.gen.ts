@@ -32,6 +32,8 @@ import { Route as AuthenticatedManagerCandidatesRouteImport } from './routes/_au
 import { Route as AuthenticatedManagerAssignmentsRouteImport } from './routes/_authenticated/manager.assignments'
 import { Route as AuthenticatedManagerAgenciesRouteImport } from './routes/_authenticated/manager.agencies'
 import { Route as AuthenticatedAgencyCandidatesRouteImport } from './routes/_authenticated/agency.candidates'
+import { Route as AuthenticatedAdminSubscriptionsRouteImport } from './routes/_authenticated/admin.subscriptions'
+import { Route as AuthenticatedAdminPaymentsRouteImport } from './routes/_authenticated/admin.payments'
 import { Route as AuthenticatedAdminManagersRouteImport } from './routes/_authenticated/admin.managers'
 import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin.dashboard'
 import { Route as AuthenticatedAdminAdminsRouteImport } from './routes/_authenticated/admin.admins'
@@ -160,6 +162,18 @@ const AuthenticatedAgencyCandidatesRoute =
     path: '/candidates',
     getParentRoute: () => AuthenticatedAgencyRoute,
   } as any)
+const AuthenticatedAdminSubscriptionsRoute =
+  AuthenticatedAdminSubscriptionsRouteImport.update({
+    id: '/subscriptions',
+    path: '/subscriptions',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminPaymentsRoute =
+  AuthenticatedAdminPaymentsRouteImport.update({
+    id: '/payments',
+    path: '/payments',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminManagersRoute =
   AuthenticatedAdminManagersRouteImport.update({
     id: '/managers',
@@ -195,6 +209,8 @@ export interface FileRoutesByFullPath {
   '/admin/admins': typeof AuthenticatedAdminAdminsRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/admin/managers': typeof AuthenticatedAdminManagersRoute
+  '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
+  '/admin/subscriptions': typeof AuthenticatedAdminSubscriptionsRoute
   '/agency/candidates': typeof AuthenticatedAgencyCandidatesRoute
   '/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
   '/manager/assignments': typeof AuthenticatedManagerAssignmentsRoute
@@ -222,6 +238,8 @@ export interface FileRoutesByTo {
   '/admin/admins': typeof AuthenticatedAdminAdminsRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/admin/managers': typeof AuthenticatedAdminManagersRoute
+  '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
+  '/admin/subscriptions': typeof AuthenticatedAdminSubscriptionsRoute
   '/agency/candidates': typeof AuthenticatedAgencyCandidatesRoute
   '/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
   '/manager/assignments': typeof AuthenticatedManagerAssignmentsRoute
@@ -251,6 +269,8 @@ export interface FileRoutesById {
   '/_authenticated/admin/admins': typeof AuthenticatedAdminAdminsRoute
   '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
   '/_authenticated/admin/managers': typeof AuthenticatedAdminManagersRoute
+  '/_authenticated/admin/payments': typeof AuthenticatedAdminPaymentsRoute
+  '/_authenticated/admin/subscriptions': typeof AuthenticatedAdminSubscriptionsRoute
   '/_authenticated/agency/candidates': typeof AuthenticatedAgencyCandidatesRoute
   '/_authenticated/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
   '/_authenticated/manager/assignments': typeof AuthenticatedManagerAssignmentsRoute
@@ -280,6 +300,8 @@ export interface FileRouteTypes {
     | '/admin/admins'
     | '/admin/dashboard'
     | '/admin/managers'
+    | '/admin/payments'
+    | '/admin/subscriptions'
     | '/agency/candidates'
     | '/manager/agencies'
     | '/manager/assignments'
@@ -307,6 +329,8 @@ export interface FileRouteTypes {
     | '/admin/admins'
     | '/admin/dashboard'
     | '/admin/managers'
+    | '/admin/payments'
+    | '/admin/subscriptions'
     | '/agency/candidates'
     | '/manager/agencies'
     | '/manager/assignments'
@@ -335,6 +359,8 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/admins'
     | '/_authenticated/admin/dashboard'
     | '/_authenticated/admin/managers'
+    | '/_authenticated/admin/payments'
+    | '/_authenticated/admin/subscriptions'
     | '/_authenticated/agency/candidates'
     | '/_authenticated/manager/agencies'
     | '/_authenticated/manager/assignments'
@@ -521,6 +547,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAgencyCandidatesRouteImport
       parentRoute: typeof AuthenticatedAgencyRoute
     }
+    '/_authenticated/admin/subscriptions': {
+      id: '/_authenticated/admin/subscriptions'
+      path: '/subscriptions'
+      fullPath: '/admin/subscriptions'
+      preLoaderRoute: typeof AuthenticatedAdminSubscriptionsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/payments': {
+      id: '/_authenticated/admin/payments'
+      path: '/payments'
+      fullPath: '/admin/payments'
+      preLoaderRoute: typeof AuthenticatedAdminPaymentsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/managers': {
       id: '/_authenticated/admin/managers'
       path: '/managers'
@@ -549,12 +589,16 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminAdminsRoute: typeof AuthenticatedAdminAdminsRoute
   AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRoute
   AuthenticatedAdminManagersRoute: typeof AuthenticatedAdminManagersRoute
+  AuthenticatedAdminPaymentsRoute: typeof AuthenticatedAdminPaymentsRoute
+  AuthenticatedAdminSubscriptionsRoute: typeof AuthenticatedAdminSubscriptionsRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminAdminsRoute: AuthenticatedAdminAdminsRoute,
   AuthenticatedAdminDashboardRoute: AuthenticatedAdminDashboardRoute,
   AuthenticatedAdminManagersRoute: AuthenticatedAdminManagersRoute,
+  AuthenticatedAdminPaymentsRoute: AuthenticatedAdminPaymentsRoute,
+  AuthenticatedAdminSubscriptionsRoute: AuthenticatedAdminSubscriptionsRoute,
 }
 
 const AuthenticatedAdminRouteWithChildren =
