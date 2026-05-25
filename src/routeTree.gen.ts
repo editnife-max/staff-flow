@@ -32,8 +32,8 @@ import { Route as AuthenticatedManagerCandidatesRouteImport } from './routes/_au
 import { Route as AuthenticatedManagerAssignmentsRouteImport } from './routes/_authenticated/manager.assignments'
 import { Route as AuthenticatedManagerAgenciesRouteImport } from './routes/_authenticated/manager.agencies'
 import { Route as AuthenticatedAgencyCandidatesRouteImport } from './routes/_authenticated/agency.candidates'
-import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin.dashboard'
 import { Route as AuthenticatedAdminManagersRouteImport } from './routes/_authenticated/admin.managers'
+import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin.dashboard'
 import { Route as AuthenticatedAdminAdminsRouteImport } from './routes/_authenticated/admin.admins'
 
 const SetupAdminRoute = SetupAdminRouteImport.update({
@@ -160,16 +160,16 @@ const AuthenticatedAgencyCandidatesRoute =
     path: '/candidates',
     getParentRoute: () => AuthenticatedAgencyRoute,
   } as any)
-const AuthenticatedAdminDashboardRoute =
-  AuthenticatedAdminDashboardRouteImport.update({
-    id: '/dashboard',
-    path: '/dashboard',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
 const AuthenticatedAdminManagersRoute =
   AuthenticatedAdminManagersRouteImport.update({
     id: '/managers',
     path: '/managers',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminDashboardRoute =
+  AuthenticatedAdminDashboardRouteImport.update({
+    id: '/dashboard',
+    path: '/dashboard',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminAdminsRoute =
@@ -367,18 +367,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SetupAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/register': {
       id: '/register'
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/faq': {
@@ -521,11 +521,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAgencyCandidatesRouteImport
       parentRoute: typeof AuthenticatedAgencyRoute
     }
-    '/_authenticated/admin/admins': {
-      id: '/_authenticated/admin/admins'
-      path: '/admins'
-      fullPath: '/admin/admins'
-      preLoaderRoute: typeof AuthenticatedAdminAdminsRouteImport
+    '/_authenticated/admin/managers': {
+      id: '/_authenticated/admin/managers'
+      path: '/managers'
+      fullPath: '/admin/managers'
+      preLoaderRoute: typeof AuthenticatedAdminManagersRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/dashboard': {
@@ -535,11 +535,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDashboardRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/admin/managers': {
-      id: '/_authenticated/admin/managers'
-      path: '/managers'
-      fullPath: '/admin/managers'
-      preLoaderRoute: typeof AuthenticatedAdminManagersRouteImport
+    '/_authenticated/admin/admins': {
+      id: '/_authenticated/admin/admins'
+      path: '/admins'
+      fullPath: '/admin/admins'
+      preLoaderRoute: typeof AuthenticatedAdminAdminsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
   }
