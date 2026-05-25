@@ -245,7 +245,7 @@ function AgencyCandidatesPage() {
       ) : filtered.length === 0 ? (
         <Card className="rounded-none"><CardContent className="p-8 text-center text-sm text-muted-foreground">No candidates found.</CardContent></Card>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4 pt-2">
           {filtered.map((c) => <AgencyCandidateCard key={c.id} candidate={c} />)}
         </div>
       )}
@@ -278,7 +278,7 @@ function AgencyCandidateCard({ candidate: c }: { candidate: Candidate }) {
   ];
 
   return (
-    <Card className="relative overflow-visible rounded-none mx-[5px]">
+    <Card className="relative overflow-visible transition-colors rounded-none mx-[5px]">
       <span className={cn(
         "absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[10px] font-semibold tracking-wide",
         STATUS_STYLES[statusKey],
@@ -286,15 +286,15 @@ function AgencyCandidateCard({ candidate: c }: { candidate: Candidate }) {
         {STATUS_LABEL[statusKey]}
       </span>
       <CardContent className="p-0">
-        <div className="grid grid-cols-[40px_1fr] gap-3 items-center">
-          <div className="flex items-center justify-center pl-3">
+        <div className="grid grid-cols-[56px_1fr] items-center">
+          <div className="flex items-center justify-center">
             <Avatar className="h-10 w-10">
               {c.photo_url && <AvatarImage src={c.photo_url} alt={c.full_name} />}
               <AvatarFallback className="text-[10px]">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
           </div>
           <div className="overflow-x-auto no-scrollbar">
-            <div className="flex gap-5 items-start py-3">
+            <div className="flex gap-5 items-start pt-[10px] pb-[10px]">
               {fields.map(([label, val]) =>
                 val != null ? (
                   <div key={label} className="shrink-0">
