@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import React, { useState } from "react";
 import {
   Search, SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
-  ArrowUpDown, Users, User, BookOpen, Briefcase, Heart, Globe2,
+  ArrowUpDown, Users, User, BookOpen, Briefcase, Heart,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
@@ -55,7 +55,6 @@ const STATUS_STYLES: Record<Status, string> = {
 
 const initialFilters = {
   sort:       "newest",
-  occupation: "all",
   gender:     "all",
   religion:   "all",
   experience: "all",
@@ -85,18 +84,12 @@ function AgencyCandidatesPage() {
     },
   });
 
-  // Dynamic filter options from data
-  const occupations = [...new Set(candidates.map((c) => c.occupation).filter((v): v is string => !!v))].sort();
-  const religions   = [...new Set(candidates.map((c) => c.religion).filter((v): v is string => !!v))].sort();
-  const experiences = [...new Set(candidates.map((c) => c.experience).filter((v): v is string => !!v))].sort();
-  const maritals    = [...new Set(candidates.map((c) => c.marital_status).filter((v): v is string => !!v))].sort();
 
   const ageFromNum = filters.ageFrom !== "" ? Number(filters.ageFrom) : null;
   const ageToNum   = filters.ageTo   !== "" ? Number(filters.ageTo)   : null;
 
   const filtered = candidates
     .filter((c) => !search || c.full_name.toLowerCase().includes(search.toLowerCase()))
-    .filter((c) => filters.occupation === "all" || c.occupation === filters.occupation)
     .filter((c) => filters.gender     === "all" || c.gender     === filters.gender)
     .filter((c) => filters.religion   === "all" || c.religion   === filters.religion)
     .filter((c) => filters.experience === "all" || c.experience === filters.experience)
@@ -188,32 +181,27 @@ function AgencyCandidatesPage() {
                 placeholder="Religion" value={filters.religion} icon={BookOpen}
                 onChange={(v) => setFilters({ ...filters, religion: v })}
                 options={[
-                  { value: "all", label: "-----" },
-                  ...religions.map((r) => ({ value: r, label: r })),
+                  { value: "all",        label: "-----" },
+                  { value: "Muslim",     label: "Muslim" },
+                  { value: "Non-Muslim", label: "Non-Muslim" },
                 ]}
               />
               <FilterSelect
                 placeholder="Experience" value={filters.experience} icon={Briefcase}
                 onChange={(v) => setFilters({ ...filters, experience: v })}
                 options={[
-                  { value: "all", label: "-----" },
-                  ...experiences.map((e) => ({ value: e, label: e })),
+                  { value: "all",            label: "-----" },
+                  { value: "Experience",     label: "Experience" },
+                  { value: "Non-Experience", label: "Non-Experience" },
                 ]}
               />
               <FilterSelect
                 placeholder="Marital Status" value={filters.marital} icon={Heart}
                 onChange={(v) => setFilters({ ...filters, marital: v })}
                 options={[
-                  { value: "all", label: "-----" },
-                  ...maritals.map((m) => ({ value: m, label: m })),
-                ]}
-              />
-              <FilterSelect
-                placeholder="Occupation" value={filters.occupation} icon={Globe2}
-                onChange={(v) => setFilters({ ...filters, occupation: v })}
-                options={[
-                  { value: "all", label: "-----" },
-                  ...occupations.map((o) => ({ value: o, label: o })),
+                  { value: "all",     label: "-----" },
+                  { value: "Single",  label: "Single" },
+                  { value: "Married", label: "Married" },
                 ]}
               />
               {/* Age from / to */}
