@@ -245,7 +245,7 @@ function AgencyCandidatesPage() {
       ) : filtered.length === 0 ? (
         <Card className="rounded-none"><CardContent className="p-8 text-center text-sm text-muted-foreground">No candidates found.</CardContent></Card>
       ) : (
-        <div className="flex flex-col gap-4 pt-2">
+        <div className="space-y-2">
           {filtered.map((c) => <AgencyCandidateCard key={c.id} candidate={c} />)}
         </div>
       )}
@@ -286,7 +286,7 @@ function AgencyCandidateCard({ candidate: c }: { candidate: Candidate }) {
         {STATUS_LABEL[statusKey]}
       </span>
       <CardContent className="p-0">
-        <div className="grid grid-cols-[56px_1fr] items-center">
+        <div className="grid grid-cols-[60px_1fr] gap-3 items-center">
           <div className="flex items-center justify-center">
             <Avatar className="h-10 w-10">
               {c.photo_url && <AvatarImage src={c.photo_url} alt={c.full_name} />}
@@ -294,7 +294,7 @@ function AgencyCandidateCard({ candidate: c }: { candidate: Candidate }) {
             </Avatar>
           </div>
           <div className="overflow-x-auto no-scrollbar">
-            <div className="flex gap-5 items-start pt-[10px] pb-[10px]">
+            <div className="flex gap-5 items-start pt-[10px] pb-[10px] pr-[12px]">
               {fields.map(([label, val]) =>
                 val != null ? (
                   <div key={label} className="shrink-0">
