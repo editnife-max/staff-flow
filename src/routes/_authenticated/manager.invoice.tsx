@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { Building2, Printer, Search, Users } from "lucide-react";
+import { Building2, Users, Search, Printer, Phone, Mail, MapPin, Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
@@ -18,6 +18,8 @@ export const Route = createFileRoute("/_authenticated/manager/invoice")({
   component: ManagerInvoicePage,
 });
 
+const NAVY = "#1a3a6e";
+
 type Candidate = {
   id: string;
   full_name: string;
@@ -27,33 +29,29 @@ type Candidate = {
   cv_sent_to: string | null;
 };
 
-type OfficeGroup = {
-  name: string;
-  candidates: Candidate[];
-};
+type OfficeGroup = { name: string; candidates: Candidate[] };
 
 function ManagerInvoicePage() {
   const { user } = useAuth();
-  const [search, setSearch]       = useState("");
+  const [search, setSearch]             = useState("");
   const [activeOffice, setActiveOffice] = useState<OfficeGroup | null>(null);
 
-  // ── "From" details (set once, apply to all invoices) ──────────────────────
-  const [fromCompany, setFromCompany] = useState("");
-  const [fromAddress, setFromAddress] = useState("");
-  const [fromPhone,   setFromPhone]   = useState("");
-  const [fromEmail,   setFromEmail]   = useState(user?.email ?? "");
-
-  // ── Invoice defaults (set once, apply to all invoices) ───────────────────
+  // ── Persistent defaults (set once, carry across all invoices) ────────────
+  const [fromCompany,    setFromCompany]    = useState("");
+  const [fromAddress,    setFromAddress]    = useState("");
+  const [fromPhone,      setFromPhone]      = useState("");
+  const [fromEmail,      setFromEmail]      = useState(user?.email ?? "");
+  const [fromWebsite,    setFromWebsite]    = useState("");
   const [recruFee,       setRecruFee]       = useState("");
   const [paymentName,    setPaymentName]    = useState("");
   const [paymentAccount, setPaymentAccount] = useState("");
+  const [paymentBranch,  setPaymentBranch]  = useState("");
 
-  // ── Per-invoice fields (reset per dialog open where needed) ──────────────
+  // ── Per-invoice fields ───────────────────────────────────────────────────
   const [officeName,    setOfficeName]    = useState("");
-  const [term,          setTerm]          = useState("");
   const [invoiceDate,   setInvoiceDate]   = useState(todayIso());
-  const [dueDate,       setDueDate]       = useState("");
   const [otherExpenses, setOtherExpenses] = useState("");
+  const [comments,      setComments]      = useState("");
 
   const { data: candidates = [], isLoading } = useQuery<Candidate[]>({
     queryKey: ["invoice-candidates"],
@@ -90,9 +88,8 @@ function ManagerInvoicePage() {
     setActiveOffice(group);
     setOfficeName(group.name === "— Unassigned —" ? "" : group.name);
     setOtherExpenses("");
+    setComments("");
   }
-
-  function closeInvoice() { setActiveOffice(null); }
 
   const invoiceNum = useMemo(() => {
     const d = new Date();
@@ -103,85 +100,120 @@ function ManagerInvoicePage() {
   const workers  = activeOffice?.candidates ?? [];
   const feeEach  = parseFloat(recruFee || "0") || 0;
   const subtotal = feeEach * workers.length;
-  const other    = parseFloat(otherExpenses || "0") || 0;
-  const total    = subtotal + other;
+  const taxesAmt = parseFloat(otherExpenses || "0") || 0;
+  const total    = subtotal + taxesAmt;
 
+  // ── Print ─────────────────────────────────────────────────────────────────
   function handlePrint() {
-    const rows = workers.map((c, i) => `
+    const tableRows = workers.map((c, i) => `
       <tr>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center;color:#666">${i + 1}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-weight:600">${c.full_name}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;color:#555">${c.passport_number ?? "—"}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;color:#555">${c.ticket_date ? fmtDate(c.ticket_date) : "—"}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;color:#555">${c.occupation ?? "—"}</td>
+        <td class="center">${i + 1}</td>
+        <td>${c.full_name}</td>
+        <td>${c.passport_number ?? ""}</td>
+        <td>${c.ticket_date ? fmtDate(c.ticket_date) : ""}</td>
+        <td>${c.occupation ?? ""}</td>
       </tr>`).join("");
 
-    const fromBlock = [
-      fromCompany && `<div style="font-weight:700;font-size:13px;color:#1a3a52">${fromCompany}</div>`,
-      fromAddress && `<div>${fromAddress}</div>`,
-      fromPhone   && `<div>Tel: ${fromPhone}</div>`,
-      fromEmail   && `<div>${fromEmail}</div>`,
-    ].filter(Boolean).join("");
-
-    const win = window.open("", "_blank", "width=1000,height=750");
+    const win = window.open("", "_blank", "width=820,height=1000");
     if (!win) return;
     win.document.write(`<!DOCTYPE html><html><head><title>${invoiceNum}</title>
     <style>
       *{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:Arial,sans-serif;padding:28px 36px;color:#111;font-size:12px}
-      .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2.5px solid #1a3a52;padding-bottom:14px;margin-bottom:18px}
-      .logo{font-size:20px;font-weight:700;color:#1a3a52}.logo-sub{font-size:10px;color:#888;margin-top:2px}
-      .inv-h{font-size:26px;font-weight:700;color:#1a3a52;text-align:right}
-      .inv-meta{font-size:11px;color:#555;text-align:right;margin-top:4px;line-height:1.8}
-      .body{display:flex;gap:28px;align-items:flex-start}
-      .left{width:200px;flex-shrink:0;display:flex;flex-direction:column;gap:14px}
-      .right{flex:1;min-width:0}
-      .lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#999;margin-bottom:4px}
-      .val{font-size:12px;color:#111;line-height:1.6;word-break:break-word}
-      .divider{border-top:1px solid #e5e7eb;margin:4px 0}
-      .thank{margin-top:auto;padding-top:20px;font-size:13px;font-weight:700;color:#1a3a52;line-height:1.5}
-      table{width:100%;border-collapse:collapse}
-      th{background:#1a3a52;color:#fff;padding:7px 8px;font-size:10px;text-align:left;white-space:nowrap}
-      th:first-child{text-align:center;width:34px}
-      td{vertical-align:middle;padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px}
-      .totals{margin-top:10px;margin-left:auto;width:260px}
-      .t-row{display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid #e5e7eb}
-      .t-row.final{font-weight:700;font-size:14px;color:#1a3a52;border:none;padding-top:8px}
-      @media print{body{padding:14px 20px}@page{margin:1cm}}
+      body{font-family:Arial,sans-serif;background:#fff;color:#111;font-size:12px;padding:28px 32px}
+      .navy{color:${NAVY}}
+      /* ── Header ── */
+      .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}
+      .co-name{font-size:22px;font-weight:900;color:${NAVY};letter-spacing:1px;margin:6px 0 8px}
+      .co-icon{font-size:13px;color:#444;margin-bottom:3px;display:flex;align-items:center;gap:6px}
+      .addr-block{text-align:right;font-size:12px;color:#444;line-height:1.7}
+      .inv-box{background:${NAVY};color:#fff;font-size:26px;font-weight:900;letter-spacing:3px;padding:8px 22px;margin-top:10px;display:inline-block}
+      /* ── Client + Date row ── */
+      .mid{display:flex;gap:16px;margin-bottom:0}
+      .client-box{flex:0 0 45%}
+      .client-hdr{background:${NAVY};color:#fff;font-size:12px;font-weight:700;padding:6px 10px;letter-spacing:.5px}
+      .client-body{border:1.5px solid ${NAVY};border-top:none;min-height:56px;padding:8px 10px;font-size:12px;color:#111}
+      .date-block{flex:1;padding-left:20px;padding-top:4px}
+      .date-line{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;font-size:12px}
+      .date-line span{flex:1;border-bottom:1px solid #999}
+      /* ── Table ── */
+      table{width:100%;border-collapse:collapse;margin-top:0}
+      thead tr{background:${NAVY};color:#fff}
+      th{padding:7px 8px;font-size:11px;font-weight:700;text-align:left;border-right:1px solid rgba(255,255,255,.2)}
+      th.center,td.center{text-align:center}
+      th:last-child{border-right:none}
+      td{padding:6px 8px;border-bottom:1px solid #c8d8f0;font-size:11.5px}
+      tr:nth-child(even) td{background:#f0f5ff}
+      /* ── Comments + Totals ── */
+      .bot{display:flex;justify-content:space-between;align-items:flex-end;margin-top:10px}
+      .comments{font-size:11px;flex:1;padding-right:20px}
+      .comments b{font-size:11px;text-transform:uppercase;display:block;margin-bottom:4px}
+      .totals-table{border-collapse:collapse;width:240px}
+      .totals-table td{padding:5px 10px;font-size:12px;border:1.5px solid ${NAVY}}
+      .totals-table .lbl{background:${NAVY};color:#fff;font-weight:700;letter-spacing:.5px;width:55%}
+      .totals-table .val{text-align:right;font-weight:600;width:45%}
+      /* ── Payment footer ── */
+      .pay-banner{background:${NAVY};color:#fff;font-size:12px;font-weight:700;letter-spacing:4px;text-align:center;padding:7px;margin-top:14px;text-transform:uppercase}
+      .pay-details{display:flex;justify-content:space-between;align-items:center;padding:8px 4px 0}
+      .pay-info{font-size:11.5px;line-height:1.8}
+      .thank{font-size:12px;font-style:italic;color:${NAVY};font-weight:600}
     </style></head><body>
-    <div class="top">
-      <div><div class="logo">Staff-Flow</div><div class="logo-sub">Recruitment &amp; Placement Agency</div></div>
+    <!-- Header -->
+    <div class="header">
       <div>
-        <div class="inv-h">INVOICE</div>
-        <div class="inv-meta">
-          <div><b>No:</b> ${invoiceNum}</div>
-          <div><b>Date:</b> ${invoiceDate ? fmtDate(invoiceDate) : "—"}</div>
-          ${dueDate ? `<div><b>Due:</b> ${fmtDate(dueDate)}</div>` : ""}
-        </div>
+        <div style="font-size:32px;color:${NAVY};font-weight:900;line-height:1">🏢</div>
+        <div class="co-name">${fromCompany || "STAFF-FLOW"}</div>
+        ${fromPhone   ? `<div class="co-icon">☎ ${fromPhone}</div>` : ""}
+        ${fromEmail   ? `<div class="co-icon">✉ ${fromEmail}</div>` : ""}
+        ${fromWebsite ? `<div class="co-icon">🌐 ${fromWebsite}</div>` : ""}
+      </div>
+      <div style="text-align:right">
+        ${fromAddress ? `<div class="addr-block">◎ ${fromAddress.replace(/\n/g, "<br>")}</div>` : ""}
+        <div class="inv-box">INVOICE</div>
       </div>
     </div>
-    <div class="body">
-      <div class="left">
-        ${fromBlock ? `<div><div class="lbl">Invoice From</div><div class="val">${fromBlock}</div></div><div class="divider"></div>` : ""}
-        ${officeName ? `<div><div class="lbl">Bill To / Office</div><div class="val">${officeName}</div></div>` : ""}
-        ${(paymentName || paymentAccount) ? `<div><div class="lbl">Payment</div><div class="val">${paymentName ? `<div style="font-weight:600">${paymentName}</div>` : ""}${paymentAccount ? `<div>Acc: ${paymentAccount}</div>` : ""}</div></div>` : ""}
-        ${term       ? `<div><div class="lbl">Terms</div><div class="val">${term}</div></div>` : ""}
-        <div class="thank">THANK YOU FOR<br>YOUR BUSINESS</div>
+    <!-- Client + Date -->
+    <div class="mid">
+      <div class="client-box">
+        <div class="client-hdr">Client Details</div>
+        <div class="client-body">${officeName || "&nbsp;"}</div>
       </div>
-      <div class="right">
-        <table>
-          <thead><tr>
-            <th>#</th><th>Worker Name</th><th>Passport No.</th>
-            <th>Travel Date</th><th>Profession</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-        <div class="totals">
-          <div class="t-row"><span>Recru. Fee (×${workers.length})</span><span>${feeEach.toLocaleString()} × ${workers.length} = ${subtotal.toLocaleString()}</span></div>
-          <div class="t-row"><span>Other Expenses</span><span>${other.toLocaleString()}</span></div>
-          <div class="t-row final"><span>Total Due</span><span>${total.toLocaleString()}</span></div>
-        </div>
+      <div class="date-block">
+        <div class="date-line"><b>Date:</b> <span>${invoiceDate ? fmtDate(invoiceDate) : ""}</span></div>
+        <div class="date-line"><b>Invoice No:</b> <span>${invoiceNum}</span></div>
       </div>
+    </div>
+    <!-- Table -->
+    <table>
+      <thead><tr>
+        <th class="center" style="width:36px">No.</th>
+        <th>Worker Name</th>
+        <th>Passport No.</th>
+        <th>Travel Date</th>
+        <th>Profession</th>
+      </tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+    <!-- Comments + Totals -->
+    <div class="bot">
+      <div class="comments">
+        <b>Other Comments:</b>
+        ${comments || ""}
+      </div>
+      <table class="totals-table">
+        <tr><td class="lbl">SUB TOTAL</td><td class="val">${subtotal.toLocaleString()}</td></tr>
+        <tr><td class="lbl">TAXES</td><td class="val">${taxesAmt.toLocaleString()}</td></tr>
+        <tr><td class="lbl">TOTAL</td><td class="val">${total.toLocaleString()}</td></tr>
+      </table>
+    </div>
+    <!-- Payment footer -->
+    <div class="pay-banner">P A Y M E N T &nbsp; D E T A I L S</div>
+    <div class="pay-details">
+      <div class="pay-info">
+        ${paymentName    ? `<div><b>Bank Name:</b> ${paymentName}</div>` : ""}
+        ${paymentAccount ? `<div><b>Acc No.:</b> ${paymentAccount}</div>` : ""}
+        ${paymentBranch  ? `<div><b>Branch:</b> ${paymentBranch}</div>` : ""}
+      </div>
+      <div class="thank">Thank you for the business.</div>
     </div>
     </body></html>`);
     win.document.close();
@@ -189,6 +221,7 @@ function ManagerInvoicePage() {
     setTimeout(() => { win.print(); win.close(); }, 400);
   }
 
+  // ── JSX ───────────────────────────────────────────────────────────────────
   return (
     <div>
       <PageHeader
@@ -196,64 +229,52 @@ function ManagerInvoicePage() {
         description={`${officeGroups.length} office${officeGroups.length !== 1 ? "s" : ""} · ${candidates.length} arrived worker${candidates.length !== 1 ? "s" : ""}`}
       />
 
-      {/* ── Settings bar ─────────────────────────────────────────────────── */}
+      {/* Settings bar */}
       <Card className="rounded-none mb-5">
         <CardContent className="p-4 space-y-4">
-          {/* From details */}
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Invoice From (your details)</p>
-            <div className="flex flex-wrap gap-3">
-              <div className="space-y-1 flex-1 min-w-[160px]">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Company / Agency Name</Label>
-                <Input placeholder="Staff-Flow Agency" value={fromCompany} onChange={(e) => setFromCompany(e.target.value)} className="h-8 text-sm" />
-              </div>
-              <div className="space-y-1 flex-1 min-w-[160px]">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Address</Label>
-                <Input placeholder="123 Main St, City" value={fromAddress} onChange={(e) => setFromAddress(e.target.value)} className="h-8 text-sm" />
-              </div>
-              <div className="space-y-1 min-w-[140px]">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Office Number</Label>
-                <Input placeholder="+1 234 567 890" value={fromPhone} onChange={(e) => setFromPhone(e.target.value)} className="h-8 text-sm w-44" />
-              </div>
-              <div className="space-y-1 flex-1 min-w-[160px]">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Email</Label>
-                <Input type="email" placeholder="office@example.com" value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} className="h-8 text-sm" />
-              </div>
-            </div>
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Invoice From — set once, applies to all invoices</p>
+          <div className="flex flex-wrap gap-3">
+            <Field label="Company / Agency Name" w="flex-1 min-w-[150px]">
+              <Input placeholder="Staff-Flow Agency" value={fromCompany} onChange={(e) => setFromCompany(e.target.value)} className="h-8 text-sm" />
+            </Field>
+            <Field label="Address" w="flex-1 min-w-[150px]">
+              <Input placeholder="City, Country" value={fromAddress} onChange={(e) => setFromAddress(e.target.value)} className="h-8 text-sm" />
+            </Field>
+            <Field label="Office Number" w="min-w-[140px]">
+              <Input placeholder="+1 234 567 890" value={fromPhone} onChange={(e) => setFromPhone(e.target.value)} className="h-8 w-44 text-sm" />
+            </Field>
+            <Field label="Email" w="flex-1 min-w-[150px]">
+              <Input type="email" value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} className="h-8 text-sm" />
+            </Field>
+            <Field label="Website (optional)" w="min-w-[150px]">
+              <Input placeholder="www.example.com" value={fromWebsite} onChange={(e) => setFromWebsite(e.target.value)} className="h-8 w-44 text-sm" />
+            </Field>
           </div>
-
-          {/* Invoice defaults */}
-          <div className="border-t pt-3 flex flex-wrap items-end gap-5">
-            <div className="space-y-1">
-              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Recru. Fee <span className="normal-case font-normal">(per worker)</span>
-              </Label>
-              <input
-                type="number" min={0} placeholder="0" value={recruFee}
-                onChange={(e) => setRecruFee(e.target.value)}
-                className="h-8 w-36 rounded border border-border bg-muted/40 px-3 text-sm outline-none focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Payment Name</Label>
-              <Input placeholder="e.g. Bank Transfer" value={paymentName} onChange={(e) => setPaymentName(e.target.value)} className="h-8 w-44 text-sm" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Account Number</Label>
-              <Input placeholder="e.g. 1234 5678 9012" value={paymentAccount} onChange={(e) => setPaymentAccount(e.target.value)} className="h-8 w-44 text-sm" />
-            </div>
-            <p className="text-xs text-muted-foreground pb-1">All fields above apply to every invoice — still editable per invoice.</p>
+          <div className="border-t pt-3 flex flex-wrap gap-3">
+            <Field label="Recru. Fee (per worker)" w="">
+              <input type="number" min={0} placeholder="0" value={recruFee} onChange={(e) => setRecruFee(e.target.value)}
+                className="h-8 w-36 rounded border border-border bg-muted/40 px-3 text-sm outline-none focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+            </Field>
+            <Field label="Bank Name" w="min-w-[140px]">
+              <Input placeholder="e.g. Commercial Bank" value={paymentName} onChange={(e) => setPaymentName(e.target.value)} className="h-8 w-44 text-sm" />
+            </Field>
+            <Field label="Account Number" w="min-w-[140px]">
+              <Input placeholder="e.g. 1234 5678" value={paymentAccount} onChange={(e) => setPaymentAccount(e.target.value)} className="h-8 w-44 text-sm" />
+            </Field>
+            <Field label="Branch" w="min-w-[120px]">
+              <Input placeholder="Branch name" value={paymentBranch} onChange={(e) => setPaymentBranch(e.target.value)} className="h-8 w-36 text-sm" />
+            </Field>
           </div>
         </CardContent>
       </Card>
 
-      {/* ── Search ───────────────────────────────────────────────────────── */}
+      {/* Search */}
       <div className="relative mb-5 max-w-sm">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input placeholder="Search office…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
       </div>
 
-      {/* ── Office cards ─────────────────────────────────────────────────── */}
+      {/* Office cards */}
       {isLoading ? (
         <Card className="rounded-none"><CardContent className="p-8 text-center text-sm text-muted-foreground">Loading…</CardContent></Card>
       ) : filtered.length === 0 ? (
@@ -283,137 +304,160 @@ function ManagerInvoicePage() {
         </div>
       )}
 
-      {/* ── Invoice dialog ───────────────────────────────────────────────── */}
-      <Dialog open={!!activeOffice} onOpenChange={(o) => { if (!o) closeInvoice(); }}>
-        <DialogContent className="max-w-5xl p-0 gap-0 max-h-[95vh] flex flex-col">
+      {/* ── Invoice dialog ── */}
+      <Dialog open={!!activeOffice} onOpenChange={(o) => { if (!o) setActiveOffice(null); }}>
+        <DialogContent className="max-w-4xl p-0 gap-0 max-h-[95vh] flex flex-col">
+          {/* Toolbar */}
           <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
-            <span className="text-sm font-semibold">{invoiceNum}</span>
+            <span className="text-sm font-semibold text-muted-foreground">{invoiceNum}</span>
             <Button size="sm" className="gap-1.5" onClick={handlePrint}>
               <Printer className="h-4 w-4" /> Print
             </Button>
           </div>
 
-          <div className="overflow-y-auto flex-1 p-6">
-            {/* Invoice header */}
-            <div className="flex items-start justify-between border-b-2 border-[#1a3a52] pb-4 mb-6">
-              <div>
-                <div className="text-xl font-bold text-[#1a3a52]">Staff-Flow</div>
-                <div className="text-[11px] text-muted-foreground mt-0.5">Recruitment &amp; Placement Agency</div>
-              </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold text-[#1a3a52] tracking-wide">INVOICE</div>
-                <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-                  <div><span className="font-medium">No:</span> {invoiceNum}</div>
-                </div>
-              </div>
-            </div>
+          {/* Invoice preview — scrollable */}
+          <div className="overflow-y-auto flex-1 bg-gray-100 p-6">
+            <div className="bg-white shadow-md mx-auto p-8 max-w-[680px] font-sans text-[13px] text-[#111]">
 
-            {/* Two-column body */}
-            <div className="flex gap-8 items-start">
-
-              {/* LEFT */}
-              <div className="w-52 shrink-0 flex flex-col gap-4">
-
-                {/* Invoice From */}
-                <div className="space-y-1 pb-3 border-b">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Invoice From</p>
-                  <div className="space-y-1.5 text-sm">
-                    <Input placeholder="Company / Agency name" value={fromCompany} onChange={(e) => setFromCompany(e.target.value)} className="h-7 text-xs" />
-                    <Input placeholder="Address" value={fromAddress} onChange={(e) => setFromAddress(e.target.value)} className="h-7 text-xs" />
-                    <Input placeholder="Office number" value={fromPhone} onChange={(e) => setFromPhone(e.target.value)} className="h-7 text-xs" />
-                    <Input type="email" placeholder="Email" value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} className="h-7 text-xs" />
+              {/* ── HEADER ── */}
+              <div className="flex justify-between items-start mb-5">
+                {/* Left: company */}
+                <div>
+                  <div className="text-4xl leading-none mb-1" style={{ color: NAVY }}>🏢</div>
+                  <div className="text-xl font-black tracking-widest uppercase" style={{ color: NAVY }}>
+                    {fromCompany || "STAFF-FLOW"}
+                  </div>
+                  <div className="mt-2 space-y-1 text-xs text-gray-600">
+                    {fromPhone   && <div className="flex items-center gap-1.5"><Phone className="h-3 w-3" />{fromPhone}</div>}
+                    {fromEmail   && <div className="flex items-center gap-1.5"><Mail className="h-3 w-3" />{fromEmail}</div>}
+                    {fromWebsite && <div className="flex items-center gap-1.5"><Globe className="h-3 w-3" />{fromWebsite}</div>}
                   </div>
                 </div>
-
-                {/* Bill To */}
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Bill To / Office Name</Label>
-                  <Textarea rows={2} placeholder="Office name & address…" value={officeName} onChange={(e) => setOfficeName(e.target.value)} className="text-sm resize-none" />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Payment Name</Label>
-                  <Input placeholder="e.g. Bank Transfer" value={paymentName} onChange={(e) => setPaymentName(e.target.value)} className="text-sm h-8" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Account Number</Label>
-                  <Input placeholder="e.g. 1234 5678 9012" value={paymentAccount} onChange={(e) => setPaymentAccount(e.target.value)} className="text-sm h-8" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Terms</Label>
-                  <Input placeholder="e.g. Net 30" value={term} onChange={(e) => setTerm(e.target.value)} className="text-sm h-8" />
-                </div>
-
-                <div className="mt-auto pt-6 text-sm font-bold text-[#1a3a52] leading-snug">
-                  THANK YOU FOR<br />YOUR BUSINESS
+                {/* Right: address + INVOICE box */}
+                <div className="text-right">
+                  {fromAddress && (
+                    <div className="flex items-start justify-end gap-1.5 text-xs text-gray-600 mb-3">
+                      <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: NAVY }} />
+                      <span>{fromAddress}</span>
+                    </div>
+                  )}
+                  <div className="inline-block text-white text-2xl font-black tracking-[6px] px-5 py-2" style={{ background: NAVY }}>
+                    INVOICE
+                  </div>
                 </div>
               </div>
 
-              {/* RIGHT */}
-              <div className="flex-1 min-w-0 flex flex-col gap-4">
-                <div className="flex gap-4 flex-wrap">
-                  <div className="space-y-1">
-                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Invoice Date</Label>
-                    <Input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} className="text-sm h-8 w-40" />
+              {/* ── CLIENT DETAILS + DATE ── */}
+              <div className="flex gap-5 mb-0">
+                <div className="w-[44%]">
+                  <div className="text-white text-xs font-bold px-3 py-1.5 tracking-wide" style={{ background: NAVY }}>
+                    Client Details
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Due Date</Label>
-                    <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="text-sm h-8 w-40" />
+                  <div className="border border-t-0 min-h-[54px] px-3 py-2 text-sm" style={{ borderColor: NAVY }}>
+                    <Textarea
+                      rows={2}
+                      placeholder="Office / agency name…"
+                      value={officeName}
+                      onChange={(e) => setOfficeName(e.target.value)}
+                      className="text-xs resize-none border-0 p-0 focus-visible:ring-0 shadow-none bg-transparent w-full"
+                    />
                   </div>
                 </div>
+                <div className="flex-1 pt-2 space-y-3 text-xs">
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-bold whitespace-nowrap">Date:</span>
+                    <Input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)}
+                      className="flex-1 h-6 text-xs border-0 border-b rounded-none px-0 focus-visible:ring-0" />
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-bold whitespace-nowrap">Invoice No:</span>
+                    <span className="flex-1 border-b border-gray-400 text-gray-500 pb-0.5">{invoiceNum}</span>
+                  </div>
+                </div>
+              </div>
 
-                <div className="overflow-x-auto border rounded">
-                  <table className="w-full text-sm border-collapse">
-                    <thead>
-                      <tr className="bg-[#1a3a52] text-white text-xs">
-                        <th className="px-3 py-2 text-center w-10">#</th>
-                        <th className="px-3 py-2 text-left">Worker Name</th>
-                        <th className="px-3 py-2 text-left">Passport No.</th>
-                        <th className="px-3 py-2 text-left">Travel Date</th>
-                        <th className="px-3 py-2 text-left">Profession</th>
+              {/* ── TABLE ── */}
+              <div className="overflow-x-auto mt-0">
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr style={{ background: NAVY }} className="text-white">
+                      <th className="px-2 py-2 text-center w-9 border-r border-white/20">No.</th>
+                      <th className="px-3 py-2 text-left border-r border-white/20">Worker Name</th>
+                      <th className="px-3 py-2 text-left border-r border-white/20">Passport No.</th>
+                      <th className="px-3 py-2 text-left border-r border-white/20">Travel Date</th>
+                      <th className="px-3 py-2 text-left">Profession</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {workers.map((c, i) => (
+                      <tr key={c.id} className={cn("border-b", i % 2 !== 0 ? "bg-blue-50/60" : "")}
+                        style={{ borderColor: "#c8d8f0" }}>
+                        <td className="px-2 py-1.5 text-center text-gray-500">{i + 1}</td>
+                        <td className="px-3 py-1.5 font-medium">{c.full_name}</td>
+                        <td className="px-3 py-1.5 text-gray-600">{c.passport_number ?? "—"}</td>
+                        <td className="px-3 py-1.5 text-gray-600">{c.ticket_date ? fmtDate(c.ticket_date) : "—"}</td>
+                        <td className="px-3 py-1.5 text-gray-600">{c.occupation ?? "—"}</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {workers.map((c, i) => (
-                        <tr key={c.id} className={cn("border-b border-border/50 hover:bg-muted/30", i % 2 !== 0 && "bg-muted/10")}>
-                          <td className="px-3 py-1.5 text-center text-muted-foreground text-xs">{i + 1}</td>
-                          <td className="px-3 py-1.5 font-medium whitespace-nowrap">{c.full_name}</td>
-                          <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{c.passport_number ?? "—"}</td>
-                          <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{c.ticket_date ? fmtDate(c.ticket_date) : "—"}</td>
-                          <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{c.occupation ?? "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-                <div className="ml-auto w-72 space-y-1.5 text-sm">
-                  <div className="flex items-center justify-between border-b pb-1.5 gap-3">
-                    <span className="text-muted-foreground shrink-0">Recru. Fee <span className="text-xs">(× {workers.length})</span></span>
-                    <input
-                      type="number" min={0} placeholder="0" value={recruFee}
-                      onChange={(e) => setRecruFee(e.target.value)}
-                      className="w-28 text-right bg-muted/40 border border-border rounded px-2 py-0.5 text-sm outline-none focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
+              {/* ── COMMENTS + TOTALS ── */}
+              <div className="flex justify-between items-end mt-4 gap-4">
+                <div className="flex-1 text-xs">
+                  <p className="font-bold uppercase text-[11px] mb-1">Other Comments:</p>
+                  <Textarea rows={3} placeholder="Notes…" value={comments} onChange={(e) => setComments(e.target.value)}
+                    className="text-xs resize-none w-full focus-visible:ring-0" />
+                </div>
+                <table className="border-collapse text-xs w-56 shrink-0">
+                  <tbody>
+                    <tr>
+                      <td className="font-bold text-white px-3 py-2 text-[11px] tracking-wide" style={{ background: NAVY }}>SUB TOTAL</td>
+                      <td className="px-3 py-2 text-right font-semibold border" style={{ borderColor: NAVY }}>
+                        <input type="number" min={0} placeholder="fee/worker" value={recruFee}
+                          onChange={(e) => setRecruFee(e.target.value)} title="Recru. fee per worker"
+                          className="w-full text-right bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                        {feeEach > 0 && <span className="text-gray-400 text-[9px] block">×{workers.length} = {subtotal.toLocaleString()}</span>}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="font-bold text-white px-3 py-2 text-[11px] tracking-wide" style={{ background: NAVY }}>TAXES</td>
+                      <td className="px-3 py-2 text-right font-semibold border" style={{ borderColor: NAVY }}>
+                        <input type="number" min={0} placeholder="0" value={otherExpenses}
+                          onChange={(e) => setOtherExpenses(e.target.value)}
+                          className="w-full text-right bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="font-bold text-white px-3 py-2 text-[11px] tracking-wide" style={{ background: NAVY }}>TOTAL</td>
+                      <td className="px-3 py-2 text-right font-bold border text-base" style={{ borderColor: NAVY, color: NAVY }}>
+                        {total.toLocaleString()}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* ── PAYMENT DETAILS ── */}
+              <div className="mt-5">
+                <div className="text-white text-xs font-bold tracking-[4px] text-center py-2 uppercase" style={{ background: NAVY }}>
+                  P A Y M E N T &nbsp; D E T A I L S
+                </div>
+                <div className="flex justify-between items-start pt-2 px-1">
+                  <div className="text-xs space-y-1 text-gray-700">
+                    {paymentName    && <div><span className="font-bold">Bank Name:</span> {paymentName}</div>}
+                    {paymentAccount && <div><span className="font-bold">Acc No.:</span> {paymentAccount}</div>}
+                    {paymentBranch  && <div><span className="font-bold">Branch:</span> {paymentBranch}</div>}
                   </div>
-                  <div className="flex justify-between border-b pb-1.5">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span className="font-medium">{subtotal.toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center justify-between border-b pb-1.5 gap-3">
-                    <span className="text-muted-foreground shrink-0">Other Expenses</span>
-                    <input
-                      type="number" min={0} placeholder="0" value={otherExpenses}
-                      onChange={(e) => setOtherExpenses(e.target.value)}
-                      className="w-28 text-right bg-muted/40 border border-border rounded px-2 py-0.5 text-sm outline-none focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                  </div>
-                  <div className="flex justify-between pt-1">
-                    <span className="font-bold text-[#1a3a52] text-base">Total Due</span>
-                    <span className="font-bold text-[#1a3a52] text-base">{total.toLocaleString()}</span>
+                  <div className="text-xs font-semibold italic" style={{ color: NAVY }}>
+                    Thank you for the business.
                   </div>
                 </div>
               </div>
+
             </div>
           </div>
         </DialogContent>
@@ -422,9 +466,17 @@ function ManagerInvoicePage() {
   );
 }
 
-function todayIso() {
-  return new Date().toISOString().split("T")[0];
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function Field({ label, w, children }: { label: string; w: string; children: React.ReactNode }) {
+  return (
+    <div className={cn("space-y-1", w)}>
+      <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</Label>
+      {children}
+    </div>
+  );
 }
+
+function todayIso() { return new Date().toISOString().split("T")[0]; }
 
 function fmtDate(s: string) {
   return new Date(s).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
