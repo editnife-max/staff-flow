@@ -44,8 +44,9 @@ function ManagerInvoicePage() {
   const [fromEmail,   setFromEmail]   = useState(user?.email ?? "");
 
   // ── Invoice defaults (set once, apply to all invoices) ───────────────────
-  const [recruFee, setRecruFee] = useState("");
-  const [payment,  setPayment]  = useState("");
+  const [recruFee,       setRecruFee]       = useState("");
+  const [paymentName,    setPaymentName]    = useState("");
+  const [paymentAccount, setPaymentAccount] = useState("");
 
   // ── Per-invoice fields (reset per dialog open where needed) ──────────────
   const [officeName,    setOfficeName]    = useState("");
@@ -163,7 +164,7 @@ function ManagerInvoicePage() {
       <div class="left">
         ${fromBlock ? `<div><div class="lbl">Invoice From</div><div class="val">${fromBlock}</div></div><div class="divider"></div>` : ""}
         ${officeName ? `<div><div class="lbl">Bill To / Office</div><div class="val">${officeName}</div></div>` : ""}
-        ${payment    ? `<div><div class="lbl">Payment</div><div class="val">${payment}</div></div>` : ""}
+        ${(paymentName || paymentAccount) ? `<div><div class="lbl">Payment</div><div class="val">${paymentName ? `<div style="font-weight:600">${paymentName}</div>` : ""}${paymentAccount ? `<div>Acc: ${paymentAccount}</div>` : ""}</div></div>` : ""}
         ${term       ? `<div><div class="lbl">Terms</div><div class="val">${term}</div></div>` : ""}
         <div class="thank">THANK YOU FOR<br>YOUR BUSINESS</div>
       </div>
@@ -234,8 +235,12 @@ function ManagerInvoicePage() {
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Payment</Label>
-              <Input placeholder="e.g. Bank Transfer" value={payment} onChange={(e) => setPayment(e.target.value)} className="h-8 w-48 text-sm" />
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Payment Name</Label>
+              <Input placeholder="e.g. Bank Transfer" value={paymentName} onChange={(e) => setPaymentName(e.target.value)} className="h-8 w-44 text-sm" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Account Number</Label>
+              <Input placeholder="e.g. 1234 5678 9012" value={paymentAccount} onChange={(e) => setPaymentAccount(e.target.value)} className="h-8 w-44 text-sm" />
             </div>
             <p className="text-xs text-muted-foreground pb-1">All fields above apply to every invoice — still editable per invoice.</p>
           </div>
@@ -327,8 +332,12 @@ function ManagerInvoicePage() {
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Payment</Label>
-                  <Input placeholder="e.g. Bank Transfer" value={payment} onChange={(e) => setPayment(e.target.value)} className="text-sm h-8" />
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Payment Name</Label>
+                  <Input placeholder="e.g. Bank Transfer" value={paymentName} onChange={(e) => setPaymentName(e.target.value)} className="text-sm h-8" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Account Number</Label>
+                  <Input placeholder="e.g. 1234 5678 9012" value={paymentAccount} onChange={(e) => setPaymentAccount(e.target.value)} className="text-sm h-8" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Terms</Label>
