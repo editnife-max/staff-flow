@@ -27,6 +27,7 @@ import { Route as AuthenticatedStaffCvGeneratorRouteImport } from './routes/_aut
 import { Route as AuthenticatedStaffCandidatesRouteImport } from './routes/_authenticated/staff.candidates'
 import { Route as AuthenticatedManagerSubscriptionRouteImport } from './routes/_authenticated/manager.subscription'
 import { Route as AuthenticatedManagerStaffRouteImport } from './routes/_authenticated/manager.staff'
+import { Route as AuthenticatedManagerInvoiceRouteImport } from './routes/_authenticated/manager.invoice'
 import { Route as AuthenticatedManagerDashboardRouteImport } from './routes/_authenticated/manager.dashboard'
 import { Route as AuthenticatedManagerCandidatesRouteImport } from './routes/_authenticated/manager.candidates'
 import { Route as AuthenticatedManagerAssignmentsRouteImport } from './routes/_authenticated/manager.assignments'
@@ -132,6 +133,12 @@ const AuthenticatedManagerStaffRoute =
     path: '/staff',
     getParentRoute: () => AuthenticatedManagerRoute,
   } as any)
+const AuthenticatedManagerInvoiceRoute =
+  AuthenticatedManagerInvoiceRouteImport.update({
+    id: '/invoice',
+    path: '/invoice',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
 const AuthenticatedManagerDashboardRoute =
   AuthenticatedManagerDashboardRouteImport.update({
     id: '/dashboard',
@@ -216,6 +223,7 @@ export interface FileRoutesByFullPath {
   '/manager/assignments': typeof AuthenticatedManagerAssignmentsRoute
   '/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
   '/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
+  '/manager/invoice': typeof AuthenticatedManagerInvoiceRoute
   '/manager/staff': typeof AuthenticatedManagerStaffRoute
   '/manager/subscription': typeof AuthenticatedManagerSubscriptionRoute
   '/staff/candidates': typeof AuthenticatedStaffCandidatesRoute
@@ -245,6 +253,7 @@ export interface FileRoutesByTo {
   '/manager/assignments': typeof AuthenticatedManagerAssignmentsRoute
   '/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
   '/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
+  '/manager/invoice': typeof AuthenticatedManagerInvoiceRoute
   '/manager/staff': typeof AuthenticatedManagerStaffRoute
   '/manager/subscription': typeof AuthenticatedManagerSubscriptionRoute
   '/staff/candidates': typeof AuthenticatedStaffCandidatesRoute
@@ -276,6 +285,7 @@ export interface FileRoutesById {
   '/_authenticated/manager/assignments': typeof AuthenticatedManagerAssignmentsRoute
   '/_authenticated/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
   '/_authenticated/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
+  '/_authenticated/manager/invoice': typeof AuthenticatedManagerInvoiceRoute
   '/_authenticated/manager/staff': typeof AuthenticatedManagerStaffRoute
   '/_authenticated/manager/subscription': typeof AuthenticatedManagerSubscriptionRoute
   '/_authenticated/staff/candidates': typeof AuthenticatedStaffCandidatesRoute
@@ -307,6 +317,7 @@ export interface FileRouteTypes {
     | '/manager/assignments'
     | '/manager/candidates'
     | '/manager/dashboard'
+    | '/manager/invoice'
     | '/manager/staff'
     | '/manager/subscription'
     | '/staff/candidates'
@@ -336,6 +347,7 @@ export interface FileRouteTypes {
     | '/manager/assignments'
     | '/manager/candidates'
     | '/manager/dashboard'
+    | '/manager/invoice'
     | '/manager/staff'
     | '/manager/subscription'
     | '/staff/candidates'
@@ -366,6 +378,7 @@ export interface FileRouteTypes {
     | '/_authenticated/manager/assignments'
     | '/_authenticated/manager/candidates'
     | '/_authenticated/manager/dashboard'
+    | '/_authenticated/manager/invoice'
     | '/_authenticated/manager/staff'
     | '/_authenticated/manager/subscription'
     | '/_authenticated/staff/candidates'
@@ -512,6 +525,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedManagerStaffRouteImport
       parentRoute: typeof AuthenticatedManagerRoute
     }
+    '/_authenticated/manager/invoice': {
+      id: '/_authenticated/manager/invoice'
+      path: '/invoice'
+      fullPath: '/manager/invoice'
+      preLoaderRoute: typeof AuthenticatedManagerInvoiceRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
     '/_authenticated/manager/dashboard': {
       id: '/_authenticated/manager/dashboard'
       path: '/dashboard'
@@ -620,6 +640,7 @@ interface AuthenticatedManagerRouteChildren {
   AuthenticatedManagerAssignmentsRoute: typeof AuthenticatedManagerAssignmentsRoute
   AuthenticatedManagerCandidatesRoute: typeof AuthenticatedManagerCandidatesRoute
   AuthenticatedManagerDashboardRoute: typeof AuthenticatedManagerDashboardRoute
+  AuthenticatedManagerInvoiceRoute: typeof AuthenticatedManagerInvoiceRoute
   AuthenticatedManagerStaffRoute: typeof AuthenticatedManagerStaffRoute
   AuthenticatedManagerSubscriptionRoute: typeof AuthenticatedManagerSubscriptionRoute
 }
@@ -629,6 +650,7 @@ const AuthenticatedManagerRouteChildren: AuthenticatedManagerRouteChildren = {
   AuthenticatedManagerAssignmentsRoute: AuthenticatedManagerAssignmentsRoute,
   AuthenticatedManagerCandidatesRoute: AuthenticatedManagerCandidatesRoute,
   AuthenticatedManagerDashboardRoute: AuthenticatedManagerDashboardRoute,
+  AuthenticatedManagerInvoiceRoute: AuthenticatedManagerInvoiceRoute,
   AuthenticatedManagerStaffRoute: AuthenticatedManagerStaffRoute,
   AuthenticatedManagerSubscriptionRoute: AuthenticatedManagerSubscriptionRoute,
 }
