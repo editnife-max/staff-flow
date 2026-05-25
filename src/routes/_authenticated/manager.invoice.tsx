@@ -34,16 +34,24 @@ type OfficeGroup = {
 
 function ManagerInvoicePage() {
   const { user } = useAuth();
-  const [search, setSearch] = useState("");
+  const [search, setSearch]       = useState("");
   const [activeOffice, setActiveOffice] = useState<OfficeGroup | null>(null);
 
-  // Invoice editable state
-  const [officeName, setOfficeName] = useState("");
-  const [payment, setPayment]       = useState("");
-  const [term, setTerm]             = useState("");
-  const [invoiceDate, setInvoiceDate] = useState(todayIso());
-  const [dueDate, setDueDate]         = useState("");
-  const [recruFee, setRecruFee]           = useState("");
+  // ── "From" details (set once, apply to all invoices) ──────────────────────
+  const [fromCompany, setFromCompany] = useState("");
+  const [fromAddress, setFromAddress] = useState("");
+  const [fromPhone,   setFromPhone]   = useState("");
+  const [fromEmail,   setFromEmail]   = useState(user?.email ?? "");
+
+  // ── Invoice defaults (set once, apply to all invoices) ───────────────────
+  const [recruFee, setRecruFee] = useState("");
+  const [payment,  setPayment]  = useState("");
+
+  // ── Per-invoice fields (reset per dialog open where needed) ──────────────
+  const [officeName,    setOfficeName]    = useState("");
+  const [term,          setTerm]          = useState("");
+  const [invoiceDate,   setInvoiceDate]   = useState(todayIso());
+  const [dueDate,       setDueDate]       = useState("");
   const [otherExpenses, setOtherExpenses] = useState("");
 
   const { data: candidates = [], isLoading } = useQuery<Candidate[]>({
@@ -61,7 +69,6 @@ function ManagerInvoicePage() {
     enabled: !!user,
   });
 
-  // Group by office (cv_sent_to)
   const officeGroups: OfficeGroup[] = useMemo(() => {
     const map = new Map<string, Candidate[]>();
     for (const c of candidates) {
@@ -81,11 +88,10 @@ function ManagerInvoicePage() {
   function openInvoice(group: OfficeGroup) {
     setActiveOffice(group);
     setOfficeName(group.name === "— Unassigned —" ? "" : group.name);
+    setOtherExpenses("");
   }
 
-  function closeInvoice() {
-    setActiveOffice(null);
-  }
+  function closeInvoice() { setActiveOffice(null); }
 
   const invoiceNum = useMemo(() => {
     const d = new Date();
@@ -109,6 +115,13 @@ function ManagerInvoicePage() {
         <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;color:#555">${c.occupation ?? "—"}</td>
       </tr>`).join("");
 
+    const fromBlock = [
+      fromCompany && `<div style="font-weight:700;font-size:13px;color:#1a3a52">${fromCompany}</div>`,
+      fromAddress && `<div>${fromAddress}</div>`,
+      fromPhone   && `<div>Tel: ${fromPhone}</div>`,
+      fromEmail   && `<div>${fromEmail}</div>`,
+    ].filter(Boolean).join("");
+
     const win = window.open("", "_blank", "width=1000,height=750");
     if (!win) return;
     win.document.write(`<!DOCTYPE html><html><head><title>${invoiceNum}</title>
@@ -120,18 +133,17 @@ function ManagerInvoicePage() {
       .inv-h{font-size:26px;font-weight:700;color:#1a3a52;text-align:right}
       .inv-meta{font-size:11px;color:#555;text-align:right;margin-top:4px;line-height:1.8}
       .body{display:flex;gap:28px;align-items:flex-start}
-      .left{width:190px;flex-shrink:0}
+      .left{width:200px;flex-shrink:0;display:flex;flex-direction:column;gap:14px}
       .right{flex:1;min-width:0}
-      .lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#999;margin-bottom:3px}
-      .val{font-size:12px;color:#111;word-break:break-word;line-height:1.5}
-      .left-block{margin-bottom:14px}
-      .thank{margin-top:28px;font-size:13px;font-weight:700;color:#1a3a52;line-height:1.5}
-      .dates{display:flex;gap:24px;margin-bottom:14px}
+      .lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#999;margin-bottom:4px}
+      .val{font-size:12px;color:#111;line-height:1.6;word-break:break-word}
+      .divider{border-top:1px solid #e5e7eb;margin:4px 0}
+      .thank{margin-top:auto;padding-top:20px;font-size:13px;font-weight:700;color:#1a3a52;line-height:1.5}
       table{width:100%;border-collapse:collapse}
       th{background:#1a3a52;color:#fff;padding:7px 8px;font-size:10px;text-align:left;white-space:nowrap}
-      th:first-child{text-align:center;width:34px}th:last-child{text-align:right}
-      td{vertical-align:middle}
-      .totals{margin-top:10px;margin-left:auto;width:250px}
+      th:first-child{text-align:center;width:34px}
+      td{vertical-align:middle;padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px}
+      .totals{margin-top:10px;margin-left:auto;width:260px}
       .t-row{display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid #e5e7eb}
       .t-row.final{font-weight:700;font-size:14px;color:#1a3a52;border:none;padding-top:8px}
       @media print{body{padding:14px 20px}@page{margin:1cm}}
@@ -142,16 +154,17 @@ function ManagerInvoicePage() {
         <div class="inv-h">INVOICE</div>
         <div class="inv-meta">
           <div><b>No:</b> ${invoiceNum}</div>
-          <div><b>Invoice Date:</b> ${invoiceDate ? fmtDate(invoiceDate) : "—"}</div>
-          ${dueDate ? `<div><b>Due Date:</b> ${fmtDate(dueDate)}</div>` : ""}
+          <div><b>Date:</b> ${invoiceDate ? fmtDate(invoiceDate) : "—"}</div>
+          ${dueDate ? `<div><b>Due:</b> ${fmtDate(dueDate)}</div>` : ""}
         </div>
       </div>
     </div>
     <div class="body">
       <div class="left">
-        ${officeName ? `<div class="left-block"><div class="lbl">Bill To / Office</div><div class="val">${officeName}</div></div>` : ""}
-        ${payment     ? `<div class="left-block"><div class="lbl">Payment</div><div class="val">${payment}</div></div>` : ""}
-        ${term        ? `<div class="left-block"><div class="lbl">Terms</div><div class="val">${term}</div></div>` : ""}
+        ${fromBlock ? `<div><div class="lbl">Invoice From</div><div class="val">${fromBlock}</div></div><div class="divider"></div>` : ""}
+        ${officeName ? `<div><div class="lbl">Bill To / Office</div><div class="val">${officeName}</div></div>` : ""}
+        ${payment    ? `<div><div class="lbl">Payment</div><div class="val">${payment}</div></div>` : ""}
+        ${term       ? `<div><div class="lbl">Terms</div><div class="val">${term}</div></div>` : ""}
         <div class="thank">THANK YOU FOR<br>YOUR BUSINESS</div>
       </div>
       <div class="right">
@@ -182,47 +195,60 @@ function ManagerInvoicePage() {
         description={`${officeGroups.length} office${officeGroups.length !== 1 ? "s" : ""} · ${candidates.length} arrived worker${candidates.length !== 1 ? "s" : ""}`}
       />
 
-      {/* ── Default values bar (set once, used in every invoice) ── */}
+      {/* ── Settings bar ─────────────────────────────────────────────────── */}
       <Card className="rounded-none mb-5">
-        <CardContent className="p-4 flex flex-wrap items-end gap-5">
-          <div className="space-y-1">
-            <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              Recru. Fee <span className="normal-case font-normal">(per worker)</span>
-            </Label>
-            <input
-              type="number"
-              min={0}
-              placeholder="0"
-              value={recruFee}
-              onChange={(e) => setRecruFee(e.target.value)}
-              className="h-8 w-36 rounded border border-border bg-muted/40 px-3 text-sm outline-none focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
+        <CardContent className="p-4 space-y-4">
+          {/* From details */}
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Invoice From (your details)</p>
+            <div className="flex flex-wrap gap-3">
+              <div className="space-y-1 flex-1 min-w-[160px]">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Company / Agency Name</Label>
+                <Input placeholder="Staff-Flow Agency" value={fromCompany} onChange={(e) => setFromCompany(e.target.value)} className="h-8 text-sm" />
+              </div>
+              <div className="space-y-1 flex-1 min-w-[160px]">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Address</Label>
+                <Input placeholder="123 Main St, City" value={fromAddress} onChange={(e) => setFromAddress(e.target.value)} className="h-8 text-sm" />
+              </div>
+              <div className="space-y-1 min-w-[140px]">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Office Number</Label>
+                <Input placeholder="+1 234 567 890" value={fromPhone} onChange={(e) => setFromPhone(e.target.value)} className="h-8 text-sm w-44" />
+              </div>
+              <div className="space-y-1 flex-1 min-w-[160px]">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Email</Label>
+                <Input type="email" placeholder="office@example.com" value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} className="h-8 text-sm" />
+              </div>
+            </div>
           </div>
-          <div className="space-y-1">
-            <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Payment</Label>
-            <Input
-              placeholder="e.g. Bank Transfer"
-              value={payment}
-              onChange={(e) => setPayment(e.target.value)}
-              className="h-8 w-48 text-sm"
-            />
+
+          {/* Invoice defaults */}
+          <div className="border-t pt-3 flex flex-wrap items-end gap-5">
+            <div className="space-y-1">
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Recru. Fee <span className="normal-case font-normal">(per worker)</span>
+              </Label>
+              <input
+                type="number" min={0} placeholder="0" value={recruFee}
+                onChange={(e) => setRecruFee(e.target.value)}
+                className="h-8 w-36 rounded border border-border bg-muted/40 px-3 text-sm outline-none focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Payment</Label>
+              <Input placeholder="e.g. Bank Transfer" value={payment} onChange={(e) => setPayment(e.target.value)} className="h-8 w-48 text-sm" />
+            </div>
+            <p className="text-xs text-muted-foreground pb-1">All fields above apply to every invoice — still editable per invoice.</p>
           </div>
-          <p className="text-xs text-muted-foreground pb-1">
-            These apply to all invoices — you can still change them per invoice.
-          </p>
         </CardContent>
       </Card>
 
+      {/* ── Search ───────────────────────────────────────────────────────── */}
       <div className="relative mb-5 max-w-sm">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search office…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-8"
-        />
+        <Input placeholder="Search office…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
       </div>
 
+      {/* ── Office cards ─────────────────────────────────────────────────── */}
       {isLoading ? (
         <Card className="rounded-none"><CardContent className="p-8 text-center text-sm text-muted-foreground">Loading…</CardContent></Card>
       ) : filtered.length === 0 ? (
@@ -240,15 +266,10 @@ function ManagerInvoicePage() {
                   <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                     <Users className="h-3 w-3" />
                     {g.candidates.length} worker{g.candidates.length !== 1 ? "s" : ""}
-                    {g.candidates.length === 200 && <span className="text-[10px] text-warning">(max 200)</span>}
+                    {g.candidates.length === 200 && <span className="text-[10px] text-orange-500 ml-1">(max 200)</span>}
                   </p>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="shrink-0 self-center"
-                  onClick={() => openInvoice(g)}
-                >
+                <Button size="sm" variant="outline" className="shrink-0 self-center" onClick={() => openInvoice(g)}>
                   Invoice
                 </Button>
               </CardContent>
@@ -257,10 +278,9 @@ function ManagerInvoicePage() {
         </div>
       )}
 
-      {/* ── Invoice dialog ── */}
+      {/* ── Invoice dialog ───────────────────────────────────────────────── */}
       <Dialog open={!!activeOffice} onOpenChange={(o) => { if (!o) closeInvoice(); }}>
         <DialogContent className="max-w-5xl p-0 gap-0 max-h-[95vh] flex flex-col">
-          {/* Toolbar */}
           <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
             <span className="text-sm font-semibold">{invoiceNum}</span>
             <Button size="sm" className="gap-1.5" onClick={handlePrint}>
@@ -269,7 +289,7 @@ function ManagerInvoicePage() {
           </div>
 
           <div className="overflow-y-auto flex-1 p-6">
-            {/* Invoice top */}
+            {/* Invoice header */}
             <div className="flex items-start justify-between border-b-2 border-[#1a3a52] pb-4 mb-6">
               <div>
                 <div className="text-xl font-bold text-[#1a3a52]">Staff-Flow</div>
@@ -277,7 +297,7 @@ function ManagerInvoicePage() {
               </div>
               <div className="text-right">
                 <div className="text-3xl font-bold text-[#1a3a52] tracking-wide">INVOICE</div>
-                <div className="text-xs text-muted-foreground mt-1">
+                <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
                   <div><span className="font-medium">No:</span> {invoiceNum}</div>
                 </div>
               </div>
@@ -287,17 +307,25 @@ function ManagerInvoicePage() {
             <div className="flex gap-8 items-start">
 
               {/* LEFT */}
-              <div className="w-52 shrink-0 flex flex-col gap-5">
+              <div className="w-52 shrink-0 flex flex-col gap-4">
+
+                {/* Invoice From */}
+                <div className="space-y-1 pb-3 border-b">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Invoice From</p>
+                  <div className="space-y-1.5 text-sm">
+                    <Input placeholder="Company / Agency name" value={fromCompany} onChange={(e) => setFromCompany(e.target.value)} className="h-7 text-xs" />
+                    <Input placeholder="Address" value={fromAddress} onChange={(e) => setFromAddress(e.target.value)} className="h-7 text-xs" />
+                    <Input placeholder="Office number" value={fromPhone} onChange={(e) => setFromPhone(e.target.value)} className="h-7 text-xs" />
+                    <Input type="email" placeholder="Email" value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} className="h-7 text-xs" />
+                  </div>
+                </div>
+
+                {/* Bill To */}
                 <div className="space-y-1">
                   <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Bill To / Office Name</Label>
-                  <Textarea
-                    rows={3}
-                    placeholder="Office name & address…"
-                    value={officeName}
-                    onChange={(e) => setOfficeName(e.target.value)}
-                    className="text-sm resize-none"
-                  />
+                  <Textarea rows={2} placeholder="Office name & address…" value={officeName} onChange={(e) => setOfficeName(e.target.value)} className="text-sm resize-none" />
                 </div>
+
                 <div className="space-y-1">
                   <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Payment</Label>
                   <Input placeholder="e.g. Bank Transfer" value={payment} onChange={(e) => setPayment(e.target.value)} className="text-sm h-8" />
@@ -306,14 +334,14 @@ function ManagerInvoicePage() {
                   <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Terms</Label>
                   <Input placeholder="e.g. Net 30" value={term} onChange={(e) => setTerm(e.target.value)} className="text-sm h-8" />
                 </div>
-                <div className="mt-auto pt-8 text-sm font-bold text-[#1a3a52] leading-snug">
+
+                <div className="mt-auto pt-6 text-sm font-bold text-[#1a3a52] leading-snug">
                   THANK YOU FOR<br />YOUR BUSINESS
                 </div>
               </div>
 
               {/* RIGHT */}
               <div className="flex-1 min-w-0 flex flex-col gap-4">
-                {/* Dates */}
                 <div className="flex gap-4 flex-wrap">
                   <div className="space-y-1">
                     <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Invoice Date</Label>
@@ -325,7 +353,6 @@ function ManagerInvoicePage() {
                   </div>
                 </div>
 
-                {/* Worker table */}
                 <div className="overflow-x-auto border rounded">
                   <table className="w-full text-sm border-collapse">
                     <thead>
@@ -339,7 +366,7 @@ function ManagerInvoicePage() {
                     </thead>
                     <tbody>
                       {workers.map((c, i) => (
-                        <tr key={c.id} className={cn("border-b border-border/50 hover:bg-muted/30", i % 2 === 0 ? "" : "bg-muted/10")}>
+                        <tr key={c.id} className={cn("border-b border-border/50 hover:bg-muted/30", i % 2 !== 0 && "bg-muted/10")}>
                           <td className="px-3 py-1.5 text-center text-muted-foreground text-xs">{i + 1}</td>
                           <td className="px-3 py-1.5 font-medium whitespace-nowrap">{c.full_name}</td>
                           <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{c.passport_number ?? "—"}</td>
@@ -351,17 +378,11 @@ function ManagerInvoicePage() {
                   </table>
                 </div>
 
-                {/* Totals */}
                 <div className="ml-auto w-72 space-y-1.5 text-sm">
                   <div className="flex items-center justify-between border-b pb-1.5 gap-3">
-                    <span className="text-muted-foreground shrink-0">
-                      Recru. Fee <span className="text-xs">(× {workers.length})</span>
-                    </span>
+                    <span className="text-muted-foreground shrink-0">Recru. Fee <span className="text-xs">(× {workers.length})</span></span>
                     <input
-                      type="number"
-                      min={0}
-                      placeholder="0"
-                      value={recruFee}
+                      type="number" min={0} placeholder="0" value={recruFee}
                       onChange={(e) => setRecruFee(e.target.value)}
                       className="w-28 text-right bg-muted/40 border border-border rounded px-2 py-0.5 text-sm outline-none focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
@@ -373,10 +394,7 @@ function ManagerInvoicePage() {
                   <div className="flex items-center justify-between border-b pb-1.5 gap-3">
                     <span className="text-muted-foreground shrink-0">Other Expenses</span>
                     <input
-                      type="number"
-                      min={0}
-                      placeholder="0"
-                      value={otherExpenses}
+                      type="number" min={0} placeholder="0" value={otherExpenses}
                       onChange={(e) => setOtherExpenses(e.target.value)}
                       className="w-28 text-right bg-muted/40 border border-border rounded px-2 py-0.5 text-sm outline-none focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
