@@ -20,15 +20,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const ROLE_PRIORITY: AppRole[] = ["admin", "manager", "staff", "agency"];
+
   const fetchRole = async (userId: string) => {
     const { data } = await supabase
       .from("user_roles")
       .select("role")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    setRole((data?.role as AppRole) ?? null);
+      .eq("user_id", userId);
+    const roles = (data ?? []).map((r) => r.role as AppRole);
+    const resolved = ROLE_PRIORITY.find((r) => roles.includes(r)) ?? null;
+    setRole(resolved);
   };
 
   useEffect(() => {
