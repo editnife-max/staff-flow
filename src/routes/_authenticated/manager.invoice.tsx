@@ -43,7 +43,7 @@ function ManagerInvoicePage() {
   const [term, setTerm]             = useState("");
   const [invoiceDate, setInvoiceDate] = useState(todayIso());
   const [dueDate, setDueDate]         = useState("");
-  const [fees, setFees]               = useState<Record<string, string>>({});
+  const [recruFee, setRecruFee]           = useState("");
   const [otherExpenses, setOtherExpenses] = useState("");
 
   const { data: candidates = [], isLoading } = useQuery<Candidate[]>({
@@ -81,12 +81,6 @@ function ManagerInvoicePage() {
   function openInvoice(group: OfficeGroup) {
     setActiveOffice(group);
     setOfficeName(group.name === "— Unassigned —" ? "" : group.name);
-    // seed fees with empty string for each candidate (preserve previous edits)
-    setFees((prev) => {
-      const next = { ...prev };
-      group.candidates.forEach((c) => { if (!(c.id in next)) next[c.id] = ""; });
-      return next;
-    });
   }
 
   function closeInvoice() {
@@ -99,8 +93,9 @@ function ManagerInvoicePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeOffice?.name]);
 
-  const workers = activeOffice?.candidates ?? [];
-  const subtotal = workers.reduce((s, c) => s + (parseFloat(fees[c.id] || "0") || 0), 0);
+  const workers  = activeOffice?.candidates ?? [];
+  const feeEach  = parseFloat(recruFee || "0") || 0;
+  const subtotal = feeEach * workers.length;
   const other    = parseFloat(otherExpenses || "0") || 0;
   const total    = subtotal + other;
 
@@ -112,7 +107,6 @@ function ManagerInvoicePage() {
         <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;color:#555">${c.passport_number ?? "—"}</td>
         <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;color:#555">${c.ticket_date ? fmtDate(c.ticket_date) : "—"}</td>
         <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;color:#555">${c.occupation ?? "—"}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${fees[c.id] ? Number(fees[c.id]).toLocaleString() : "—"}</td>
       </tr>`).join("");
 
     const win = window.open("", "_blank", "width=1000,height=750");
@@ -164,12 +158,12 @@ function ManagerInvoicePage() {
         <table>
           <thead><tr>
             <th>#</th><th>Worker Name</th><th>Passport No.</th>
-            <th>Travel Date</th><th>Profession</th><th>Recru. Fee</th>
+            <th>Travel Date</th><th>Profession</th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>
         <div class="totals">
-          <div class="t-row"><span>Subtotal</span><span>${subtotal.toLocaleString()}</span></div>
+          <div class="t-row"><span>Recru. Fee (×${workers.length})</span><span>${feeEach.toLocaleString()} × ${workers.length} = ${subtotal.toLocaleString()}</span></div>
           <div class="t-row"><span>Other Expenses</span><span>${other.toLocaleString()}</span></div>
           <div class="t-row final"><span>Total Due</span><span>${total.toLocaleString()}</span></div>
         </div>
@@ -187,6 +181,37 @@ function ManagerInvoicePage() {
         title="Invoice"
         description={`${officeGroups.length} office${officeGroups.length !== 1 ? "s" : ""} · ${candidates.length} arrived worker${candidates.length !== 1 ? "s" : ""}`}
       />
+
+      {/* ── Default values bar (set once, used in every invoice) ── */}
+      <Card className="rounded-none mb-5">
+        <CardContent className="p-4 flex flex-wrap items-end gap-5">
+          <div className="space-y-1">
+            <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Recru. Fee <span className="normal-case font-normal">(per worker)</span>
+            </Label>
+            <input
+              type="number"
+              min={0}
+              placeholder="0"
+              value={recruFee}
+              onChange={(e) => setRecruFee(e.target.value)}
+              className="h-8 w-36 rounded border border-border bg-muted/40 px-3 text-sm outline-none focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Payment</Label>
+            <Input
+              placeholder="e.g. Bank Transfer"
+              value={payment}
+              onChange={(e) => setPayment(e.target.value)}
+              className="h-8 w-48 text-sm"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground pb-1">
+            These apply to all invoices — you can still change them per invoice.
+          </p>
+        </CardContent>
+      </Card>
 
       <div className="relative mb-5 max-w-sm">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -310,7 +335,6 @@ function ManagerInvoicePage() {
                         <th className="px-3 py-2 text-left">Passport No.</th>
                         <th className="px-3 py-2 text-left">Travel Date</th>
                         <th className="px-3 py-2 text-left">Profession</th>
-                        <th className="px-3 py-2 text-right w-28">Recru. Fee</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -321,16 +345,6 @@ function ManagerInvoicePage() {
                           <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{c.passport_number ?? "—"}</td>
                           <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{c.ticket_date ? fmtDate(c.ticket_date) : "—"}</td>
                           <td className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">{c.occupation ?? "—"}</td>
-                          <td className="px-3 py-1.5">
-                            <input
-                              type="number"
-                              min={0}
-                              placeholder="0"
-                              value={fees[c.id] ?? ""}
-                              onChange={(e) => setFees((f) => ({ ...f, [c.id]: e.target.value }))}
-                              className="w-full text-right bg-muted/40 border border-border rounded px-2 py-0.5 text-sm outline-none focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -338,7 +352,20 @@ function ManagerInvoicePage() {
                 </div>
 
                 {/* Totals */}
-                <div className="ml-auto w-64 space-y-1 text-sm">
+                <div className="ml-auto w-72 space-y-1.5 text-sm">
+                  <div className="flex items-center justify-between border-b pb-1.5 gap-3">
+                    <span className="text-muted-foreground shrink-0">
+                      Recru. Fee <span className="text-xs">(× {workers.length})</span>
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      value={recruFee}
+                      onChange={(e) => setRecruFee(e.target.value)}
+                      className="w-28 text-right bg-muted/40 border border-border rounded px-2 py-0.5 text-sm outline-none focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                  </div>
                   <div className="flex justify-between border-b pb-1.5">
                     <span className="text-muted-foreground">Subtotal</span>
                     <span className="font-medium">{subtotal.toLocaleString()}</span>
@@ -354,7 +381,7 @@ function ManagerInvoicePage() {
                       className="w-28 text-right bg-muted/40 border border-border rounded px-2 py-0.5 text-sm outline-none focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
-                  <div className="flex justify-between pt-1.5">
+                  <div className="flex justify-between pt-1">
                     <span className="font-bold text-[#1a3a52] text-base">Total Due</span>
                     <span className="font-bold text-[#1a3a52] text-base">{total.toLocaleString()}</span>
                   </div>
