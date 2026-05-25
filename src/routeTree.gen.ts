@@ -33,6 +33,7 @@ import { Route as AuthenticatedManagerAssignmentsRouteImport } from './routes/_a
 import { Route as AuthenticatedManagerAgenciesRouteImport } from './routes/_authenticated/manager.agencies'
 import { Route as AuthenticatedAgencyCandidatesRouteImport } from './routes/_authenticated/agency.candidates'
 import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin.dashboard'
+import { Route as AuthenticatedAdminManagersRouteImport } from './routes/_authenticated/admin.managers'
 
 const SetupAdminRoute = SetupAdminRouteImport.update({
   id: '/setup-admin',
@@ -164,6 +165,12 @@ const AuthenticatedAdminDashboardRoute =
     path: '/dashboard',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminManagersRoute =
+  AuthenticatedAdminManagersRouteImport.update({
+    id: '/managers',
+    path: '/managers',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -179,6 +186,7 @@ export interface FileRoutesByFullPath {
   '/manager': typeof AuthenticatedManagerRouteWithChildren
   '/staff': typeof AuthenticatedStaffRouteWithChildren
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/admin/managers': typeof AuthenticatedAdminManagersRoute
   '/agency/candidates': typeof AuthenticatedAgencyCandidatesRoute
   '/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
   '/manager/assignments': typeof AuthenticatedManagerAssignmentsRoute
@@ -204,6 +212,7 @@ export interface FileRoutesByTo {
   '/manager': typeof AuthenticatedManagerRouteWithChildren
   '/staff': typeof AuthenticatedStaffRouteWithChildren
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/admin/managers': typeof AuthenticatedAdminManagersRoute
   '/agency/candidates': typeof AuthenticatedAgencyCandidatesRoute
   '/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
   '/manager/assignments': typeof AuthenticatedManagerAssignmentsRoute
@@ -231,6 +240,7 @@ export interface FileRoutesById {
   '/_authenticated/manager': typeof AuthenticatedManagerRouteWithChildren
   '/_authenticated/staff': typeof AuthenticatedStaffRouteWithChildren
   '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/_authenticated/admin/managers': typeof AuthenticatedAdminManagersRoute
   '/_authenticated/agency/candidates': typeof AuthenticatedAgencyCandidatesRoute
   '/_authenticated/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
   '/_authenticated/manager/assignments': typeof AuthenticatedManagerAssignmentsRoute
@@ -258,6 +268,7 @@ export interface FileRouteTypes {
     | '/manager'
     | '/staff'
     | '/admin/dashboard'
+    | '/admin/managers'
     | '/agency/candidates'
     | '/manager/agencies'
     | '/manager/assignments'
@@ -283,6 +294,7 @@ export interface FileRouteTypes {
     | '/manager'
     | '/staff'
     | '/admin/dashboard'
+    | '/admin/managers'
     | '/agency/candidates'
     | '/manager/agencies'
     | '/manager/assignments'
@@ -309,6 +321,7 @@ export interface FileRouteTypes {
     | '/_authenticated/manager'
     | '/_authenticated/staff'
     | '/_authenticated/admin/dashboard'
+    | '/_authenticated/admin/managers'
     | '/_authenticated/agency/candidates'
     | '/_authenticated/manager/agencies'
     | '/_authenticated/manager/assignments'
@@ -502,15 +515,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDashboardRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/managers': {
+      id: '/_authenticated/admin/managers'
+      path: '/managers'
+      fullPath: '/admin/managers'
+      preLoaderRoute: typeof AuthenticatedAdminManagersRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
   }
 }
 
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRoute
+  AuthenticatedAdminManagersRoute: typeof AuthenticatedAdminManagersRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminDashboardRoute: AuthenticatedAdminDashboardRoute,
+  AuthenticatedAdminManagersRoute: AuthenticatedAdminManagersRoute,
 }
 
 const AuthenticatedAdminRouteWithChildren =
