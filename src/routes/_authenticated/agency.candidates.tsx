@@ -44,13 +44,6 @@ type Candidate = {
   status: string;
 };
 
-const TABS: { key: Status; label: string }[] = [
-  { key: "available",  label: "Available" },
-  { key: "processing", label: "Processing" },
-  { key: "arrived",    label: "Arrived" },
-  { key: "returned",   label: "Returned" },
-  { key: "canceled",   label: "Canceled" },
-];
 
 const STATUS_STYLES: Record<Status, string> = {
   available:  "bg-success text-success-foreground",
@@ -72,7 +65,6 @@ const initialFilters = {
 };
 
 function AgencyCandidatesPage() {
-  const [tab, setTab] = useState<Status>("available");
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(true);
   const [filters, setFilters] = useState(initialFilters);
@@ -103,7 +95,6 @@ function AgencyCandidatesPage() {
   const ageToNum   = filters.ageTo   !== "" ? Number(filters.ageTo)   : null;
 
   const filtered = candidates
-    .filter((c) => c.status === tab)
     .filter((c) => !search || c.full_name.toLowerCase().includes(search.toLowerCase()))
     .filter((c) => filters.occupation === "all" || c.occupation === filters.occupation)
     .filter((c) => filters.gender     === "all" || c.gender     === filters.gender)
@@ -131,7 +122,7 @@ function AgencyCandidatesPage() {
     <div>
       <PageHeader
         title="Candidates"
-        description={`${filtered.length} candidate${filtered.length !== 1 ? "s" : ""} — ${tab}`}
+        description={`${filtered.length} candidate${filtered.length !== 1 ? "s" : ""} sent to your agency`}
       />
 
       {/* Filter panel */}
@@ -257,31 +248,6 @@ function AgencyCandidatesPage() {
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Status tabs */}
-      <Card className="rounded-none mb-3">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-8 border-b border-border">
-            {TABS.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={cn(
-                  "pb-2 text-[16px] font-medium transition-colors",
-                  tab === t.key
-                    ? "text-primary border-b-2 border-primary -mb-px"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {t.label}
-                <span className="ml-1.5 text-xs text-muted-foreground">
-                  ({candidates.filter((c) => c.status === t.key).length})
-                </span>
-              </button>
-            ))}
-          </div>
         </CardContent>
       </Card>
 
