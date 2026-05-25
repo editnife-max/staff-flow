@@ -1,27 +1,39 @@
 import { Outlet, createFileRoute, Navigate, Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, Users, FileText, ChevronDown, Building2, Bell } from "lucide-react";
+import { LogOut, LayoutDashboard, Users, FileText, ChevronDown, Building2, Bell, CheckCircle2, XCircle } from "lucide-react";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import {
+  acceptCandidatesNotification,
+  declineCandidatesNotification,
+} from "@/lib/notifications.functions";
 
 export const Route = createFileRoute("/_authenticated/staff")({
   component: StaffLayout,
 });
 
 const NAV_TOP = [
-  { to: "/staff/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/staff/candidates", label: "HR Pool",   icon: Users,      exact: false },
-  { to: "/staff/cv-generator", label: "CV Page", icon: FileText },
+  { to: "/staff/dashboard",    label: "Dashboard", icon: LayoutDashboard },
+  { to: "/staff/candidates",   label: "HR Pool",   icon: Users,      exact: false },
+  { to: "/staff/cv-generator", label: "CV Page",   icon: FileText },
 ];
 
 type Notification = {
@@ -29,22 +41,50 @@ type Notification = {
   title: string;
   body: string | null;
   candidate_ids: string[];
+  sender_id: string | null;
   read: boolean;
+  status: string;
   created_at: string;
+};
+
+type CandidatePreview = {
+  id: string;
+  full_name: string;
+  photo_url: string | null;
+  occupation: string | null;
+  age: number | null;
+  gender: string | null;
+  religion: string | null;
+  marital_status: string | null;
+  experience: string | null;
+  status: string;
+};
+
+const STATUS_BADGE: Record<string, string> = {
+  pending:  "bg-muted text-muted-foreground",
+  accepted: "bg-emerald-500/15 text-emerald-700",
+  declined: "bg-destructive/15 text-destructive",
 };
 
 function StaffLayout() {
   const { role, loading, user, signOut } = useAuth();
-  const navigate = useNavigate();
-  const qc = useQueryClient();
-  const [notifOpen, setNotifOpen] = useState(false);
+  const navigate  = useNavigate();
+  const qc        = useQueryClient();
+  const doAccept  = useServerFn(acceptCandidatesNotification);
+  const doDecline = useServerFn(declineCandidatesNotification);
 
+  const [notifOpen, setNotifOpen]         = useState(false);
+  const [activeNotif, setActiveNotif]     = useState<Notification | null>(null);
+  const [declineMode, setDeclineMode]     = useState(false);
+  const [declineReason, setDeclineReason] = useState("");
+
+  // ── Notifications list ────────────────────────────────────────────────────
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ["staff-notifications"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("notifications" as any)
-        .select("id,title,body,candidate_ids,read,created_at")
+        .select("id,title,body,candidate_ids,sender_id,read,status,created_at")
         .order("created_at", { ascending: false })
         .limit(30);
       if (error) throw error;
@@ -56,12 +96,25 @@ function StaffLayout() {
 
   const unread = notifications.filter((n) => !n.read).length;
 
+  // ── Candidate previews for active notification ────────────────────────────
+  const { data: candidatePreviews = [] } = useQuery<CandidatePreview[]>({
+    queryKey: ["notif-candidates", activeNotif?.id],
+    queryFn: async () => {
+      if (!activeNotif?.candidate_ids?.length) return [];
+      const { data, error } = await supabase
+        .from("candidates")
+        .select("id,full_name,photo_url,occupation,age,gender,religion,marital_status,experience,status")
+        .in("id", activeNotif.candidate_ids);
+      if (error) throw error;
+      return data as CandidatePreview[];
+    },
+    enabled: !!activeNotif,
+  });
+
+  // ── Mark read ─────────────────────────────────────────────────────────────
   const markReadMut = useMutation({
     mutationFn: async (ids: string[]) => {
-      await supabase
-        .from("notifications" as any)
-        .update({ read: true })
-        .in("id", ids);
+      await supabase.from("notifications" as any).update({ read: true }).in("id", ids);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["staff-notifications"] }),
   });
@@ -69,8 +122,55 @@ function StaffLayout() {
   function openNotifs() {
     setNotifOpen(true);
     const unreadIds = notifications.filter((n) => !n.read).map((n) => n.id);
-    if (unreadIds.length > 0) markReadMut.mutate(unreadIds);
+    if (unreadIds.length) markReadMut.mutate(unreadIds);
   }
+
+  function openDetail(n: Notification) {
+    setActiveNotif(n);
+    setDeclineMode(false);
+    setDeclineReason("");
+  }
+
+  function closeDetail() {
+    setActiveNotif(null);
+    setDeclineMode(false);
+    setDeclineReason("");
+  }
+
+  // ── Accept ────────────────────────────────────────────────────────────────
+  const acceptMut = useMutation({
+    mutationFn: () => doAccept({
+      data: {
+        notificationId: activeNotif!.id,
+        candidateIds:   activeNotif!.candidate_ids,
+      },
+    }),
+    onSuccess: () => {
+      toast.success("Candidates moved to processing");
+      qc.invalidateQueries({ queryKey: ["staff-notifications"] });
+      qc.invalidateQueries({ queryKey: ["candidates"] });
+      closeDetail();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // ── Decline ───────────────────────────────────────────────────────────────
+  const declineMut = useMutation({
+    mutationFn: () => doDecline({
+      data: {
+        notificationId: activeNotif!.id,
+        agencyUserId:   activeNotif!.sender_id!,
+        candidateIds:   activeNotif!.candidate_ids,
+        reason:         declineReason.trim(),
+      },
+    }),
+    onSuccess: () => {
+      toast.success("Decline reason sent to agency");
+      qc.invalidateQueries({ queryKey: ["staff-notifications"] });
+      closeDetail();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   if (loading) return <div className="p-8 text-muted-foreground">Loading...</div>;
   if (role !== "staff" && role !== "admin") return <Navigate to="/dashboard" />;
@@ -80,7 +180,6 @@ function StaffLayout() {
     <div className="min-h-screen flex flex-col bg-muted/30">
       <header className="border-b bg-background">
         <div className="px-6 py-3 flex items-center gap-8">
-          {/* Logo */}
           <Link to="/staff/candidates" className="flex items-center gap-3 shrink-0">
             <div className="h-9 w-9 rounded-md bg-primary/10 grid place-items-center">
               <Building2 className="h-4 w-4 text-primary" />
@@ -88,7 +187,6 @@ function StaffLayout() {
             <span className="text-sm font-semibold tracking-tight">Staff-Flow</span>
           </Link>
 
-          {/* Nav */}
           <nav className="flex-1 flex flex-wrap items-center gap-x-8 gap-y-2">
             {NAV_TOP.map((n) => {
               const Icon = n.icon;
@@ -96,8 +194,7 @@ function StaffLayout() {
                 <Link key={n.label} to={n.to}
                   className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary py-2"
                   activeProps={{ className: "text-primary font-semibold border-b-2 border-primary py-2 flex items-center gap-2" }}>
-                  <Icon className="h-4 w-4" />
-                  {n.label}
+                  <Icon className="h-4 w-4" />{n.label}
                 </Link>
               );
             })}
@@ -118,43 +215,38 @@ function StaffLayout() {
             <PopoverContent align="end" className="w-80 p-0">
               <div className="flex items-center justify-between px-4 py-3 border-b">
                 <span className="text-sm font-semibold">Notifications</span>
-                {notifications.length > 0 && (
-                  <button
-                    type="button"
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                    onClick={() => {
-                      const ids = notifications.filter((n) => !n.read).map((n) => n.id);
-                      if (ids.length > 0) markReadMut.mutate(ids);
-                    }}
-                  >
-                    Mark all read
-                  </button>
-                )}
               </div>
               <div className="max-h-[360px] overflow-y-auto divide-y">
                 {notifications.length === 0 ? (
                   <p className="px-4 py-8 text-center text-sm text-muted-foreground">No notifications yet.</p>
                 ) : notifications.map((n) => (
-                  <div key={n.id} className={cn(
-                    "px-4 py-3 text-sm",
-                    !n.read && "bg-primary/5",
-                  )}>
+                  <button
+                    key={n.id}
+                    type="button"
+                    onClick={() => { setNotifOpen(false); openDetail(n); }}
+                    className={cn(
+                      "w-full text-left px-4 py-3 text-sm hover:bg-muted/60 transition-colors",
+                      !n.read && "bg-primary/5",
+                    )}
+                  >
                     <div className="flex items-start gap-2">
                       {!n.read && <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
                       <div className={cn("flex-1", n.read && "pl-3.5")}>
                         <p className="font-medium leading-snug">{n.title}</p>
-                        {n.body && <p className="text-xs text-muted-foreground mt-0.5">{n.body}</p>}
-                        <p className="text-[11px] text-muted-foreground mt-1">
-                          {new Date(n.created_at).toLocaleString()}
-                        </p>
-                        {n.candidate_ids?.length > 0 && (
-                          <p className="text-xs text-muted-foreground">
-                            {n.candidate_ids.length} candidate{n.candidate_ids.length !== 1 ? "s" : ""}
+                        {n.body && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{n.body}</p>}
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-[11px] text-muted-foreground">
+                            {new Date(n.created_at).toLocaleString()}
                           </p>
-                        )}
+                          {n.status !== "pending" && (
+                            <span className={cn("text-[10px] font-semibold rounded-full px-1.5 py-0.5 leading-none capitalize", STATUS_BADGE[n.status])}>
+                              {n.status}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </PopoverContent>
@@ -193,6 +285,106 @@ function StaffLayout() {
           </div>
         </div>
       </footer>
+
+      {/* Notification detail dialog */}
+      <Dialog open={!!activeNotif} onOpenChange={(o) => { if (!o) closeDetail(); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>{activeNotif?.title}</DialogTitle>
+            {activeNotif?.body && (
+              <p className="text-sm text-muted-foreground mt-1">{activeNotif.body}</p>
+            )}
+          </DialogHeader>
+
+          {/* Already actioned */}
+          {activeNotif?.status !== "pending" ? (
+            <div className={cn(
+              "rounded-md px-4 py-3 text-sm font-medium text-center",
+              activeNotif?.status === "accepted"
+                ? "bg-emerald-500/10 text-emerald-700"
+                : "bg-destructive/10 text-destructive",
+            )}>
+              {activeNotif?.status === "accepted"
+                ? "✓ You accepted these candidates — they are now in processing."
+                : "✗ You declined these candidates."}
+            </div>
+          ) : (
+            <>
+              {/* Candidate cards */}
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                {candidatePreviews.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Loading candidates…</p>
+                ) : candidatePreviews.map((c) => (
+                  <div key={c.id} className="flex items-center gap-3 border rounded-md p-3">
+                    <Avatar className="h-10 w-10 shrink-0">
+                      {c.photo_url && <AvatarImage src={c.photo_url} alt={c.full_name} />}
+                      <AvatarFallback className="text-xs">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold leading-tight truncate">{c.full_name}</p>
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                        {[c.occupation, c.gender, c.religion, c.marital_status, c.experience, c.age ? `Age ${c.age}` : null]
+                          .filter(Boolean)
+                          .map((v, i) => (
+                            <span key={i} className="text-xs text-muted-foreground">{v}</span>
+                          ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Decline reason input */}
+              {declineMode && (
+                <div className="space-y-2 border-t pt-4">
+                  <Label>Reason for declining</Label>
+                  <Textarea
+                    placeholder="Explain why you're declining these candidates…"
+                    value={declineReason}
+                    onChange={(e) => setDeclineReason(e.target.value)}
+                    rows={3}
+                    autoFocus
+                  />
+                </div>
+              )}
+
+              <DialogFooter className="border-t pt-4 gap-2">
+                {!declineMode ? (
+                  <>
+                    <Button variant="ghost" onClick={closeDetail}>Cancel</Button>
+                    <Button
+                      variant="outline"
+                      className="text-destructive border-destructive/40 hover:bg-destructive/5"
+                      onClick={() => setDeclineMode(true)}
+                    >
+                      <XCircle className="h-4 w-4 mr-1.5" /> Decline
+                    </Button>
+                    <Button
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={() => acceptMut.mutate()}
+                      disabled={acceptMut.isPending}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                      {acceptMut.isPending ? "Accepting…" : "Accept"}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="ghost" onClick={() => setDeclineMode(false)}>Back</Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => declineMut.mutate()}
+                      disabled={!declineReason.trim() || declineMut.isPending}
+                    >
+                      {declineMut.isPending ? "Sending…" : "Confirm Decline"}
+                    </Button>
+                  </>
+                )}
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
