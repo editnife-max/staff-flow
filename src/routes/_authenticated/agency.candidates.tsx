@@ -43,6 +43,11 @@ function AgencyCandidatesPage() {
   const [filterOccupation, setFilterOccupation] = useState("all");
   const [filterGender, setFilterGender] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterReligion, setFilterReligion] = useState("all");
+  const [filterExperience, setFilterExperience] = useState("all");
+  const [filterMarital, setFilterMarital] = useState("all");
+  const [ageFrom, setAgeFrom] = useState("");
+  const [ageTo, setAgeTo] = useState("");
 
   const { data: candidates = [], isLoading } = useQuery<Candidate[]>({
     queryKey: ["agency-candidates"],
@@ -60,16 +65,39 @@ function AgencyCandidatesPage() {
     },
   });
 
-  const occupations = [...new Set(candidates.map((c) => c.occupation).filter((v): v is string => !!v))].sort();
-  const statuses = [...new Set(candidates.map((c) => c.status).filter(Boolean))].sort();
+  const occupations   = [...new Set(candidates.map((c) => c.occupation).filter((v): v is string => !!v))].sort();
+  const statuses      = [...new Set(candidates.map((c) => c.status).filter(Boolean))].sort();
+  const religions     = [...new Set(candidates.map((c) => c.religion).filter((v): v is string => !!v))].sort();
+  const experiences   = [...new Set(candidates.map((c) => c.experience).filter((v): v is string => !!v))].sort();
+  const maritalOpts   = [...new Set(candidates.map((c) => c.marital_status).filter((v): v is string => !!v))].sort();
+
+  const ageFromNum = ageFrom !== "" ? Number(ageFrom) : null;
+  const ageToNum   = ageTo   !== "" ? Number(ageTo)   : null;
 
   const filtered = candidates.filter((c) => {
     if (query && !c.full_name.toLowerCase().includes(query.toLowerCase())) return false;
     if (filterOccupation !== "all" && c.occupation !== filterOccupation) return false;
     if (filterGender !== "all" && c.gender !== filterGender) return false;
     if (filterStatus !== "all" && c.status !== filterStatus) return false;
+    if (filterReligion !== "all" && c.religion !== filterReligion) return false;
+    if (filterExperience !== "all" && c.experience !== filterExperience) return false;
+    if (filterMarital !== "all" && c.marital_status !== filterMarital) return false;
+    if (ageFromNum !== null && (c.age == null || c.age < ageFromNum)) return false;
+    if (ageToNum   !== null && (c.age == null || c.age > ageToNum))   return false;
     return true;
   });
+
+  const activeCount = [
+    filterOccupation !== "all", filterGender !== "all", filterStatus !== "all",
+    filterReligion !== "all", filterExperience !== "all", filterMarital !== "all",
+    ageFrom !== "", ageTo !== "",
+  ].filter(Boolean).length;
+
+  function resetFilters() {
+    setFilterOccupation("all"); setFilterGender("all"); setFilterStatus("all");
+    setFilterReligion("all"); setFilterExperience("all"); setFilterMarital("all");
+    setAgeFrom(""); setAgeTo(""); setQuery("");
+  }
 
   return (
     <div className="space-y-4">
@@ -111,6 +139,36 @@ function AgencyCandidatesPage() {
           </SelectContent>
         </Select>
 
+        <Select value={filterReligion} onValueChange={setFilterReligion}>
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="Religion" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All religions</SelectItem>
+            {religions.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={filterExperience} onValueChange={setFilterExperience}>
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="Experience" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All experience</SelectItem>
+            {experiences.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={filterMarital} onValueChange={setFilterMarital}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Marital Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            {maritalOpts.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Status" />
@@ -120,6 +178,34 @@ function AgencyCandidatesPage() {
             {statuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
+
+        {/* Age range */}
+        <Input
+          type="number"
+          placeholder="Age from"
+          value={ageFrom}
+          onChange={(e) => setAgeFrom(e.target.value)}
+          className="w-24"
+          min={0}
+        />
+        <Input
+          type="number"
+          placeholder="Age to"
+          value={ageTo}
+          onChange={(e) => setAgeTo(e.target.value)}
+          className="w-24"
+          min={0}
+        />
+
+        {activeCount > 0 && (
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="text-xs text-muted-foreground hover:text-foreground underline self-center"
+          >
+            Reset ({activeCount})
+          </button>
+        )}
       </div>
 
       {/* Results */}
