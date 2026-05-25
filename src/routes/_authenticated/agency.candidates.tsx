@@ -1,19 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import React, { useState } from "react";
 import {
   Search, SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
-  ArrowUpDown, Users, User, BookOpen, Briefcase, Heart,
+  ArrowUpDown, Users, User, BookOpen, Briefcase, Heart, Send,
 } from "lucide-react";
+import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
+import { getStaffList, sendCandidatesNotification } from "@/lib/notifications.functions";
 
 export const Route = createFileRoute("/_authenticated/agency/candidates")({
   head: () => ({ meta: [{ title: "Candidates — Agency Portal" }] }),
@@ -44,13 +51,17 @@ type Candidate = {
   status: string;
 };
 
-
 const STATUS_STYLES: Record<Status, string> = {
   available:  "bg-success text-success-foreground",
   processing: "bg-warning text-foreground",
   arrived:    "bg-info text-info-foreground",
   canceled:   "bg-destructive text-destructive-foreground",
   returned:   "bg-orange-500 text-white",
+};
+
+const STATUS_LABEL: Record<Status, string> = {
+  available: "Available", processing: "Processing", arrived: "Arrived",
+  canceled: "Canceled", returned: "Returned",
 };
 
 const initialFilters = {
@@ -64,9 +75,18 @@ const initialFilters = {
 };
 
 function AgencyCandidatesPage() {
-  const [search, setSearch] = useState("");
+  const [search, setSearch]           = useState("");
   const [showFilters, setShowFilters] = useState(true);
-  const [filters, setFilters] = useState(initialFilters);
+  const [filters, setFilters]         = useState(initialFilters);
+  const [selected, setSelected]       = useState<Set<string>>(new Set());
+
+  // Send-to-staff dialog
+  const [sendOpen, setSendOpen]       = useState(false);
+  const [staffId, setStaffId]         = useState("");
+  const [message, setMessage]         = useState("");
+
+  const fetchStaff = useServerFn(getStaffList);
+  const doSend     = useServerFn(sendCandidatesNotification);
 
   const { data: candidates = [], isLoading } = useQuery<Candidate[]>({
     queryKey: ["agency-candidates"],
@@ -84,16 +104,21 @@ function AgencyCandidatesPage() {
     },
   });
 
+  const { data: staffList = [] } = useQuery({
+    queryKey: ["staff-list"],
+    queryFn: () => fetchStaff({}),
+    enabled: sendOpen,
+  });
 
   const ageFromNum = filters.ageFrom !== "" ? Number(filters.ageFrom) : null;
   const ageToNum   = filters.ageTo   !== "" ? Number(filters.ageTo)   : null;
 
   const filtered = candidates
     .filter((c) => !search || c.full_name.toLowerCase().includes(search.toLowerCase()))
-    .filter((c) => filters.gender     === "all" || c.gender     === filters.gender)
-    .filter((c) => filters.religion   === "all" || c.religion   === filters.religion)
-    .filter((c) => filters.experience === "all" || c.experience === filters.experience)
-    .filter((c) => filters.marital    === "all" || c.marital_status === filters.marital)
+    .filter((c) => filters.gender     === "all" || c.gender          === filters.gender)
+    .filter((c) => filters.religion   === "all" || c.religion        === filters.religion)
+    .filter((c) => filters.experience === "all" || c.experience      === filters.experience)
+    .filter((c) => filters.marital    === "all" || c.marital_status  === filters.marital)
     .filter((c) => ageFromNum === null || (c.age != null && c.age >= ageFromNum))
     .filter((c) => ageToNum   === null || (c.age != null && c.age <= ageToNum))
     .sort((a, b) =>
@@ -102,14 +127,31 @@ function AgencyCandidatesPage() {
         : ((b as any).created_at ?? "").localeCompare((a as any).created_at ?? "")
     );
 
-  const activeCount = Object.entries(filters).filter(([k, v]) =>
-    k !== "sort" && v && v !== "all"
-  ).length;
+  const activeCount = Object.entries(filters).filter(([k, v]) => k !== "sort" && v && v !== "all").length;
 
-  function resetFilters() {
-    setFilters(initialFilters);
-    setSearch("");
+  function resetFilters() { setFilters(initialFilters); setSearch(""); }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
+
+  function toggleAll() {
+    setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map((c) => c.id)));
+  }
+
+  function closeSend() { setSendOpen(false); setStaffId(""); setMessage(""); }
+
+  const sendMut = useMutation({
+    mutationFn: () => doSend({
+      data: { staffUserId: staffId, candidateIds: [...selected], message: message || undefined },
+    }),
+    onSuccess: () => {
+      toast.success(`${selected.size} candidate${selected.size !== 1 ? "s" : ""} sent to staff`);
+      setSelected(new Set());
+      closeSend();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   return (
     <div>
@@ -119,7 +161,7 @@ function AgencyCandidatesPage() {
       />
 
       {/* Filter panel */}
-      <Card className="rounded-none mb-0">
+      <Card className="rounded-none mb-3">
         <CardContent className="p-4">
           <div className="flex items-center justify-between gap-2 mb-2">
             <div className="flex items-center gap-3">
@@ -160,76 +202,42 @@ function AgencyCandidatesPage() {
           {showFilters && (
             <div className="flex flex-wrap items-center gap-1.5 mt-1">
               <FilterSelect
-                value={filters.sort}
-                onChange={(v) => setFilters({ ...filters, sort: v })}
+                value={filters.sort} onChange={(v) => setFilters({ ...filters, sort: v })}
                 icon={ArrowUpDown}
-                options={[
-                  { value: "newest", label: "Newest first" },
-                  { value: "oldest", label: "Oldest first" },
-                ]}
+                options={[{ value: "newest", label: "Newest first" }, { value: "oldest", label: "Oldest first" }]}
               />
               <FilterSelect
                 placeholder="Gender" value={filters.gender} icon={User}
                 onChange={(v) => setFilters({ ...filters, gender: v })}
-                options={[
-                  { value: "all", label: "-----" },
-                  { value: "Female", label: "Female" },
-                  { value: "Male", label: "Male" },
-                ]}
+                options={[{ value: "all", label: "-----" }, { value: "Female", label: "Female" }, { value: "Male", label: "Male" }]}
               />
               <FilterSelect
                 placeholder="Religion" value={filters.religion} icon={BookOpen}
                 onChange={(v) => setFilters({ ...filters, religion: v })}
-                options={[
-                  { value: "all",        label: "-----" },
-                  { value: "Muslim",     label: "Muslim" },
-                  { value: "Non-Muslim", label: "Non-Muslim" },
-                ]}
+                options={[{ value: "all", label: "-----" }, { value: "Muslim", label: "Muslim" }, { value: "Non-Muslim", label: "Non-Muslim" }]}
               />
               <FilterSelect
                 placeholder="Experience" value={filters.experience} icon={Briefcase}
                 onChange={(v) => setFilters({ ...filters, experience: v })}
-                options={[
-                  { value: "all",            label: "-----" },
-                  { value: "Experience",     label: "Experience" },
-                  { value: "Non-Experience", label: "Non-Experience" },
-                ]}
+                options={[{ value: "all", label: "-----" }, { value: "Experience", label: "Experience" }, { value: "Non-Experience", label: "Non-Experience" }]}
               />
               <FilterSelect
                 placeholder="Marital Status" value={filters.marital} icon={Heart}
                 onChange={(v) => setFilters({ ...filters, marital: v })}
-                options={[
-                  { value: "all",     label: "-----" },
-                  { value: "Single",  label: "Single" },
-                  { value: "Married", label: "Married" },
-                ]}
+                options={[{ value: "all", label: "-----" }, { value: "Single", label: "Single" }, { value: "Married", label: "Married" }]}
               />
-              {/* Age from / to */}
               <div className="flex items-center gap-1">
                 <Users className="h-3 w-3 text-muted-foreground" />
-                <Input
-                  type="number"
-                  placeholder="Age from"
-                  value={filters.ageFrom}
+                <Input type="number" placeholder="Age from" value={filters.ageFrom}
                   onChange={(e) => setFilters({ ...filters, ageFrom: e.target.value })}
-                  className="h-7 w-20 text-xs rounded-none"
-                  min={0}
-                />
+                  className="h-7 w-20 text-xs rounded-none" min={0} />
                 <span className="text-xs text-muted-foreground">–</span>
-                <Input
-                  type="number"
-                  placeholder="Age to"
-                  value={filters.ageTo}
+                <Input type="number" placeholder="Age to" value={filters.ageTo}
                   onChange={(e) => setFilters({ ...filters, ageTo: e.target.value })}
-                  className="h-7 w-20 text-xs rounded-none"
-                  min={0}
-                />
+                  className="h-7 w-20 text-xs rounded-none" min={0} />
                 {(filters.ageFrom || filters.ageTo) && (
-                  <button
-                    type="button"
-                    onClick={() => setFilters({ ...filters, ageFrom: "", ageTo: "" })}
-                    className="p-0.5 text-muted-foreground hover:text-foreground"
-                  >
+                  <button type="button" onClick={() => setFilters({ ...filters, ageFrom: "", ageTo: "" })}
+                    className="p-0.5 text-muted-foreground hover:text-foreground">
                     <X className="h-3 w-3" />
                   </button>
                 )}
@@ -239,6 +247,32 @@ function AgencyCandidatesPage() {
         </CardContent>
       </Card>
 
+      {/* Selection toolbar */}
+      {filtered.length > 0 && (
+        <div className="flex items-center gap-3 mb-2 px-[5px]">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+            <Checkbox
+              checked={selected.size > 0 && selected.size === filtered.length}
+              onCheckedChange={toggleAll}
+              aria-label="Select all"
+            />
+            {selected.size > 0 ? `${selected.size} selected` : "Select all"}
+          </label>
+          {selected.size > 0 && (
+            <>
+              <Button size="sm" className="h-7 text-xs gap-1.5" onClick={() => setSendOpen(true)}>
+                <Send className="h-3.5 w-3.5" />
+                Send to Staff ({selected.size})
+              </Button>
+              <button type="button" onClick={() => setSelected(new Set())}
+                className="text-xs text-muted-foreground hover:text-foreground">
+                Clear
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Results */}
       {isLoading ? (
         <Card className="rounded-none"><CardContent className="p-8 text-center text-sm text-muted-foreground">Loading…</CardContent></Card>
@@ -246,39 +280,93 @@ function AgencyCandidatesPage() {
         <Card className="rounded-none"><CardContent className="p-8 text-center text-sm text-muted-foreground">No candidates found.</CardContent></Card>
       ) : (
         <div className="space-y-2">
-          {filtered.map((c) => <AgencyCandidateCard key={c.id} candidate={c} />)}
+          {filtered.map((c) => (
+            <AgencyCandidateCard
+              key={c.id}
+              candidate={c}
+              selected={selected.has(c.id)}
+              onToggle={() => toggleSelect(c.id)}
+            />
+          ))}
         </div>
       )}
+
+      {/* Send to staff dialog */}
+      <Dialog open={sendOpen} onOpenChange={(o) => { if (!o) closeSend(); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Send to Staff</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Staff member</Label>
+              <Select value={staffId} onValueChange={setStaffId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select staff…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {staffList.length === 0
+                    ? <SelectItem value="none" disabled>No staff available</SelectItem>
+                    : staffList.map((s) => (
+                        <SelectItem key={s.id} value={s.user_id}>{s.name}</SelectItem>
+                      ))
+                  }
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Message <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Textarea
+                placeholder="Add a note for the staff member…"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Sending {selected.size} candidate{selected.size !== 1 ? "s" : ""}.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeSend}>Cancel</Button>
+            <Button
+              onClick={() => sendMut.mutate()}
+              disabled={!staffId || sendMut.isPending}
+            >
+              {sendMut.isPending ? "Sending…" : "Send"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function AgencyCandidateCard({ candidate: c }: { candidate: Candidate }) {
+function AgencyCandidateCard({
+  candidate: c, selected, onToggle,
+}: { candidate: Candidate; selected: boolean; onToggle: () => void }) {
   const statusKey = (c.status in STATUS_STYLES ? c.status : "available") as Status;
-  const STATUS_LABEL: Record<Status, string> = {
-    available: "Available", processing: "Processing", arrived: "Arrived",
-    canceled: "Canceled", returned: "Returned",
-  };
 
   const fields: [string, string | number | null][] = [
-    ["FULL NAME",     c.full_name],
-    ["OCCUPATION",    c.occupation],
-    ["COUNTRY",       c.country],
-    ["AGE",           c.age],
-    ["GENDER",        c.gender],
-    ["RELIGION",      c.religion],
-    ["MARITAL",       c.marital_status],
-    ["EXPERIENCE",    c.experience],
-    ["EDUCATION",     c.education],
-    ["ENGLISH",       c.english_level],
-    ["ARABIC",        c.arabic_level],
-    ["MEDICAL",       c.medical_status],
-    ["COC",           c.coc_status],
-    ["PASSPORT",      c.passport_status],
+    ["FULL NAME",  c.full_name],
+    ["OCCUPATION", c.occupation],
+    ["COUNTRY",    c.country],
+    ["AGE",        c.age],
+    ["GENDER",     c.gender],
+    ["RELIGION",   c.religion],
+    ["MARITAL",    c.marital_status],
+    ["EXPERIENCE", c.experience],
+    ["EDUCATION",  c.education],
+    ["ENGLISH",    c.english_level],
+    ["ARABIC",     c.arabic_level],
+    ["MEDICAL",    c.medical_status],
+    ["COC",        c.coc_status],
+    ["PASSPORT",   c.passport_status],
   ];
 
   return (
-    <Card className="relative overflow-visible transition-colors rounded-none mx-[5px]">
+    <Card className={cn(
+      "relative overflow-visible transition-colors rounded-none mx-[5px]",
+      selected && "ring-2 ring-primary",
+    )}>
       <span className={cn(
         "absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[10px] font-semibold tracking-wide",
         STATUS_STYLES[statusKey],
@@ -286,7 +374,10 @@ function AgencyCandidateCard({ candidate: c }: { candidate: Candidate }) {
         {STATUS_LABEL[statusKey]}
       </span>
       <CardContent className="p-0">
-        <div className="grid grid-cols-[60px_1fr] gap-3 items-center">
+        <div className="grid grid-cols-[20px_40px_1fr] gap-3 items-center">
+          <div className="flex items-center justify-center pl-3">
+            <Checkbox checked={selected} onCheckedChange={onToggle} aria-label="Select candidate" />
+          </div>
           <div className="flex items-center justify-center">
             <Avatar className="h-10 w-10">
               {c.photo_url && <AvatarImage src={c.photo_url} alt={c.full_name} />}
@@ -301,9 +392,7 @@ function AgencyCandidateCard({ candidate: c }: { candidate: Candidate }) {
                     <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">
                       {label}
                     </div>
-                    <div className="text-[14px] text-[#181A27] whitespace-nowrap">
-                      {val}
-                    </div>
+                    <div className="text-[14px] text-[#181A27] whitespace-nowrap">{val}</div>
                   </div>
                 ) : null
               )}
@@ -318,34 +407,27 @@ function AgencyCandidateCard({ candidate: c }: { candidate: Candidate }) {
 function FilterSelect({
   value, onChange, options, placeholder, icon: Icon,
 }: {
-  value: string;
-  onChange: (v: string) => void;
+  value: string; onChange: (v: string) => void;
   options: { value: string; label: string }[];
-  placeholder?: string;
-  icon?: React.ElementType;
+  placeholder?: string; icon?: React.ElementType;
 }) {
   const isReset = value === "all" || !value;
   return (
     <div className="flex items-center gap-0.5">
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger
-          className={cn(
-            "border shadow-none w-auto h-7 px-2 gap-1.5 transition-colors rounded-none text-[13px] font-medium [&>svg]:shrink-0",
-            isReset
-              ? "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-              : "bg-black/10 border-black/20 text-[#181A27] dark:bg-white/10 dark:border-white/20 dark:text-white",
-          )}
-        >
+        <SelectTrigger className={cn(
+          "border shadow-none w-auto h-7 px-2 gap-1.5 transition-colors rounded-none text-[13px] font-medium [&>svg]:shrink-0",
+          isReset
+            ? "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+            : "bg-black/10 border-black/20 text-[#181A27] dark:bg-white/10 dark:border-white/20 dark:text-white",
+        )}>
           {Icon && <Icon className="h-3 w-3 shrink-0" />}
           {isReset ? <span>{placeholder}</span> : <SelectValue />}
         </SelectTrigger>
         <SelectContent>
           {options.map((o) => (
             <SelectItem key={o.value} value={o.value} className="py-1 px-2 focus:bg-muted/50">
-              <span className={cn(
-                "text-[13px]",
-                o.value === "all" ? "text-muted-foreground" : "text-[#181A27] dark:text-white",
-              )}>
+              <span className={cn("text-[13px]", o.value === "all" ? "text-muted-foreground" : "text-[#181A27] dark:text-white")}>
                 {o.label}
               </span>
             </SelectItem>
@@ -353,12 +435,9 @@ function FilterSelect({
         </SelectContent>
       </Select>
       {!isReset && (
-        <button
-          type="button"
-          onClick={() => onChange("all")}
+        <button type="button" onClick={() => onChange("all")}
           className="rounded-none p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-          aria-label="Clear filter"
-        >
+          aria-label="Clear filter">
           <X className="h-3 w-3" />
         </button>
       )}
