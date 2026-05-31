@@ -419,7 +419,7 @@ function StaffCandidatesPage() {
     queryKey: ["staff-candidates", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.from("candidates").select("*");
+      const { data, error } = await supabase.from("candidates").select("*").order("created_at", { ascending: true });
       if (error) throw error;
       return data;
     },
@@ -501,16 +501,21 @@ function StaffCandidatesPage() {
       await qc.cancelQueries({ queryKey: ["staff-candidates", user?.id] });
       const previous = qc.getQueryData<Candidate[]>(["staff-candidates", user?.id]);
       qc.setQueryData<Candidate[]>(["staff-candidates", user?.id], (old) =>
-        old?.map((c) => c.id === input.id ? { ...c, [input.field]: input.value } : c) ?? []
+        old?.map((c) => {
+          if (c.id !== input.id) return c;
+          const updated = { ...c, [input.field]: input.value };
+          if (input.field === "selected_by" && input.value && c.status === "available") {
+            updated.status = "processing";
+            if (!c.contract_date) updated.contract_date = new Date().toISOString().split("T")[0];
+          }
+          return updated;
+        }) ?? []
       );
       return { previous };
     },
     onError: (e: Error, _, ctx) => {
       if (ctx?.previous) qc.setQueryData(["staff-candidates", user?.id], ctx.previous);
       toast.error(e.message);
-    },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: ["staff-candidates"] });
     },
   });
 
