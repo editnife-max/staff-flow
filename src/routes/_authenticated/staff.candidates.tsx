@@ -53,7 +53,7 @@ const TABS: { key: Status; label: string }[] = [
 const MEDICAL_OPTIONS = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired"];
 const AVAILABILITY_OPTIONS: Status[] = ["available", "processing", "arrived", "returned", "canceled"];
 const COC_OPTIONS = ["Done", "No", "Booked", "Placed", "Yitazez", "Pending release"];
-const MUSANED_OPTIONS = ["Saudi", "Kuwait"];
+const MUSANED_OPTIONS: string[] = [];
 const OFFICE_OPTIONS = ["Riyadh", "Jeddah", "Dammam", "Other"];
 const PASSPORT_OPTIONS = ["Original", "Scan"];
 const TASHEER_OPTIONS = ["No", "Booked", "Done", "Ready"];
@@ -73,7 +73,7 @@ const ARRIVAL_CITY_OPTIONS = ["RIYADH", "JEDDAH", "DAMMAM", "JOUF", "HAIL", "ABH
 const BULK_FIELD_DEFS = [
   { key: "medical_status",   label: "Medical",       options: MEDICAL_OPTIONS },
   { key: "coc_status",       label: "COC",           options: COC_OPTIONS },
-  { key: "musaned_status",   label: "Musaned",       options: MUSANED_OPTIONS },
+  { key: "musaned_status",   label: "Country",       options: MUSANED_OPTIONS },
   { key: "office",           label: "Office",        options: OFFICE_OPTIONS },
   { key: "passport_status",  label: "Passport",      options: PASSPORT_OPTIONS },
   { key: "experience",       label: "Experience",    options: ["Yes", "No", "None"] },
@@ -214,7 +214,7 @@ const PROCESSING_COLS: ProcessingColDef[] = [
 const CANDIDATE_CARD_COLS = [
   "FULL NAME", "CANDIDATE CODE", "GENDER", "RELIGION", "MARITAL STATUS",
   "BIRTH PLACE", "LIVING TOWN", "OCCUPATION", "PASSPORT NUMBER", "LABOUR ID",
-  "OFFICE", "PASSPORT STATUS", "COC STATUS", "MUSANED STATUS", "MEDICAL STATUS",
+  "OFFICE", "PASSPORT STATUS", "COC STATUS", "COUNTRY", "MEDICAL STATUS",
   "MEDICAL DATE", "AVAILABILITY", "SELECTED BY", "CV SENT TO", "CV SENT DATE",
   "NARRATIVE", "NOTES",
 ] as const;
@@ -800,7 +800,7 @@ function StaffCandidatesPage() {
             <FilterSelect placeholder="COC" value={filters.coc} icon={FileCheck}
               onChange={(v) => setFilters({ ...filters, coc: v })}
               options={[{ value: "all", label: "-----" }, ...["Done","No","Booked","Placed","Yitazez","Pending Release"].map((o) => ({ value: o, label: o }))]} />
-            <FilterSelect placeholder="Musaned" value={filters.musaned} icon={Globe}
+            <FilterSelect placeholder="Country" value={filters.musaned} icon={Globe}
               onChange={(v) => setFilters({ ...filters, musaned: v })}
               options={[{ value: "all", label: "-----" }, ...opts.musaned.map((o) => ({ value: o, label: o }))]} />
             <FilterSelect placeholder="Selected By" value={filters.selected_by} icon={ClipboardPaste}
@@ -874,19 +874,22 @@ function StaffCandidatesPage() {
                 </SelectContent>
               </Select>
 
-              {BULK_FIELD_DEFS.map((fd) => (
-                <Select key={fd.key} onValueChange={(v) => {
-                  if (fd.key === "ticket_status" && v === "Booked") { setTicketDateOpen(true); }
-                  else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
-                }}>
-                  <SelectTrigger className="h-9 w-[120px]">
-                    <SelectValue placeholder={fd.label} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {fd.options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              ))}
+              {BULK_FIELD_DEFS.map((fd) => {
+                const opts = fd.key === "musaned_status" ? assignCountries.map((c) => c.name) : fd.options;
+                return (
+                  <Select key={fd.key} onValueChange={(v) => {
+                    if (fd.key === "ticket_status" && v === "Booked") { setTicketDateOpen(true); }
+                    else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
+                  }}>
+                    <SelectTrigger className="h-9 w-[120px]">
+                      <SelectValue placeholder={fd.label} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {opts.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                );
+              })}
 
               <Button
                 size="sm"
@@ -1087,7 +1090,7 @@ function StaffCandidatesPage() {
                 <FormSelect label="Passport Status" value={form.passport_status} onChange={(v) => setForm({ ...form, passport_status: v })} options={PASSPORT_OPTIONS} />
                 <FormSelect label="Medical Status" value={form.medical_status} onChange={(v) => setForm({ ...form, medical_status: v })} options={MEDICAL_OPTIONS} />
                 <FormSelect label="COC Status" value={form.coc_status} onChange={(v) => setForm({ ...form, coc_status: v })} options={COC_OPTIONS} />
-                <FormSelect label="Musaned" value={form.musaned_status} onChange={(v) => setForm({ ...form, musaned_status: v })} options={MUSANED_OPTIONS} />
+                <FormSelect label="Country" value={form.musaned_status} onChange={(v) => setForm({ ...form, musaned_status: v })} options={assignCountries.map((c) => c.name)} />
               </div>
             </FormSection>
 
@@ -1182,6 +1185,8 @@ function CandidateCardList({
   const [showColPicker, setShowColPicker] = useState(false);
   const [activeCountryTab, setActiveCountryTab] = useState("all");
   const [activeOfficeTab, setActiveOfficeTab] = useState("all");
+
+  const countryOptions = useMemo(() => countryMeta.map((c) => c.name), [countryMeta]);
 
   const filtered = useMemo(() => {
     let list = candidates;
@@ -1315,6 +1320,7 @@ function CandidateCardList({
           onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
           onReturn={onReturn ? () => onReturn(c.id) : undefined}
           agencyOptions={agencyOptions}
+          countryOptions={countryOptions}
         />
       ))}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
@@ -1359,7 +1365,7 @@ function CandidateCardList({
 }
 
 function CandidateCard({
-  candidate, selected, hiddenCols, onToggleSelect, onViewPhotos, onEdit, onDelete, onUpdateField, cancelMode, onReturn, agencyOptions,
+  candidate, selected, hiddenCols, onToggleSelect, onViewPhotos, onEdit, onDelete, onUpdateField, cancelMode, onReturn, agencyOptions, countryOptions,
 }: {
   candidate: Candidate;
   selected: boolean;
@@ -1372,6 +1378,7 @@ function CandidateCard({
   onUpdateField: (field: EditableField, value: string | null) => void;
   onReturn?: () => void;
   agencyOptions: string[];
+  countryOptions: string[];
 }) {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
@@ -1407,7 +1414,7 @@ function CandidateCard({
     { label: "OFFICE", value: candidate.office ?? "", edit: "select", field: "office", options: OFFICE_OPTIONS },
     { label: "PASSPORT STATUS", value: candidate.passport_status ?? "", edit: "select", field: "passport_status", options: PASSPORT_OPTIONS },
     { label: "COC STATUS", value: candidate.coc_status ?? "", edit: "select", field: "coc_status", options: COC_OPTIONS },
-    { label: "MUSANED STATUS", value: candidate.musaned_status ?? "", edit: "select", field: "musaned_status", options: MUSANED_OPTIONS },
+    { label: "COUNTRY", value: candidate.musaned_status ?? "", edit: "select", field: "musaned_status", options: countryOptions },
     { label: "MEDICAL STATUS", value: candidate.medical_status ?? "", edit: "select", field: "medical_status", options: MEDICAL_OPTIONS },
     { label: "MEDICAL DATE", value: candidate.medical_date ? new Date(candidate.medical_date).toLocaleDateString() : "—" },
     { label: "AVAILABILITY", value: statusKey, edit: "select", field: "status", options: AVAILABILITY_OPTIONS },

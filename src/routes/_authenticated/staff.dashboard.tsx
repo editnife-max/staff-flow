@@ -26,7 +26,7 @@ export const Route = createFileRoute("/_authenticated/staff/dashboard")({
 // ─── Options ────────────────────────────────────────────────────────────────
 const MEDICAL_OPTIONS    = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired"];
 const COC_OPTIONS        = ["Done", "No", "Booked", "Placed", "Yitazez", "Pending release"];
-const MUSANED_OPTIONS    = ["Saudi", "Kuwait"];
+const MUSANED_OPTIONS: string[] = [];
 const OFFICE_OPTIONS     = ["Riyadh", "Jeddah", "Dammam", "Other"];
 const PASSPORT_OPTIONS   = ["Original", "Scan"];
 const TASHEER_OPTIONS    = ["No", "Booked", "Done", "Ready"];
@@ -226,11 +226,12 @@ function InlineDate({ value, onSave }: { value: string; onSave: (v: string | nul
 
 // ─── Full candidate card (HR Pool style, no checkbox) ────────────────────────
 function DashboardCandidateCard({
-  candidate, onUpdateField, note,
+  candidate, onUpdateField, note, countryOptions,
 }: {
   candidate: Candidate;
   onUpdateField: (field: EditableField, value: string | null) => void;
   note?: string | null;
+  countryOptions: string[];
 }) {
   const statusStyles: Record<Status, string> = {
     available: "bg-success text-success-foreground",
@@ -264,7 +265,7 @@ function DashboardCandidateCard({
     { label: "OFFICE",          value: candidate.office ?? "",         edit: "select", field: "office",          options: OFFICE_OPTIONS },
     { label: "PASSPORT STATUS", value: candidate.passport_status ?? "", edit: "select", field: "passport_status", options: PASSPORT_OPTIONS },
     { label: "COC STATUS",      value: candidate.coc_status ?? "",     edit: "select", field: "coc_status",       options: COC_OPTIONS },
-    { label: "MUSANED STATUS",  value: candidate.musaned_status ?? "", edit: "select", field: "musaned_status",   options: MUSANED_OPTIONS },
+    { label: "COUNTRY",         value: candidate.musaned_status ?? "", edit: "select", field: "musaned_status",   options: countryOptions },
     { label: "MEDICAL STATUS",  value: candidate.medical_status ?? "", edit: "select", field: "medical_status",   options: MEDICAL_OPTIONS },
     { label: "MEDICAL DATE",    value: candidate.medical_date ? new Date(candidate.medical_date).toLocaleDateString() : "—" },
     { label: "AVAILABILITY",    value: statusKey,                      edit: "select", field: "status",           options: AVAILABILITY_OPTIONS },
@@ -345,7 +346,7 @@ function DashboardCandidateCard({
 
 // ─── Alert section ───────────────────────────────────────────────────────────
 function AlertSection({
-  icon: Icon, title, iconColor, pillKey, candidates, getNote, onUpdateField,
+  icon: Icon, title, iconColor, pillKey, candidates, getNote, onUpdateField, countryOptions,
 }: {
   icon: React.ElementType;
   title: string;
@@ -354,6 +355,7 @@ function AlertSection({
   candidates: Candidate[];
   getNote?: (c: Candidate) => string | null;
   onUpdateField: (id: string, field: EditableField, value: string | null) => void;
+  countryOptions: string[];
 }) {
   const [open, setOpen] = useState(false);
   if (candidates.length === 0) return null;
@@ -383,6 +385,7 @@ function AlertSection({
               candidate={c}
               note={getNote?.(c) ?? null}
               onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
+              countryOptions={countryOptions}
             />
           ))}
         </div>
@@ -409,6 +412,17 @@ function StaffDashboard() {
       return data as Candidate[];
     },
   });
+
+  const { data: assignCountries = [] } = useQuery({
+    queryKey: ["assignment-countries", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("assignment_countries").select("name").order("name");
+      if (error) throw error;
+      return data as { name: string }[];
+    },
+  });
+  const countryOptions = assignCountries.map((c) => c.name);
 
   const fieldMut = useMutation({
     mutationFn: async (input: { id: string; field: string; value: string | null }) =>
@@ -484,10 +498,10 @@ function StaffDashboard() {
       {/* Alert sections */}
       {(cocNotDone.length > 0 || medicalNotFit.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0) && (
         <div className="space-y-2">
-          <AlertSection icon={FileCheck}    title="COC — Not Done"               iconColor="text-orange-600 dark:text-orange-400" pillKey="coc"     candidates={cocNotDone}    onUpdateField={handleUpdateField} />
-          <AlertSection icon={Stethoscope}  title="Medical — Not Fit"            iconColor="text-red-600 dark:text-red-400"       pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField} />
-          <AlertSection icon={ClipboardList} title="Unfilled LMIS"               iconColor="text-amber-600 dark:text-amber-400"   pillKey="lmis"    candidates={unfilledLmis}  onUpdateField={handleUpdateField} />
-          <AlertSection icon={Ticket}        title="Ticket Not Booked — Over 20 Days" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketNotBooked} onUpdateField={handleUpdateField}
+          <AlertSection icon={FileCheck}    title="COC — Not Done"               iconColor="text-orange-600 dark:text-orange-400" pillKey="coc"     candidates={cocNotDone}    onUpdateField={handleUpdateField} countryOptions={countryOptions} />
+          <AlertSection icon={Stethoscope}  title="Medical — Not Fit"            iconColor="text-red-600 dark:text-red-400"       pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
+          <AlertSection icon={ClipboardList} title="Unfilled LMIS"               iconColor="text-amber-600 dark:text-amber-400"   pillKey="lmis"    candidates={unfilledLmis}  onUpdateField={handleUpdateField} countryOptions={countryOptions} />
+          <AlertSection icon={Ticket}        title="Ticket Not Booked — Over 20 Days" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketNotBooked} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => c.contract_date ? `${daysSince(c.contract_date)}d since contract` : null} />
         </div>
       )}
