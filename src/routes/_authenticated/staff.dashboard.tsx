@@ -449,7 +449,7 @@ function StaffDashboard() {
 
   const cocNotDone    = candidates.filter((c) => c.coc_status && c.coc_status !== "Done");
   const medicalNotFit = candidates.filter((c) => c.medical_status && c.medical_status !== "Fit");
-  const unfilledLmis  = candidates.filter((c) => c.unfilled_lmis && c.unfilled_lmis.trim() !== "");
+  const unfilledLmis  = candidates.filter((c) => c.status === "processing" && c.unfilled_lmis && c.unfilled_lmis.trim() !== "");
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -471,12 +471,12 @@ function StaffDashboard() {
   });
 
   const embassyPending = candidates.filter(
-    (c) => c.tasheer_status === "Done" && c.visa_status !== "Ready for embassy" && c.processing_notes,
+    (c) => c.status === "processing" && c.tasheer_status === "Done" && c.visa_status !== "Ready for embassy" && c.processing_notes,
   );
 
-  const visaReady = candidates.filter((c) => c.visa_status === "Ready for embassy");
+  const visaReady = candidates.filter((c) => c.status === "processing" && c.visa_status === "Ready for embassy");
 
-  const visaReturned = candidates.filter((c) => c.visa_status === "Returned");
+  const visaReturned = candidates.filter((c) => c.status === "processing" && c.visa_status === "Returned");
   const daysSince = (d: string) =>
     Math.floor((today.getTime() - new Date(d + "T00:00:00").getTime()) / 86_400_000);
 
