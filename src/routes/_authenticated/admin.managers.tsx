@@ -52,16 +52,16 @@ function AdminManagersPage() {
   const [confirmRemove, setConfirmRemove] = useState<{ id: string; name: string | null } | null>(null);
 
   // Reset password
-  const [resetTarget, setResetTarget] = useState<{ id: string; name: string | null } | null>(null);
-  const [newPassword, setNewPassword]  = useState("");
-  const [confirmPw,   setConfirmPw]    = useState("");
+  const [resetTarget,   setResetTarget]   = useState<{ id: string; name: string | null } | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [confirmPw,     setConfirmPw]     = useState("");
 
-  function closeReset() { setResetTarget(null); setNewPassword(""); setConfirmPw(""); }
+  function closeReset() { setResetTarget(null); setResetPassword(""); setConfirmPw(""); }
 
-  const resetValid = newPassword.length >= 8 && newPassword === confirmPw;
+  const resetValid = resetPassword.length >= 8 && resetPassword === confirmPw;
 
   const resetMut = useMutation({
-    mutationFn: () => doResetPw({ data: { userId: resetTarget!.id, newPassword } }),
+    mutationFn: () => doResetPw({ data: { userId: resetTarget!.id, newPassword: resetPassword } }),
     onSuccess: () => { toast.success("Password reset successfully"); closeReset(); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -213,7 +213,7 @@ function AdminManagersPage() {
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label>New password <span className="text-muted-foreground text-xs">(min 8 chars)</span></Label>
-              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+              <Input type="password" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label>Confirm password</Label>
