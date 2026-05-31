@@ -662,6 +662,24 @@ function StaffCandidatesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const [visaReturnedOpen, setVisaReturnedOpen] = useState(false);
+  const [visaReturnedReason, setVisaReturnedReason] = useState("");
+
+  const visaReturnedMut = useMutation({
+    mutationFn: async () => {
+      const ids = Array.from(selected);
+      await bulkField({ data: { ids, field: "visa_status", value: "Returned" } });
+      await bulkField({ data: { ids, field: "remark", value: visaReturnedReason.trim() } });
+    },
+    onSuccess: () => {
+      toast.success(`Updated ${selected.size} candidate(s)`);
+      qc.invalidateQueries({ queryKey: ["staff-candidates"] });
+      setVisaReturnedOpen(false);
+      setVisaReturnedReason("");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const [tasheerDoneOpen, setTasheerDoneOpen] = useState(false);
   const [tasheerDoneStep, setTasheerDoneStep] = useState<"ask" | "reason">("ask");
   const [tasheerDoneReason, setTasheerDoneReason] = useState("");
@@ -900,6 +918,28 @@ function StaffCandidatesPage() {
         </CardContent>
       </Card>
 
+      {visaReturnedOpen && (
+        <Card className="border-rose-400/60 bg-rose-50/60 dark:bg-rose-900/20">
+          <CardContent className="p-3 flex flex-wrap items-center gap-3">
+            <span className="text-sm font-semibold text-rose-800 dark:text-rose-300">
+              Visa Returned — {selected.size} candidate{selected.size !== 1 ? "s" : ""}
+            </span>
+            <Input
+              placeholder="Enter reason…"
+              className="h-8 w-[260px]"
+              value={visaReturnedReason}
+              onChange={(e) => setVisaReturnedReason(e.target.value)}
+            />
+            <Button size="sm" disabled={visaReturnedMut.isPending || !visaReturnedReason.trim()} onClick={() => visaReturnedMut.mutate()}>
+              {visaReturnedMut.isPending ? "Updating…" : "Apply"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => { setVisaReturnedOpen(false); setVisaReturnedReason(""); }}>
+              Cancel
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {ticketDateOpen && (
         <Card className="border-violet-400/60 bg-violet-50/60 dark:bg-violet-900/20">
           <CardContent className="p-3 flex flex-wrap items-center gap-3">
@@ -971,6 +1011,7 @@ function StaffCandidatesPage() {
                       if (hasWokalaPaid) { setTasheerDoneOpen(true); setTasheerDoneStep("ask"); setTasheerDoneReason(""); }
                       else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
                     }
+                    else if (fd.key === "visa_status" && v === "Returned") { setVisaReturnedOpen(true); setVisaReturnedReason(""); }
                     else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
                   }}>
                     <SelectTrigger className="h-9 w-[120px]">
@@ -2069,8 +2110,14 @@ function ProcessingCard({
   const [embassyOpen, setEmbassyOpen] = useState(false);
   const [embassyStep, setEmbassyStep] = useState<"ask" | "reason">("ask");
   const [embassyReason, setEmbassyReason] = useState("");
+  const [visaReturnOpen, setVisaReturnOpen] = useState(false);
+  const [visaReturnReason, setVisaReturnReason] = useState("");
 
   function handleColUpdate(colKey: string, value: string | null) {
+    if (colKey === "visa_status" && value === "Returned") {
+      setVisaReturnOpen(true); setVisaReturnReason("");
+      return;
+    }
     if (colKey === "ticket_status" && value === "Booked") {
       setRequireDate({ field: "ticket_date", label: "Ticket Date", pendingStatus: "Booked", statusField: "ticket_status" });
       setPendingDate(candidate.ticket_date ?? "");
@@ -2251,6 +2298,29 @@ function ProcessingCard({
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+    )}
+    {visaReturnOpen && (
+      <Dialog open onOpenChange={(o) => { if (!o) { setVisaReturnOpen(false); setVisaReturnReason(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Visa Returned — Reason Required</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Why was the visa returned for <strong>{candidate.full_name}</strong>?</p>
+          <Textarea rows={3} placeholder="Enter reason…" value={visaReturnReason} onChange={(e) => setVisaReturnReason(e.target.value)} />
+          <DialogFooter className="flex gap-2">
+            <Button variant="ghost" onClick={() => { setVisaReturnOpen(false); setVisaReturnReason(""); }}>Cancel</Button>
+            <Button
+              disabled={!visaReturnReason.trim()}
+              onClick={() => {
+                onUpdateField("visa_status", "Returned");
+                onUpdateField("remark", visaReturnReason.trim());
+                setVisaReturnOpen(false);
+                setVisaReturnReason("");
+              }}
+            >
+              Confirm
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     )}

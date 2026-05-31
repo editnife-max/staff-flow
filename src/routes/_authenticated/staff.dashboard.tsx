@@ -105,7 +105,8 @@ const ALERT_PILL: Record<string, string> = {
   lmis:    "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
   ticket:  "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
   embassy: "bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300",
-  visaready: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
+  visaready:   "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
+  visareturn: "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300",
 };
 
 // ─── Inline components ───────────────────────────────────────────────────────
@@ -474,6 +475,8 @@ function StaffDashboard() {
   );
 
   const visaReady = candidates.filter((c) => c.visa_status === "Ready for embassy");
+
+  const visaReturned = candidates.filter((c) => c.visa_status === "Returned");
   const daysSince = (d: string) =>
     Math.floor((today.getTime() - new Date(d + "T00:00:00").getTime()) / 86_400_000);
 
@@ -515,7 +518,7 @@ function StaffDashboard() {
       </div>
 
       {/* Alert sections */}
-      {(cocNotDone.length > 0 || medicalNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || embassyPending.length > 0 || visaReady.length > 0) && (
+      {(cocNotDone.length > 0 || medicalNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0) && (
         <div className="space-y-2">
           <AlertSection icon={FileCheck}    title="COC — Not Done"               iconColor="text-orange-600 dark:text-orange-400" pillKey="coc"     candidates={cocNotDone}    onUpdateField={handleUpdateField} countryOptions={countryOptions} />
           <AlertSection icon={Stethoscope}  title="Medical — Not Fit"            iconColor="text-red-600 dark:text-red-400"       pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
@@ -530,8 +533,10 @@ function StaffDashboard() {
             getNote={(c) => c.contract_date ? `${daysSince(c.contract_date)}d since contract` : null} />
           <AlertSection icon={Landmark}      title="Embassy Visa — Pending"      iconColor="text-sky-600 dark:text-sky-400"       pillKey="embassy"   candidates={embassyPending} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => c.processing_notes ?? null} />
-          <AlertSection icon={BadgeCheck}    title="Ready for Embassy Visa"      iconColor="text-emerald-600 dark:text-emerald-400" pillKey="visaready" candidates={visaReady}      onUpdateField={handleUpdateField} countryOptions={countryOptions}
+          <AlertSection icon={BadgeCheck}    title="Ready for Embassy Visa"      iconColor="text-emerald-600 dark:text-emerald-400" pillKey="visaready"  candidates={visaReady}     onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => c.destination_country ?? null} />
+          <AlertSection icon={RotateCcw}     title="Visa Returned"               iconColor="text-rose-600 dark:text-rose-400"       pillKey="visareturn" candidates={visaReturned}  onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            getNote={(c) => c.remark ?? null} />
         </div>
       )}
     </div>
