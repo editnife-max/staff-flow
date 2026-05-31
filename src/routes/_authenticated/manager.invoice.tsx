@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useState, useMemo } from "react";
-import { Building2, Printer, Search, Users } from "lucide-react";
+import { Building2, Printer, Search, Users, Send, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
@@ -11,7 +12,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import {
+  getAgencyUsers,
+  sendInvoice,
+  getManagerInvoices,
+} from "@/lib/invoice.functions";
 
 export const Route = createFileRoute("/_authenticated/manager/invoice")({
   head: () => ({ meta: [{ title: "Invoice — Staff-Flow" }] }),
@@ -32,9 +42,23 @@ type OfficeGroup = {
   candidates: Candidate[];
 };
 
+function StatusBadge({ status }: { status: string }) {
+  const cls: Record<string, string> = {
+    sent:      "bg-yellow-500/15 text-yellow-700",
+    paid:      "bg-blue-500/15 text-blue-700",
+    confirmed: "bg-emerald-500/15 text-emerald-700",
+  };
+  return (
+    <span className={cn("text-[10px] font-semibold rounded-full px-2 py-0.5", cls[status] ?? "bg-muted text-muted-foreground")}>
+      {status.charAt(0).toUpperCase() + status.slice(1)}
+    </span>
+  );
+}
+
 function ManagerInvoicePage() {
   const { user } = useAuth();
-  const [search, setSearch]       = useState("");
+  const qc = useQueryClient();
+  const [search, setSearch] = useState("");
   const [activeOffice, setActiveOffice] = useState<OfficeGroup | null>(null);
 
   // ── "From" details (set once, apply to all invoices) ──────────────────────
@@ -48,13 +72,22 @@ function ManagerInvoicePage() {
   const [paymentName,    setPaymentName]    = useState("");
   const [paymentAccount, setPaymentAccount] = useState("");
 
-  // ── Per-invoice fields (reset per dialog open where needed) ──────────────
+  // ── Per-invoice fields ────────────────────────────────────────────────────
   const [officeName,    setOfficeName]    = useState("");
   const [term,          setTerm]          = useState("");
   const [invoiceDate,   setInvoiceDate]   = useState(todayIso());
   const [dueDate,       setDueDate]       = useState("");
+  const [dateFrom,      setDateFrom]      = useState("");
+  const [dateTo,        setDateTo]        = useState("");
   const [otherExpenses, setOtherExpenses] = useState("");
+  const [agencyUserId,  setAgencyUserId]  = useState("");
 
+  // ── Server fns ────────────────────────────────────────────────────────────
+  const doGetAgencies = useServerFn(getAgencyUsers);
+  const doSend        = useServerFn(sendInvoice);
+  const doGetHistory  = useServerFn(getManagerInvoices);
+
+  // ── Queries ───────────────────────────────────────────────────────────────
   const { data: candidates = [], isLoading } = useQuery<Candidate[]>({
     queryKey: ["invoice-candidates"],
     queryFn: async () => {
@@ -70,6 +103,50 @@ function ManagerInvoicePage() {
     enabled: !!user,
   });
 
+  const { data: agencyUsers = [] } = useQuery<{ user_id: string; name: string }[]>({
+    queryKey: ["agency-users"],
+    queryFn: () => doGetAgencies(),
+    enabled: !!user,
+  });
+
+  const { data: invoiceHistory = [] } = useQuery<any[]>({
+    queryKey: ["manager-invoices"],
+    queryFn: () => doGetHistory(),
+    enabled: !!user,
+  });
+
+  // ── Mutations ─────────────────────────────────────────────────────────────
+  const sendMut = useMutation({
+    mutationFn: () =>
+      doSend({
+        data: {
+          agencyUserId,
+          invoiceNumber:  invoiceNum,
+          officeName:     officeName  || undefined,
+          dateFrom:       dateFrom    || undefined,
+          dateTo:         dateTo      || undefined,
+          candidateIds:   workers.map((c) => c.id),
+          fromCompany:    fromCompany || undefined,
+          fromAddress:    fromAddress || undefined,
+          fromPhone:      fromPhone   || undefined,
+          fromEmail:      fromEmail   || undefined,
+          paymentName:    paymentName    || undefined,
+          paymentAccount: paymentAccount || undefined,
+          recruFee:       feeEach,
+          otherExpenses:  other,
+          subtotal,
+          total,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Invoice sent to agency");
+      qc.invalidateQueries({ queryKey: ["manager-invoices"] });
+      closeInvoice();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // ── Office groups ─────────────────────────────────────────────────────────
   const officeGroups: OfficeGroup[] = useMemo(() => {
     const map = new Map<string, Candidate[]>();
     for (const c of candidates) {
@@ -90,6 +167,8 @@ function ManagerInvoicePage() {
     setActiveOffice(group);
     setOfficeName(group.name === "— Unassigned —" ? "" : group.name);
     setOtherExpenses("");
+    setDateFrom("");
+    setDateTo("");
   }
 
   function closeInvoice() { setActiveOffice(null); }
@@ -157,6 +236,7 @@ function ManagerInvoicePage() {
           <div><b>No:</b> ${invoiceNum}</div>
           <div><b>Date:</b> ${invoiceDate ? fmtDate(invoiceDate) : "—"}</div>
           ${dueDate ? `<div><b>Due:</b> ${fmtDate(dueDate)}</div>` : ""}
+          ${dateFrom ? `<div><b>Period:</b> ${fmtDate(dateFrom)}${dateTo ? ` – ${fmtDate(dateTo)}` : ""}</div>` : ""}
         </div>
       </div>
     </div>
@@ -199,7 +279,6 @@ function ManagerInvoicePage() {
       {/* ── Settings bar ─────────────────────────────────────────────────── */}
       <Card className="rounded-none mb-5">
         <CardContent className="p-4 space-y-4">
-          {/* From details */}
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Invoice From (your details)</p>
             <div className="flex flex-wrap gap-3">
@@ -222,7 +301,6 @@ function ManagerInvoicePage() {
             </div>
           </div>
 
-          {/* Invoice defaults */}
           <div className="border-t pt-3 flex flex-wrap items-end gap-5">
             <div className="space-y-1">
               <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -283,14 +361,86 @@ function ManagerInvoicePage() {
         </div>
       )}
 
+      {/* ── Invoice History ───────────────────────────────────────────────── */}
+      {invoiceHistory.length > 0 && (
+        <div className="mt-10">
+          <div className="flex items-center gap-2 mb-4">
+            <History className="h-5 w-5 text-primary" />
+            <h2 className="text-base font-semibold">Invoice History</h2>
+          </div>
+          <Card className="rounded-none">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Invoice #</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Office</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Agency</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Period</th>
+                    <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Total</th>
+                    <th className="text-center px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+                    <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Sent</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {invoiceHistory.map((inv: any) => (
+                    <tr key={inv.id} className="hover:bg-muted/30">
+                      <td className="px-4 py-3 font-mono text-xs font-semibold">{inv.invoice_number}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{inv.office_name ?? "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {agencyUsers.find((a) => a.user_id === inv.agency_user_id)?.name ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">
+                        {inv.date_from && inv.date_to
+                          ? `${fmtDate(inv.date_from)} – ${fmtDate(inv.date_to)}`
+                          : inv.date_from
+                          ? fmtDate(inv.date_from)
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium">{Number(inv.total).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-center"><StatusBadge status={inv.status} /></td>
+                      <td className="px-4 py-3 text-right text-xs text-muted-foreground">
+                        {new Date(inv.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* ── Invoice dialog ───────────────────────────────────────────────── */}
       <Dialog open={!!activeOffice} onOpenChange={(o) => { if (!o) closeInvoice(); }}>
         <DialogContent className="max-w-5xl p-0 gap-0 max-h-[95vh] flex flex-col">
-          <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
-            <span className="text-sm font-semibold">{invoiceNum}</span>
-            <Button size="sm" className="gap-1.5" onClick={handlePrint}>
-              <Printer className="h-4 w-4" /> Print
-            </Button>
+          {/* Dialog toolbar */}
+          <div className="flex items-center justify-between px-5 py-3 border-b shrink-0 gap-3 flex-wrap">
+            <span className="text-sm font-semibold font-mono">{invoiceNum}</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Select value={agencyUserId} onValueChange={setAgencyUserId}>
+                <SelectTrigger className="h-8 w-52 text-xs">
+                  <SelectValue placeholder="Select agency…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {agencyUsers.map((a) => (
+                    <SelectItem key={a.user_id} value={a.user_id}>{a.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                disabled={!agencyUserId || sendMut.isPending}
+                onClick={() => sendMut.mutate()}
+              >
+                <Send className="h-4 w-4" />
+                {sendMut.isPending ? "Sending…" : "Send Invoice"}
+              </Button>
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={handlePrint}>
+                <Printer className="h-4 w-4" /> Print
+              </Button>
+            </div>
           </div>
 
           <div className="overflow-y-auto flex-1 p-6">
@@ -313,8 +463,6 @@ function ManagerInvoicePage() {
 
               {/* LEFT */}
               <div className="w-52 shrink-0 flex flex-col gap-4">
-
-                {/* Invoice From */}
                 <div className="space-y-1 pb-3 border-b">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Invoice From</p>
                   <div className="space-y-1.5 text-sm">
@@ -325,7 +473,6 @@ function ManagerInvoicePage() {
                   </div>
                 </div>
 
-                {/* Bill To */}
                 <div className="space-y-1">
                   <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Bill To / Office Name</Label>
                   <Textarea rows={2} placeholder="Office name & address…" value={officeName} onChange={(e) => setOfficeName(e.target.value)} className="text-sm resize-none" />
@@ -351,6 +498,7 @@ function ManagerInvoicePage() {
 
               {/* RIGHT */}
               <div className="flex-1 min-w-0 flex flex-col gap-4">
+                {/* Dates row */}
                 <div className="flex gap-4 flex-wrap">
                   <div className="space-y-1">
                     <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Invoice Date</Label>
@@ -360,8 +508,17 @@ function ManagerInvoicePage() {
                     <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Due Date</Label>
                     <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="text-sm h-8 w-40" />
                   </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Period From</Label>
+                    <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="text-sm h-8 w-40" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Period To</Label>
+                    <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="text-sm h-8 w-40" />
+                  </div>
                 </div>
 
+                {/* Workers table */}
                 <div className="overflow-x-auto border rounded">
                   <table className="w-full text-sm border-collapse">
                     <thead>
@@ -387,6 +544,7 @@ function ManagerInvoicePage() {
                   </table>
                 </div>
 
+                {/* Totals */}
                 <div className="ml-auto w-72 space-y-1.5 text-sm">
                   <div className="flex items-center justify-between border-b pb-1.5 gap-3">
                     <span className="text-muted-foreground shrink-0">Recru. Fee <span className="text-xs">(× {workers.length})</span></span>

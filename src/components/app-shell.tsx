@@ -29,9 +29,10 @@ interface AppShellProps {
   items: NavItem[];
   groupLabel: string;
   children: ReactNode;
+  headerExtra?: ReactNode;
 }
 
-export function AppShell({ items, groupLabel, children }: AppShellProps) {
+export function AppShell({ items, groupLabel, children, headerExtra }: AppShellProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const { user, role, signOut } = useAuth();
@@ -102,6 +103,7 @@ export function AppShell({ items, groupLabel, children }: AppShellProps) {
           <header className="h-14 border-b bg-background flex items-center px-4 gap-3">
             <SidebarTrigger />
             <div className="flex-1" />
+            {headerExtra}
           </header>
           <main className="flex-1 p-6 pb-[110px] overflow-auto">{children}</main>
         </div>
