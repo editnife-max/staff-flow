@@ -633,6 +633,24 @@ function ManagerCandidatesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const [tasheerDateOpen, setTasheerDateOpen] = useState(false);
+  const [tasheerDate, setTasheerDate] = useState("");
+
+  const tasheerBookedMut = useMutation({
+    mutationFn: async () => {
+      const ids = Array.from(selected);
+      await bulkField({ data: { ids, field: "tasheer_status", value: "Booked" } });
+      if (tasheerDate) await bulkField({ data: { ids, field: "tasheer_date", value: tasheerDate } });
+    },
+    onSuccess: () => {
+      toast.success(`Updated ${selected.size} candidate(s)`);
+      qc.invalidateQueries({ queryKey: ["manager-candidates"] });
+      setTasheerDateOpen(false);
+      setTasheerDate("");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const openCreate = () => {
     let max = 0;
     for (const c of candidates) {
@@ -853,6 +871,7 @@ function ManagerCandidatesPage() {
                 return (
                   <Select key={fd.key} onValueChange={(v) => {
                     if (fd.key === "ticket_status" && v === "Booked") { setTicketDateOpen(true); }
+                    else if (fd.key === "tasheer_status" && v === "Booked") { setTasheerDateOpen(true); }
                     else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
                   }}>
                     <SelectTrigger className="h-9 w-[120px]">
@@ -1088,6 +1107,25 @@ function ManagerCandidatesPage() {
             <Button variant="ghost" onClick={() => { setTicketDateOpen(false); setTicketDate(""); }}>Cancel</Button>
             <Button disabled={ticketBookedMut.isPending} onClick={() => ticketBookedMut.mutate()}>
               {ticketBookedMut.isPending ? "Updating…" : "Apply"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tasheer Booked — pick date dialog */}
+      <Dialog open={tasheerDateOpen} onOpenChange={(o) => { if (!o) { setTasheerDateOpen(false); setTasheerDate(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Tasheer Booked — {selected.size} candidate{selected.size !== 1 ? "s" : ""}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Tasheer date</Label>
+            <Input type="date" value={tasheerDate} onChange={(e) => setTasheerDate(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setTasheerDateOpen(false); setTasheerDate(""); }}>Cancel</Button>
+            <Button disabled={tasheerBookedMut.isPending} onClick={() => tasheerBookedMut.mutate()}>
+              {tasheerBookedMut.isPending ? "Updating…" : "Apply"}
             </Button>
           </DialogFooter>
         </DialogContent>
