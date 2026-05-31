@@ -30,7 +30,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import {
   upsertCandidate, deleteCandidate, updateCandidateField,
-  bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff,
+  bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff, bulkUpdateField,
 } from "@/lib/candidates.functions";
 import { UserCheck, X } from "lucide-react";
 
@@ -72,6 +72,23 @@ const LMIS_OPTIONS = [
 const UNFILLED_LMIS_OPTIONS = ["INSU", "COC", "ID"];
 const TICKET_OPTIONS = ["No", "Ready", "New Order", "Booked", "Exchange", "Urgent"];
 const ARRIVAL_CITY_OPTIONS = ["RIYADH", "JEDDAH", "DAMMAM", "JOUF", "HAIL", "ABHA", "OTHERS"];
+const BULK_FIELD_DEFS = [
+  { key: "medical_status",   label: "Medical",       options: MEDICAL_OPTIONS },
+  { key: "coc_status",       label: "COC",           options: COC_OPTIONS },
+  { key: "musaned_status",   label: "Musaned",       options: MUSANED_OPTIONS },
+  { key: "office",           label: "Office",        options: OFFICE_OPTIONS },
+  { key: "passport_status",  label: "Passport",      options: PASSPORT_OPTIONS },
+  { key: "experience",       label: "Experience",    options: ["Yes", "No", "None"] },
+  { key: "tasheer_status",   label: "Tasheer",       options: TASHEER_OPTIONS },
+  { key: "wokala_status",    label: "Wokala",        options: WOKALA_OPTIONS },
+  { key: "visa_status",      label: "Visa",          options: VISA_OPTIONS },
+  { key: "insurance_status", label: "Insurance",     options: INSURANCE_OPTIONS },
+  { key: "unfilled_lmis",    label: "Unfilled LMIS", options: UNFILLED_LMIS_OPTIONS },
+  { key: "lmis_status",      label: "LMIS",          options: LMIS_OPTIONS },
+  { key: "ticket_status",    label: "Ticket",        options: TICKET_OPTIONS },
+  { key: "arrival_city",     label: "Arrival City",  options: ARRIVAL_CITY_OPTIONS },
+];
+
 const SKILLS_LIST = [
   "Cooking", "Cleaning", "Childcare", "Eldercare", "Ironing",
   "Driving", "Gardening", "Sewing", "Babysitting", "Pet Care", "Nursing",
@@ -344,9 +361,10 @@ function ManagerCandidatesPage() {
   const navigate = useNavigate();
   const upsert = useServerFn(upsertCandidate);
   const remove = useServerFn(deleteCandidate);
-  const bulkDel = useServerFn(bulkDeleteCandidates);
+  const bulkDel    = useServerFn(bulkDeleteCandidates);
   const bulkStatus = useServerFn(bulkUpdateStatus);
   const bulkAssign = useServerFn(bulkAssignStaff);
+  const bulkField  = useServerFn(bulkUpdateField);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const toggleSelect = (id: string) =>
     setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -587,6 +605,22 @@ function ManagerCandidatesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const [bulkFieldOpen,  setBulkFieldOpen]  = useState(false);
+  const [bulkFieldKey,   setBulkFieldKey]   = useState("");
+  const [bulkFieldValue, setBulkFieldValue] = useState("");
+
+  function closeBulkField() { setBulkFieldOpen(false); setBulkFieldKey(""); setBulkFieldValue(""); }
+
+  const bulkFieldMut = useMutation({
+    mutationFn: () => bulkField({ data: { ids: Array.from(selected), field: bulkFieldKey as any, value: bulkFieldValue || null } }),
+    onSuccess: (r) => {
+      toast.success(`Updated ${r.count} candidate(s)`);
+      qc.invalidateQueries({ queryKey: ["manager-candidates"] });
+      closeBulkField();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const openCreate = () => {
     let max = 0;
     for (const c of candidates) {
@@ -802,6 +836,10 @@ function ManagerCandidatesPage() {
                 </SelectContent>
               </Select>
 
+              <Button size="sm" variant="outline" className="gap-1" onClick={() => setBulkFieldOpen(true)}>
+                Set Field…
+              </Button>
+
               <Button
                 size="sm" variant="destructive" className="gap-1"
                 disabled={bulkDeleteMut.isPending}
@@ -1010,6 +1048,48 @@ function ManagerCandidatesPage() {
       {actionCandidates.length > 0 && (
         <ActionDialog candidates={actionCandidates} onClose={() => setActionCandidates([])} />
       )}
+
+      {/* Bulk set field dialog */}
+      <Dialog open={bulkFieldOpen} onOpenChange={(o) => { if (!o) closeBulkField(); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Set Field — {selected.size} candidate{selected.size !== 1 ? "s" : ""}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Field</Label>
+              <Select value={bulkFieldKey} onValueChange={(v) => { setBulkFieldKey(v); setBulkFieldValue(""); }}>
+                <SelectTrigger><SelectValue placeholder="Select field…" /></SelectTrigger>
+                <SelectContent>
+                  {BULK_FIELD_DEFS.map((f) => <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {bulkFieldKey && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Value</Label>
+                <Select value={bulkFieldValue} onValueChange={setBulkFieldValue}>
+                  <SelectTrigger><SelectValue placeholder="Select value…" /></SelectTrigger>
+                  <SelectContent>
+                    {(BULK_FIELD_DEFS.find((f) => f.key === bulkFieldKey)?.options ?? []).map((o) => (
+                      <SelectItem key={o} value={o}>{o}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeBulkField}>Cancel</Button>
+            <Button
+              disabled={!bulkFieldKey || !bulkFieldValue || bulkFieldMut.isPending}
+              onClick={() => bulkFieldMut.mutate()}
+            >
+              {bulkFieldMut.isPending ? "Updating…" : "Apply"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

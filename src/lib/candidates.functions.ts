@@ -200,6 +200,26 @@ export const bulkUpdateStatus = createServerFn({ method: "POST" })
     return { ok: true, count: count ?? 0 };
   });
 
+export const bulkUpdateField = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    IdList.extend({
+      field: InlineFieldSchema.shape.field,
+      value: z.string().nullable(),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    const raw = data.value === "" ? null : data.value;
+    const { error, count } = await supabaseAdmin
+      .from("candidates")
+      .update({ [data.field]: raw } as never, { count: "exact" })
+      .in("id", data.ids)
+      .eq("manager_id", managerId);
+    if (error) throw new Error(error.message);
+    return { ok: true, count: count ?? 0 };
+  });
+
 export const bulkAssignStaff = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
