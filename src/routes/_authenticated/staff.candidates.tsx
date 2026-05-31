@@ -2047,9 +2047,9 @@ function ProcessingCard({
   const [cancelOpen, setCancelOpen] = useState(false);
 
   function handleColUpdate(colKey: string, value: string | null) {
-    if (colKey === "ticket_status" && value === "Booked" && !candidate.ticket_date) {
+    if (colKey === "ticket_status" && value === "Booked") {
       setRequireDate({ field: "ticket_date", label: "Ticket Date", pendingStatus: "Booked", statusField: "ticket_status" });
-      setPendingDate("");
+      setPendingDate(candidate.ticket_date ?? "");
       return;
     }
     if (colKey === "medical_status" && value === "Fit" && !candidate.medical_date) {
