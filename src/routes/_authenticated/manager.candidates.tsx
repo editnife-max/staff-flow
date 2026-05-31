@@ -991,6 +991,12 @@ function ManagerCandidatesPage() {
                       else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
                     }
                     else if (fd.key === "visa_status" && v === "Returned") { setVisaReturnedOpen(true); setVisaReturnedReason(""); }
+                    else if (fd.key === "visa_status" && v === "Ready for embassy") {
+                      const blocked = candidates.filter((c) => selected.has(c.id) && (c.tasheer_status !== "Done" || c.wokala_status !== "Paid"));
+                      if (blocked.length > 0) {
+                        toast.error(`${blocked.length} candidate(s) require Tasheer = Done and Wokala = Paid first`);
+                      } else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
+                    }
                     else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
                   }}>
                     <SelectTrigger className="h-9 w-[120px]">
@@ -2046,6 +2052,12 @@ function ProcessingCard({
   const [visaReturnReason, setVisaReturnReason] = useState("");
 
   function handleColUpdate(colKey: string, value: string | null) {
+    if (colKey === "visa_status" && value === "Ready for embassy") {
+      if (candidate.tasheer_status !== "Done" || candidate.wokala_status !== "Paid") {
+        toast.error("Tasheer must be Done and Wokala must be Paid before setting Ready for Embassy");
+        return;
+      }
+    }
     if (colKey === "visa_status" && value === "Returned") {
       setVisaReturnOpen(true); setVisaReturnReason("");
       return;
