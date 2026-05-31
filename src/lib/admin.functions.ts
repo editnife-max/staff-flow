@@ -120,6 +120,20 @@ export const getAdminManagers = createServerFn({ method: "GET" })
     }));
   });
 
+export const forceResetPassword = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ userId: z.string().uuid(), newPassword: z.string().min(8) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context.userId);
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
+      password: data.newPassword,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 export const removeManager = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ userId: z.string().uuid() }).parse(input))
