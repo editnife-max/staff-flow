@@ -615,6 +615,24 @@ function ManagerCandidatesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const [ticketDateOpen, setTicketDateOpen] = useState(false);
+  const [ticketDate, setTicketDate] = useState("");
+
+  const ticketBookedMut = useMutation({
+    mutationFn: async () => {
+      const ids = Array.from(selected);
+      await bulkField({ data: { ids, field: "ticket_status", value: "Booked" } });
+      if (ticketDate) await bulkField({ data: { ids, field: "ticket_date", value: ticketDate } });
+    },
+    onSuccess: () => {
+      toast.success(`Updated ${selected.size} candidate(s)`);
+      qc.invalidateQueries({ queryKey: ["manager-candidates"] });
+      setTicketDateOpen(false);
+      setTicketDate("");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const openCreate = () => {
     let max = 0;
     for (const c of candidates) {
@@ -831,7 +849,10 @@ function ManagerCandidatesPage() {
               </Select>
 
               {BULK_FIELD_DEFS.map((fd) => (
-                <Select key={fd.key} onValueChange={(v) => bulkFieldMut.mutate({ field: fd.key, value: v })}>
+                <Select key={fd.key} onValueChange={(v) => {
+                  if (fd.key === "ticket_status" && v === "Booked") { setTicketDateOpen(true); }
+                  else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
+                }}>
                   <SelectTrigger className="h-9 w-[120px]">
                     <SelectValue placeholder={fd.label} />
                   </SelectTrigger>
@@ -1049,6 +1070,25 @@ function ManagerCandidatesPage() {
       {actionCandidates.length > 0 && (
         <ActionDialog candidates={actionCandidates} onClose={() => setActionCandidates([])} />
       )}
+
+      {/* Ticket Booked — pick date dialog */}
+      <Dialog open={ticketDateOpen} onOpenChange={(o) => { if (!o) { setTicketDateOpen(false); setTicketDate(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Ticket Booked — {selected.size} candidate{selected.size !== 1 ? "s" : ""}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Ticket date</Label>
+            <Input type="date" value={ticketDate} onChange={(e) => setTicketDate(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setTicketDateOpen(false); setTicketDate(""); }}>Cancel</Button>
+            <Button disabled={ticketBookedMut.isPending} onClick={() => ticketBookedMut.mutate()}>
+              {ticketBookedMut.isPending ? "Updating…" : "Apply"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
