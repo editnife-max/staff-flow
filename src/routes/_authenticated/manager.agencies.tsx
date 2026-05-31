@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { createAgencyLogin, deleteAgencyLogin } from "@/lib/agencies.functions";
+import { createAgencyLogin, deleteAgencyLogin, resetAgencyPassword } from "@/lib/agencies.functions";
 
 export const Route = createFileRoute("/_authenticated/manager/agencies")({
   head: () => ({ meta: [{ title: "Foreign Agencies — Staff-Flow" }] }),
@@ -47,6 +47,13 @@ function AgenciesPage() {
   const [loginOfficeId, setLoginOfficeId] = useState("");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+
+  // Reset password dialog
+  const [resetTarget,   setResetTarget]   = useState<{ portalUserId: string; name: string } | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [confirmPw,     setConfirmPw]     = useState("");
+  function closeReset() { setResetTarget(null); setResetPassword(""); setConfirmPw(""); }
+  const resetValid = resetPassword.length >= 8 && resetPassword === confirmPw;
 
   const { data: agencies = [] } = useQuery<Agency[]>({
     queryKey: ["agencies", user?.id],
@@ -145,6 +152,12 @@ function AgenciesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const doResetPw = useMutation({
+    mutationFn: () => resetAgencyPassword({ data: { portalUserId: resetTarget!.portalUserId, newPassword: resetPassword } }),
+    onSuccess: () => { toast.success("Password reset successfully"); closeReset(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const addValid = !!addOfficeId && addEmail.includes("@") && addPassword.length >= 8;
   const loginValid = !!loginOfficeId && loginEmail.includes("@") && loginPassword.length >= 8;
 
@@ -190,13 +203,21 @@ function AgenciesPage() {
                   <TableCell>
                     <div className="flex gap-1">
                       {a.portal_user_id ? (
-                        <Button
-                          variant="ghost" size="icon" title="Remove portal login"
-                          onClick={() => removeLogin.mutate({ agencyId: a.id, portalUserId: a.portal_user_id! })}
-                          disabled={removeLogin.isPending}
-                        >
-                          <UserMinus className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <>
+                          <Button
+                            variant="ghost" size="icon" title="Reset portal password"
+                            onClick={() => setResetTarget({ portalUserId: a.portal_user_id!, name: a.name })}
+                          >
+                            <KeyRound className="h-4 w-4 text-amber-600" />
+                          </Button>
+                          <Button
+                            variant="ghost" size="icon" title="Remove portal login"
+                            onClick={() => removeLogin.mutate({ agencyId: a.id, portalUserId: a.portal_user_id! })}
+                            disabled={removeLogin.isPending}
+                          >
+                            <UserMinus className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </>
                       ) : (
                         <Button
                           variant="ghost" size="icon" title="Create portal login"
@@ -255,6 +276,43 @@ function AgenciesPage() {
             <Button variant="ghost" onClick={() => { setAddOpen(false); setAddOfficeId(""); setAddName(""); setAddEmail(""); setAddPassword(""); }}>Cancel</Button>
             <Button onClick={() => createWithLogin.mutate()} disabled={!addValid || createWithLogin.isPending}>
               {createWithLogin.isPending ? "Creating…" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset password dialog */}
+      <Dialog open={!!resetTarget} onOpenChange={(o) => { if (!o) closeReset(); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-amber-600" /> Reset Portal Password
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Set a new password for <strong>{resetTarget?.name}</strong>.
+          </p>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>New password <span className="text-muted-foreground text-xs">(min 8 chars)</span></Label>
+              <Input type="password" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Confirm password</Label>
+              <Input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} />
+              {confirmPw && !resetValid && (
+                <p className="text-xs text-destructive">Passwords do not match</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeReset}>Cancel</Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+              disabled={!resetValid || doResetPw.isPending}
+              onClick={() => doResetPw.mutate()}
+            >
+              {doResetPw.isPending ? "Resetting…" : "Reset Password"}
             </Button>
           </DialogFooter>
         </DialogContent>

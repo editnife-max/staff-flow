@@ -66,6 +66,28 @@ export const createStaffAccount = createServerFn({ method: "POST" })
     return { ok: true, userId: newUserId };
   });
 
+export const resetStaffPassword = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ staffId: z.string().uuid(), newPassword: z.string().min(6) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const managerId = context.userId;
+    const { data: row, error } = await supabaseAdmin
+      .from("staff")
+      .select("user_id, manager_id")
+      .eq("id", data.staffId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row || row.manager_id !== managerId) throw new Response("Not found", { status: 404 });
+    if (!row.user_id) throw new Error("Staff member has no auth account");
+    const { error: pwErr } = await supabaseAdmin.auth.admin.updateUserById(row.user_id, {
+      password: data.newPassword,
+    });
+    if (pwErr) throw new Error(pwErr.message);
+    return { ok: true };
+  });
+
 export const deleteStaffAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ staffId: z.string().uuid() }).parse(input))

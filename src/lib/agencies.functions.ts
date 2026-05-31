@@ -58,6 +58,20 @@ export const createAgencyLogin = createServerFn({ method: "POST" })
     return { ok: true, userId };
   });
 
+export const resetAgencyPassword = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ portalUserId: z.string().uuid(), newPassword: z.string().min(8) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await resolveManagerId(context.userId);
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.portalUserId, {
+      password: data.newPassword,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 export const deleteAgencyLogin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
