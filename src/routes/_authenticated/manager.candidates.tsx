@@ -776,7 +776,7 @@ function ManagerCandidatesPage() {
                     options={[{ value: "all", label: "-----" }, ...["Done","No","Booked","Placed","Yitazez","Pending Release"].map((o) => ({ value: o, label: o }))]} />
                   <FilterSelect placeholder="Country" value={filters.musaned} icon={Globe}
                     onChange={(v) => setFilters({ ...filters, musaned: v })}
-                    options={[{ value: "all", label: "-----" }, ...opts.musaned.map((o) => ({ value: o, label: o }))]} />
+                    options={[{ value: "all", label: "-----" }, ...assignCountries.map((c) => ({ value: c.name, label: c.name }))]} />
                   <FilterSelect placeholder="Selected By" value={filters.selected_by} icon={ClipboardPaste}
                     onChange={(v) => setFilters({ ...filters, selected_by: v })}
                     options={[{ value: "all", label: "-----" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />
