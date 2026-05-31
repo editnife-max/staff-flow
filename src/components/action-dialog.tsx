@@ -318,6 +318,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
   const [downloading, setDownloading] = useState(false);
   const [sortOpen,    setSortOpen]    = useState(false);
   const [typeOpen,    setTypeOpen]    = useState(true);
+  const [colsOpen,    setColsOpen]    = useState(true);
 
   const isBulk = candidates.length > 1;
   const preview = candidates[0] ?? null;
@@ -549,24 +550,32 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
             </div>
 
             {/* Select Columns */}
-            <div className="p-4 flex-1 min-h-0">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Select Columns</p>
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => setSelectedCols(new Set(EXPORT_COLUMNS.map((c) => c.key as string)))}
-                    className="text-[9px] text-primary hover:underline">All</button>
-                  <button type="button" onClick={() => setSelectedCols(new Set())}
-                    className="text-[9px] text-muted-foreground hover:underline">None</button>
+            <div className="border-b flex-1 min-h-0 flex flex-col">
+              <button type="button" onClick={() => setColsOpen((o) => !o)}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors shrink-0">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Select Columns
+                </span>
+                <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", colsOpen && "rotate-180")} />
+              </button>
+              {colsOpen && (
+                <div className="px-4 pb-4 overflow-y-auto flex-1">
+                  <div className="flex gap-2 mb-3">
+                    <button type="button" onClick={() => setSelectedCols(new Set(EXPORT_COLUMNS.map((c) => c.key as string)))}
+                      className="text-[9px] text-primary hover:underline">All</button>
+                    <button type="button" onClick={() => setSelectedCols(new Set())}
+                      className="text-[9px] text-muted-foreground hover:underline">None</button>
+                  </div>
+                  <div className="space-y-1.5">
+                    {EXPORT_COLUMNS.map((col) => (
+                      <label key={col.key as string} className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox checked={selectedCols.has(col.key as string)} onCheckedChange={() => toggleCol(col.key as string)} className="rounded-none h-3.5 w-3.5" />
+                        <span className="text-xs text-foreground">{col.label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-1.5">
-                {EXPORT_COLUMNS.map((col) => (
-                  <label key={col.key as string} className="flex items-center gap-2 cursor-pointer">
-                    <Checkbox checked={selectedCols.has(col.key as string)} onCheckedChange={() => toggleCol(col.key as string)} className="rounded-none h-3.5 w-3.5" />
-                    <span className="text-xs text-foreground">{col.label}</span>
-                  </label>
-                ))}
-              </div>
+              )}
             </div>
           </div>
 
