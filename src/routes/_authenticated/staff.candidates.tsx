@@ -1012,8 +1012,8 @@ function StaffCandidatesPage() {
                       else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
                     }
                     else if (fd.key === "visa_status" && v === "Returned") {
-                      const nonProcessing = candidates.filter((c) => selected.has(c.id) && c.status !== "processing").length;
-                      if (nonProcessing > 0) { toast.error(`${nonProcessing} candidate(s) are not in Processing status`); }
+                      const blocked = candidates.filter((c) => selected.has(c.id) && (c.status !== "processing" || c.tasheer_status !== "Done" || c.wokala_status !== "Paid")).length;
+                      if (blocked > 0) { toast.error(`${blocked} candidate(s) must be Processing with Tasheer = Done and Wokala = Paid`); }
                       else { setVisaReturnedOpen(true); setVisaReturnedReason(""); }
                     }
                     else if (fd.key === "visa_status" && v === "Ready for embassy") {
@@ -2124,9 +2124,9 @@ function ProcessingCard({
   const [visaReturnReason, setVisaReturnReason] = useState("");
 
   function handleColUpdate(colKey: string, value: string | null) {
-    if (colKey === "visa_status" && value === "Ready for embassy") {
-      if (candidate.tasheer_status !== "Done" || candidate.wokala_status !== "Paid") {
-        toast.error("Tasheer must be Done and Wokala must be Paid before setting Ready for Embassy");
+    if (colKey === "visa_status" && (value === "Ready for embassy" || value === "Returned")) {
+      if (candidate.status !== "processing" || candidate.tasheer_status !== "Done" || candidate.wokala_status !== "Paid") {
+        toast.error("Candidate must be Processing with Tasheer = Done and Wokala = Paid");
         return;
       }
     }
