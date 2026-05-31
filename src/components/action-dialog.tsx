@@ -501,10 +501,10 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
             <div className="border-b">
               <button type="button" onClick={() => setSortOpen((o) => !o)}
                 className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <span className="text-xs font-bold uppercase tracking-widest text-foreground/70">
                   Sort Options (for Export)
                 </span>
-                <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", sortOpen && "rotate-180")} />
+                <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", sortOpen && "rotate-180")} />
               </button>
               {sortOpen && (
                 <div className="px-4 pb-4 flex items-center gap-2">
@@ -518,7 +518,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
                     className="h-8 w-8 shrink-0 flex items-center justify-center border rounded-none text-muted-foreground hover:bg-muted">
                     <ArrowUpDown className="h-3.5 w-3.5" />
                   </button>
-                  <span className="text-[10px] text-muted-foreground shrink-0">{sortDir.toUpperCase()}</span>
+                  <span className="text-xs font-medium text-muted-foreground shrink-0">{sortDir.toUpperCase()}</span>
                 </div>
               )}
             </div>
@@ -527,10 +527,10 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
             <div className="border-b">
               <button type="button" onClick={() => setTypeOpen((o) => !o)}
                 className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <span className="text-xs font-bold uppercase tracking-widest text-foreground/70">
                   Choose Download Type
                 </span>
-                <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", typeOpen && "rotate-180")} />
+                <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", typeOpen && "rotate-180")} />
               </button>
               {typeOpen && (
                 <div className="px-4 pb-4 space-y-0.5">
@@ -553,20 +553,20 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
             <div className="border-b flex-1 min-h-0 flex flex-col">
               <button type="button" onClick={() => setColsOpen((o) => !o)}
                 className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors shrink-0">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <span className="text-xs font-bold uppercase tracking-widest text-foreground/70">
                   Select Columns
                 </span>
-                <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", colsOpen && "rotate-180")} />
+                <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", colsOpen && "rotate-180")} />
               </button>
               {colsOpen && (
                 <div className="px-4 pb-4 overflow-y-auto flex-1">
-                  <div className="flex gap-2 mb-3">
+                  <div className="flex gap-3 mb-3">
                     <button type="button" onClick={() => setSelectedCols(new Set(EXPORT_COLUMNS.map((c) => c.key as string)))}
-                      className="text-[9px] text-primary hover:underline">All</button>
+                      className="text-xs text-primary hover:underline font-medium">All</button>
                     <button type="button" onClick={() => setSelectedCols(new Set())}
-                      className="text-[9px] text-muted-foreground hover:underline">None</button>
+                      className="text-xs text-muted-foreground hover:underline">None</button>
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     {EXPORT_COLUMNS.map((col) => (
                       <label key={col.key as string} className="flex items-center gap-2 cursor-pointer">
                         <Checkbox checked={selectedCols.has(col.key as string)} onCheckedChange={() => toggleCol(col.key as string)} className="rounded-none h-3.5 w-3.5" />
@@ -588,8 +588,10 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
                     Previewing 1 of {candidates.length} — all candidates will be downloaded
                   </p>
                 )}
-                <div ref={cvRef} className="mx-auto shadow-xl w-fit">
-                  <CvPreview candidate={preview} template={matchedTemplate} />
+                <div className="mx-auto w-fit" style={{ zoom: 0.62 }}>
+                  <div ref={cvRef} className="shadow-xl">
+                    <CvPreview candidate={preview} template={matchedTemplate} />
+                  </div>
                 </div>
               </div>
             ) : preview ? (
