@@ -902,7 +902,7 @@ function StaffCandidatesPage() {
               Ticket Booked — {selected.size} candidate{selected.size !== 1 ? "s" : ""}
             </span>
             <Input type="date" className="h-8 w-[160px]" value={ticketDate} onChange={(e) => setTicketDate(e.target.value)} />
-            <Button size="sm" disabled={ticketBookedMut.isPending} onClick={() => ticketBookedMut.mutate()}>
+            <Button size="sm" disabled={ticketBookedMut.isPending || !ticketDate} onClick={() => ticketBookedMut.mutate()}>
               {ticketBookedMut.isPending ? "Updating…" : "Apply"}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => { setTicketDateOpen(false); setTicketDate(""); }}>

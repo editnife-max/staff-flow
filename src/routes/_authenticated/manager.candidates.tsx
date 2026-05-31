@@ -884,7 +884,7 @@ function ManagerCandidatesPage() {
               value={ticketDate}
               onChange={(e) => setTicketDate(e.target.value)}
             />
-            <Button size="sm" disabled={ticketBookedMut.isPending} onClick={() => ticketBookedMut.mutate()}>
+            <Button size="sm" disabled={ticketBookedMut.isPending || !ticketDate} onClick={() => ticketBookedMut.mutate()}>
               {ticketBookedMut.isPending ? "Updating…" : "Apply"}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => { setTicketDateOpen(false); setTicketDate(""); }}>
