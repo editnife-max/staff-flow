@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import React, { useState } from "react";
 import {
   Users, Clock, CheckCircle2, XCircle, RotateCcw,
-  ChevronDown, ChevronUp, Stethoscope, FileCheck, ClipboardList, Ticket, FileText,
+  ChevronDown, ChevronUp, Stethoscope, FileCheck, ClipboardList, Ticket, FileText, CalendarX,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -99,10 +99,11 @@ const STATUS_CONFIG = [
 ];
 
 const ALERT_PILL: Record<string, string> = {
-  coc:    "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300",
-  medical:"bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
-  lmis:   "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
-  ticket: "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
+  coc:     "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300",
+  medical: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
+  medexp:  "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300",
+  lmis:    "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+  ticket:  "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
 };
 
 // ─── Inline components ───────────────────────────────────────────────────────
@@ -449,6 +450,16 @@ function StaffDashboard() {
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  const medicalExpired = candidates.filter((c) => {
+    if (c.medical_status === "Expired") return true;
+    if (c.medical_status === "Fit" && c.medical_date) {
+      const days = Math.floor((today.getTime() - new Date(c.medical_date + "T00:00:00").getTime()) / 86_400_000);
+      return days >= 90;
+    }
+    return false;
+  });
+
   const ticketNotBooked = candidates.filter((c) => {
     if (!c.contract_date) return false;
     if (c.ticket_status === "Booked") return false;
@@ -496,10 +507,16 @@ function StaffDashboard() {
       </div>
 
       {/* Alert sections */}
-      {(cocNotDone.length > 0 || medicalNotFit.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0) && (
+      {(cocNotDone.length > 0 || medicalNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0) && (
         <div className="space-y-2">
           <AlertSection icon={FileCheck}    title="COC — Not Done"               iconColor="text-orange-600 dark:text-orange-400" pillKey="coc"     candidates={cocNotDone}    onUpdateField={handleUpdateField} countryOptions={countryOptions} />
           <AlertSection icon={Stethoscope}  title="Medical — Not Fit"            iconColor="text-red-600 dark:text-red-400"       pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
+          <AlertSection icon={CalendarX}    title="Medical — Expired"            iconColor="text-rose-600 dark:text-rose-400"     pillKey="medexp"  candidates={medicalExpired} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            getNote={(c) => {
+              if (c.medical_status === "Expired") return "Set as expired";
+              if (c.medical_date) return `${daysSince(c.medical_date)}d since medical`;
+              return null;
+            }} />
           <AlertSection icon={ClipboardList} title="Unfilled LMIS"               iconColor="text-amber-600 dark:text-amber-400"   pillKey="lmis"    candidates={unfilledLmis}  onUpdateField={handleUpdateField} countryOptions={countryOptions} />
           <AlertSection icon={Ticket}        title="Ticket Not Booked — Over 20 Days" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketNotBooked} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => c.contract_date ? `${daysSince(c.contract_date)}d since contract` : null} />
