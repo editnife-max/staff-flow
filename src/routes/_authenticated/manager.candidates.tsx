@@ -651,6 +651,30 @@ function ManagerCandidatesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const [tasheerDoneOpen, setTasheerDoneOpen] = useState(false);
+  const [tasheerDoneStep, setTasheerDoneStep] = useState<"ask" | "reason">("ask");
+  const [tasheerDoneReason, setTasheerDoneReason] = useState("");
+
+  const tasheerDoneMut = useMutation({
+    mutationFn: async (readyForEmbassy: boolean) => {
+      const ids = Array.from(selected);
+      await bulkField({ data: { ids, field: "tasheer_status", value: "Done" } });
+      if (readyForEmbassy) {
+        await bulkField({ data: { ids, field: "visa_status", value: "Ready for embassy" } });
+      } else if (tasheerDoneReason.trim()) {
+        await bulkField({ data: { ids, field: "processing_notes", value: tasheerDoneReason.trim() } });
+      }
+    },
+    onSuccess: () => {
+      toast.success(`Updated ${selected.size} candidate(s)`);
+      qc.invalidateQueries({ queryKey: ["manager-candidates"] });
+      setTasheerDoneOpen(false);
+      setTasheerDoneStep("ask");
+      setTasheerDoneReason("");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const openCreate = () => {
     let max = 0;
     for (const c of candidates) {
@@ -848,6 +872,28 @@ function ManagerCandidatesPage() {
         </CardContent>
       </Card>
 
+      {ticketDateOpen && (
+        <Card className="border-violet-400/60 bg-violet-50/60 dark:bg-violet-900/20">
+          <CardContent className="p-3 flex flex-wrap items-center gap-3">
+            <span className="text-sm font-semibold text-violet-800 dark:text-violet-300">
+              Ticket Booked — {selected.size} candidate{selected.size !== 1 ? "s" : ""}
+            </span>
+            <Input
+              type="date"
+              className="h-8 w-[160px]"
+              value={ticketDate}
+              onChange={(e) => setTicketDate(e.target.value)}
+            />
+            <Button size="sm" disabled={ticketBookedMut.isPending} onClick={() => ticketBookedMut.mutate()}>
+              {ticketBookedMut.isPending ? "Updating…" : "Apply"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => { setTicketDateOpen(false); setTicketDate(""); }}>
+              Cancel
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {tasheerDateOpen && (
         <Card className="border-amber-400/60 bg-amber-50/60 dark:bg-amber-900/20">
           <CardContent className="p-3 flex flex-wrap items-center gap-3">
@@ -894,6 +940,11 @@ function ManagerCandidatesPage() {
                   <Select key={fd.key} onValueChange={(v) => {
                     if (fd.key === "ticket_status" && v === "Booked") { setTicketDateOpen(true); }
                     else if (fd.key === "tasheer_status" && v === "Booked") { setTasheerDateOpen(true); }
+                    else if (fd.key === "tasheer_status" && v === "Done") {
+                      const hasWokalaPaid = candidates.filter((c) => selected.has(c.id)).some((c) => c.wokala_status === "Paid");
+                      if (hasWokalaPaid) { setTasheerDoneOpen(true); setTasheerDoneStep("ask"); setTasheerDoneReason(""); }
+                      else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
+                    }
                     else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
                   }}>
                     <SelectTrigger className="h-9 w-[120px]">
@@ -1115,22 +1166,50 @@ function ManagerCandidatesPage() {
         <ActionDialog candidates={actionCandidates} onClose={() => setActionCandidates([])} />
       )}
 
-      {/* Ticket Booked — pick date dialog */}
-      <Dialog open={ticketDateOpen} onOpenChange={(o) => { if (!o) { setTicketDateOpen(false); setTicketDate(""); } }}>
+      {/* Tasheer Done — embassy readiness dialog */}
+      <Dialog open={tasheerDoneOpen} onOpenChange={(o) => { if (!o) { setTasheerDoneOpen(false); setTasheerDoneStep("ask"); setTasheerDoneReason(""); } }}>
         <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Ticket Booked — {selected.size} candidate{selected.size !== 1 ? "s" : ""}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label>Ticket date</Label>
-            <Input type="date" value={ticketDate} onChange={(e) => setTicketDate(e.target.value)} />
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => { setTicketDateOpen(false); setTicketDate(""); }}>Cancel</Button>
-            <Button disabled={ticketBookedMut.isPending} onClick={() => ticketBookedMut.mutate()}>
-              {ticketBookedMut.isPending ? "Updating…" : "Apply"}
-            </Button>
-          </DialogFooter>
+          {tasheerDoneStep === "ask" ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Ready for Embassy Visa?</DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">
+                Tasheer is Done for <strong>{selected.size}</strong> candidate{selected.size !== 1 ? "s" : ""}.
+                Are they ready for embassy visa?
+              </p>
+              <DialogFooter className="flex gap-2 sm:justify-start">
+                <Button disabled={tasheerDoneMut.isPending} onClick={() => tasheerDoneMut.mutate(true)}>
+                  {tasheerDoneMut.isPending ? "Updating…" : "Yes — Ready for Embassy"}
+                </Button>
+                <Button variant="outline" onClick={() => setTasheerDoneStep("reason")}>
+                  No — Enter Reason
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Reason Not Ready</DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">Why are these candidates not ready for embassy visa?</p>
+              <Textarea
+                rows={3}
+                placeholder="Enter reason…"
+                value={tasheerDoneReason}
+                onChange={(e) => setTasheerDoneReason(e.target.value)}
+              />
+              <DialogFooter className="flex gap-2">
+                <Button variant="ghost" onClick={() => setTasheerDoneStep("ask")}>Back</Button>
+                <Button
+                  disabled={tasheerDoneMut.isPending || !tasheerDoneReason.trim()}
+                  onClick={() => tasheerDoneMut.mutate(false)}
+                >
+                  {tasheerDoneMut.isPending ? "Updating…" : "Submit"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
