@@ -2050,6 +2050,9 @@ function ProcessingCard({
   } | null>(null);
   const [pendingDate, setPendingDate] = useState("");
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [embassyOpen, setEmbassyOpen] = useState(false);
+  const [embassyStep, setEmbassyStep] = useState<"ask" | "reason">("ask");
+  const [embassyReason, setEmbassyReason] = useState("");
 
   function handleColUpdate(colKey: string, value: string | null) {
     if (colKey === "ticket_status" && value === "Booked") {
@@ -2060,6 +2063,10 @@ function ProcessingCard({
     if (colKey === "tasheer_status" && value === "Booked") {
       setRequireDate({ field: "tasheer_date", label: "Tasheer Date", pendingStatus: "Booked", statusField: "tasheer_status" });
       setPendingDate(candidate.tasheer_date ?? "");
+      return;
+    }
+    if (colKey === "tasheer_status" && value === "Done" && candidate.wokala_status === "Paid") {
+      setEmbassyOpen(true); setEmbassyStep("ask"); setEmbassyReason("");
       return;
     }
     if (colKey === "medical_status" && value === "Fit" && !candidate.medical_date) {
@@ -2180,6 +2187,54 @@ function ProcessingCard({
               Confirm
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )}
+    {embassyOpen && (
+      <Dialog open onOpenChange={(o) => { if (!o) { setEmbassyOpen(false); setEmbassyStep("ask"); setEmbassyReason(""); } }}>
+        <DialogContent className="max-w-sm">
+          {embassyStep === "ask" ? (
+            <>
+              <DialogHeader><DialogTitle>Ready for Embassy Visa?</DialogTitle></DialogHeader>
+              <p className="text-sm text-muted-foreground">
+                Tasheer is Done and Wokala is Paid for <strong>{candidate.full_name}</strong>.
+                Are they ready for embassy visa?
+              </p>
+              <DialogFooter className="flex gap-2 sm:justify-start">
+                <Button onClick={() => {
+                  onUpdateField("tasheer_status", "Done");
+                  onUpdateField("visa_status", "Ready for embassy");
+                  setEmbassyOpen(false);
+                }}>
+                  Yes — Ready for Embassy
+                </Button>
+                <Button variant="outline" onClick={() => setEmbassyStep("reason")}>
+                  No — Enter Reason
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader><DialogTitle>Reason Not Ready</DialogTitle></DialogHeader>
+              <p className="text-sm text-muted-foreground">Why is this candidate not ready for embassy visa?</p>
+              <Textarea rows={3} placeholder="Enter reason…" value={embassyReason} onChange={(e) => setEmbassyReason(e.target.value)} />
+              <DialogFooter className="flex gap-2">
+                <Button variant="ghost" onClick={() => setEmbassyStep("ask")}>Back</Button>
+                <Button
+                  disabled={!embassyReason.trim()}
+                  onClick={() => {
+                    onUpdateField("tasheer_status", "Done");
+                    onUpdateField("processing_notes", embassyReason.trim());
+                    setEmbassyOpen(false);
+                    setEmbassyStep("ask");
+                    setEmbassyReason("");
+                  }}
+                >
+                  Submit
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     )}
