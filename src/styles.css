@@ -48,7 +48,7 @@
 
 /* ── Musaned theme ───────────────────────────────────────────────── */
 :root {
-  --radius: 1.3rem;
+  --radius: 0rem;
 
   /* Teal #5cb8c4 as primary */
   --background:          oklch(0.9700 0.0050 210);
