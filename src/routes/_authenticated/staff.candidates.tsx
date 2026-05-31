@@ -2038,7 +2038,7 @@ function ProcessingCard({
   officesByCountry: Record<string, string[]>;
 }) {
   const [requireDate, setRequireDate] = useState<{
-    field: "ticket_date" | "medical_date";
+    field: "ticket_date" | "tasheer_date" | "medical_date";
     label: string;
     pendingStatus: string;
     statusField: string;
@@ -2050,6 +2050,11 @@ function ProcessingCard({
     if (colKey === "ticket_status" && value === "Booked") {
       setRequireDate({ field: "ticket_date", label: "Ticket Date", pendingStatus: "Booked", statusField: "ticket_status" });
       setPendingDate(candidate.ticket_date ?? "");
+      return;
+    }
+    if (colKey === "tasheer_status" && value === "Booked") {
+      setRequireDate({ field: "tasheer_date", label: "Tasheer Date", pendingStatus: "Booked", statusField: "tasheer_status" });
+      setPendingDate(candidate.tasheer_date ?? "");
       return;
     }
     if (colKey === "medical_status" && value === "Fit" && !candidate.medical_date) {
