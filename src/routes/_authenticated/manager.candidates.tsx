@@ -906,7 +906,7 @@ function ManagerCandidatesPage() {
               value={tasheerDate}
               onChange={(e) => setTasheerDate(e.target.value)}
             />
-            <Button size="sm" disabled={tasheerBookedMut.isPending} onClick={() => tasheerBookedMut.mutate()}>
+            <Button size="sm" disabled={tasheerBookedMut.isPending || !tasheerDate} onClick={() => tasheerBookedMut.mutate()}>
               {tasheerBookedMut.isPending ? "Updating…" : "Apply"}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => { setTasheerDateOpen(false); setTasheerDate(""); }}>
