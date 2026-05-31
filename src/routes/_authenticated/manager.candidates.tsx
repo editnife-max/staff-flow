@@ -1684,8 +1684,24 @@ function ProcessingTable({
   const someSel = !allSel && filteredCandidates.some((c) => selected.has(c.id));
 
   const medExpiryChecked = useRef<Set<string>>(new Set());
+  const tasheerDoneChecked = useRef<Set<string>>(new Set());
   const arrivedChecked = useRef<Set<string>>(new Set());
   const [arrivedCheckCandidate, setArrivedCheckCandidate] = useState<Candidate | null>(null);
+
+  useEffect(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (const c of candidates) {
+      if (tasheerDoneChecked.current.has(c.id)) continue;
+      if (c.tasheer_status === "Booked" && c.tasheer_date) {
+        const tasheerDate = new Date(c.tasheer_date + "T00:00:00");
+        if (today > tasheerDate) {
+          tasheerDoneChecked.current.add(c.id);
+          onUpdateField(c.id, "tasheer_status", "Done");
+        }
+      }
+    }
+  }, [candidates]);
 
   useEffect(() => {
     const today = new Date();
