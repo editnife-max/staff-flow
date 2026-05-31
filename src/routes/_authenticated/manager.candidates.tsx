@@ -990,11 +990,15 @@ function ManagerCandidatesPage() {
                       if (hasWokalaPaid) { setTasheerDoneOpen(true); setTasheerDoneStep("ask"); setTasheerDoneReason(""); }
                       else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
                     }
-                    else if (fd.key === "visa_status" && v === "Returned") { setVisaReturnedOpen(true); setVisaReturnedReason(""); }
+                    else if (fd.key === "visa_status" && v === "Returned") {
+                      const nonProcessing = candidates.filter((c) => selected.has(c.id) && c.status !== "processing").length;
+                      if (nonProcessing > 0) { toast.error(`${nonProcessing} candidate(s) are not in Processing status`); }
+                      else { setVisaReturnedOpen(true); setVisaReturnedReason(""); }
+                    }
                     else if (fd.key === "visa_status" && v === "Ready for embassy") {
-                      const blocked = candidates.filter((c) => selected.has(c.id) && (c.tasheer_status !== "Done" || c.wokala_status !== "Paid"));
+                      const blocked = candidates.filter((c) => selected.has(c.id) && (c.status !== "processing" || c.tasheer_status !== "Done" || c.wokala_status !== "Paid"));
                       if (blocked.length > 0) {
-                        toast.error(`${blocked.length} candidate(s) require Tasheer = Done and Wokala = Paid first`);
+                        toast.error(`${blocked.length} candidate(s) must be Processing with Tasheer = Done and Wokala = Paid`);
                       } else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
                     }
                     else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
