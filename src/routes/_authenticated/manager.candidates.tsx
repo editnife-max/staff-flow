@@ -848,6 +848,28 @@ function ManagerCandidatesPage() {
         </CardContent>
       </Card>
 
+      {tasheerDateOpen && (
+        <Card className="border-amber-400/60 bg-amber-50/60 dark:bg-amber-900/20">
+          <CardContent className="p-3 flex flex-wrap items-center gap-3">
+            <span className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+              Tasheer Booked — {selected.size} candidate{selected.size !== 1 ? "s" : ""}
+            </span>
+            <Input
+              type="date"
+              className="h-8 w-[160px]"
+              value={tasheerDate}
+              onChange={(e) => setTasheerDate(e.target.value)}
+            />
+            <Button size="sm" disabled={tasheerBookedMut.isPending} onClick={() => tasheerBookedMut.mutate()}>
+              {tasheerBookedMut.isPending ? "Updating…" : "Apply"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => { setTasheerDateOpen(false); setTasheerDate(""); }}>
+              Cancel
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {selected.size > 0 && (
         <Card className="border-primary/40 bg-primary/5">
           <CardContent className="p-3 flex flex-wrap items-center gap-3">
@@ -1112,24 +1134,6 @@ function ManagerCandidatesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Tasheer Booked — pick date dialog */}
-      <Dialog open={tasheerDateOpen} onOpenChange={(o) => { if (!o) { setTasheerDateOpen(false); setTasheerDate(""); } }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Tasheer Booked — {selected.size} candidate{selected.size !== 1 ? "s" : ""}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label>Tasheer date</Label>
-            <Input type="date" value={tasheerDate} onChange={(e) => setTasheerDate(e.target.value)} />
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => { setTasheerDateOpen(false); setTasheerDate(""); }}>Cancel</Button>
-            <Button disabled={tasheerBookedMut.isPending} onClick={() => tasheerBookedMut.mutate()}>
-              {tasheerBookedMut.isPending ? "Updating…" : "Apply"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
