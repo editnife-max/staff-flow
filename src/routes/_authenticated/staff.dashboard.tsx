@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import React, { useState } from "react";
 import {
   Users, Clock, CheckCircle2, XCircle, RotateCcw,
-  ChevronDown, ChevronUp, Stethoscope, FileCheck, ClipboardList, Ticket, FileText, CalendarX, Landmark,
+  ChevronDown, ChevronUp, Stethoscope, FileCheck, ClipboardList, Ticket, FileText, CalendarX, Landmark, BadgeCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -105,6 +105,7 @@ const ALERT_PILL: Record<string, string> = {
   lmis:    "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
   ticket:  "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
   embassy: "bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300",
+  visaready: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
 };
 
 // ─── Inline components ───────────────────────────────────────────────────────
@@ -471,6 +472,8 @@ function StaffDashboard() {
   const embassyPending = candidates.filter(
     (c) => c.tasheer_status === "Done" && c.visa_status !== "Ready for embassy" && c.processing_notes,
   );
+
+  const visaReady = candidates.filter((c) => c.visa_status === "Ready for embassy");
   const daysSince = (d: string) =>
     Math.floor((today.getTime() - new Date(d + "T00:00:00").getTime()) / 86_400_000);
 
@@ -512,7 +515,7 @@ function StaffDashboard() {
       </div>
 
       {/* Alert sections */}
-      {(cocNotDone.length > 0 || medicalNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || embassyPending.length > 0) && (
+      {(cocNotDone.length > 0 || medicalNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || embassyPending.length > 0 || visaReady.length > 0) && (
         <div className="space-y-2">
           <AlertSection icon={FileCheck}    title="COC — Not Done"               iconColor="text-orange-600 dark:text-orange-400" pillKey="coc"     candidates={cocNotDone}    onUpdateField={handleUpdateField} countryOptions={countryOptions} />
           <AlertSection icon={Stethoscope}  title="Medical — Not Fit"            iconColor="text-red-600 dark:text-red-400"       pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
@@ -525,8 +528,10 @@ function StaffDashboard() {
           <AlertSection icon={ClipboardList} title="Unfilled LMIS"               iconColor="text-amber-600 dark:text-amber-400"   pillKey="lmis"    candidates={unfilledLmis}  onUpdateField={handleUpdateField} countryOptions={countryOptions} />
           <AlertSection icon={Ticket}        title="Ticket Not Booked — Over 20 Days" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketNotBooked} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => c.contract_date ? `${daysSince(c.contract_date)}d since contract` : null} />
-          <AlertSection icon={Landmark}      title="Embassy Visa — Pending"      iconColor="text-sky-600 dark:text-sky-400"       pillKey="embassy" candidates={embassyPending}  onUpdateField={handleUpdateField} countryOptions={countryOptions}
+          <AlertSection icon={Landmark}      title="Embassy Visa — Pending"      iconColor="text-sky-600 dark:text-sky-400"       pillKey="embassy"   candidates={embassyPending} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => c.processing_notes ?? null} />
+          <AlertSection icon={BadgeCheck}    title="Ready for Embassy Visa"      iconColor="text-emerald-600 dark:text-emerald-400" pillKey="visaready" candidates={visaReady}      onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            getNote={(c) => c.destination_country ?? null} />
         </div>
       )}
     </div>
