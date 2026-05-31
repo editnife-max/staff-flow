@@ -605,18 +605,12 @@ function ManagerCandidatesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const [bulkFieldOpen,  setBulkFieldOpen]  = useState(false);
-  const [bulkFieldKey,   setBulkFieldKey]   = useState("");
-  const [bulkFieldValue, setBulkFieldValue] = useState("");
-
-  function closeBulkField() { setBulkFieldOpen(false); setBulkFieldKey(""); setBulkFieldValue(""); }
-
   const bulkFieldMut = useMutation({
-    mutationFn: () => bulkField({ data: { ids: Array.from(selected), field: bulkFieldKey as any, value: bulkFieldValue || null } }),
+    mutationFn: ({ field, value }: { field: string; value: string }) =>
+      bulkField({ data: { ids: Array.from(selected), field: field as any, value } }),
     onSuccess: (r) => {
       toast.success(`Updated ${r.count} candidate(s)`);
       qc.invalidateQueries({ queryKey: ["manager-candidates"] });
-      closeBulkField();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -824,8 +818,8 @@ function ManagerCandidatesPage() {
             <span className="text-sm font-semibold pl-1">{selected.size} selected</span>
             <div className="ml-auto flex flex-wrap items-center gap-2">
               <Select onValueChange={(v) => bulkStatusMut.mutate(v as Status)}>
-                <SelectTrigger className="h-9 w-[180px]">
-                  <SelectValue placeholder="Update status..." />
+                <SelectTrigger className="h-9 w-[150px]">
+                  <SelectValue placeholder="Status…" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="available">Available</SelectItem>
@@ -836,9 +830,16 @@ function ManagerCandidatesPage() {
                 </SelectContent>
               </Select>
 
-              <Button size="sm" variant="outline" className="gap-1" onClick={() => setBulkFieldOpen(true)}>
-                Set Field…
-              </Button>
+              {BULK_FIELD_DEFS.map((fd) => (
+                <Select key={fd.key} onValueChange={(v) => bulkFieldMut.mutate({ field: fd.key, value: v })}>
+                  <SelectTrigger className="h-9 w-[120px]">
+                    <SelectValue placeholder={fd.label} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {fd.options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              ))}
 
               <Button
                 size="sm" variant="destructive" className="gap-1"
@@ -1048,48 +1049,6 @@ function ManagerCandidatesPage() {
       {actionCandidates.length > 0 && (
         <ActionDialog candidates={actionCandidates} onClose={() => setActionCandidates([])} />
       )}
-
-      {/* Bulk set field dialog */}
-      <Dialog open={bulkFieldOpen} onOpenChange={(o) => { if (!o) closeBulkField(); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Set Field — {selected.size} candidate{selected.size !== 1 ? "s" : ""}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Field</Label>
-              <Select value={bulkFieldKey} onValueChange={(v) => { setBulkFieldKey(v); setBulkFieldValue(""); }}>
-                <SelectTrigger><SelectValue placeholder="Select field…" /></SelectTrigger>
-                <SelectContent>
-                  {BULK_FIELD_DEFS.map((f) => <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            {bulkFieldKey && (
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Value</Label>
-                <Select value={bulkFieldValue} onValueChange={setBulkFieldValue}>
-                  <SelectTrigger><SelectValue placeholder="Select value…" /></SelectTrigger>
-                  <SelectContent>
-                    {(BULK_FIELD_DEFS.find((f) => f.key === bulkFieldKey)?.options ?? []).map((o) => (
-                      <SelectItem key={o} value={o}>{o}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={closeBulkField}>Cancel</Button>
-            <Button
-              disabled={!bulkFieldKey || !bulkFieldValue || bulkFieldMut.isPending}
-              onClick={() => bulkFieldMut.mutate()}
-            >
-              {bulkFieldMut.isPending ? "Updating…" : "Apply"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
