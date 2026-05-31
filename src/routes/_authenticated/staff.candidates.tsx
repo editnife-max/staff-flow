@@ -1437,6 +1437,7 @@ function CandidateCard({
 }
 
 const INITIAL_PROC_FILTERS = {
+  narrative: "all",
   medical_status: "all", coc_status: "all", tasheer_status: "all",
   wokala_status: "all", visa_status: "all", insurance_status: "all",
   unfilled_lmis: "all", lmis_status: "all", ticket_status: "all",
@@ -1480,6 +1481,10 @@ function ProcessingTable({
 
   const activeCount = Object.values(procFilters).filter((v) => v !== "all").length;
 
+  const narrativeOpts = useMemo(() =>
+    Array.from(new Set(candidates.map((c) => (c.narrative as string | null) ?? "").filter(Boolean))).sort(),
+  [candidates]);
+
   const filteredCandidates = useMemo(() => {
     let list = candidates;
     if (activeCountryTab !== "all") list = list.filter((c) => c.destination_country === activeCountryTab);
@@ -1492,6 +1497,7 @@ function ProcessingTable({
         (c.serial_number ?? "").toLowerCase().includes(q)
       );
     }
+    if (f.narrative       !== "all")   list = list.filter((c) => c.narrative        === f.narrative);
     if (f.medical_status !== "all")   list = list.filter((c) => c.medical_status   === f.medical_status);
     if (f.coc_status     !== "all")   list = list.filter((c) => c.coc_status       === f.coc_status);
     if (f.tasheer_status !== "all")   list = list.filter((c) => c.tasheer_status   === f.tasheer_status);
@@ -1503,7 +1509,7 @@ function ProcessingTable({
     if (f.ticket_status  !== "all")   list = list.filter((c) => c.ticket_status    === f.ticket_status);
     if (f.arrival_city   !== "all")   list = list.filter((c) => c.arrival_city     === f.arrival_city);
     return list;
-  }, [candidates, search, f.medical_status, f.coc_status, f.tasheer_status, f.wokala_status,
+  }, [candidates, search, f.narrative, f.medical_status, f.coc_status, f.tasheer_status, f.wokala_status,
       f.visa_status, f.insurance_status, f.unfilled_lmis, f.lmis_status,
       f.ticket_status, f.arrival_city, activeCountryTab, activeOfficeTab]);
 
@@ -1583,6 +1589,8 @@ function ProcessingTable({
           </div>
           {showFilters && (
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <FilterSelect value={f.narrative} onChange={set("narrative")} placeholder="Narrative" icon={FileText}
+                options={[{ value: "all", label: "-----" }, ...narrativeOpts.map((o) => ({ value: o, label: o }))]} />
               <FilterSelect value={f.medical_status} onChange={set("medical_status")} placeholder="Medical" icon={Stethoscope}
                 options={[{ value: "all", label: "-----" }, ...MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <FilterSelect value={f.coc_status} onChange={set("coc_status")} placeholder="COC" icon={FileCheck}
