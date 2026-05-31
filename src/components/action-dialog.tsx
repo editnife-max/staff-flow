@@ -356,20 +356,16 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
     try {
       if (isCV) {
         if (isBulk) {
-          // Bulk CV → multi-page PDF (one page per candidate)
+          // Bulk CV → one independent PDF per candidate
           toast.info(`Generating ${candidates.length} CVs — please wait…`);
-          const firstCanvas = await candidateToCanvas(sortedCandidates[0], matchedTemplate);
-          const pxW = firstCanvas.width / 2, pxH = firstCanvas.height / 2;
-          const pdf = new jsPDF({ unit: "px", format: [pxW, pxH] });
-          pdf.addImage(firstCanvas.toDataURL("image/png"), "PNG", 0, 0, pxW, pxH);
-          for (let i = 1; i < sortedCandidates.length; i++) {
-            const canvas = await candidateToCanvas(sortedCandidates[i], matchedTemplate);
+          for (const c of sortedCandidates) {
+            const canvas = await candidateToCanvas(c, matchedTemplate);
             const w = canvas.width / 2, h = canvas.height / 2;
-            pdf.addPage([w, h]);
+            const pdf = new jsPDF({ unit: "px", format: [w, h] });
             pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, w, h);
+            pdf.save(`${c.full_name} — ${currentType.label}.pdf`);
           }
-          pdf.save(`${candidates.length} Candidates — ${currentType.label}.pdf`);
-          toast.success(`${currentType.label} — ${candidates.length} pages downloaded`);
+          toast.success(`${candidates.length} CVs downloaded`);
         } else {
           // Single CV
           if (matchedTemplate) {
