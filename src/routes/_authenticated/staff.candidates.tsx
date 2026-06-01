@@ -77,14 +77,6 @@ const BULK_FIELD_DEFS = [
   { key: "office",           label: "Office",        options: OFFICE_OPTIONS },
   { key: "passport_status",  label: "Passport",      options: PASSPORT_OPTIONS },
   { key: "experience",       label: "Experience",    options: ["Yes", "No", "None"] },
-  { key: "tasheer_status",   label: "Tasheer",       options: TASHEER_OPTIONS },
-  { key: "wokala_status",    label: "Wokala",        options: WOKALA_OPTIONS },
-  { key: "visa_status",      label: "Visa",          options: VISA_OPTIONS },
-  { key: "insurance_status", label: "Insurance",     options: INSURANCE_OPTIONS },
-  { key: "unfilled_lmis",    label: "Unfilled LMIS", options: UNFILLED_LMIS_OPTIONS },
-  { key: "lmis_status",      label: "LMIS",          options: LMIS_OPTIONS },
-  { key: "ticket_status",    label: "Ticket",        options: TICKET_OPTIONS },
-  { key: "arrival_city",     label: "Arrival City",  options: ARRIVAL_CITY_OPTIONS },
 ];
 
 const SKILLS_LIST = [
