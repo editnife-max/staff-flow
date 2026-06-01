@@ -350,7 +350,8 @@ function AssignmentsPage() {
         </Card>
       </div>
 
-      {/* ── CV Templates ───────────────────────────────────────────────────── */}
+      {/* ── CV Templates + CV Page Requirements ─────────────────────────── */}
+      <div className="grid grid-cols-2 gap-6">
       <Card className="rounded-none">
         <CardHeader className="pb-3 border-b">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -446,7 +447,7 @@ function AssignmentsPage() {
       </Card>
 
       {/* ── CV Page Requirements ──────────────────────────────────────────── */}
-      <Card className="rounded-none">
+      <Card className="rounded-none" style={{ alignSelf: "start" }}>
         <CardHeader className="pb-3 border-b">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <CircleDot className="h-4 w-4 text-primary" />
@@ -478,6 +479,7 @@ function AssignmentsPage() {
           </div>
         </CardContent>
       </Card>
+      </div>
 
       {/* Info banner */}
       <div className="rounded-none border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
