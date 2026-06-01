@@ -708,24 +708,33 @@ const MEDICAL_OPTIONS = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired
 const CV_REQ_KEY = "cv-page-requirements";
 
 function getCvReqDefaults() {
+  const defaults = {
+    age: "all", gender: "all", religion: "all", medical: "Fit",
+    narrative: "all", experience: "all", coc: "Done",
+    musaned: "all", selected_by: "all", cv_sent_to: "all",
+  };
   try {
     const saved = localStorage.getItem(CV_REQ_KEY);
-    const req = saved ? JSON.parse(saved) : {};
-    return { medical: req.medical ?? "Fit", coc: req.coc ?? "Done" };
-  } catch { return { medical: "Fit", coc: "Done" }; }
+    if (!saved) return defaults;
+    const req = JSON.parse(saved);
+    return {
+      age:        req.age        ?? defaults.age,
+      gender:     req.gender     ?? defaults.gender,
+      religion:   req.religion   ?? defaults.religion,
+      medical:    req.medical    ?? defaults.medical,
+      narrative:  req.narrative  ?? defaults.narrative,
+      experience: req.experience ?? defaults.experience,
+      coc:        req.coc        ?? defaults.coc,
+      musaned:    req.musaned    ?? defaults.musaned,
+      selected_by:req.selected_by?? defaults.selected_by,
+      cv_sent_to: req.cv_sent_to ?? defaults.cv_sent_to,
+    };
+  } catch { return defaults; }
 }
 
 const initialFilters = {
   sort: "newest",
-  age: "all",
-  gender: "all",
-  religion: "all",
   ...getCvReqDefaults(),
-  narrative: "all",
-  experience: "all",
-  musaned: "all",
-  cv_sent_to: "all",
-  selected_by: "all",
   from: "",
   to: "",
 };

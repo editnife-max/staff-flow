@@ -26,9 +26,19 @@ export const Route = createFileRoute("/_authenticated/manager/assignments")({
 
 const COMMON_FLAGS = ["🇸🇦","🇰🇼","🇦🇪","🇯🇴","🇱🇧","🇶🇦","🇧🇭","🇴🇲","🇮🇶","🇾🇪","🌍"];
 
-const CV_REQ_KEY = "cv-page-requirements";
-const MEDICAL_OPTIONS = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired"];
-const COC_OPTIONS     = ["Done", "No", "Booked", "Placed", "Yitazez", "Pending Release"];
+const CV_REQ_KEY        = "cv-page-requirements";
+const MEDICAL_OPTIONS   = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired"];
+const COC_OPTIONS       = ["Done", "No", "Booked", "Placed", "Yitazez", "Pending Release"];
+const AGE_OPTIONS       = ["18-25", "26-35", "36-45", "46-99"];
+const GENDER_OPTIONS    = ["Male", "Female"];
+const RELIGION_OPTIONS  = ["Muslim", "Non-muslim"];
+const EXPERIENCE_OPTIONS = ["Yes", "No", "None"];
+
+const DEFAULT_CV_REQ = {
+  age: "all", gender: "all", religion: "all", medical: "Fit",
+  narrative: "all", experience: "all", coc: "Done",
+  musaned: "all", selected_by: "all", cv_sent_to: "all",
+};
 
 function AssignmentsPage() {
   const { user } = useAuth();
@@ -55,8 +65,8 @@ function AssignmentsPage() {
   const [cvReq, setCvReq] = useState(() => {
     try {
       const saved = localStorage.getItem(CV_REQ_KEY);
-      return saved ? JSON.parse(saved) : { medical: "Fit", coc: "Done" };
-    } catch { return { medical: "Fit", coc: "Done" }; }
+      return saved ? { ...DEFAULT_CV_REQ, ...JSON.parse(saved) } : { ...DEFAULT_CV_REQ };
+    } catch { return { ...DEFAULT_CV_REQ }; }
   });
 
   useEffect(() => {
@@ -107,6 +117,24 @@ function AssignmentsPage() {
       return data as CvTemplate[];
     },
   });
+
+  const { data: agencyOptions = [] } = useQuery({
+    queryKey: ["agencies-offices-names"],
+    enabled: !!user,
+    queryFn: async () => {
+      const [agenciesRes, officesRes] = await Promise.all([
+        supabase.from("foreign_agencies").select("name").order("name"),
+        supabase.from("assignment_offices").select("name").order("name"),
+      ]);
+      const names = [
+        ...(agenciesRes.data ?? []).map((r: any) => r.name as string),
+        ...(officesRes.data ?? []).map((r: any) => r.name as string),
+      ];
+      return [...new Set(names)].sort();
+    },
+  });
+
+  const narrativeOpts = offices.map((o) => o.name).filter(Boolean).sort();
 
   const activeCountry = countries.find((c) => c.id === activeCountryId) ?? countries[0] ?? null;
   const activeOffices  = offices.filter((o) => o.country_id === activeCountry?.id);
@@ -474,54 +502,45 @@ function AssignmentsPage() {
             </span>
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4 space-y-3">
+        <CardContent className="p-4 space-y-2">
           {/* Status — locked */}
-          <div className="flex items-center gap-3 px-4 py-3 rounded-none border border-emerald-200 bg-emerald-50/50 dark:border-emerald-800/40 dark:bg-emerald-900/10">
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-none border border-emerald-200 bg-emerald-50/50 dark:border-emerald-800/40 dark:bg-emerald-900/10">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <div className="flex-1">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Status</p>
-              <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Available</p>
-            </div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground w-24 shrink-0">Status</p>
+            <p className="flex-1 text-sm font-semibold text-emerald-700 dark:text-emerald-300">Available</p>
             <span className="text-[10px] text-muted-foreground border border-border rounded-none px-1.5 py-0.5">Locked</span>
           </div>
 
-          {/* Medical — selectable */}
-          <div className="flex items-center gap-3 px-4 py-3 rounded-none border border-border bg-muted/20">
-            <CheckCircle2 className={cn("h-4 w-4 shrink-0", cvReq.medical !== "all" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")} />
-            <div className="flex-1">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Medical</p>
-              <Select value={cvReq.medical} onValueChange={(v) => setCvReq((p: typeof cvReq) => ({ ...p, medical: v }))}>
-                <SelectTrigger className="h-7 w-36 rounded-none text-xs">
+          {(
+            [
+              { key: "age",        label: "Age",         opts: AGE_OPTIONS },
+              { key: "gender",     label: "Gender",      opts: GENDER_OPTIONS },
+              { key: "religion",   label: "Religion",    opts: RELIGION_OPTIONS },
+              { key: "medical",    label: "Medical",     opts: MEDICAL_OPTIONS },
+              { key: "narrative",  label: "Narrative",   opts: narrativeOpts },
+              { key: "experience", label: "Experience",  opts: EXPERIENCE_OPTIONS },
+              { key: "coc",        label: "COC",         opts: COC_OPTIONS },
+              { key: "musaned",    label: "Country",     opts: countries.map((c) => c.name) },
+              { key: "selected_by",label: "Selected By", opts: agencyOptions },
+              { key: "cv_sent_to", label: "CV Sent To",  opts: agencyOptions },
+            ] as { key: keyof typeof DEFAULT_CV_REQ; label: string; opts: string[] }[]
+          ).map(({ key, label, opts }) => (
+            <div key={key} className="flex items-center gap-3 px-3 py-2 rounded-none border border-border bg-muted/20">
+              <CheckCircle2 className={cn("h-4 w-4 shrink-0", cvReq[key] !== "all" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")} />
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground w-24 shrink-0">{label}</p>
+              <Select value={cvReq[key]} onValueChange={(v) => setCvReq((p: typeof cvReq) => ({ ...p, [key]: v }))}>
+                <SelectTrigger className="h-7 flex-1 rounded-none text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all" className="text-xs text-muted-foreground">No requirement</SelectItem>
-                  {MEDICAL_OPTIONS.map((o) => (
+                  {opts.map((o) => (
                     <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          {/* COC — selectable */}
-          <div className="flex items-center gap-3 px-4 py-3 rounded-none border border-border bg-muted/20">
-            <CheckCircle2 className={cn("h-4 w-4 shrink-0", cvReq.coc !== "all" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")} />
-            <div className="flex-1">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">COC</p>
-              <Select value={cvReq.coc} onValueChange={(v) => setCvReq((p: typeof cvReq) => ({ ...p, coc: v }))}>
-                <SelectTrigger className="h-7 w-36 rounded-none text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all" className="text-xs text-muted-foreground">No requirement</SelectItem>
-                  {COC_OPTIONS.map((o) => (
-                    <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          ))}
         </CardContent>
       </Card>
       </div>
