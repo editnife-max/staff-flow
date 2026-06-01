@@ -6,10 +6,8 @@ import { Plus, Trash2, Globe, Building2, ChevronRight, FileText, Upload, Externa
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
@@ -217,343 +215,230 @@ function AssignmentsPage() {
   }
 
   return (
-    <div className="space-y-6 mx-[79.6px]">
+    <div className="space-y-3 mx-[79.6px]">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold tracking-tight">Assign</h1>
-        <p className="text-sm text-muted-foreground">
-          Countries and offices here automatically appear in Processing filters.
-        </p>
+        <h1 className="text-base font-semibold tracking-tight">Assignments</h1>
+        <p className="text-xs text-muted-foreground">Countries and offices appear in Processing filters.</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
-        {/* ── LEFT: Countries ──────────────────────────────────────────────── */}
-        <Card className="rounded-none">
-          <CardHeader className="pb-3 border-b">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Globe className="h-4 w-4 text-primary" />
-              Countries
-              <span className="ml-auto text-xs font-normal text-muted-foreground">{countries.length} total</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 space-y-4">
-            {/* Add form */}
-            <div className="space-y-2">
-              <Label className="text-xs">New Country</Label>
-              <div className="flex gap-2">
-                <div className="flex items-center gap-1">
-                  <span className="text-lg">{newCountryFlag}</span>
-                  <select
-                    value={newCountryFlag}
-                    onChange={(e) => setNewCountryFlag(e.target.value)}
-                    className="h-9 rounded-none border border-border bg-background text-sm px-1 focus:outline-none"
-                  >
-                    {COMMON_FLAGS.map((f) => (
-                      <option key={f} value={f}>{f}</option>
-                    ))}
-                  </select>
-                </div>
-                <Input
-                  className="rounded-none h-9 flex-1"
-                  placeholder="Country name…"
-                  value={newCountryName}
-                  onChange={(e) => setNewCountryName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && newCountryName.trim()) addCountryMut.mutate();
-                  }}
-                />
-                <Button
-                  size="sm"
-                  className="h-9 rounded-none gap-1"
-                  disabled={!newCountryName.trim() || addCountryMut.isPending}
-                  onClick={() => addCountryMut.mutate()}
-                >
-                  <Plus className="h-4 w-4" /> Add
-                </Button>
-              </div>
-            </div>
+      {/* ── Row 1: Countries + Offices ──────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-3">
 
-            {/* Country list */}
-            <div className="space-y-1">
+        {/* Countries */}
+        <div className="border border-border bg-background">
+          <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30">
+            <Globe className="h-3.5 w-3.5 text-primary shrink-0" />
+            <span className="text-xs font-semibold">Countries</span>
+            <span className="ml-auto text-[11px] text-muted-foreground">{countries.length} total</span>
+          </div>
+          <div className="p-2 space-y-2">
+            <div className="flex gap-1.5">
+              <select value={newCountryFlag} onChange={(e) => setNewCountryFlag(e.target.value)}
+                className="h-7 border border-border bg-background text-sm px-1 focus:outline-none shrink-0">
+                {COMMON_FLAGS.map((f) => <option key={f} value={f}>{f}</option>)}
+              </select>
+              <Input className="h-7 rounded-none text-xs flex-1" placeholder="Country name…"
+                value={newCountryName} onChange={(e) => setNewCountryName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && newCountryName.trim()) addCountryMut.mutate(); }} />
+              <Button size="sm" className="h-7 rounded-none px-2.5 text-xs gap-1"
+                disabled={!newCountryName.trim() || addCountryMut.isPending}
+                onClick={() => addCountryMut.mutate()}>
+                <Plus className="h-3 w-3" /> Add
+              </Button>
+            </div>
+            <div className="space-y-px max-h-44 overflow-y-auto">
               {countries.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-6">No countries yet. Add one above.</p>
+                <p className="text-[11px] text-muted-foreground text-center py-5">No countries yet.</p>
               ) : countries.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setActiveCountryId(c.id)}
+                <button key={c.id} type="button" onClick={() => setActiveCountryId(c.id)}
                   className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2 rounded-none border text-left transition-colors group",
-                    (activeCountry?.id === c.id)
-                      ? "border-primary/40 bg-primary/5"
-                      : "border-transparent hover:border-border hover:bg-muted/40",
-                  )}
-                >
-                  <span className="text-base">{c.flag}</span>
-                  <span className="flex-1 text-sm font-medium">{c.name}</span>
-                  <span className="text-xs text-muted-foreground mr-1">
-                    {offices.filter((o) => o.country_id === c.id).length} offices
+                    "w-full flex items-center gap-2 px-2 py-1 text-left transition-colors group text-xs",
+                    activeCountry?.id === c.id ? "bg-primary/8 text-primary font-medium" : "hover:bg-muted/50",
+                  )}>
+                  <span className="text-sm">{c.flag}</span>
+                  <span className="flex-1 truncate">{c.name}</span>
+                  <span className="text-[11px] text-muted-foreground shrink-0">
+                    {offices.filter((o) => o.country_id === c.id).length}
                   </span>
-                  <ChevronRight className={cn(
-                    "h-3.5 w-3.5 transition-colors",
-                    activeCountry?.id === c.id ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
-                  )} />
-                  <button
-                    type="button"
+                  <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <button type="button"
                     onClick={(e) => { e.stopPropagation(); delCountryMut.mutate(c.id); }}
-                    className="ml-1 text-muted-foreground hover:text-destructive transition-colors"
-                    title="Remove country"
                     disabled={delCountryMut.isPending}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Trash2 className="h-3 w-3" />
                   </button>
                 </button>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        {/* ── RIGHT: Offices ───────────────────────────────────────────────── */}
-        <Card className="rounded-none">
-          <CardHeader className="pb-3 border-b">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-primary" />
-              Offices
-              {activeCountry ? (
-                <span className="text-muted-foreground font-normal">
-                  — {activeCountry.flag} {activeCountry.name}
-                </span>
-              ) : (
-                <span className="text-muted-foreground font-normal text-xs">Select a country</span>
-              )}
-              {activeCountry && (
-                <span className="ml-auto text-xs font-normal text-muted-foreground">
-                  {activeOffices.length} offices
-                </span>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 space-y-4">
+        {/* Offices */}
+        <div className="border border-border bg-background">
+          <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30">
+            <Building2 className="h-3.5 w-3.5 text-primary shrink-0" />
+            <span className="text-xs font-semibold">Offices</span>
+            {activeCountry && (
+              <span className="text-[11px] text-muted-foreground">— {activeCountry.flag} {activeCountry.name}</span>
+            )}
+            {activeCountry && (
+              <span className="ml-auto text-[11px] text-muted-foreground">{activeOffices.length} total</span>
+            )}
+          </div>
+          <div className="p-2 space-y-2">
             {!activeCountry ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
-                <Globe className="h-10 w-10 mb-3 opacity-20" />
-                <p className="text-sm">Select a country on the left to manage its offices.</p>
+              <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                <Globe className="h-7 w-7 mb-2 opacity-20" />
+                <p className="text-[11px]">Select a country to manage offices.</p>
               </div>
             ) : (
               <>
-                {/* Add form */}
-                <div className="space-y-2">
-                  <Label className="text-xs">
-                    New Office in {activeCountry.flag} {activeCountry.name}
-                  </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      className="rounded-none h-9 flex-1"
-                      placeholder="Office name…"
-                      value={newOfficeName}
-                      onChange={(e) => setNewOfficeName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && newOfficeName.trim()) addOfficeMut.mutate();
-                      }}
-                    />
-                    <Button
-                      size="sm"
-                      className="h-9 rounded-none gap-1"
-                      disabled={!newOfficeName.trim() || addOfficeMut.isPending}
-                      onClick={() => addOfficeMut.mutate()}
-                    >
-                      <Plus className="h-4 w-4" /> Add
-                    </Button>
-                  </div>
+                <div className="flex gap-1.5">
+                  <Input className="h-7 rounded-none text-xs flex-1" placeholder="Office name…"
+                    value={newOfficeName} onChange={(e) => setNewOfficeName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && newOfficeName.trim()) addOfficeMut.mutate(); }} />
+                  <Button size="sm" className="h-7 rounded-none px-2.5 text-xs gap-1"
+                    disabled={!newOfficeName.trim() || addOfficeMut.isPending}
+                    onClick={() => addOfficeMut.mutate()}>
+                    <Plus className="h-3 w-3" /> Add
+                  </Button>
                 </div>
-
-                {/* Office list */}
-                <div className="space-y-1">
+                <div className="space-y-px max-h-44 overflow-y-auto">
                   {activeOffices.length === 0 ? (
-                    <p className="text-xs text-muted-foreground text-center py-6">
-                      No offices for {activeCountry.name} yet.
-                    </p>
+                    <p className="text-[11px] text-muted-foreground text-center py-5">No offices yet.</p>
                   ) : activeOffices.map((o) => (
-                    <div
-                      key={o.id}
-                      className="flex items-center gap-3 px-3 py-2 rounded-none border border-border/60 bg-muted/20 group"
-                    >
-                      <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <span className="flex-1 text-sm">{o.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => delOfficeMut.mutate(o.id)}
-                        className="text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
-                        title="Remove office"
+                    <div key={o.id} className="flex items-center gap-2 px-2 py-1 text-xs hover:bg-muted/40 group">
+                      <Building2 className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="flex-1 truncate">{o.name}</span>
+                      <button type="button" onClick={() => delOfficeMut.mutate(o.id)}
                         disabled={delOfficeMut.isPending}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Trash2 className="h-3 w-3" />
                       </button>
                     </div>
                   ))}
                 </div>
               </>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
-      {/* ── CV Templates + CV Page Requirements ─────────────────────────── */}
-      <div className="grid grid-cols-2 gap-6">
-      <Card className="rounded-none">
-        <CardHeader className="pb-3 border-b">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <FileText className="h-4 w-4 text-primary" />
-            CV Templates
-            <span className="ml-auto text-xs font-normal text-muted-foreground">{cvTemplates.length} uploaded</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 space-y-4">
-          {/* Upload form */}
-          <div className="space-y-2">
-            <Label className="text-xs">Upload New Template</Label>
-            <div className="flex gap-2">
-              <Input
-                className="rounded-none h-9 flex-1"
-                placeholder="Template name…"
-                value={newTemplateName}
-                onChange={(e) => setNewTemplateName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && newTemplateName.trim() && templateFile) handleTemplateUpload(); }}
-              />
-              <label
-                className={cn(
-                  "h-9 rounded-none inline-flex items-center gap-1.5 px-3 border text-sm font-medium cursor-pointer transition-colors whitespace-nowrap shrink-0",
-                  templateFile
-                    ? "border-primary/50 bg-primary/5 text-primary"
-                    : "border-input bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
-                )}
-              >
-                <Upload className="h-3.5 w-3.5" />
-                {templateFile ? templateFile.name.length > 18 ? templateFile.name.slice(0, 16) + "…" : templateFile.name : "Choose PDF"}
-                <input
-                  type="file"
-                  accept=".pdf,.docx"
-                  className="hidden"
-                  onChange={(e) => setTemplateFile(e.target.files?.[0] ?? null)}
-                />
+      {/* ── Row 2: CV Templates + CV Page Requirements ──────────────────── */}
+      <div className="grid grid-cols-2 gap-3 items-start">
+
+        {/* CV Templates */}
+        <div className="border border-border bg-background">
+          <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30">
+            <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
+            <span className="text-xs font-semibold">CV Templates</span>
+            <span className="ml-auto text-[11px] text-muted-foreground">{cvTemplates.length} uploaded</span>
+          </div>
+          <div className="p-2 space-y-2">
+            <div className="flex gap-1.5">
+              <Input className="h-7 rounded-none text-xs flex-1" placeholder="Template name…"
+                value={newTemplateName} onChange={(e) => setNewTemplateName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && newTemplateName.trim() && templateFile) handleTemplateUpload(); }} />
+              <label className={cn(
+                "h-7 inline-flex items-center gap-1 px-2 border text-xs font-medium cursor-pointer transition-colors shrink-0",
+                templateFile ? "border-primary/50 bg-primary/5 text-primary" : "border-input bg-background text-muted-foreground hover:bg-muted",
+              )}>
+                <Upload className="h-3 w-3" />
+                {templateFile ? (templateFile.name.length > 14 ? templateFile.name.slice(0, 12) + "…" : templateFile.name) : "PDF"}
+                <input type="file" accept=".pdf,.docx" className="hidden"
+                  onChange={(e) => setTemplateFile(e.target.files?.[0] ?? null)} />
               </label>
-              <Button
-                size="sm"
-                className="h-9 rounded-none gap-1"
+              <Button size="sm" className="h-7 rounded-none px-2.5 text-xs"
                 disabled={!newTemplateName.trim() || !templateFile || templateUploading}
-                onClick={handleTemplateUpload}
-              >
-                {templateUploading ? "Uploading…" : "Upload"}
+                onClick={handleTemplateUpload}>
+                {templateUploading ? "…" : "Upload"}
               </Button>
             </div>
             {templateFile && (
-              <p className="text-xs text-muted-foreground">
-                Selected: <span className="font-medium text-foreground">{templateFile.name}</span>
-                <button type="button" className="ml-2 text-destructive hover:underline" onClick={() => setTemplateFile(null)}>remove</button>
+              <p className="text-[11px] text-muted-foreground">
+                {templateFile.name}
+                <button type="button" className="ml-2 text-destructive hover:underline"
+                  onClick={() => setTemplateFile(null)}>remove</button>
               </p>
             )}
+            {cvTemplates.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground text-center py-5">No templates uploaded yet.</p>
+            ) : (
+              <div className="space-y-px max-h-44 overflow-y-auto">
+                {cvTemplates.map((t) => (
+                  <div key={t.id} className="flex items-center gap-2 px-2 py-1 text-xs hover:bg-muted/40 group">
+                    <FileText className="h-3 w-3 text-primary shrink-0" />
+                    <span className="flex-1 truncate font-medium">{t.name}</span>
+                    <span className="text-[11px] text-muted-foreground shrink-0">
+                      {new Date(t.created_at).toLocaleDateString()}
+                    </span>
+                    <a href={t.file_url} target="_blank" rel="noopener noreferrer"
+                      className="text-muted-foreground hover:text-primary transition-colors" title="View">
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                    <button type="button" onClick={() => delTemplateMut.mutate(t.id)}
+                      disabled={delTemplateMut.isPending}
+                      className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+        </div>
 
-          {/* Template list */}
-          {cvTemplates.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-6">No CV templates uploaded yet.</p>
-          ) : (
-            <div className="space-y-1">
-              {cvTemplates.map((t) => (
-                <div
-                  key={t.id}
-                  className="flex items-center gap-3 px-3 py-2 rounded-none border border-border/60 bg-muted/20 group"
-                >
-                  <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
-                  <span className="flex-1 text-sm font-medium">{t.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(t.created_at).toLocaleDateString()}
-                  </span>
-                  <a
-                    href={t.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-muted-foreground hover:text-primary transition-colors"
-                    title="View PDF"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => delTemplateMut.mutate(t.id)}
-                    disabled={delTemplateMut.isPending}
-                    className="text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
-                    title="Remove template"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+        {/* CV Page Requirements */}
+        <div className="border border-border bg-background">
+          <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30">
+            <CircleDot className="h-3.5 w-3.5 text-primary shrink-0" />
+            <span className="text-xs font-semibold">CV Page Requirements</span>
+            <span className="ml-auto text-[11px] text-muted-foreground">applied on CV page load</span>
+          </div>
+          <div className="p-2 space-y-1.5">
+            {/* Status — locked */}
+            <div className="flex items-center gap-2 px-2 py-1 border border-emerald-200 bg-emerald-50/40 dark:border-emerald-800/40 dark:bg-emerald-900/10 text-xs">
+              <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span className="text-muted-foreground w-20 shrink-0">Status</span>
+              <span className="flex-1 font-semibold text-emerald-700 dark:text-emerald-300">Available</span>
+              <span className="text-[10px] text-muted-foreground">Locked</span>
+            </div>
+            {/* Filter rows — 2-column grid */}
+            <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+              {(
+                [
+                  { key: "age",          label: "Age",           opts: AGE_OPTIONS },
+                  { key: "gender",       label: "Gender",        opts: GENDER_OPTIONS },
+                  { key: "religion",     label: "Religion",      opts: RELIGION_OPTIONS },
+                  { key: "medical",      label: "Medical",       opts: MEDICAL_OPTIONS },
+                  { key: "narrative",    label: "Narrative",     opts: narrativeOpts },
+                  { key: "experience",   label: "Experience",    opts: EXPERIENCE_OPTIONS },
+                  { key: "coc",          label: "COC",           opts: COC_OPTIONS },
+                  { key: "english_level",label: "English Level", opts: ENGLISH_LEVEL_OPTIONS },
+                  { key: "musaned",      label: "Country",       opts: countries.map((c) => c.name) },
+                  { key: "selected_by",  label: "Selected By",   opts: agencyOptions },
+                  { key: "cv_sent_to",   label: "CV Sent To",    opts: agencyOptions },
+                ] as { key: keyof typeof DEFAULT_CV_REQ; label: string; opts: string[] }[]
+              ).map(({ key, label, opts }) => (
+                <div key={key} className="flex items-center gap-1.5 min-w-0">
+                  <span className={cn(
+                    "text-[11px] w-[4.5rem] shrink-0 truncate",
+                    cvReq[key] !== "all" ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-muted-foreground",
+                  )}>{label}</span>
+                  <Select value={cvReq[key]} onValueChange={(v) => setCvReq((p: typeof cvReq) => ({ ...p, [key]: v }))}>
+                    <SelectTrigger className="h-6 flex-1 rounded-none text-[11px] min-w-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all" className="text-xs text-muted-foreground">—</SelectItem>
+                      {opts.map((o) => <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
               ))}
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── CV Page Requirements ──────────────────────────────────────────── */}
-      <Card className="rounded-none" style={{ alignSelf: "start" }}>
-        <CardHeader className="pb-3 border-b">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <CircleDot className="h-4 w-4 text-primary" />
-            CV Page Requirements
-            <span className="ml-auto text-xs font-normal text-muted-foreground">
-              Candidates must meet all of these to appear on the CV page
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 space-y-2">
-          {/* Status — locked */}
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-none border border-emerald-200 bg-emerald-50/50 dark:border-emerald-800/40 dark:bg-emerald-900/10">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground w-24 shrink-0">Status</p>
-            <p className="flex-1 text-sm font-semibold text-emerald-700 dark:text-emerald-300">Available</p>
-            <span className="text-[10px] text-muted-foreground border border-border rounded-none px-1.5 py-0.5">Locked</span>
           </div>
-
-          {(
-            [
-              { key: "age",        label: "Age",         opts: AGE_OPTIONS },
-              { key: "gender",     label: "Gender",      opts: GENDER_OPTIONS },
-              { key: "religion",   label: "Religion",    opts: RELIGION_OPTIONS },
-              { key: "medical",    label: "Medical",     opts: MEDICAL_OPTIONS },
-              { key: "narrative",  label: "Narrative",   opts: narrativeOpts },
-              { key: "experience", label: "Experience",  opts: EXPERIENCE_OPTIONS },
-              { key: "coc",        label: "COC",         opts: COC_OPTIONS },
-              { key: "musaned",    label: "Country",     opts: countries.map((c) => c.name) },
-              { key: "selected_by",label: "Selected By", opts: agencyOptions },
-              { key: "cv_sent_to",    label: "CV Sent To",    opts: agencyOptions },
-              { key: "english_level", label: "English Level", opts: ENGLISH_LEVEL_OPTIONS },
-            ] as { key: keyof typeof DEFAULT_CV_REQ; label: string; opts: string[] }[]
-          ).map(({ key, label, opts }) => (
-            <div key={key} className="flex items-center gap-3 px-3 py-2 rounded-none border border-border bg-muted/20">
-              <CheckCircle2 className={cn("h-4 w-4 shrink-0", cvReq[key] !== "all" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")} />
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground w-24 shrink-0">{label}</p>
-              <Select value={cvReq[key]} onValueChange={(v) => setCvReq((p: typeof cvReq) => ({ ...p, [key]: v }))}>
-                <SelectTrigger className="h-7 flex-1 rounded-none text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all" className="text-xs text-muted-foreground">No requirement</SelectItem>
-                  {opts.map((o) => (
-                    <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-      </div>
-
-      {/* Info banner */}
-      <div className="rounded-none border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
-        Countries and offices added here will instantly appear as selectable options in the{" "}
-        <strong>Processing</strong> filters for both Manager and Staff views. Removing a country
-        also removes all its offices. CV Templates uploaded here are available to staff in the{" "}
-        <strong>CV Generator</strong>.
+        </div>
       </div>
     </div>
   );
