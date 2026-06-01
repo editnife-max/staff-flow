@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Globe, Building2, ChevronRight, FileText, Upload, ExternalLink, CheckCircle2, CircleDot } from "lucide-react";
+import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -72,6 +72,15 @@ function AssignmentsPage() {
   useEffect(() => {
     localStorage.setItem(CV_REQ_KEY, JSON.stringify(cvReq));
   }, [cvReq]);
+
+  // ── pagination ───────────────────────────────────────────────────────────────
+  const PAGE = 3;
+  const [countryPage,  setCountryPage]  = useState(0);
+  const [officePage,   setOfficePage]   = useState(0);
+  const [templatePage, setTemplatePage] = useState(0);
+
+  // reset office page when active country changes
+  useEffect(() => { setOfficePage(0); }, [activeCountryId]);
 
   // ── cv template form ─────────────────────────────────────────────────────────
   const [newTemplateName, setNewTemplateName] = useState("");
@@ -214,11 +223,34 @@ function AssignmentsPage() {
     }
   }
 
+  // ── paginated slices ─────────────────────────────────────────────────────────
+  const countrySlice  = countries.slice(countryPage * PAGE, countryPage * PAGE + PAGE);
+  const officeSlice   = activeOffices.slice(officePage * PAGE, officePage * PAGE + PAGE);
+  const templateSlice = cvTemplates.slice(templatePage * PAGE, templatePage * PAGE + PAGE);
+
+  function Pager({ page, total, set }: { page: number; total: number; set: (n: number) => void }) {
+    const pages = Math.ceil(total / PAGE);
+    if (pages <= 1) return null;
+    return (
+      <div className="flex items-center justify-between pt-1 border-t border-border/50">
+        <button type="button" onClick={() => set(page - 1)} disabled={page === 0}
+          className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30">
+          <ChevronLeft className="h-3 w-3" />
+        </button>
+        <span className="text-[10px] text-muted-foreground">{page + 1} / {pages}</span>
+        <button type="button" onClick={() => set(page + 1)} disabled={page >= pages - 1}
+          className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30">
+          <ChevronRight className="h-3 w-3" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3 mx-[79.6px]">
       <div className="flex items-center justify-between">
-        <h1 className="text-base font-semibold tracking-tight">Assignments</h1>
-        <p className="text-xs text-muted-foreground">Countries and offices appear in Processing filters.</p>
+        <h1 className="text-sm font-semibold tracking-tight">Assignments</h1>
+        <p className="text-[11px] text-muted-foreground">Countries and offices appear in Processing filters.</p>
       </div>
 
       {/* ── Row 1: Countries + Offices ──────────────────────────────────── */}
@@ -226,98 +258,100 @@ function AssignmentsPage() {
 
         {/* Countries */}
         <div className="border border-border bg-background">
-          <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30">
-            <Globe className="h-3.5 w-3.5 text-primary shrink-0" />
-            <span className="text-xs font-semibold">Countries</span>
-            <span className="ml-auto text-[11px] text-muted-foreground">{countries.length} total</span>
+          <div className="px-2.5 py-1.5 border-b flex items-center gap-1.5 bg-muted/30">
+            <Globe className="h-3 w-3 text-primary shrink-0" />
+            <span className="text-[11px] font-semibold">Countries</span>
+            <span className="ml-auto text-[10px] text-muted-foreground">{countries.length} total</span>
           </div>
-          <div className="p-2 space-y-2">
-            <div className="flex gap-1.5">
+          <div className="p-2 space-y-1.5">
+            <div className="flex gap-1">
               <select value={newCountryFlag} onChange={(e) => setNewCountryFlag(e.target.value)}
-                className="h-7 border border-border bg-background text-sm px-1 focus:outline-none shrink-0">
+                className="h-6 border border-border bg-background text-xs px-0.5 focus:outline-none shrink-0">
                 {COMMON_FLAGS.map((f) => <option key={f} value={f}>{f}</option>)}
               </select>
-              <Input className="h-7 rounded-none text-xs flex-1" placeholder="Country name…"
+              <Input className="h-6 rounded-none text-[11px] flex-1" placeholder="Country name…"
                 value={newCountryName} onChange={(e) => setNewCountryName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && newCountryName.trim()) addCountryMut.mutate(); }} />
-              <Button size="sm" className="h-7 rounded-none px-2.5 text-xs gap-1"
+              <Button size="sm" className="h-6 rounded-none px-2 text-[11px] gap-0.5"
                 disabled={!newCountryName.trim() || addCountryMut.isPending}
                 onClick={() => addCountryMut.mutate()}>
-                <Plus className="h-3 w-3" /> Add
+                <Plus className="h-2.5 w-2.5" /> Add
               </Button>
             </div>
-            <div className="space-y-px max-h-44 overflow-y-auto">
+            <div className="space-y-px">
               {countries.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground text-center py-5">No countries yet.</p>
-              ) : countries.map((c) => (
+                <p className="text-[11px] text-muted-foreground text-center py-3">No countries yet.</p>
+              ) : countrySlice.map((c) => (
                 <button key={c.id} type="button" onClick={() => setActiveCountryId(c.id)}
                   className={cn(
-                    "w-full flex items-center gap-2 px-2 py-1 text-left transition-colors group text-xs",
+                    "w-full flex items-center gap-1.5 px-2 py-0.5 text-left transition-colors group",
                     activeCountry?.id === c.id ? "bg-primary/8 text-primary font-medium" : "hover:bg-muted/50",
                   )}>
-                  <span className="text-sm">{c.flag}</span>
-                  <span className="flex-1 truncate">{c.name}</span>
-                  <span className="text-[11px] text-muted-foreground shrink-0">
+                  <span className="text-xs">{c.flag}</span>
+                  <span className="flex-1 truncate text-[11px]">{c.name}</span>
+                  <span className="text-[10px] text-muted-foreground shrink-0">
                     {offices.filter((o) => o.country_id === c.id).length}
                   </span>
-                  <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <ChevronRight className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
                   <button type="button"
                     onClick={(e) => { e.stopPropagation(); delCountryMut.mutate(c.id); }}
                     disabled={delCountryMut.isPending}
                     className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Trash2 className="h-3 w-3" />
+                    <Trash2 className="h-2.5 w-2.5" />
                   </button>
                 </button>
               ))}
             </div>
+            <Pager page={countryPage} total={countries.length} set={setCountryPage} />
           </div>
         </div>
 
         {/* Offices */}
         <div className="border border-border bg-background">
-          <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30">
-            <Building2 className="h-3.5 w-3.5 text-primary shrink-0" />
-            <span className="text-xs font-semibold">Offices</span>
+          <div className="px-2.5 py-1.5 border-b flex items-center gap-1.5 bg-muted/30">
+            <Building2 className="h-3 w-3 text-primary shrink-0" />
+            <span className="text-[11px] font-semibold">Offices</span>
             {activeCountry && (
-              <span className="text-[11px] text-muted-foreground">— {activeCountry.flag} {activeCountry.name}</span>
+              <span className="text-[10px] text-muted-foreground truncate">— {activeCountry.flag} {activeCountry.name}</span>
             )}
             {activeCountry && (
-              <span className="ml-auto text-[11px] text-muted-foreground">{activeOffices.length} total</span>
+              <span className="ml-auto text-[10px] text-muted-foreground shrink-0">{activeOffices.length} total</span>
             )}
           </div>
-          <div className="p-2 space-y-2">
+          <div className="p-2 space-y-1.5">
             {!activeCountry ? (
-              <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-                <Globe className="h-7 w-7 mb-2 opacity-20" />
+              <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
+                <Globe className="h-5 w-5 mb-1.5 opacity-20" />
                 <p className="text-[11px]">Select a country to manage offices.</p>
               </div>
             ) : (
               <>
-                <div className="flex gap-1.5">
-                  <Input className="h-7 rounded-none text-xs flex-1" placeholder="Office name…"
+                <div className="flex gap-1">
+                  <Input className="h-6 rounded-none text-[11px] flex-1" placeholder="Office name…"
                     value={newOfficeName} onChange={(e) => setNewOfficeName(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter" && newOfficeName.trim()) addOfficeMut.mutate(); }} />
-                  <Button size="sm" className="h-7 rounded-none px-2.5 text-xs gap-1"
+                  <Button size="sm" className="h-6 rounded-none px-2 text-[11px] gap-0.5"
                     disabled={!newOfficeName.trim() || addOfficeMut.isPending}
                     onClick={() => addOfficeMut.mutate()}>
-                    <Plus className="h-3 w-3" /> Add
+                    <Plus className="h-2.5 w-2.5" /> Add
                   </Button>
                 </div>
-                <div className="space-y-px max-h-44 overflow-y-auto">
+                <div className="space-y-px">
                   {activeOffices.length === 0 ? (
-                    <p className="text-[11px] text-muted-foreground text-center py-5">No offices yet.</p>
-                  ) : activeOffices.map((o) => (
-                    <div key={o.id} className="flex items-center gap-2 px-2 py-1 text-xs hover:bg-muted/40 group">
-                      <Building2 className="h-3 w-3 text-muted-foreground shrink-0" />
-                      <span className="flex-1 truncate">{o.name}</span>
+                    <p className="text-[11px] text-muted-foreground text-center py-3">No offices yet.</p>
+                  ) : officeSlice.map((o) => (
+                    <div key={o.id} className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-muted/40 group">
+                      <Building2 className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+                      <span className="flex-1 truncate text-[11px]">{o.name}</span>
                       <button type="button" onClick={() => delOfficeMut.mutate(o.id)}
                         disabled={delOfficeMut.isPending}
                         className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="h-2.5 w-2.5" />
                       </button>
                     </div>
                   ))}
                 </div>
+                <Pager page={officePage} total={activeOffices.length} set={setOfficePage} />
               </>
             )}
           </div>
@@ -329,78 +363,79 @@ function AssignmentsPage() {
 
         {/* CV Templates */}
         <div className="border border-border bg-background">
-          <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30">
-            <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
-            <span className="text-xs font-semibold">CV Templates</span>
-            <span className="ml-auto text-[11px] text-muted-foreground">{cvTemplates.length} uploaded</span>
+          <div className="px-2.5 py-1.5 border-b flex items-center gap-1.5 bg-muted/30">
+            <FileText className="h-3 w-3 text-primary shrink-0" />
+            <span className="text-[11px] font-semibold">CV Templates</span>
+            <span className="ml-auto text-[10px] text-muted-foreground">{cvTemplates.length} uploaded</span>
           </div>
-          <div className="p-2 space-y-2">
-            <div className="flex gap-1.5">
-              <Input className="h-7 rounded-none text-xs flex-1" placeholder="Template name…"
+          <div className="p-2 space-y-1.5">
+            <div className="flex gap-1">
+              <Input className="h-6 rounded-none text-[11px] flex-1" placeholder="Template name…"
                 value={newTemplateName} onChange={(e) => setNewTemplateName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && newTemplateName.trim() && templateFile) handleTemplateUpload(); }} />
               <label className={cn(
-                "h-7 inline-flex items-center gap-1 px-2 border text-xs font-medium cursor-pointer transition-colors shrink-0",
+                "h-6 inline-flex items-center gap-0.5 px-1.5 border text-[11px] font-medium cursor-pointer transition-colors shrink-0",
                 templateFile ? "border-primary/50 bg-primary/5 text-primary" : "border-input bg-background text-muted-foreground hover:bg-muted",
               )}>
-                <Upload className="h-3 w-3" />
-                {templateFile ? (templateFile.name.length > 14 ? templateFile.name.slice(0, 12) + "…" : templateFile.name) : "PDF"}
+                <Upload className="h-2.5 w-2.5" />
+                {templateFile ? (templateFile.name.length > 10 ? templateFile.name.slice(0, 9) + "…" : templateFile.name) : "PDF"}
                 <input type="file" accept=".pdf,.docx" className="hidden"
                   onChange={(e) => setTemplateFile(e.target.files?.[0] ?? null)} />
               </label>
-              <Button size="sm" className="h-7 rounded-none px-2.5 text-xs"
+              <Button size="sm" className="h-6 rounded-none px-2 text-[11px]"
                 disabled={!newTemplateName.trim() || !templateFile || templateUploading}
                 onClick={handleTemplateUpload}>
                 {templateUploading ? "…" : "Upload"}
               </Button>
             </div>
             {templateFile && (
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-[10px] text-muted-foreground truncate">
                 {templateFile.name}
-                <button type="button" className="ml-2 text-destructive hover:underline"
-                  onClick={() => setTemplateFile(null)}>remove</button>
+                <button type="button" className="ml-1.5 text-destructive hover:underline"
+                  onClick={() => setTemplateFile(null)}>×</button>
               </p>
             )}
             {cvTemplates.length === 0 ? (
-              <p className="text-[11px] text-muted-foreground text-center py-5">No templates uploaded yet.</p>
+              <p className="text-[11px] text-muted-foreground text-center py-3">No templates yet.</p>
             ) : (
-              <div className="space-y-px max-h-44 overflow-y-auto">
-                {cvTemplates.map((t) => (
-                  <div key={t.id} className="flex items-center gap-2 px-2 py-1 text-xs hover:bg-muted/40 group">
-                    <FileText className="h-3 w-3 text-primary shrink-0" />
-                    <span className="flex-1 truncate font-medium">{t.name}</span>
-                    <span className="text-[11px] text-muted-foreground shrink-0">
+              <div className="space-y-px">
+                {templateSlice.map((t) => (
+                  <div key={t.id} className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-muted/40 group">
+                    <FileText className="h-2.5 w-2.5 text-primary shrink-0" />
+                    <span className="flex-1 truncate text-[11px] font-medium">{t.name}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">
                       {new Date(t.created_at).toLocaleDateString()}
                     </span>
                     <a href={t.file_url} target="_blank" rel="noopener noreferrer"
-                      className="text-muted-foreground hover:text-primary transition-colors" title="View">
-                      <ExternalLink className="h-3 w-3" />
+                      className="text-muted-foreground hover:text-primary transition-colors">
+                      <ExternalLink className="h-2.5 w-2.5" />
                     </a>
                     <button type="button" onClick={() => delTemplateMut.mutate(t.id)}
                       disabled={delTemplateMut.isPending}
                       className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-2.5 w-2.5" />
                     </button>
                   </div>
                 ))}
               </div>
             )}
+            <Pager page={templatePage} total={cvTemplates.length} set={setTemplatePage} />
           </div>
         </div>
 
         {/* CV Page Requirements */}
         <div className="border border-border bg-background">
-          <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30">
-            <CircleDot className="h-3.5 w-3.5 text-primary shrink-0" />
-            <span className="text-xs font-semibold">CV Page Requirements</span>
-            <span className="ml-auto text-[11px] text-muted-foreground">applied on CV page load</span>
+          <div className="px-2.5 py-1.5 border-b flex items-center gap-1.5 bg-muted/30">
+            <CircleDot className="h-3 w-3 text-primary shrink-0" />
+            <span className="text-[11px] font-semibold">CV Page Requirements</span>
+            <span className="ml-auto text-[10px] text-muted-foreground">applied on CV page load</span>
           </div>
           <div className="p-2 space-y-1.5">
             {/* Status — locked */}
-            <div className="flex items-center gap-2 px-2 py-1 border border-emerald-200 bg-emerald-50/40 dark:border-emerald-800/40 dark:bg-emerald-900/10 text-xs">
-              <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span className="text-muted-foreground w-20 shrink-0">Status</span>
-              <span className="flex-1 font-semibold text-emerald-700 dark:text-emerald-300">Available</span>
+            <div className="flex items-center gap-1.5 px-2 py-0.5 border border-emerald-200 bg-emerald-50/40 dark:border-emerald-800/40 dark:bg-emerald-900/10">
+              <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span className="text-[11px] text-muted-foreground w-16 shrink-0">Status</span>
+              <span className="flex-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">Available</span>
               <span className="text-[10px] text-muted-foreground">Locked</span>
             </div>
             {/* Filter rows — 2-column grid */}
