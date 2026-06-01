@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, Download, FileText, User, ArrowUpDown, ChevronDown, ChevronUp,
   Send, ClipboardPaste, X, RotateCcw, Stethoscope, Briefcase, FileCheck,
-  Globe, Activity, BookOpen, Users, Calendar, SlidersHorizontal,
+  Globe, BookOpen, Users, Calendar, SlidersHorizontal,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
@@ -717,7 +717,6 @@ const initialFilters = {
   musaned: "all",
   cv_sent_to: "all",
   selected_by: "all",
-  availability: "available",
   from: "",
   to: "",
 };
@@ -818,9 +817,8 @@ function CvGeneratorPage() {
   }, [search.id, candidates]);
 
   const filtered = useMemo(() => {
-    let list = [...candidates];
+    let list = candidates.filter((c) => c.status === "available");
     if (query) list = list.filter((c) => c.full_name.toLowerCase().includes(query.toLowerCase()));
-    if (filters.availability !== "all") list = list.filter((c) => c.status === filters.availability);
     if (filters.medical !== "all")      list = list.filter((c) => c.medical_status === filters.medical);
     if (filters.coc !== "all")          list = list.filter((c) => c.coc_status === filters.coc);
     if (filters.gender !== "all")       list = list.filter((c) => c.gender === filters.gender);
@@ -937,16 +935,6 @@ function CvGeneratorPage() {
               <CvFilterSelect placeholder="CV Sent To" value={filters.cv_sent_to} icon={Send}
                 onChange={(v) => setFilters({ ...filters, cv_sent_to: v })}
                 options={[{ value: "all", label: "-----" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />
-              <CvFilterSelect placeholder="Availability" value={filters.availability} icon={Activity}
-                onChange={(v) => setFilters({ ...filters, availability: v })}
-                options={[
-                  { value: "all", label: "-----" },
-                  { value: "available", label: "Available" },
-                  { value: "processing", label: "Processing" },
-                  { value: "arrived", label: "Arrived" },
-                  { value: "returned", label: "Returned" },
-                  { value: "canceled", label: "Canceled" },
-                ]} />
               <CvDateField label="From Date" value={filters.from} onChange={(v) => setFilters({ ...filters, from: v })} />
               <CvDateField label="To Date" value={filters.to} onChange={(v) => setFilters({ ...filters, to: v })} />
             </div>
