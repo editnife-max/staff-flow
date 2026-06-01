@@ -285,7 +285,7 @@ function DashboardCandidateCard({
     { label: "VISA STATUS",     value: candidate.visa_status ?? "",    edit: "select", field: "visa_status",      options: VISA_OPTIONS },
     { label: "INSURANCE",       value: candidate.insurance_status ?? "", edit: "select", field: "insurance_status", options: INSURANCE_OPTIONS },
     { label: "LMIS STATUS",     value: candidate.lmis_status ?? "",    edit: "select", field: "lmis_status",      options: LMIS_OPTIONS },
-    { label: "UNFILLED LMIS",   value: candidate.unfilled_lmis ?? "",  edit: "select", field: "unfilled_lmis",    options: UNFILLED_LMIS_OPTIONS },
+    { label: "LMIS FILE",       value: candidate.unfilled_lmis ?? "",  edit: "select", field: "unfilled_lmis",    options: UNFILLED_LMIS_OPTIONS },
     { label: "NARRATIVE",       value: candidate.narrative ?? "",      edit: "text",   field: "narrative", long: true },
     { label: "NOTES",           value: candidate.notes ?? "",          edit: "text",   field: "notes",     long: true },
   ];
@@ -528,7 +528,7 @@ function StaffDashboard() {
               if (c.medical_date) return `${daysSince(c.medical_date)}d since medical`;
               return null;
             }} />
-          <AlertSection icon={ClipboardList} title="Unfilled LMIS"               iconColor="text-amber-600 dark:text-amber-400"   pillKey="lmis"    candidates={unfilledLmis}  onUpdateField={handleUpdateField} countryOptions={countryOptions} />
+          <AlertSection icon={ClipboardList} title="LMIS file"               iconColor="text-amber-600 dark:text-amber-400"   pillKey="lmis"    candidates={unfilledLmis}  onUpdateField={handleUpdateField} countryOptions={countryOptions} />
           <AlertSection icon={Ticket}        title="Ticket Not Booked — Over 20 Days" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketNotBooked} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => c.contract_date ? `${daysSince(c.contract_date)}d since contract` : null} />
           <AlertSection icon={Landmark}      title="Embassy Visa — Pending"      iconColor="text-sky-600 dark:text-sky-400"       pillKey="embassy"   candidates={embassyPending} onUpdateField={handleUpdateField} countryOptions={countryOptions}

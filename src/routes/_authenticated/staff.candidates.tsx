@@ -150,7 +150,7 @@ const OPTION_COLORS: Record<string, string> = {
   // Musaned
   "Saudi":             "bg-green-100/50 text-[#181A27] dark:bg-green-900/40 dark:text-green-300",
   "Kuwait":            "bg-teal-100/50 text-[#181A27] dark:bg-teal-900/40 dark:text-teal-300",
-  // Unfilled LMIS
+  // LMIS file
   "INSU":              "bg-rose-100/50 text-[#181A27] dark:bg-rose-900/40 dark:text-rose-300",
   "COC":               "bg-orange-100/50 text-[#181A27] dark:bg-orange-900/40 dark:text-orange-300",
   "ID":                "bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
@@ -194,7 +194,7 @@ const PROCESSING_COLS: ProcessingColDef[] = [
   { key: "embassy_date",      header: "Embassy Date",      type: "date" },
   { key: "visa_status",       header: "Visa Status",       type: "select", options: VISA_OPTIONS },
   { key: "insurance_status",  header: "Insurance",         type: "select", options: INSURANCE_OPTIONS },
-  { key: "unfilled_lmis",     header: "Unfilled LMIS",     type: "select", options: UNFILLED_LMIS_OPTIONS },
+  { key: "unfilled_lmis",     header: "LMIS file",     type: "select", options: UNFILLED_LMIS_OPTIONS },
   { key: "lmis_status",       header: "LMIS",              type: "select", options: LMIS_OPTIONS },
   { key: "ticket_status",     header: "Ticket",            type: "select", options: TICKET_OPTIONS },
   { key: "ticket_date",       header: "Ticket Date",       type: "date" },
@@ -1879,7 +1879,7 @@ function ProcessingTable({
                 options={[{ value: "all", label: "-----" }, ...VISA_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <FilterSelect value={f.insurance_status} onChange={set("insurance_status")} placeholder="Insurance"
                 options={[{ value: "all", label: "-----" }, ...INSURANCE_OPTIONS.map((o) => ({ value: o, label: o }))]} />
-              <FilterSelect value={f.unfilled_lmis} onChange={set("unfilled_lmis")} placeholder="Unfilled LMIS"
+              <FilterSelect value={f.unfilled_lmis} onChange={set("unfilled_lmis")} placeholder="LMIS file"
                 options={[{ value: "all", label: "-----" }, ...UNFILLED_LMIS_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <FilterSelect value={f.lmis_status} onChange={set("lmis_status")} placeholder="LMIS"
                 options={[{ value: "all", label: "-----" }, ...LMIS_OPTIONS.map((o) => ({ value: o, label: o }))]} />

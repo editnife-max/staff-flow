@@ -177,7 +177,7 @@ const PROCESSING_COLS: ProcessingColDef[] = [
   { key: "embassy_date",      header: "Embassy Date",      type: "date" },
   { key: "visa_status",       header: "Visa Status",       type: "select", options: VISA_OPTIONS },
   { key: "insurance_status",  header: "Insurance",         type: "select", options: INSURANCE_OPTIONS },
-  { key: "unfilled_lmis",     header: "Unfilled LMIS",     type: "select", options: UNFILLED_LMIS_OPTIONS },
+  { key: "unfilled_lmis",     header: "LMIS file",     type: "select", options: UNFILLED_LMIS_OPTIONS },
   { key: "lmis_status",       header: "LMIS",              type: "select", options: LMIS_OPTIONS },
   { key: "ticket_status",     header: "Ticket",            type: "select", options: TICKET_OPTIONS },
   { key: "ticket_date",       header: "Ticket Date",       type: "date" },
@@ -1849,7 +1849,7 @@ function ProcessingTable({
               <FilterSelect placeholder="Wokala" value={f.wokala_status} onChange={set("wokala_status")} options={[{ value: "all", label: "-----" }, ...WOKALA_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <FilterSelect placeholder="Visa" value={f.visa_status} onChange={set("visa_status")} options={[{ value: "all", label: "-----" }, ...VISA_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <FilterSelect placeholder="Insurance" value={f.insurance_status} onChange={set("insurance_status")} options={[{ value: "all", label: "-----" }, ...INSURANCE_OPTIONS.map((o) => ({ value: o, label: o }))]} />
-              <FilterSelect placeholder="Unfilled LMIS" value={f.unfilled_lmis} onChange={set("unfilled_lmis")} options={[{ value: "all", label: "-----" }, ...UNFILLED_LMIS_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <FilterSelect placeholder="LMIS file" value={f.unfilled_lmis} onChange={set("unfilled_lmis")} options={[{ value: "all", label: "-----" }, ...UNFILLED_LMIS_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <FilterSelect placeholder="LMIS" value={f.lmis_status} onChange={set("lmis_status")} options={[{ value: "all", label: "-----" }, ...LMIS_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <FilterSelect placeholder="Ticket" value={f.ticket_status} onChange={set("ticket_status")} options={[{ value: "all", label: "-----" }, ...TICKET_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <FilterSelect placeholder="Arrival City" value={f.arrival_city} onChange={set("arrival_city")} options={[{ value: "all", label: "-----" }, ...ARRIVAL_CITY_OPTIONS.map((o) => ({ value: o, label: o }))]} />
