@@ -705,15 +705,24 @@ function _unusedActionDialog({
 
 const MEDICAL_OPTIONS = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired"];
 
+const CV_REQ_KEY = "cv-page-requirements";
+
+function getCvReqDefaults() {
+  try {
+    const saved = localStorage.getItem(CV_REQ_KEY);
+    const req = saved ? JSON.parse(saved) : {};
+    return { medical: req.medical ?? "Fit", coc: req.coc ?? "Done" };
+  } catch { return { medical: "Fit", coc: "Done" }; }
+}
+
 const initialFilters = {
   sort: "newest",
   age: "all",
   gender: "all",
   religion: "all",
-  medical: "Fit",
+  ...getCvReqDefaults(),
   narrative: "all",
   experience: "all",
-  coc: "Done",
   musaned: "all",
   cv_sent_to: "all",
   selected_by: "all",

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Trash2, Globe, Building2, ChevronRight, FileText, Upload, ExternalLink, CheckCircle2, CircleDot } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import { addCountry, deleteCountry, addOffice, deleteOffice, addCvTemplate, deleteCvTemplate } from "@/lib/assignments.functions";
@@ -24,6 +25,10 @@ export const Route = createFileRoute("/_authenticated/manager/assignments")({
 });
 
 const COMMON_FLAGS = ["🇸🇦","🇰🇼","🇦🇪","🇯🇴","🇱🇧","🇶🇦","🇧🇭","🇴🇲","🇮🇶","🇾🇪","🌍"];
+
+const CV_REQ_KEY = "cv-page-requirements";
+const MEDICAL_OPTIONS = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired"];
+const COC_OPTIONS     = ["Done", "No", "Booked", "Placed", "Yitazez", "Pending Release"];
 
 function AssignmentsPage() {
   const { user } = useAuth();
@@ -45,6 +50,18 @@ function AssignmentsPage() {
 
   // ── add-office form ─────────────────────────────────────────────────────────
   const [newOfficeName, setNewOfficeName] = useState("");
+
+  // ── CV page requirements ─────────────────────────────────────────────────────
+  const [cvReq, setCvReq] = useState(() => {
+    try {
+      const saved = localStorage.getItem(CV_REQ_KEY);
+      return saved ? JSON.parse(saved) : { medical: "Fit", coc: "Done" };
+    } catch { return { medical: "Fit", coc: "Done" }; }
+  });
+
+  useEffect(() => {
+    localStorage.setItem(CV_REQ_KEY, JSON.stringify(cvReq));
+  }, [cvReq]);
 
   // ── cv template form ─────────────────────────────────────────────────────────
   const [newTemplateName, setNewTemplateName] = useState("");
@@ -457,25 +474,53 @@ function AssignmentsPage() {
             </span>
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap gap-3">
-            {[
-              { label: "Status",  value: "Available",  note: "Candidate must be in Available status" },
-              { label: "Medical", value: "Fit",        note: "Medical status must be Fit" },
-              { label: "COC",     value: "Done",       note: "COC status must be Done" },
-            ].map((r) => (
-              <div
-                key={r.label}
-                className="flex items-center gap-3 px-4 py-3 rounded-none border border-emerald-200 bg-emerald-50/50 dark:border-emerald-800/40 dark:bg-emerald-900/10 min-w-[200px]"
-              >
-                <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{r.label}</p>
-                  <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">{r.value}</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">{r.note}</p>
-                </div>
-              </div>
-            ))}
+        <CardContent className="p-4 space-y-3">
+          {/* Status — locked */}
+          <div className="flex items-center gap-3 px-4 py-3 rounded-none border border-emerald-200 bg-emerald-50/50 dark:border-emerald-800/40 dark:bg-emerald-900/10">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <div className="flex-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Status</p>
+              <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Available</p>
+            </div>
+            <span className="text-[10px] text-muted-foreground border border-border rounded-none px-1.5 py-0.5">Locked</span>
+          </div>
+
+          {/* Medical — selectable */}
+          <div className="flex items-center gap-3 px-4 py-3 rounded-none border border-border bg-muted/20">
+            <CheckCircle2 className={cn("h-4 w-4 shrink-0", cvReq.medical !== "all" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")} />
+            <div className="flex-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Medical</p>
+              <Select value={cvReq.medical} onValueChange={(v) => setCvReq((p: typeof cvReq) => ({ ...p, medical: v }))}>
+                <SelectTrigger className="h-7 w-36 rounded-none text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs text-muted-foreground">No requirement</SelectItem>
+                  {MEDICAL_OPTIONS.map((o) => (
+                    <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* COC — selectable */}
+          <div className="flex items-center gap-3 px-4 py-3 rounded-none border border-border bg-muted/20">
+            <CheckCircle2 className={cn("h-4 w-4 shrink-0", cvReq.coc !== "all" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")} />
+            <div className="flex-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">COC</p>
+              <Select value={cvReq.coc} onValueChange={(v) => setCvReq((p: typeof cvReq) => ({ ...p, coc: v }))}>
+                <SelectTrigger className="h-7 w-36 rounded-none text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs text-muted-foreground">No requirement</SelectItem>
+                  {COC_OPTIONS.map((o) => (
+                    <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
