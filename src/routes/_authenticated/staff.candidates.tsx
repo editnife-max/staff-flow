@@ -1142,7 +1142,7 @@ function StaffCandidatesPage() {
             </div>
 
             {/* Names & IDs */}
-            <FormSection title="Names & IDs">
+            <FormSection title="Names & IDs" required>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="First Name *" value={form.first_name} onChange={(v) => setForm({ ...form, first_name: v })} />
                 <Field label="Last Name *" value={form.last_name} onChange={(v) => setForm({ ...form, last_name: v })} />
@@ -1151,27 +1151,26 @@ function StaffCandidatesPage() {
             </FormSection>
 
             {/* Personal */}
-            <FormSection title="Personal">
+            <FormSection title="Personal" required>
               <div className="grid grid-cols-2 gap-3">
-                <FormSelect label="Gender" value={form.gender} onChange={(v) => setForm({ ...form, gender: v })} options={["Male", "Female"]} />
-                <Field label="Date of Birth" type="date" value={form.dob} onChange={(v) => setForm({ ...form, dob: v })} />
-                <FormSelect label="Religion" value={form.religion} onChange={(v) => setForm({ ...form, religion: v })} options={["Muslim", "Non-muslim"]} />
+                <FormSelect label="Gender *" value={form.gender} onChange={(v) => setForm({ ...form, gender: v })} options={["Male", "Female"]} />
+                <Field label="Date of Birth *" type="date" value={form.dob} onChange={(v) => setForm({ ...form, dob: v })} />
+                <FormSelect label="Religion *" value={form.religion} onChange={(v) => setForm({ ...form, religion: v })} options={["Muslim", "Non-muslim"]} />
                 <Field label="Birth Place" value={form.birth_place} onChange={(v) => setForm({ ...form, birth_place: v })} />
                 <Field label="Living Town" value={form.living_town} onChange={(v) => setForm({ ...form, living_town: v })} />
                 <FormSelect label="Marital Status" value={form.marital_status} onChange={(v) => setForm({ ...form, marital_status: v })} options={["Single", "Married", "Divorced", "Widowed"]} />
                 <Field label="Children" type="number" value={String(form.children)} onChange={(v) => setForm({ ...form, children: v })} />
                 <Field label="Education" value={form.education} onChange={(v) => setForm({ ...form, education: v })} />
-                <Field label="Occupation" value={form.occupation} onChange={(v) => setForm({ ...form, occupation: v })} />
               </div>
             </FormSection>
 
             {/* Passport */}
-            <FormSection title="Passport">
+            <FormSection title="Passport" required>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Passport Number" value={form.passport_number} onChange={(v) => setForm({ ...form, passport_number: v })} />
+                <Field label="Passport Number *" value={form.passport_number} onChange={(v) => setForm({ ...form, passport_number: v })} />
                 <Field label="Labour ID" value={form.labour_id} onChange={(v) => setForm({ ...form, labour_id: v })} />
                 <Field label="Issue Date" type="date" value={form.passport_issue_date} onChange={(v) => setForm({ ...form, passport_issue_date: v })} />
-                <Field label="Expiry Date" type="date" value={form.passport_expiry_date} onChange={(v) => setForm({ ...form, passport_expiry_date: v })} />
+                <Field label="Expiry Date *" type="date" value={form.passport_expiry_date} onChange={(v) => setForm({ ...form, passport_expiry_date: v })} />
                 <div className="col-span-2">
                   <Field label="Place of Issue" value={form.place_of_issue} onChange={(v) => setForm({ ...form, place_of_issue: v })} />
                 </div>
@@ -1248,25 +1247,24 @@ function StaffCandidatesPage() {
             </FormSection>
 
             {/* Notes */}
-            <FormSection title="Notes">
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Remark</Label>
-                  <Textarea rows={2} value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} className="rounded-none text-sm" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Notes</Label>
-                  <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-none text-sm" />
-                </div>
-              </div>
-            </FormSection>
           </div>
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
             <Button
-              onClick={() => saveMut.mutate()}
-              disabled={(!form.first_name && !form.last_name) || saveMut.isPending}
+              onClick={() => {
+                if (!form.first_name?.trim() && !form.last_name?.trim()) {
+                  toast.error("First Name or Last Name is required"); return;
+                }
+                if (!form.gender || !form.dob || !form.religion) {
+                  toast.error("Gender, Date of Birth and Religion are required"); return;
+                }
+                if (!form.passport_number?.trim() || !form.passport_expiry_date) {
+                  toast.error("Passport Number and Expiry Date are required"); return;
+                }
+                saveMut.mutate();
+              }}
+              disabled={saveMut.isPending}
             >
               {saveMut.isPending ? "Saving..." : editing ? "Save changes" : "Add candidate"}
             </Button>
@@ -2693,10 +2691,13 @@ function PhotoUpload({
   );
 }
 
-function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+function FormSection({ title, children, required }: { title: string; children: React.ReactNode; required?: boolean }) {
   return (
     <div>
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 pb-1 border-b border-border">{title}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 pb-1 border-b border-border flex items-center gap-1">
+        {title}
+        {required && <span className="text-destructive text-xs normal-case tracking-normal">— required</span>}
+      </p>
       {children}
     </div>
   );
