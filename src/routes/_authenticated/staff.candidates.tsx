@@ -607,10 +607,11 @@ function StaffCandidatesPage() {
   const bulkStatusMut = useMutation({
     mutationFn: async (status: Status) =>
       bulkStatus({ data: { ids: Array.from(selected), status } }),
-    onSuccess: (r) => {
+    onSuccess: (r, status) => {
       toast.success(`Updated ${r.count} candidate(s)`);
       qc.invalidateQueries({ queryKey: ["staff-candidates"] });
       clearSelection();
+      setTab(status);
     },
     onError: (e: Error) => toast.error(e.message),
   });
