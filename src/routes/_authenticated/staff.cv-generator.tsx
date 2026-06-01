@@ -1,7 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
-import { Search, Download, FileText, User, ArrowUpDown, ChevronDown, Send, ClipboardPaste, X } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Search, Download, FileText, User, ArrowUpDown, ChevronDown, ChevronUp,
+  Send, ClipboardPaste, X, RotateCcw, Stethoscope, Briefcase, FileCheck,
+  Globe, Activity, BookOpen, Users, Calendar, SlidersHorizontal,
+} from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { ActionDialog as BulkActionDialog } from "@/components/action-dialog";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
@@ -697,17 +703,36 @@ function _unusedActionDialog({
   );
 }
 
+const MEDICAL_OPTIONS = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired"];
+
+const initialFilters = {
+  sort: "newest",
+  age: "all",
+  gender: "all",
+  religion: "all",
+  medical: "Fit",
+  narrative: "all",
+  experience: "all",
+  coc: "Done",
+  musaned: "all",
+  cv_sent_to: "all",
+  selected_by: "all",
+  availability: "available",
+  from: "",
+  to: "",
+};
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 function CvGeneratorPage() {
   const { user } = useAuth();
   const qc       = useQueryClient();
   const search   = Route.useSearch();
-  const [query,            setQuery]            = useState("");
-  const [filterSelectedBy, setFilterSelectedBy] = useState("all");
-  const [filterCvSentTo,   setFilterCvSentTo]   = useState("all");
-  const [unsentOnly,       setUnsentOnly]        = useState(false);
-  const [selected,         setSelected]         = useState<Set<string>>(new Set());
+  const [query,       setQuery]       = useState("");
+  const [showFilters, setShowFilters] = useState(true);
+  const [filters,     setFilters]     = useState(initialFilters);
+  const activeCount = Object.entries(filters).filter(([k, v]) => k !== "sort" && v && v !== "all").length;
+  const [selected,    setSelected]    = useState<Set<string>>(new Set());
   const [sendOffice,       setSendOffice]        = useState("");
   const [actionCandidates, setActionCandidates] = useState<Candidate[]>([]);
 
@@ -765,6 +790,24 @@ function CvGeneratorPage() {
     },
   });
 
+  const { data: assignCountries = [] } = useQuery({
+    queryKey: ["assignment-countries", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("assignment_countries").select("*").order("name");
+      if (error) throw error;
+      return data as Database["public"]["Tables"]["assignment_countries"]["Row"][];
+    },
+  });
+
+  const opts = useMemo(() => {
+    const uniq = (k: keyof typeof candidates[0]) =>
+      Array.from(new Set(candidates.map((c) => (c[k] as string | null) ?? "").filter(Boolean))).sort();
+    return {
+      narrative: uniq("narrative"),
+    };
+  }, [candidates]);
+
   // Open directly if id param given (e.g. from HR Pool VIEW button)
   const initialised = useRef(false);
   useEffect(() => {
@@ -774,15 +817,32 @@ function CvGeneratorPage() {
     if (c) setActionCandidates([c]);
   }, [search.id, candidates]);
 
-  const filtered = candidates.filter((c) =>
-    c.status === "available" &&
-    c.medical_status === "Fit" &&
-    c.coc_status === "Done" &&
-    (!unsentOnly || !c.cv_sent_to) &&
-    (!query || c.full_name.toLowerCase().includes(query.toLowerCase())) &&
-    (filterSelectedBy === "all" || (filterSelectedBy === "__unset__" ? !c.selected_by : c.selected_by === filterSelectedBy)) &&
-    (filterCvSentTo   === "all" || (filterCvSentTo   === "__unset__" ? !c.cv_sent_to  : c.cv_sent_to  === filterCvSentTo)),
-  );
+  const filtered = useMemo(() => {
+    let list = [...candidates];
+    if (query) list = list.filter((c) => c.full_name.toLowerCase().includes(query.toLowerCase()));
+    if (filters.availability !== "all") list = list.filter((c) => c.status === filters.availability);
+    if (filters.medical !== "all")      list = list.filter((c) => c.medical_status === filters.medical);
+    if (filters.coc !== "all")          list = list.filter((c) => c.coc_status === filters.coc);
+    if (filters.gender !== "all")       list = list.filter((c) => c.gender === filters.gender);
+    if (filters.religion !== "all")     list = list.filter((c) => c.religion === filters.religion);
+    if (filters.narrative !== "all")    list = list.filter((c) => c.narrative === filters.narrative);
+    if (filters.experience !== "all")   list = list.filter((c) => c.experience === filters.experience);
+    if (filters.musaned !== "all")      list = list.filter((c) => c.musaned_status === filters.musaned);
+    if (filters.cv_sent_to !== "all")   list = list.filter((c) => c.cv_sent_to === filters.cv_sent_to);
+    if (filters.selected_by !== "all")  list = list.filter((c) => c.selected_by === filters.selected_by);
+    if (filters.age !== "all") {
+      const [min, max] = filters.age.split("-").map(Number);
+      list = list.filter((c) => c.age != null && c.age >= min && c.age <= max);
+    }
+    if (filters.from) list = list.filter((c) => c.created_at >= filters.from);
+    if (filters.to)   list = list.filter((c) => c.created_at <= filters.to + "T23:59:59");
+    list.sort((a, b) =>
+      filters.sort === "newest"
+        ? b.created_at.localeCompare(a.created_at)
+        : a.created_at.localeCompare(b.created_at),
+    );
+    return list;
+  }, [candidates, query, filters]);
 
   const allSel  = filtered.length > 0 && filtered.every((c) => selected.has(c.id));
   const someSel = !allSel && filtered.some((c) => selected.has(c.id));
@@ -796,7 +856,7 @@ function CvGeneratorPage() {
         />
       </div>
 
-      {/* Search + filters */}
+      {/* Search */}
       <div className="flex flex-wrap items-center gap-2 mb-3 shrink-0">
         <div className="relative flex-1 min-w-[180px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -807,50 +867,92 @@ function CvGeneratorPage() {
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
-        <Select value={filterSelectedBy} onValueChange={setFilterSelectedBy}>
-          <SelectTrigger className="h-9 w-48 rounded-none text-xs gap-1">
-            <ClipboardPaste className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <SelectValue placeholder="Selected By" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="text-xs">All Selected By</SelectItem>
-            <SelectItem value="__unset__" className="text-xs text-muted-foreground">— Not set</SelectItem>
-            {agencyOptions.map((o) => (
-              <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={filterCvSentTo} onValueChange={setFilterCvSentTo}>
-          <SelectTrigger className="h-9 w-48 rounded-none text-xs gap-1">
-            <Send className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <SelectValue placeholder="CV Sent To" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="text-xs">All CV Sent To</SelectItem>
-            <SelectItem value="__unset__" className="text-xs text-muted-foreground">— Not set</SelectItem>
-            {agencyOptions.map((o) => (
-              <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <button
-          type="button"
-          onClick={() => setUnsentOnly((v) => !v)}
-          className={cn(
-            "h-9 px-3 rounded-none border text-xs font-medium transition-colors shrink-0 flex items-center gap-1.5",
-            unsentOnly
-              ? "border-primary bg-primary/10 text-primary"
-              : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground",
-          )}
-        >
-          <Send className="h-3.5 w-3.5" />
-          Unsent only
-          {unsentOnly && <X className="h-3 w-3 ml-0.5" />}
-        </button>
         <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap">
           {filtered.length} candidates
         </span>
       </div>
+
+      {/* Filters */}
+      <Card className="rounded-none mb-3 shrink-0">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setShowFilters((s) => !s)}
+              className="flex items-center gap-2 text-xs font-bold text-foreground hover:text-primary transition-colors"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
+              Filters
+              {activeCount > 0 && (
+                <span className="rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+                  {activeCount}
+                </span>
+              )}
+              {showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
+            <Button
+              size="sm" variant="ghost" className="h-7 gap-1 text-xs"
+              onClick={() => setFilters(initialFilters)}
+              disabled={activeCount === 0}
+            >
+              <RotateCcw className="h-3.5 w-3.5" /> Reset
+            </Button>
+          </div>
+          {showFilters && (
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <CvFilterSelect value={filters.sort} onChange={(v) => setFilters({ ...filters, sort: v })}
+                icon={ArrowUpDown}
+                options={[{ value: "newest", label: "Date (Newest)" }, { value: "oldest", label: "Date (Oldest)" }]} />
+              <CvFilterSelect placeholder="Age" value={filters.age} icon={Users}
+                onChange={(v) => setFilters({ ...filters, age: v })}
+                options={[
+                  { value: "all", label: "-----" },
+                  { value: "18-25", label: "18-25" }, { value: "26-35", label: "26-35" },
+                  { value: "36-45", label: "36-45" }, { value: "46-99", label: "46+" },
+                ]} />
+              <CvFilterSelect placeholder="Gender" value={filters.gender} icon={User}
+                onChange={(v) => setFilters({ ...filters, gender: v })}
+                options={[{ value: "all", label: "-----" }, { value: "Male", label: "Male" }, { value: "Female", label: "Female" }]} />
+              <CvFilterSelect placeholder="Religion" value={filters.religion} icon={BookOpen}
+                onChange={(v) => setFilters({ ...filters, religion: v })}
+                options={[{ value: "all", label: "-----" }, { value: "Muslim", label: "Muslim" }, { value: "Non-muslim", label: "Non-muslim" }]} />
+              <CvFilterSelect placeholder="Medical" value={filters.medical} icon={Stethoscope}
+                onChange={(v) => setFilters({ ...filters, medical: v })}
+                options={[{ value: "all", label: "-----" }, ...MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <CvFilterSelect placeholder="Narrative" value={filters.narrative} icon={FileText}
+                onChange={(v) => setFilters({ ...filters, narrative: v })}
+                options={[{ value: "all", label: "-----" }, ...opts.narrative.map((o) => ({ value: o, label: o }))]} />
+              <CvFilterSelect placeholder="Experience" value={filters.experience} icon={Briefcase}
+                onChange={(v) => setFilters({ ...filters, experience: v })}
+                options={[{ value: "all", label: "-----" }, { value: "Yes", label: "Yes" }, { value: "No", label: "No" }, { value: "None", label: "None" }]} />
+              <CvFilterSelect placeholder="COC" value={filters.coc} icon={FileCheck}
+                onChange={(v) => setFilters({ ...filters, coc: v })}
+                options={[{ value: "all", label: "-----" }, ...["Done","No","Booked","Placed","Yitazez","Pending Release"].map((o) => ({ value: o, label: o }))]} />
+              <CvFilterSelect placeholder="Country" value={filters.musaned} icon={Globe}
+                onChange={(v) => setFilters({ ...filters, musaned: v })}
+                options={[{ value: "all", label: "-----" }, ...assignCountries.map((c) => ({ value: c.name, label: c.name }))]} />
+              <CvFilterSelect placeholder="Selected By" value={filters.selected_by} icon={ClipboardPaste}
+                onChange={(v) => setFilters({ ...filters, selected_by: v })}
+                options={[{ value: "all", label: "-----" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />
+              <CvFilterSelect placeholder="CV Sent To" value={filters.cv_sent_to} icon={Send}
+                onChange={(v) => setFilters({ ...filters, cv_sent_to: v })}
+                options={[{ value: "all", label: "-----" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />
+              <CvFilterSelect placeholder="Availability" value={filters.availability} icon={Activity}
+                onChange={(v) => setFilters({ ...filters, availability: v })}
+                options={[
+                  { value: "all", label: "-----" },
+                  { value: "available", label: "Available" },
+                  { value: "processing", label: "Processing" },
+                  { value: "arrived", label: "Arrived" },
+                  { value: "returned", label: "Returned" },
+                  { value: "canceled", label: "Canceled" },
+                ]} />
+              <CvDateField label="From Date" value={filters.from} onChange={(v) => setFilters({ ...filters, from: v })} />
+              <CvDateField label="To Date" value={filters.to} onChange={(v) => setFilters({ ...filters, to: v })} />
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Select-all + bulk action bar */}
       {filtered.length > 0 && (
@@ -927,6 +1029,101 @@ function CvGeneratorPage() {
 
       {actionCandidates.length > 0 && (
         <BulkActionDialog candidates={actionCandidates} onClose={() => setActionCandidates([])} />
+      )}
+    </div>
+  );
+}
+
+function CvFilterSelect({
+  value, onChange, options, placeholder, icon: Icon,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+  icon?: React.ElementType;
+}) {
+  const isReset = value === "all" || !value;
+  const hasColor = !isReset && !!OPTION_COLORS[value];
+  return (
+    <div className="flex items-center gap-0.5">
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger
+          className={cn(
+            "border shadow-none w-auto h-7 px-2 gap-1.5 transition-colors rounded-none text-[13px] font-medium [&>svg]:shrink-0",
+            isReset
+              ? "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+              : hasColor
+                ? cn(OPTION_COLORS[value], "border-transparent")
+                : "bg-black/10 border-black/20 text-[#181A27] dark:bg-white/10 dark:border-white/20 dark:text-white",
+          )}
+        >
+          {Icon && <Icon className="h-3 w-3 shrink-0" />}
+          {isReset ? (
+            <span>{placeholder}</span>
+          ) : (
+            <span>{options.find((o) => o.value === value)?.label ?? value}</span>
+          )}
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((o) => (
+            <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {!isReset && (
+        <button type="button" onClick={() => onChange("all")}
+          className="h-7 w-5 flex items-center justify-center text-muted-foreground hover:text-foreground border border-l-0 border-border bg-muted/40 hover:bg-muted transition-colors rounded-none">
+          <X className="h-3 w-3" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function CvDateField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const hasValue = !!value;
+  const selected = value ? new Date(value + "T00:00:00") : undefined;
+
+  function handleSelect(date: Date | undefined) {
+    if (date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      onChange(`${y}-${m}-${d}`);
+    } else {
+      onChange("");
+    }
+    setOpen(false);
+  }
+
+  return (
+    <div className="flex items-center gap-0.5">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              "flex items-center gap-1.5 border shadow-none w-auto h-7 px-2 transition-colors rounded-none text-[13px] font-medium cursor-pointer",
+              hasValue
+                ? "bg-black/10 border-black/20 text-[#181A27] dark:bg-white/10 dark:border-white/20 dark:text-white"
+                : "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            <Calendar className="h-3 w-3 shrink-0" />
+            <span>{hasValue ? selected?.toLocaleDateString() : label}</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0 rounded-none" align="start" side="bottom" sideOffset={6} collisionPadding={16}>
+          <CalendarPicker mode="single" selected={selected} onSelect={handleSelect} initialFocus />
+        </PopoverContent>
+      </Popover>
+      {hasValue && (
+        <button type="button" onClick={() => onChange("")}
+          className="h-7 w-5 flex items-center justify-center text-muted-foreground hover:text-foreground border border-l-0 border-border bg-muted/40 hover:bg-muted transition-colors rounded-none">
+          <X className="h-3 w-3" />
+        </button>
       )}
     </div>
   );
