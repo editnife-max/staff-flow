@@ -136,6 +136,10 @@ export const updateCandidateField = createServerFn({ method: "POST" })
     const coerced = data.field === "medical_days" && raw !== null ? Number(raw) : raw;
     const payload: Record<string, unknown> = { [data.field]: coerced };
 
+    if (data.field === "cv_sent_to" && raw) {
+      payload.cv_sent_date = new Date().toISOString().split("T")[0];
+    }
+
     // When selected_by is set on an available candidate, auto-advance to processing
     if (data.field === "selected_by" && raw) {
       const { data: cand } = await supabaseAdmin
@@ -211,9 +215,13 @@ export const bulkUpdateField = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const managerId = await resolveManagerId(context.userId);
     const raw = data.value === "" ? null : data.value;
+    const patch: Record<string, unknown> = { [data.field]: raw };
+    if (data.field === "cv_sent_to" && raw) {
+      patch.cv_sent_date = new Date().toISOString().split("T")[0];
+    }
     const { error, count } = await supabaseAdmin
       .from("candidates")
-      .update({ [data.field]: raw } as never, { count: "exact" })
+      .update(patch as never, { count: "exact" })
       .in("id", data.ids)
       .eq("manager_id", managerId);
     if (error) throw new Error(error.message);

@@ -717,7 +717,7 @@ function CvGeneratorPage() {
 
   const sendToOfficeMut = useMutation({
     mutationFn: async ({ ids, office }: { ids: string[]; office: string }) => {
-      const { error } = await supabase.from("candidates").update({ cv_sent_to: office }).in("id", ids);
+      const { error } = await supabase.from("candidates").update({ cv_sent_to: office, cv_sent_date: new Date().toISOString().split("T")[0] }).in("id", ids);
       if (error) throw error;
     },
     onSuccess: (_, { ids, office }) => {
