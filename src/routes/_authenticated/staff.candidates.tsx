@@ -641,7 +641,7 @@ function StaffCandidatesPage() {
       toast.success(`Updated ${r.count} candidate(s)`);
       qc.invalidateQueries({ queryKey: ["staff-candidates"] });
       const fk = BULK_FIELD_TO_FILTER[field];
-      if (fk) setFilters((prev) => ({ ...prev, [fk]: value }));
+      if (fk && tab !== "available") setFilters((prev) => ({ ...prev, [fk]: value }));
     },
     onError: (e: Error) => toast.error(e.message),
   });
