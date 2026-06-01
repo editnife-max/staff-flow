@@ -64,12 +64,8 @@ function LoginPage() {
             <Button type="submit" className="w-full" disabled={submitting}>
               {submitting ? "Signing in..." : "Sign in"}
             </Button>
-            <p className="text-center text-sm text-muted-foreground">
-              New manager?{" "}
-              <Link to="/register" className="text-primary hover:underline font-medium">Create account</Link>
-            </p>
             <p className="text-center text-xs text-muted-foreground">
-              Staff &amp; agency accounts are created by your manager.
+              All accounts are created by the administrator.
             </p>
           </form>
         </CardContent>
