@@ -49,7 +49,12 @@
       "PowerShell($env:PATH += \";C:\\\\Program Files\\\\Volta\"; cd C:\\\\Project\\\\flowpath-suite; ./node_modules/.bin/esbuild dist/server/server.js --bundle --platform=node --format=esm \"--banner:js=import { createRequire } from 'module'; const require = createRequire\\(import.meta.url\\);\" --outfile=dist/server/bundle.js 2>&1 | Select-Object -Last 5)",
       "PowerShell(netstat *)",
       "Bash(bunx tsc *)",
-      "PowerShell($env:PATH += \";C:\\\\Program Files\\\\Volta\"; cd C:\\\\Project\\\\flowpath-suite; bunx tsc --noEmit --skipLibCheck 2>&1 | Select-Object -First 40)"
+      "PowerShell($env:PATH += \";C:\\\\Program Files\\\\Volta\"; cd C:\\\\Project\\\\flowpath-suite; bunx tsc --noEmit --skipLibCheck 2>&1 | Select-Object -First 40)",
+      "PowerShell($env:PATH += \";C:\\\\Program Files\\\\Volta\"; cd C:\\\\Project\\\\flowpath-suite; bunx tsc --noEmit --skipLibCheck 2>&1 | Select-Object -First 20)",
+      "PowerShell($env:PATH += \";C:\\\\Program Files\\\\Volta\"; cd C:\\\\Project\\\\flowpath-suite; bunx tsr generate 2>&1 | Select-Object -First 20)",
+      "Bash(git revert *)",
+      "PowerShell($env:PATH += \";C:\\\\Program Files\\\\Volta\"; cd C:\\\\Project\\\\flowpath-suite; bunx tsc --noEmit --skipLibCheck 2>&1 | Select-Object -First 10)",
+      "Bash(npx tsc *)"
     ]
   },
   "enableAllProjectMcpServers": true,

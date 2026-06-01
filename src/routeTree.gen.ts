@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SetupAdminRouteImport } from './routes/setup-admin'
-import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as ContactRouteImport } from './routes/contact'
@@ -42,11 +41,6 @@ import { Route as AuthenticatedAdminAdminsRouteImport } from './routes/_authenti
 const SetupAdminRoute = SetupAdminRouteImport.update({
   id: '/setup-admin',
   path: '/setup-admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RegisterRoute = RegisterRouteImport.update({
-  id: '/register',
-  path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -206,7 +200,6 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
   '/login': typeof LoginRoute
-  '/register': typeof RegisterRoute
   '/setup-admin': typeof SetupAdminRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/agency': typeof AuthenticatedAgencyRouteWithChildren
@@ -236,7 +229,6 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
   '/login': typeof LoginRoute
-  '/register': typeof RegisterRoute
   '/setup-admin': typeof SetupAdminRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/agency': typeof AuthenticatedAgencyRouteWithChildren
@@ -268,7 +260,6 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
   '/login': typeof LoginRoute
-  '/register': typeof RegisterRoute
   '/setup-admin': typeof SetupAdminRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/agency': typeof AuthenticatedAgencyRouteWithChildren
@@ -300,7 +291,6 @@ export interface FileRouteTypes {
     | '/contact'
     | '/faq'
     | '/login'
-    | '/register'
     | '/setup-admin'
     | '/admin'
     | '/agency'
@@ -330,7 +320,6 @@ export interface FileRouteTypes {
     | '/contact'
     | '/faq'
     | '/login'
-    | '/register'
     | '/setup-admin'
     | '/admin'
     | '/agency'
@@ -361,7 +350,6 @@ export interface FileRouteTypes {
     | '/contact'
     | '/faq'
     | '/login'
-    | '/register'
     | '/setup-admin'
     | '/_authenticated/admin'
     | '/_authenticated/agency'
@@ -393,7 +381,6 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   FaqRoute: typeof FaqRoute
   LoginRoute: typeof LoginRoute
-  RegisterRoute: typeof RegisterRoute
   SetupAdminRoute: typeof SetupAdminRoute
 }
 
@@ -404,13 +391,6 @@ declare module '@tanstack/react-router' {
       path: '/setup-admin'
       fullPath: '/setup-admin'
       preLoaderRoute: typeof SetupAdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/register': {
-      id: '/register'
-      path: '/register'
-      fullPath: '/register'
-      preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -700,7 +680,6 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   FaqRoute: FaqRoute,
   LoginRoute: LoginRoute,
-  RegisterRoute: RegisterRoute,
   SetupAdminRoute: SetupAdminRoute,
 }
 export const routeTree = rootRouteImport
