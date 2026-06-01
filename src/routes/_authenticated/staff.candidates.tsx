@@ -1247,6 +1247,18 @@ function StaffCandidatesPage() {
             </FormSection>
 
             {/* Notes */}
+            <FormSection title="Notes">
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Remark</Label>
+                  <Textarea rows={2} value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} className="rounded-none text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Notes</Label>
+                  <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-none text-sm" />
+                </div>
+              </div>
+            </FormSection>
           </div>
 
           <DialogFooter>
