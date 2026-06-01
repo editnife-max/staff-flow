@@ -32,12 +32,14 @@ const COC_OPTIONS       = ["Done", "No", "Booked", "Placed", "Yitazez", "Pending
 const AGE_OPTIONS       = ["18-25", "26-35", "36-45", "46-99"];
 const GENDER_OPTIONS    = ["Male", "Female"];
 const RELIGION_OPTIONS  = ["Muslim", "Non-muslim"];
-const EXPERIENCE_OPTIONS = ["Yes", "No", "None"];
+const EXPERIENCE_OPTIONS     = ["Yes", "No", "None"];
+const ENGLISH_LEVEL_OPTIONS  = ["Poor", "Little", "Fair", "Good"];
 
 const DEFAULT_CV_REQ = {
   age: "all", gender: "all", religion: "all", medical: "Fit",
   narrative: "all", experience: "all", coc: "Done",
   musaned: "all", selected_by: "all", cv_sent_to: "all",
+  english_level: "all",
 };
 
 function AssignmentsPage() {
@@ -522,7 +524,8 @@ function AssignmentsPage() {
               { key: "coc",        label: "COC",         opts: COC_OPTIONS },
               { key: "musaned",    label: "Country",     opts: countries.map((c) => c.name) },
               { key: "selected_by",label: "Selected By", opts: agencyOptions },
-              { key: "cv_sent_to", label: "CV Sent To",  opts: agencyOptions },
+              { key: "cv_sent_to",    label: "CV Sent To",    opts: agencyOptions },
+              { key: "english_level", label: "English Level", opts: ENGLISH_LEVEL_OPTIONS },
             ] as { key: keyof typeof DEFAULT_CV_REQ; label: string; opts: string[] }[]
           ).map(({ key, label, opts }) => (
             <div key={key} className="flex items-center gap-3 px-3 py-2 rounded-none border border-border bg-muted/20">

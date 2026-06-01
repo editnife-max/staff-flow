@@ -712,22 +712,24 @@ function getCvReqDefaults() {
     age: "all", gender: "all", religion: "all", medical: "Fit",
     narrative: "all", experience: "all", coc: "Done",
     musaned: "all", selected_by: "all", cv_sent_to: "all",
+    english_level: "all",
   };
   try {
     const saved = localStorage.getItem(CV_REQ_KEY);
     if (!saved) return defaults;
     const req = JSON.parse(saved);
     return {
-      age:        req.age        ?? defaults.age,
-      gender:     req.gender     ?? defaults.gender,
-      religion:   req.religion   ?? defaults.religion,
-      medical:    req.medical    ?? defaults.medical,
-      narrative:  req.narrative  ?? defaults.narrative,
-      experience: req.experience ?? defaults.experience,
-      coc:        req.coc        ?? defaults.coc,
-      musaned:    req.musaned    ?? defaults.musaned,
-      selected_by:req.selected_by?? defaults.selected_by,
-      cv_sent_to: req.cv_sent_to ?? defaults.cv_sent_to,
+      age:          req.age          ?? defaults.age,
+      gender:       req.gender       ?? defaults.gender,
+      religion:     req.religion     ?? defaults.religion,
+      medical:      req.medical      ?? defaults.medical,
+      narrative:    req.narrative    ?? defaults.narrative,
+      experience:   req.experience   ?? defaults.experience,
+      coc:          req.coc          ?? defaults.coc,
+      musaned:      req.musaned      ?? defaults.musaned,
+      selected_by:  req.selected_by  ?? defaults.selected_by,
+      cv_sent_to:   req.cv_sent_to   ?? defaults.cv_sent_to,
+      english_level:req.english_level?? defaults.english_level,
     };
   } catch { return defaults; }
 }
@@ -844,8 +846,9 @@ function CvGeneratorPage() {
     if (filters.narrative !== "all")    list = list.filter((c) => c.narrative === filters.narrative);
     if (filters.experience !== "all")   list = list.filter((c) => c.experience === filters.experience);
     if (filters.musaned !== "all")      list = list.filter((c) => c.musaned_status === filters.musaned);
-    if (filters.cv_sent_to !== "all")   list = list.filter((c) => c.cv_sent_to === filters.cv_sent_to);
+    if (filters.cv_sent_to !== "all")    list = list.filter((c) => c.cv_sent_to === filters.cv_sent_to);
     if (filters.selected_by !== "all")  list = list.filter((c) => c.selected_by === filters.selected_by);
+    if (filters.english_level !== "all") list = list.filter((c) => c.english_level === filters.english_level);
     if (filters.age !== "all") {
       const [min, max] = filters.age.split("-").map(Number);
       list = list.filter((c) => c.age != null && c.age >= min && c.age <= max);
@@ -953,6 +956,9 @@ function CvGeneratorPage() {
               <CvFilterSelect placeholder="CV Sent To" value={filters.cv_sent_to} icon={Send}
                 onChange={(v) => setFilters({ ...filters, cv_sent_to: v })}
                 options={[{ value: "all", label: "-----" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />
+              <CvFilterSelect placeholder="English Level" value={filters.english_level} icon={BookOpen}
+                onChange={(v) => setFilters({ ...filters, english_level: v })}
+                options={[{ value: "all", label: "-----" }, ...["Poor","Little","Fair","Good"].map((o) => ({ value: o, label: o }))]} />
               <CvDateField label="From Date" value={filters.from} onChange={(v) => setFilters({ ...filters, from: v })} />
               <CvDateField label="To Date" value={filters.to} onChange={(v) => setFilters({ ...filters, to: v })} />
             </div>
