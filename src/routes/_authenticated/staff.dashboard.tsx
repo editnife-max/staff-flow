@@ -449,6 +449,7 @@ function StaffDashboard() {
 
   const cocNotDone    = candidates.filter((c) => c.coc_status && c.coc_status !== "Done");
   const medicalNotFit = candidates.filter((c) => c.medical_status && c.medical_status !== "Fit");
+  const cocDoneNotFit = candidates.filter((c) => c.coc_status === "Done" && c.medical_status && c.medical_status !== "Fit");
   const unfilledLmis  = candidates.filter((c) => c.status === "processing" && c.unfilled_lmis && c.unfilled_lmis.trim() !== "");
 
   const today = new Date();
@@ -518,10 +519,12 @@ function StaffDashboard() {
       </div>
 
       {/* Alert sections */}
-      {(cocNotDone.length > 0 || medicalNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0) && (
+      {(cocNotDone.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0) && (
         <div className="space-y-2">
           <AlertSection icon={FileCheck}    title="COC — Not Done"               iconColor="text-orange-600 dark:text-orange-400" pillKey="coc"     candidates={cocNotDone}    onUpdateField={handleUpdateField} countryOptions={countryOptions} />
           <AlertSection icon={Stethoscope}  title="Medical — Not Fit"            iconColor="text-red-600 dark:text-red-400"       pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
+          <AlertSection icon={Stethoscope}  title="COC Done — Medical Not Fit"  iconColor="text-fuchsia-600 dark:text-fuchsia-400" pillKey="medical" candidates={cocDoneNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            getNote={(c) => c.medical_status ?? null} />
           <AlertSection icon={CalendarX}    title="Medical — Expired"            iconColor="text-rose-600 dark:text-rose-400"     pillKey="medexp"  candidates={medicalExpired} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => {
               if (c.medical_status === "Expired") return "Set as expired";
