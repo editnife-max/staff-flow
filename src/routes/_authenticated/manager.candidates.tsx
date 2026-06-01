@@ -603,12 +603,21 @@ function ManagerCandidatesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const BULK_FIELD_TO_FILTER: Record<string, string> = {
+    medical_status: "medical",
+    coc_status: "coc",
+    musaned_status: "musaned",
+    experience: "experience",
+  };
+
   const bulkFieldMut = useMutation({
     mutationFn: ({ field, value }: { field: string; value: string }) =>
       bulkField({ data: { ids: Array.from(selected), field: field as any, value } }),
-    onSuccess: (r) => {
+    onSuccess: (r, { field, value }) => {
       toast.success(`Updated ${r.count} candidate(s)`);
       qc.invalidateQueries({ queryKey: ["manager-candidates"] });
+      const fk = BULK_FIELD_TO_FILTER[field];
+      if (fk) setFilters((prev) => ({ ...prev, [fk]: value }));
     },
     onError: (e: Error) => toast.error(e.message),
   });
