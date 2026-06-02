@@ -937,8 +937,8 @@ function CvGeneratorPage() {
   const someSel = !allSel && selectableFiltered.some((c) => selected.has(c.id));
 
   return (
-    <div className="flex flex-col h-[calc(100vh-112px)]">
-      <div className="shrink-0 mb-4">
+    <div className="flex flex-col h-[calc(100vh-56px)] mx-[79.6px]">
+      <div className="shrink-0 mb-6">
         <PageHeader
           title="CV Page"
           description="Available candidates with Medical Fit and COC Done."
@@ -946,7 +946,7 @@ function CvGeneratorPage() {
       </div>
 
       {/* Search */}
-      <div className="flex flex-wrap items-center gap-2 mb-3 shrink-0">
+      <div className="flex flex-wrap items-center gap-2 mb-6 shrink-0">
         <div className="relative flex-1 min-w-[180px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -962,7 +962,7 @@ function CvGeneratorPage() {
       </div>
 
       {/* Filters */}
-      <Card className="rounded-none mb-3 shrink-0">
+      <Card className="rounded-none mb-6 shrink-0">
         <CardContent className="p-4">
           <div className="flex items-center justify-between gap-2">
             <button
@@ -1038,7 +1038,7 @@ function CvGeneratorPage() {
 
       {/* Select-all + bulk action bar */}
       {filtered.length > 0 && (
-        <div className="flex items-center justify-between shrink-0 mb-2 px-1">
+        <div className="flex items-center justify-between shrink-0 mb-3 px-1">
           <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
             <Checkbox
               checked={allSel ? true : someSel ? "indeterminate" : false}
