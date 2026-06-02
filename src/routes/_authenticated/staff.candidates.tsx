@@ -813,9 +813,11 @@ function StaffCandidatesPage() {
             <FileSignature className="h-4 w-4" />
             Action{selected.size > 0 ? ` (${selected.size})` : ""}
           </Button>
-          <Button size="sm" className="gap-2 text-xs h-8 rounded-none" onClick={openCreate}>
-            <FilePlus className="h-4 w-4" /> ADD NEW CANDIDATE
-          </Button>
+          {tab === "available" && (
+            <Button size="sm" className="gap-2 text-xs h-8 rounded-none" onClick={openCreate}>
+              <FilePlus className="h-4 w-4" /> ADD NEW CANDIDATE
+            </Button>
+          )}
         </div>
       </div>
 
