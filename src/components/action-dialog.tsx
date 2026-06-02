@@ -319,6 +319,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
   const [sortOpen,    setSortOpen]    = useState(false);
   const [typeOpen,    setTypeOpen]    = useState(true);
   const [colsOpen,    setColsOpen]    = useState(true);
+  const [docxFormat,  setDocxFormat]  = useState<"docx" | "pdf">("docx");
 
   const isBulk = candidates.length > 1;
   const preview = candidates[0] ?? null;
@@ -371,7 +372,15 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
           // Single CV
           if (matchedTemplate) {
             const isDocx = matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
-            if (isDocx) {
+            if (isDocx && docxFormat === "pdf") {
+              // Staff chose PDF output from a DOCX template — render preview to PDF
+              const canvas = await candidateToCanvas(preview!, matchedTemplate);
+              const w = canvas.width / 2, h = canvas.height / 2;
+              const pdf = new jsPDF({ unit: "px", format: [w, h] });
+              pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, w, h);
+              pdf.save(`${preview!.full_name} — ${currentType.label}.pdf`);
+              toast.success(`${currentType.label} downloaded as PDF`);
+            } else if (isDocx) {
               const b64 = await buildFilledDocxBase64(matchedTemplate.file_url, preview!);
               const a = document.createElement("a");
               a.href = `data:application/octet-stream;base64,${b64}`;
@@ -610,11 +619,41 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
 
         {/* Footer */}
         <div className="px-6 py-3 border-t shrink-0 flex items-center justify-between gap-4">
-          {isCV && downloadType !== "normal-cv" && !matchedTemplate ? (
-            <p className="text-xs text-muted-foreground">
-              No template for &ldquo;{currentType.label}&rdquo; — will download as Normal CV format.
-            </p>
-          ) : <span />}
+          <div className="flex items-center gap-3">
+            {isCV && downloadType !== "normal-cv" && !matchedTemplate && (
+              <p className="text-xs text-muted-foreground">
+                No template for &ldquo;{currentType.label}&rdquo; — will download as Normal CV format.
+              </p>
+            )}
+            {isCV && !isBulk && matchedTemplate && matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx") && (
+              <div className="flex items-center border rounded-none overflow-hidden text-xs">
+                <button
+                  type="button"
+                  onClick={() => setDocxFormat("docx")}
+                  className={cn(
+                    "px-3 py-1.5 font-medium transition-colors",
+                    docxFormat === "docx"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  DOCX
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDocxFormat("pdf")}
+                  className={cn(
+                    "px-3 py-1.5 font-medium transition-colors border-l",
+                    docxFormat === "pdf"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  PDF
+                </button>
+              </div>
+            )}
+          </div>
           <Button onClick={handleDownload} disabled={downloading} className="rounded-none shrink-0">
             <Download className="h-4 w-4 mr-2" />
             {downloading

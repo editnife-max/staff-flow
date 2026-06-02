@@ -415,9 +415,16 @@ function AssignmentsPage() {
                 templateFile ? "border-primary/50 bg-primary/5 text-primary" : "border-input bg-background text-muted-foreground hover:bg-muted",
               )}>
                 <Upload className="h-3.5 w-3.5" />
-                {templateFile ? (templateFile.name.length > 10 ? templateFile.name.slice(0, 9) + "…" : templateFile.name) : "PDF"}
+                {templateFile ? (templateFile.name.length > 10 ? templateFile.name.slice(0, 9) + "…" : templateFile.name) : "File"}
                 <input type="file" accept=".pdf,.docx" className="hidden"
-                  onChange={(e) => setTemplateFile(e.target.files?.[0] ?? null)} />
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null;
+                    setTemplateFile(file);
+                    if (file && !newTemplateName.trim()) {
+                      const baseName = file.name.replace(/\.[^.]+$/, "");
+                      setNewTemplateName(baseName);
+                    }
+                  }} />
               </label>
               <Button size="sm" className="h-8 rounded-none px-3 text-sm"
                 disabled={!newTemplateName.trim() || !templateFile || templateUploading}
