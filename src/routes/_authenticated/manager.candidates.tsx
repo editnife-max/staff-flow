@@ -591,7 +591,6 @@ function ManagerCandidatesPage() {
     onSuccess: (r, status) => {
       toast.success(`Updated ${r.count} candidate(s)`);
       qc.invalidateQueries({ queryKey: ["manager-candidates"] });
-      clearSelection();
       setTab(status);
     },
     onError: (e: Error) => toast.error(e.message),
