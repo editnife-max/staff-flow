@@ -1098,7 +1098,7 @@ function CvGeneratorPage() {
       )}
 
       {/* Card list */}
-      <div className="flex-1 overflow-y-auto space-y-2 pr-1 pt-1">
+      <div className="flex-1 overflow-y-auto space-y-2">
         {filtered.map((c) => {
           const status = candidateStatus.get(c.id);
           return (
