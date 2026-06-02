@@ -123,9 +123,9 @@ function ManagerDashboard() {
   const tasheerDoneWokalaUnpaid = candidates.filter(
     (c) => c.status === "processing" && c.tasheer_status === "Done" && c.wokala_status === "Unpaid",
   );
-  const cocNotDone = candidates.filter((c) => c.coc_status === "Not Done");
-  const medNotFit = candidates.filter((c) => c.medical_status === "Not Fit");
-  const cocDoneMedNotFit = candidates.filter((c) => c.coc_status === "Done" && c.medical_status === "Not Fit");
+  const cocNotDone = candidates.filter((c) => !!c.coc_status && c.coc_status !== "Done");
+  const medNotFit = candidates.filter((c) => c.medical_status === "Unfit");
+  const cocDoneMedNotFit = candidates.filter((c) => c.coc_status === "Done" && c.medical_status === "Unfit");
   const visaReturned = candidates.filter((c) => c.visa_status === "Returned");
   const recent = candidates.slice(0, 12);
 
@@ -552,7 +552,7 @@ function ManagerDashboard() {
                 </div>
                 <div className="shrink-0 text-right">
                   <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">
-                    Not Fit
+                    Unfit
                   </span>
                   <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
                 </div>
@@ -595,7 +595,7 @@ function ManagerDashboard() {
                 </div>
                 <div className="shrink-0 text-right">
                   <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">
-                    Medical Not Fit
+                    Medical Unfit
                   </span>
                   <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
                 </div>
