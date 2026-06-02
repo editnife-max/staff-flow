@@ -233,11 +233,6 @@ export const DOWNLOAD_TYPES = [
   { id: "excel",        label: "Download Excel",            group: "export" as const },
   { id: "excel-ticket", label: "Download Excel for Ticket", group: "export" as const },
   { id: "normal-cv",    label: "Normal CV",                 group: "cv"     as const },
-  { id: "jawa-cv",      label: "Jawa CV",                   group: "cv"     as const },
-  { id: "tadbeer-cv",   label: "Tadbeer CV",                group: "cv"     as const },
-  { id: "milano-cv",    label: "Milano CV",                 group: "cv"     as const },
-  { id: "ghadeer-cv",   label: "Ghadeer CV",                group: "cv"     as const },
-  { id: "normal22-cv",  label: "Normal 22 CV",              group: "cv"     as const },
 ];
 
 export const EXPORT_COLUMNS: { key: keyof Candidate; label: string }[] = [
@@ -330,12 +325,15 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
     }
   }, [downloadType]);
 
-  const currentType    = DOWNLOAD_TYPES.find((t) => t.id === downloadType)!;
-  const isCV           = currentType.group === "cv";
+  const allDownloadTypes = [
+    ...DOWNLOAD_TYPES,
+    ...templates.map((t) => ({ id: t.id, label: t.name, group: "cv" as const })),
+  ];
+
+  const currentType     = allDownloadTypes.find((t) => t.id === downloadType) ?? DOWNLOAD_TYPES[3];
+  const isCV            = currentType.group === "cv";
   const matchedTemplate = isCV && downloadType !== "normal-cv"
-    ? templates.find((t) =>
-        t.name.toLowerCase().includes(currentType.label.toLowerCase().replace(" cv", "").trim()),
-      ) ?? null
+    ? templates.find((t) => t.id === downloadType) ?? null
     : null;
 
   const toggleCol = (key: string) =>
@@ -543,7 +541,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
               </button>
               {typeOpen && (
                 <div className="px-4 pb-4 space-y-0.5">
-                  {DOWNLOAD_TYPES.map((t) => (
+                  {allDownloadTypes.map((t) => (
                     <button key={t.id} type="button" onClick={() => setDownloadType(t.id)}
                       className={cn(
                         "w-full text-left px-3 py-2 text-sm rounded-none border transition-colors",
