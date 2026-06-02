@@ -642,6 +642,8 @@ function StaffCandidatesPage() {
     onSuccess: (r, { field, value }) => {
       toast.success(`Updated ${r.count} candidate(s)`);
       qc.invalidateQueries({ queryKey: ["staff-candidates"] });
+      if (field === "coc_status" && value === "Done")
+        bulkField({ data: { ids: Array.from(selected), field: "lmis_status", value: "Placed" } });
       const fk = BULK_FIELD_TO_FILTER[field];
       if (fk && tab !== "available") {
         const isMulti = ["medical", "musaned"].includes(fk);
@@ -1075,7 +1077,11 @@ function StaffCandidatesPage() {
           candidates={filtered}
           selected={selected}
           onToggleSelect={toggleSelect}
-          onUpdateField={(id, field, value) => fieldMut.mutate({ id, field, value })}
+          onUpdateField={(id, field, value) => {
+            fieldMut.mutate({ id, field, value });
+            if (field === "coc_status" && value === "Done")
+              fieldMut.mutate({ id, field: "lmis_status", value: "Placed" });
+          }}
           onEdit={openEdit}
           cancelMode
           onDelete={(id) => fieldMut.mutate({ id, field: "status", value: "canceled" })}
