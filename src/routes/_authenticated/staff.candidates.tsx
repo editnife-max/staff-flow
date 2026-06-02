@@ -71,12 +71,10 @@ const UNFILLED_LMIS_OPTIONS = ["INSU", "COC", "ID"];
 const TICKET_OPTIONS = ["No", "Ready", "New Order", "Booked", "Exchange", "Urgent"];
 const ARRIVAL_CITY_OPTIONS = ["RIYADH", "JEDDAH", "DAMMAM", "JOUF", "HAIL", "ABHA", "OTHERS"];
 const BULK_FIELD_DEFS = [
-  { key: "medical_status",   label: "Medical",       options: MEDICAL_OPTIONS },
-  { key: "coc_status",       label: "COC",           options: COC_OPTIONS },
-  { key: "musaned_status",   label: "Country",       options: MUSANED_OPTIONS },
-  { key: "office",           label: "Office",        options: OFFICE_OPTIONS },
-  { key: "passport_status",  label: "Passport",      options: PASSPORT_OPTIONS },
-  { key: "experience",       label: "Experience",    options: ["Yes", "No", "None"] },
+  { key: "medical_status",   label: "Medical" },
+  { key: "musaned_status",   label: "Country" },
+  { key: "office",           label: "Office" },
+  { key: "passport_status",  label: "Passport" },
 ];
 
 const SKILLS_LIST = [
@@ -629,9 +627,7 @@ function StaffCandidatesPage() {
 
   const BULK_FIELD_TO_FILTER: Record<string, string> = {
     medical_status: "medical",
-    coc_status: "coc",
     musaned_status: "musaned",
-    experience: "experience",
   };
 
   const bulkFieldMut = useMutation({
@@ -642,7 +638,7 @@ function StaffCandidatesPage() {
       qc.invalidateQueries({ queryKey: ["staff-candidates"] });
       const fk = BULK_FIELD_TO_FILTER[field];
       if (fk && tab !== "available") {
-        const isMulti = ["medical", "coc", "musaned"].includes(fk);
+        const isMulti = ["medical", "musaned"].includes(fk);
         setFilters((prev) => ({ ...prev, [fk]: isMulti ? [value] : value }));
       }
     },
@@ -1006,28 +1002,13 @@ function StaffCandidatesPage() {
               </Select>
 
               {BULK_FIELD_DEFS.map((fd) => {
-                const opts = fd.key === "musaned_status" ? assignCountries.map((c) => c.name) : fd.options;
+                const opts = Array.from(new Set(
+                  filtered.map((c) => (c[fd.key as keyof Candidate] as string | null) ?? "").filter(Boolean)
+                )).sort();
+                if (opts.length === 0) return null;
                 return (
                   <Select key={fd.key} onValueChange={(v) => {
-                    if (fd.key === "ticket_status" && v === "Booked") { setTicketDateOpen(true); }
-                    else if (fd.key === "tasheer_status" && v === "Booked") { setTasheerDateOpen(true); }
-                    else if (fd.key === "tasheer_status" && v === "Done") {
-                      const hasWokalaPaid = candidates.filter((c) => selected.has(c.id)).some((c) => c.wokala_status === "Paid");
-                      if (hasWokalaPaid) { setTasheerDoneOpen(true); setTasheerDoneStep("ask"); setTasheerDoneReason(""); }
-                      else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
-                    }
-                    else if (fd.key === "visa_status" && v === "Returned") {
-                      const blocked = candidates.filter((c) => selected.has(c.id) && (c.status !== "processing" || c.tasheer_status !== "Done" || c.wokala_status !== "Paid")).length;
-                      if (blocked > 0) { toast.error(`${blocked} candidate(s) must be Processing with Tasheer = Done and Wokala = Paid`); }
-                      else { setVisaReturnedOpen(true); setVisaReturnedReason(""); }
-                    }
-                    else if (fd.key === "visa_status" && v === "Ready for embassy") {
-                      const blocked = candidates.filter((c) => selected.has(c.id) && (c.status !== "processing" || c.tasheer_status !== "Done" || c.wokala_status !== "Paid"));
-                      if (blocked.length > 0) {
-                        toast.error(`${blocked.length} candidate(s) must be Processing with Tasheer = Done and Wokala = Paid`);
-                      } else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
-                    }
-                    else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
+                    bulkFieldMut.mutate({ field: fd.key, value: v });
                   }}>
                     <SelectTrigger className="h-9 w-[120px]">
                       <SelectValue placeholder={fd.label} />
