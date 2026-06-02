@@ -813,8 +813,8 @@ function StaffCandidatesPage() {
         </div>
       </div>
 
-      {/* Filters — hidden on Processing tab (ProcessingTable has its own) */}
-      {tab !== "processing" && <Card className="rounded-none">
+      {/* Filters — hidden on Processing tab and when bulk bar is open */}
+      {tab !== "processing" && selected.size === 0 && <Card className="rounded-none">
         <CardContent className="p-4">
           <div className="flex items-center justify-between gap-2">
             <button
