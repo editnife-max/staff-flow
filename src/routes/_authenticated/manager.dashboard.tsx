@@ -327,27 +327,24 @@ function ManagerDashboard() {
       )}
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 lg:grid-cols-5 gap-2">
         {STATUS_CONFIG.map((s) => {
           const count = counts[s.key];
           const pct = total > 0 ? Math.round((count / total) * 100) : 0;
           const Icon = s.icon;
           return (
-            <Card key={s.key} className={cn("rounded-none border-0 shadow-sm", s.bg)}>
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className={cn("h-10 w-10 rounded-none grid place-items-center", s.icon_bg)}>
-                    <Icon className={cn("h-5 w-5", s.icon_color)} />
-                  </div>
-                  <span className={cn("text-3xl font-bold tracking-tight", s.value_color)}>{count}</span>
+            <div key={s.key} className={cn("flex items-center gap-2.5 px-3 py-2.5 rounded-none", s.bg)}>
+              <div className={cn("h-7 w-7 rounded-none grid place-items-center shrink-0", s.icon_bg)}>
+                <Icon className={cn("h-3.5 w-3.5", s.icon_color)} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-baseline gap-1">
+                  <span className={cn("text-lg font-bold leading-tight", s.value_color)}>{count}</span>
+                  <span className="text-[10px] text-muted-foreground">{pct}%</span>
                 </div>
-                <p className="text-sm font-medium text-foreground/80 mb-2">{s.label}</p>
-                <div className="h-1.5 rounded-none bg-black/10 dark:bg-white/10">
-                  <div className={cn("h-full rounded-none transition-all", s.bar)} style={{ width: `${pct}%` }} />
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-1">{pct}% of total</p>
-              </CardContent>
-            </Card>
+                <p className="text-[11px] text-foreground/70 font-medium truncate">{s.label}</p>
+              </div>
+            </div>
           );
         })}
       </div>
