@@ -476,7 +476,12 @@ function StaffDashboard() {
     (c) => c.status === "processing" && c.tasheer_status === "Done" && c.visa_status !== "Ready for embassy" && c.processing_notes,
   );
 
-  const visaReady = candidates.filter((c) => c.status === "processing" && c.tasheer_status === "Done" && c.wokala_status === "Paid");
+  const visaReady = candidates.filter(
+    (c) => c.status === "processing" && (
+      (c.tasheer_status === "Done" && c.wokala_status === "Paid" && !c.visa_status) ||
+      c.visa_status === "Ready for embassy"
+    ),
+  );
 
   const visaReturned = candidates.filter((c) => c.status === "processing" && c.visa_status === "Returned");
   const tasheerDoneWokalaUnpaid = candidates.filter(
@@ -541,7 +546,7 @@ function StaffDashboard() {
           <AlertSection icon={Landmark}      title="Embassy Visa — Pending"      iconColor="text-sky-600 dark:text-sky-400"       pillKey="embassy"   candidates={embassyPending} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => c.processing_notes ?? null} />
           <AlertSection icon={BadgeCheck}    title="Ready for Embassy Visa"      iconColor="text-emerald-600 dark:text-emerald-400" pillKey="visaready"  candidates={visaReady}     onUpdateField={handleUpdateField} countryOptions={countryOptions}
-            getNote={(c) => c.destination_country ?? null} />
+            getNote={(c) => c.visa_status === "Ready for embassy" ? "Manual" : null} />
           <AlertSection icon={RotateCcw}     title="Visa Returned"               iconColor="text-rose-600 dark:text-rose-400"       pillKey="visareturn" candidates={visaReturned}  onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => c.remark ?? null} />
           <AlertSection icon={AlertTriangle} title="Tasheer Done — Wokala Unpaid" iconColor="text-violet-600 dark:text-violet-400"   pillKey="tasheer"   candidates={tasheerDoneWokalaUnpaid} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
