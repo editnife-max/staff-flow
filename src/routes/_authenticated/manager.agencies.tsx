@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, KeyRound, UserMinus, Clock } from "lucide-react";
+import { Plus, Trash2, KeyRound, UserMinus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,40 +34,6 @@ type Office = { id: string; name: string };
 function AgenciesPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
-
-  const [cvDaysEdit, setCvDaysEdit] = useState(false);
-  const [cvDaysDraft, setCvDaysDraft] = useState("");
-
-  const { data: profile } = useQuery({
-    queryKey: ["manager-profile", user?.id],
-    enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("cv_days_threshold")
-        .eq("id", user!.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-  });
-  const cvDaysThreshold = profile?.cv_days_threshold ?? 7;
-
-  const updateThreshold = useMutation({
-    mutationFn: async (days: number) => {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ cv_days_threshold: days })
-        .eq("id", user!.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["manager-profile", user?.id] });
-      setCvDaysEdit(false);
-      toast.success("CV requirement days updated");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   // Add agency + login dialog
   const [addOpen, setAddOpen] = useState(false);
@@ -206,69 +172,6 @@ function AgenciesPage() {
           </Button>
         }
       />
-
-      {/* CV Requirement Days */}
-      <Card className="mb-4 rounded-none">
-        <CardContent className="px-5 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Clock className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-              <div>
-                <p className="text-sm font-semibold">CV Requirement Days</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  If a CV is sent to an agency but the candidate is not selected within this many days, they reappear in the CV page for resending.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {cvDaysEdit ? (
-                <>
-                  <input
-                    autoFocus
-                    type="number"
-                    min={1}
-                    value={cvDaysDraft}
-                    onChange={(e) => setCvDaysDraft(e.target.value)}
-                    className="w-16 border border-input rounded-none px-2 h-8 text-sm"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        const n = parseInt(cvDaysDraft);
-                        if (!isNaN(n) && n > 0) updateThreshold.mutate(n);
-                      }
-                      if (e.key === "Escape") setCvDaysEdit(false);
-                    }}
-                  />
-                  <span className="text-xs text-muted-foreground">days</span>
-                  <Button
-                    size="sm" className="h-8 rounded-none"
-                    disabled={updateThreshold.isPending}
-                    onClick={() => {
-                      const n = parseInt(cvDaysDraft);
-                      if (!isNaN(n) && n > 0) updateThreshold.mutate(n);
-                    }}
-                  >
-                    {updateThreshold.isPending ? "Saving…" : "Save"}
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-8 rounded-none" onClick={() => setCvDaysEdit(false)}>
-                    Cancel
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <span className="text-2xl font-bold text-teal-700 dark:text-teal-300">{cvDaysThreshold}</span>
-                  <span className="text-sm text-muted-foreground">days</span>
-                  <Button
-                    size="sm" variant="outline" className="h-8 rounded-none"
-                    onClick={() => { setCvDaysDraft(String(cvDaysThreshold)); setCvDaysEdit(true); }}
-                  >
-                    Edit
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardContent className="p-0">
