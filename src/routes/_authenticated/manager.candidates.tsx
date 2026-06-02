@@ -1168,8 +1168,8 @@ function ManagerCandidatesPage() {
               </div>
               {form.experience === "Yes" && (
                 <div className="grid grid-cols-2 gap-3 mt-3">
-                  <FormInput label="Experience Country" value={form.experience_country} onChange={(v) => setForm({ ...form, experience_country: v })} placeholder="e.g. Saudi Arabia" />
-                  <FormInput label="Years of Experience" value={form.experience_years} onChange={(v) => setForm({ ...form, experience_years: v })} placeholder="e.g. 3" />
+                  <FormSelect label="Experience Country" value={form.experience_country} onChange={(v) => setForm({ ...form, experience_country: v })} options={assignCountries.map((c) => c.name)} />
+                  <FormInput label="Years of Experience" type="number" value={form.experience_years} onChange={(v) => setForm({ ...form, experience_years: v })} placeholder="e.g. 3" />
                 </div>
               )}
             </FormSection>
@@ -2625,15 +2625,16 @@ function FormSelect({ label, value, onChange, options }: { label: string; value:
   );
 }
 
-function FormInput({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+function FormInput({ label, value, onChange, placeholder, type = "text" }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) {
   return (
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
       <input
-        type="text"
+        type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        min={type === "number" ? 0 : undefined}
         className="w-full rounded-none border border-input bg-background px-3 h-9 text-sm outline-none focus:ring-1 focus:ring-ring"
       />
     </div>

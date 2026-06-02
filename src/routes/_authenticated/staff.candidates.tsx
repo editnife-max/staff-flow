@@ -1212,8 +1212,8 @@ function StaffCandidatesPage() {
               </div>
               {form.experience === "Yes" && (
                 <div className="grid grid-cols-2 gap-3 mt-3">
-                  <Field label="Experience Country" value={form.experience_country} onChange={(v) => setForm({ ...form, experience_country: v })} />
-                  <Field label="Years of Experience" value={form.experience_years} onChange={(v) => setForm({ ...form, experience_years: v })} />
+                  <FormSelect label="Experience Country" value={form.experience_country} onChange={(v) => setForm({ ...form, experience_country: v })} options={assignCountries.map((c) => c.name)} />
+                  <Field label="Years of Experience" value={form.experience_years} onChange={(v) => setForm({ ...form, experience_years: v })} type="number" />
                 </div>
               )}
             </FormSection>
