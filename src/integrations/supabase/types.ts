@@ -482,6 +482,7 @@ export type Database = {
           agency_name: string | null
           avatar_url: string | null
           created_at: string
+          cv_days_threshold: number
           full_name: string | null
           id: string
           updated_at: string
@@ -490,6 +491,7 @@ export type Database = {
           agency_name?: string | null
           avatar_url?: string | null
           created_at?: string
+          cv_days_threshold?: number
           full_name?: string | null
           id: string
           updated_at?: string
@@ -498,6 +500,7 @@ export type Database = {
           agency_name?: string | null
           avatar_url?: string | null
           created_at?: string
+          cv_days_threshold?: number
           full_name?: string | null
           id?: string
           updated_at?: string

@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useState } from "react";
 import {
   Users, Clock, CheckCircle2, XCircle, AlertTriangle,
-  UserPlus, Stethoscope, X, ChevronRight, RotateCcw,
+  UserPlus, Stethoscope, X, ChevronRight, RotateCcw, Send, Settings,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -84,10 +84,15 @@ const STATUS_PILL: Record<string, string> = {
 
 function ManagerDashboard() {
   const { user } = useAuth();
+  const qc = useQueryClient();
   const [medOpen, setMedOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [tasheerOpen, setTasheerOpen] = useState(false);
   const [tasheerDismissed, setTasheerDismissed] = useState(false);
+  const [cvOpen, setCvOpen] = useState(false);
+  const [cvDismissed, setCvDismissed] = useState(false);
+  const [cvDaysEdit, setCvDaysEdit] = useState(false);
+  const [cvDaysDraft, setCvDaysDraft] = useState("");
   const [cocNotDoneOpen, setCocNotDoneOpen] = useState(false);
   const [cocNotDoneDismissed, setCocNotDoneDismissed] = useState(false);
   const [medNotFitOpen, setMedNotFitOpen] = useState(false);
@@ -110,6 +115,32 @@ function ManagerDashboard() {
     },
   });
 
+  const { data: profile } = useQuery({
+    queryKey: ["manager-profile", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("cv_days_threshold")
+        .eq("id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const cvDaysThreshold = profile?.cv_days_threshold ?? 7;
+
+  const updateThresholdMut = useMutation({
+    mutationFn: async (days: number) => {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ cv_days_threshold: days })
+        .eq("id", user!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["manager-profile", user?.id] }),
+  });
+
   const counts = {
     available: candidates.filter((c) => c.status === "available").length,
     processing: candidates.filter((c) => c.status === "processing").length,
@@ -128,6 +159,14 @@ function ManagerDashboard() {
   const cocDoneMedNotFit = candidates.filter((c) => c.coc_status === "Done" && c.medical_status === "Unfit");
   const visaReturned = candidates.filter((c) => c.visa_status === "Returned");
   const recent = candidates.slice(0, 12);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const cvOverdue = candidates.filter((c) => {
+    if (!c.cv_sent_to || c.selected_by || !c.cv_sent_date) return false;
+    const days = Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000);
+    return days >= cvDaysThreshold;
+  });
 
   return (
     <div className="space-y-6 mx-[79.6px]">
@@ -318,6 +357,45 @@ function ManagerDashboard() {
               type="button"
               onClick={(e) => { e.stopPropagation(); setVisaReturnedDismissed(true); }}
               className="p-1 rounded-none text-sky-400 hover:text-sky-700 hover:bg-sky-200 dark:hover:bg-sky-800 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* CV Overdue Banner */}
+      {cvOverdue.length > 0 && !cvDismissed && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-none border border-teal-300 bg-teal-50 dark:bg-teal-950/40 dark:border-teal-700 px-4 py-3 cursor-pointer hover:bg-teal-100 dark:hover:bg-teal-900/40 transition-colors"
+          onClick={() => setCvOpen(true)}
+        >
+          <div className="flex items-center gap-3">
+            <Send className="h-5 w-5 text-teal-600 dark:text-teal-400 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-teal-800 dark:text-teal-200">
+                CV Sent — No Selection — {cvOverdue.length} candidate{cvOverdue.length > 1 ? "s" : ""}
+              </p>
+              <p className="text-xs text-teal-600 dark:text-teal-400">
+                CV sent over {cvDaysThreshold} day{cvDaysThreshold !== 1 ? "s" : ""} ago with no selection. Click to view or adjust threshold.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setCvDaysDraft(String(cvDaysThreshold)); setCvDaysEdit(true); setCvOpen(true); }}
+              className="p-1 rounded-none text-teal-400 hover:text-teal-700 hover:bg-teal-200 dark:hover:bg-teal-800 transition-colors"
+              aria-label="Configure days threshold"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+            <ChevronRight className="h-4 w-4 text-teal-500" />
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setCvDismissed(true); }}
+              className="p-1 rounded-none text-teal-400 hover:text-teal-700 hover:bg-teal-200 dark:hover:bg-teal-800 transition-colors"
               aria-label="Dismiss"
             >
               <X className="h-4 w-4" />
@@ -644,6 +722,100 @@ function ManagerDashboard() {
           <div className="pt-2 flex justify-end">
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
               <Link to="/manager/candidates" onClick={() => setVisaReturnedOpen(false)}>
+                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* CV Overdue Dialog */}
+      <Dialog open={cvOpen} onOpenChange={setCvOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-teal-700 dark:text-teal-300">
+              <Send className="h-5 w-5" />
+              CV Sent — No Selection ({cvOverdue.length})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center gap-2 mb-2 text-sm">
+            <span className="text-muted-foreground">Alert threshold:</span>
+            {cvDaysEdit ? (
+              <span className="flex items-center gap-1.5">
+                <input
+                  autoFocus
+                  type="number"
+                  min={1}
+                  value={cvDaysDraft}
+                  onChange={(e) => setCvDaysDraft(e.target.value)}
+                  className="w-14 border border-input rounded-none px-2 h-7 text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const n = parseInt(cvDaysDraft);
+                      if (!isNaN(n) && n > 0) updateThresholdMut.mutate(n);
+                      setCvDaysEdit(false);
+                    }
+                    if (e.key === "Escape") setCvDaysEdit(false);
+                  }}
+                />
+                <span className="text-xs text-muted-foreground">days</span>
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => {
+                    const n = parseInt(cvDaysDraft);
+                    if (!isNaN(n) && n > 0) updateThresholdMut.mutate(n);
+                    setCvDaysEdit(false);
+                  }}
+                >
+                  Save
+                </button>
+                <button type="button" className="text-xs text-muted-foreground hover:underline" onClick={() => setCvDaysEdit(false)}>
+                  Cancel
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="flex items-center gap-1 font-semibold text-foreground hover:underline"
+                onClick={() => { setCvDaysDraft(String(cvDaysThreshold)); setCvDaysEdit(true); }}
+              >
+                {cvDaysThreshold} days
+                <Settings className="h-3 w-3 opacity-50" />
+              </button>
+            )}
+          </div>
+          <div className="max-h-[55vh] overflow-y-auto space-y-0 divide-y divide-border">
+            {cvOverdue.map((c) => {
+              const days = c.cv_sent_date
+                ? Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000)
+                : null;
+              return (
+                <div key={c.id} className="flex items-center gap-3 py-3">
+                  <Avatar className="h-9 w-9 shrink-0">
+                    {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                    <AvatarFallback className="text-[11px] rounded-none">
+                      {c.full_name.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      Sent to: {c.cv_sent_to}{days !== null ? ` · ${days}d ago` : ""}
+                    </p>
+                  </div>
+                  <div className="shrink-0">
+                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">
+                      {days !== null ? `${days}d overdue` : "Overdue"}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="pt-2 flex justify-end">
+            <Button asChild size="sm" className="rounded-none text-xs gap-1">
+              <Link to="/manager/candidates" onClick={() => setCvOpen(false)}>
                 Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
               </Link>
             </Button>

@@ -304,8 +304,8 @@ const OPTION_COLORS: Record<string, string> = {
 // ── Candidate card ─────────────────────────────────────────────────────────────
 
 function CvCandidateCard({
-  candidate: c, selected, onToggleSelect, onAction,
-}: { candidate: Candidate; selected: boolean; onToggleSelect: () => void; onAction: () => void }) {
+  candidate: c, selected, onToggleSelect, onAction, overdueDays, lockedDaysLeft,
+}: { candidate: Candidate; selected: boolean; onToggleSelect: () => void; onAction: () => void; overdueDays?: number; lockedDaysLeft?: number }) {
   type FieldDef = { label: string; value: string; bold?: boolean; badge?: boolean };
   const fields: FieldDef[] = [
     { label: "FULL NAME",      value: c.full_name,                                                   bold: true },
@@ -325,23 +325,42 @@ function CvCandidateCard({
     { label: "MEDICAL DATE",   value: c.medical_date ? new Date(c.medical_date).toLocaleDateString() : "—" },
     { label: "SELECTED BY",    value: c.selected_by ?? "—" },
     { label: "CV SENT TO",     value: c.cv_sent_to ?? "—" },
+    { label: "CV SENT DATE",   value: c.cv_sent_date ? new Date(c.cv_sent_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) : "—" },
   ];
 
   return (
-    <Card className={cn("relative overflow-visible transition-colors rounded-none mx-[5px]", selected && "ring-2 ring-primary")}>
+    <Card className={cn(
+      "relative overflow-visible transition-colors rounded-none mx-[5px]",
+      selected && "ring-2 ring-primary",
+      lockedDaysLeft != null && "opacity-60",
+    )}>
       <span className="absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[10px] font-semibold tracking-wide bg-success text-success-foreground">
         Available
       </span>
+      {lockedDaysLeft != null ? (
+        <span className="absolute -top-2 right-3 rounded-none px-1.5 py-0.5 text-[10px] font-semibold bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+          Locked · {lockedDaysLeft}d left
+        </span>
+      ) : overdueDays != null ? (
+        <span className="absolute -top-2 right-3 rounded-none px-1.5 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+          Resend · {overdueDays}d
+        </span>
+      ) : null}
       <CardContent className="p-0">
         <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-center">
-          <Checkbox checked={selected} onCheckedChange={onToggleSelect} className="ml-3" />
+          <Checkbox
+            checked={selected}
+            onCheckedChange={onToggleSelect}
+            disabled={lockedDaysLeft != null}
+            aria-label="Select candidate"
+          />
           <Avatar className="h-10 w-10">
             {c.photo_url && <AvatarImage src={c.photo_url} alt={c.full_name} />}
             <AvatarFallback className="text-[10px]">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
 
           <div className="overflow-x-auto no-scrollbar">
-            <div className="flex gap-5 items-start py-3">
+            <div className="flex gap-5 items-start">
               {fields.map((f) => (
                 <div key={f.label} className="shrink-0">
                   <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">
@@ -367,7 +386,7 @@ function CvCandidateCard({
             </div>
           </div>
 
-          <div className="flex flex-col items-end gap-1 pt-[10px] pr-[12px] pb-[10px] pl-[4px]">
+          <div className="flex flex-col items-end gap-1 mb-[8px] pt-[10px] pr-[12px] pb-[10px] pl-[4px]">
             <Button
               size="sm"
               variant="outline"
@@ -819,6 +838,26 @@ function CvGeneratorPage() {
     },
   });
 
+  const { data: cvDaysThreshold = 7 } = useQuery({
+    queryKey: ["staff-manager-cv-threshold", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data: roleRow } = await supabase
+        .from("user_roles")
+        .select("manager_id")
+        .eq("user_id", user!.id)
+        .eq("role", "staff")
+        .maybeSingle();
+      if (!roleRow?.manager_id) return 7;
+      const { data: profileRow } = await supabase
+        .from("profiles")
+        .select("cv_days_threshold")
+        .eq("id", roleRow.manager_id)
+        .maybeSingle();
+      return profileRow?.cv_days_threshold ?? 7;
+    },
+  });
+
   const opts = useMemo(() => {
     const uniq = (k: keyof typeof candidates[0]) =>
       Array.from(new Set(candidates.map((c) => (c[k] as string | null) ?? "").filter(Boolean))).sort();
@@ -855,16 +894,47 @@ function CvGeneratorPage() {
     }
     if (filters.from) list = list.filter((c) => c.created_at >= filters.from);
     if (filters.to)   list = list.filter((c) => c.created_at <= filters.to + "T23:59:59");
-    list.sort((a, b) =>
-      filters.sort === "newest"
+    const todayMs = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
+    const overdueDaysFor = (c: typeof list[0]) => {
+      if (!c.cv_sent_to || c.selected_by || !c.cv_sent_date) return -1;
+      return Math.floor((todayMs - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000);
+    };
+    list.sort((a, b) => {
+      const aDays = overdueDaysFor(a);
+      const bDays = overdueDaysFor(b);
+      const aOverdue = aDays >= cvDaysThreshold;
+      const bOverdue = bDays >= cvDaysThreshold;
+      if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
+      return filters.sort === "newest"
         ? b.created_at.localeCompare(a.created_at)
-        : a.created_at.localeCompare(b.created_at),
-    );
+        : a.created_at.localeCompare(b.created_at);
+    });
     return list;
-  }, [candidates, query, filters]);
+  }, [candidates, query, filters, cvDaysThreshold]);
 
-  const allSel  = filtered.length > 0 && filtered.every((c) => selected.has(c.id));
-  const someSel = !allSel && filtered.some((c) => selected.has(c.id));
+  const candidateStatus = useMemo(() => {
+    const todayMs = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
+    const result = new Map<string, { overdueDays?: number; lockedDaysLeft?: number }>();
+    for (const c of filtered) {
+      if (c.cv_sent_to && !c.selected_by && c.cv_sent_date) {
+        const days = Math.floor((todayMs - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000);
+        if (days >= cvDaysThreshold) {
+          result.set(c.id, { overdueDays: days });
+        } else {
+          result.set(c.id, { lockedDaysLeft: cvDaysThreshold - days });
+        }
+      }
+    }
+    return result;
+  }, [filtered, cvDaysThreshold]);
+
+  const selectableFiltered = useMemo(
+    () => filtered.filter((c) => !candidateStatus.get(c.id)?.lockedDaysLeft),
+    [filtered, candidateStatus],
+  );
+
+  const allSel  = selectableFiltered.length > 0 && selectableFiltered.every((c) => selected.has(c.id));
+  const someSel = !allSel && selectableFiltered.some((c) => selected.has(c.id));
 
   return (
     <div className="flex flex-col h-[calc(100vh-112px)]">
@@ -972,9 +1042,9 @@ function CvGeneratorPage() {
           <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
             <Checkbox
               checked={allSel ? true : someSel ? "indeterminate" : false}
-              onCheckedChange={(v) => filtered.forEach((c) => { if (!!v !== selected.has(c.id)) toggleSelect(c.id); })}
+              onCheckedChange={(v) => selectableFiltered.forEach((c) => { if (!!v !== selected.has(c.id)) toggleSelect(c.id); })}
             />
-            Select all ({filtered.length})
+            Select all ({selectableFiltered.length}{selectableFiltered.length < filtered.length ? ` of ${filtered.length}` : ""})
           </label>
           {selected.size > 0 && (
             <div className="flex items-center gap-2 flex-wrap">
@@ -995,7 +1065,13 @@ function CvGeneratorPage() {
                 className="gap-1.5 text-xs h-8 rounded-none"
                 disabled={!sendOffice || sendToOfficeMut.isPending}
                 onClick={() => {
-                  const ids = filtered.filter((c) => selected.has(c.id)).map((c) => c.id);
+                  const ids = filtered
+                    .filter((c) => selected.has(c.id) && !candidateStatus.get(c.id)?.lockedDaysLeft)
+                    .map((c) => c.id);
+                  if (ids.length === 0) {
+                    toast.info("Selected candidates are still within the requirement period — cannot resend yet");
+                    return;
+                  }
                   sendToOfficeMut.mutate({ ids, office: sendOffice });
                 }}
               >
@@ -1022,16 +1098,21 @@ function CvGeneratorPage() {
       )}
 
       {/* Card list */}
-      <div className="flex-1 overflow-y-auto space-y-6 pr-1 pt-1">
-        {filtered.map((c) => (
-          <CvCandidateCard
-            key={c.id}
-            candidate={c}
-            selected={selected.has(c.id)}
-            onToggleSelect={() => toggleSelect(c.id)}
-            onAction={() => setActionCandidates([c])}
-          />
-        ))}
+      <div className="flex-1 overflow-y-auto space-y-2 pr-1 pt-1">
+        {filtered.map((c) => {
+          const status = candidateStatus.get(c.id);
+          return (
+            <CvCandidateCard
+              key={c.id}
+              candidate={c}
+              selected={selected.has(c.id)}
+              onToggleSelect={() => toggleSelect(c.id)}
+              onAction={() => setActionCandidates([c])}
+              overdueDays={status?.overdueDays}
+              lockedDaysLeft={status?.lockedDaysLeft}
+            />
+          );
+        })}
         {filtered.length === 0 && (
           <div className="text-center text-sm text-muted-foreground py-16">
             No candidates with Medical Fit and COC Done.
