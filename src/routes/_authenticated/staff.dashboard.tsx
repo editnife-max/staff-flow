@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import React, { useState } from "react";
 import {
   Users, Clock, CheckCircle2, XCircle, RotateCcw,
-  ChevronDown, ChevronUp, Stethoscope, FileCheck, ClipboardList, Ticket, FileText, CalendarX, Landmark, BadgeCheck,
+  ChevronDown, ChevronUp, Stethoscope, FileCheck, ClipboardList, Ticket, FileText, CalendarX, Landmark, BadgeCheck, AlertTriangle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -107,6 +107,7 @@ const ALERT_PILL: Record<string, string> = {
   embassy: "bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300",
   visaready:   "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
   visareturn: "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300",
+  tasheer:    "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
 };
 
 // ─── Inline components ───────────────────────────────────────────────────────
@@ -478,6 +479,9 @@ function StaffDashboard() {
   const visaReady = candidates.filter((c) => c.status === "processing" && c.visa_status === "Ready for embassy");
 
   const visaReturned = candidates.filter((c) => c.status === "processing" && c.visa_status === "Returned");
+  const tasheerDoneWokalaUnpaid = candidates.filter(
+    (c) => c.status === "processing" && c.tasheer_status === "Done" && c.wokala_status === "Unpaid",
+  );
   const daysSince = (d: string) =>
     Math.floor((today.getTime() - new Date(d + "T00:00:00").getTime()) / 86_400_000);
 
@@ -519,7 +523,7 @@ function StaffDashboard() {
       </div>
 
       {/* Alert sections */}
-      {(cocNotDone.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0) && (
+      {(cocNotDone.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerDoneWokalaUnpaid.length > 0) && (
         <div className="space-y-2">
           <AlertSection icon={FileCheck}    title="COC — Not Done"               iconColor="text-orange-600 dark:text-orange-400" pillKey="coc"     candidates={cocNotDone}    onUpdateField={handleUpdateField} countryOptions={countryOptions} />
           <AlertSection icon={Stethoscope}  title="Medical — Not Fit"            iconColor="text-red-600 dark:text-red-400"       pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
@@ -540,6 +544,7 @@ function StaffDashboard() {
             getNote={(c) => c.destination_country ?? null} />
           <AlertSection icon={RotateCcw}     title="Visa Returned"               iconColor="text-rose-600 dark:text-rose-400"       pillKey="visareturn" candidates={visaReturned}  onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => c.remark ?? null} />
+          <AlertSection icon={AlertTriangle} title="Tasheer Done — Wokala Unpaid" iconColor="text-violet-600 dark:text-violet-400"   pillKey="tasheer"   candidates={tasheerDoneWokalaUnpaid} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
         </div>
       )}
     </div>
