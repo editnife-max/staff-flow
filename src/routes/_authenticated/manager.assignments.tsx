@@ -109,7 +109,7 @@ function AssignmentsPage() {
   }, [cvReq]);
 
   // ── pagination ───────────────────────────────────────────────────────────────
-  const PAGE = 3;
+  const PAGE = 5;
   const [countryPage,  setCountryPage]  = useState(0);
   const [officePage,   setOfficePage]   = useState(0);
   const [templatePage, setTemplatePage] = useState(0);
@@ -267,72 +267,74 @@ function AssignmentsPage() {
     const pages = Math.ceil(total / PAGE);
     if (pages <= 1) return null;
     return (
-      <div className="flex items-center justify-between pt-1 border-t border-border/50">
+      <div className="flex items-center justify-between pt-2 border-t border-border/50">
         <button type="button" onClick={() => set(page - 1)} disabled={page === 0}
-          className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30">
-          <ChevronLeft className="h-3 w-3" />
+          className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30">
+          <ChevronLeft className="h-4 w-4" />
         </button>
-        <span className="text-[10px] text-muted-foreground">{page + 1} / {pages}</span>
+        <span className="text-xs text-muted-foreground">{page + 1} / {pages}</span>
         <button type="button" onClick={() => set(page + 1)} disabled={page >= pages - 1}
-          className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30">
-          <ChevronRight className="h-3 w-3" />
+          className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30">
+          <ChevronRight className="h-4 w-4" />
         </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3 mx-[79.6px]">
-      <div className="flex items-center justify-between">
-        <h1 className="text-sm font-semibold tracking-tight">Assignments</h1>
-        <p className="text-[11px] text-muted-foreground">Countries and offices appear in Processing filters.</p>
+    <div className="flex flex-col h-[calc(100vh-56px)] mx-[79.6px] py-4 gap-4">
+
+      {/* Title */}
+      <div className="flex items-center justify-between shrink-0">
+        <h1 className="text-base font-semibold tracking-tight">Assignments</h1>
+        <p className="text-xs text-muted-foreground">Countries and offices appear in Processing filters.</p>
       </div>
 
       {/* ── Row 1: Countries + Offices ──────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
 
         {/* Countries */}
-        <div className="border border-border bg-background">
-          <div className="px-2.5 py-1.5 border-b flex items-center gap-1.5 bg-muted/30">
-            <Globe className="h-3 w-3 text-primary shrink-0" />
-            <span className="text-[11px] font-semibold">Countries</span>
-            <span className="ml-auto text-[10px] text-muted-foreground">{countries.length} total</span>
+        <div className="border border-border bg-background flex flex-col min-h-0">
+          <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30 shrink-0">
+            <Globe className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-sm font-semibold">Countries</span>
+            <span className="ml-auto text-xs text-muted-foreground">{countries.length} total</span>
           </div>
-          <div className="p-2 space-y-1.5">
-            <div className="flex gap-1">
+          <div className="p-3 space-y-2 flex-1 overflow-y-auto">
+            <div className="flex gap-1.5">
               <select value={newCountryFlag} onChange={(e) => setNewCountryFlag(e.target.value)}
-                className="h-6 border border-border bg-background text-xs px-0.5 focus:outline-none shrink-0">
+                className="h-8 border border-border bg-background text-sm px-1 focus:outline-none shrink-0">
                 {COMMON_FLAGS.map((f) => <option key={f} value={f}>{f}</option>)}
               </select>
-              <Input className="h-6 rounded-none text-[11px] flex-1" placeholder="Country name…"
+              <Input className="h-8 rounded-none text-sm flex-1" placeholder="Country name…"
                 value={newCountryName} onChange={(e) => setNewCountryName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && newCountryName.trim()) addCountryMut.mutate(); }} />
-              <Button size="sm" className="h-6 rounded-none px-2 text-[11px] gap-0.5"
+              <Button size="sm" className="h-8 rounded-none px-3 text-sm gap-1"
                 disabled={!newCountryName.trim() || addCountryMut.isPending}
                 onClick={() => addCountryMut.mutate()}>
-                <Plus className="h-2.5 w-2.5" /> Add
+                <Plus className="h-3.5 w-3.5" /> Add
               </Button>
             </div>
-            <div className="space-y-px">
+            <div className="space-y-0.5">
               {countries.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground text-center py-3">No countries yet.</p>
+                <p className="text-sm text-muted-foreground text-center py-4">No countries yet.</p>
               ) : countrySlice.map((c) => (
                 <button key={c.id} type="button" onClick={() => setActiveCountryId(c.id)}
                   className={cn(
-                    "w-full flex items-center gap-1.5 px-2 py-0.5 text-left transition-colors group",
+                    "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors group",
                     activeCountry?.id === c.id ? "bg-primary/8 text-primary font-medium" : "hover:bg-muted/50",
                   )}>
-                  <span className="text-xs">{c.flag}</span>
-                  <span className="flex-1 truncate text-[11px]">{c.name}</span>
-                  <span className="text-[10px] text-muted-foreground shrink-0">
+                  <span className="text-sm">{c.flag}</span>
+                  <span className="flex-1 truncate text-sm">{c.name}</span>
+                  <span className="text-xs text-muted-foreground shrink-0">
                     {offices.filter((o) => o.country_id === c.id).length}
                   </span>
-                  <ChevronRight className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                   <button type="button"
                     onClick={(e) => { e.stopPropagation(); delCountryMut.mutate(c.id); }}
                     disabled={delCountryMut.isPending}
                     className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Trash2 className="h-2.5 w-2.5" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </button>
               ))}
@@ -342,46 +344,46 @@ function AssignmentsPage() {
         </div>
 
         {/* Offices */}
-        <div className="border border-border bg-background">
-          <div className="px-2.5 py-1.5 border-b flex items-center gap-1.5 bg-muted/30">
-            <Building2 className="h-3 w-3 text-primary shrink-0" />
-            <span className="text-[11px] font-semibold">Offices</span>
+        <div className="border border-border bg-background flex flex-col min-h-0">
+          <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30 shrink-0">
+            <Building2 className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-sm font-semibold">Offices</span>
             {activeCountry && (
-              <span className="text-[10px] text-muted-foreground truncate">— {activeCountry.flag} {activeCountry.name}</span>
+              <span className="text-xs text-muted-foreground truncate">— {activeCountry.flag} {activeCountry.name}</span>
             )}
             {activeCountry && (
-              <span className="ml-auto text-[10px] text-muted-foreground shrink-0">{activeOffices.length} total</span>
+              <span className="ml-auto text-xs text-muted-foreground shrink-0">{activeOffices.length} total</span>
             )}
           </div>
-          <div className="p-2 space-y-1.5">
+          <div className="p-3 space-y-2 flex-1 overflow-y-auto">
             {!activeCountry ? (
-              <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
-                <Globe className="h-5 w-5 mb-1.5 opacity-20" />
-                <p className="text-[11px]">Select a country to manage offices.</p>
+              <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                <Globe className="h-7 w-7 mb-2 opacity-20" />
+                <p className="text-sm">Select a country to manage offices.</p>
               </div>
             ) : (
               <>
-                <div className="flex gap-1">
-                  <Input className="h-6 rounded-none text-[11px] flex-1" placeholder="Office name…"
+                <div className="flex gap-1.5">
+                  <Input className="h-8 rounded-none text-sm flex-1" placeholder="Office name…"
                     value={newOfficeName} onChange={(e) => setNewOfficeName(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter" && newOfficeName.trim()) addOfficeMut.mutate(); }} />
-                  <Button size="sm" className="h-6 rounded-none px-2 text-[11px] gap-0.5"
+                  <Button size="sm" className="h-8 rounded-none px-3 text-sm gap-1"
                     disabled={!newOfficeName.trim() || addOfficeMut.isPending}
                     onClick={() => addOfficeMut.mutate()}>
-                    <Plus className="h-2.5 w-2.5" /> Add
+                    <Plus className="h-3.5 w-3.5" /> Add
                   </Button>
                 </div>
-                <div className="space-y-px">
+                <div className="space-y-0.5">
                   {activeOffices.length === 0 ? (
-                    <p className="text-[11px] text-muted-foreground text-center py-3">No offices yet.</p>
+                    <p className="text-sm text-muted-foreground text-center py-4">No offices yet.</p>
                   ) : officeSlice.map((o) => (
-                    <div key={o.id} className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-muted/40 group">
-                      <Building2 className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
-                      <span className="flex-1 truncate text-[11px]">{o.name}</span>
+                    <div key={o.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-muted/40 group">
+                      <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="flex-1 truncate text-sm">{o.name}</span>
                       <button type="button" onClick={() => delOfficeMut.mutate(o.id)}
                         disabled={delOfficeMut.isPending}
                         className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Trash2 className="h-2.5 w-2.5" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   ))}
@@ -394,61 +396,61 @@ function AssignmentsPage() {
       </div>
 
       {/* ── Row 2: CV Templates + CV Page Requirements ──────────────────── */}
-      <div className="grid grid-cols-2 gap-3 items-start">
+      <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
 
         {/* CV Templates */}
-        <div className="border border-border bg-background">
-          <div className="px-2.5 py-1.5 border-b flex items-center gap-1.5 bg-muted/30">
-            <FileText className="h-3 w-3 text-primary shrink-0" />
-            <span className="text-[11px] font-semibold">CV Templates</span>
-            <span className="ml-auto text-[10px] text-muted-foreground">{cvTemplates.length} uploaded</span>
+        <div className="border border-border bg-background flex flex-col min-h-0">
+          <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30 shrink-0">
+            <FileText className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-sm font-semibold">CV Templates</span>
+            <span className="ml-auto text-xs text-muted-foreground">{cvTemplates.length} uploaded</span>
           </div>
-          <div className="p-2 space-y-1.5">
-            <div className="flex gap-1">
-              <Input className="h-6 rounded-none text-[11px] flex-1" placeholder="Template name…"
+          <div className="p-3 space-y-2 flex-1 overflow-y-auto">
+            <div className="flex gap-1.5">
+              <Input className="h-8 rounded-none text-sm flex-1" placeholder="Template name…"
                 value={newTemplateName} onChange={(e) => setNewTemplateName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && newTemplateName.trim() && templateFile) handleTemplateUpload(); }} />
               <label className={cn(
-                "h-6 inline-flex items-center gap-0.5 px-1.5 border text-[11px] font-medium cursor-pointer transition-colors shrink-0",
+                "h-8 inline-flex items-center gap-1 px-2 border text-sm font-medium cursor-pointer transition-colors shrink-0",
                 templateFile ? "border-primary/50 bg-primary/5 text-primary" : "border-input bg-background text-muted-foreground hover:bg-muted",
               )}>
-                <Upload className="h-2.5 w-2.5" />
+                <Upload className="h-3.5 w-3.5" />
                 {templateFile ? (templateFile.name.length > 10 ? templateFile.name.slice(0, 9) + "…" : templateFile.name) : "PDF"}
                 <input type="file" accept=".pdf,.docx" className="hidden"
                   onChange={(e) => setTemplateFile(e.target.files?.[0] ?? null)} />
               </label>
-              <Button size="sm" className="h-6 rounded-none px-2 text-[11px]"
+              <Button size="sm" className="h-8 rounded-none px-3 text-sm"
                 disabled={!newTemplateName.trim() || !templateFile || templateUploading}
                 onClick={handleTemplateUpload}>
                 {templateUploading ? "…" : "Upload"}
               </Button>
             </div>
             {templateFile && (
-              <p className="text-[10px] text-muted-foreground truncate">
+              <p className="text-xs text-muted-foreground truncate">
                 {templateFile.name}
                 <button type="button" className="ml-1.5 text-destructive hover:underline"
                   onClick={() => setTemplateFile(null)}>×</button>
               </p>
             )}
             {cvTemplates.length === 0 ? (
-              <p className="text-[11px] text-muted-foreground text-center py-3">No templates yet.</p>
+              <p className="text-sm text-muted-foreground text-center py-4">No templates yet.</p>
             ) : (
-              <div className="space-y-px">
+              <div className="space-y-0.5">
                 {templateSlice.map((t) => (
-                  <div key={t.id} className="flex items-center gap-1.5 px-2 py-0.5 hover:bg-muted/40 group">
-                    <FileText className="h-2.5 w-2.5 text-primary shrink-0" />
-                    <span className="flex-1 truncate text-[11px] font-medium">{t.name}</span>
-                    <span className="text-[10px] text-muted-foreground shrink-0">
+                  <div key={t.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-muted/40 group">
+                    <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="flex-1 truncate text-sm font-medium">{t.name}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">
                       {new Date(t.created_at).toLocaleDateString()}
                     </span>
                     <a href={t.file_url} target="_blank" rel="noopener noreferrer"
                       className="text-muted-foreground hover:text-primary transition-colors">
-                      <ExternalLink className="h-2.5 w-2.5" />
+                      <ExternalLink className="h-3.5 w-3.5" />
                     </a>
                     <button type="button" onClick={() => delTemplateMut.mutate(t.id)}
                       disabled={delTemplateMut.isPending}
                       className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Trash2 className="h-2.5 w-2.5" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 ))}
@@ -459,44 +461,44 @@ function AssignmentsPage() {
         </div>
 
         {/* CV Page Requirements */}
-        <div className="border border-border bg-background">
-          <div className="px-2.5 py-1.5 border-b flex items-center gap-1.5 bg-muted/30">
-            <CircleDot className="h-3 w-3 text-primary shrink-0" />
-            <span className="text-[11px] font-semibold">CV Page Requirements</span>
-            <span className="ml-auto text-[10px] text-muted-foreground">applied on CV page load</span>
+        <div className="border border-border bg-background flex flex-col min-h-0">
+          <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30 shrink-0">
+            <CircleDot className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-sm font-semibold">CV Page Requirements</span>
+            <span className="ml-auto text-xs text-muted-foreground">applied on CV page load</span>
           </div>
-          <div className="p-2 space-y-1.5">
+          <div className="p-3 space-y-2 flex-1 overflow-y-auto">
             {/* CV Requirement Days */}
-            <div className="flex items-center gap-1.5 px-2 py-1 border border-teal-200 bg-teal-50/40 dark:border-teal-800/40 dark:bg-teal-900/10">
-              <Clock className="h-2.5 w-2.5 text-teal-600 dark:text-teal-400 shrink-0" />
-              <span className="text-[11px] text-muted-foreground w-[4.5rem] shrink-0 truncate">Resend after</span>
+            <div className="flex items-center gap-2 px-3 py-1.5 border border-teal-200 bg-teal-50/40 dark:border-teal-800/40 dark:bg-teal-900/10">
+              <Clock className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
+              <span className="text-sm text-muted-foreground w-24 shrink-0">Resend after</span>
               {cvDaysEdit ? (
-                <div className="flex items-center gap-1 flex-1">
+                <div className="flex items-center gap-2 flex-1">
                   <input
                     autoFocus type="number" min={1} value={cvDaysDraft}
                     onChange={(e) => setCvDaysDraft(e.target.value)}
-                    className="w-12 border border-input rounded-none px-1 h-6 text-[11px]"
+                    className="w-14 border border-input rounded-none px-2 h-7 text-sm"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") { const n = parseInt(cvDaysDraft); if (!isNaN(n) && n > 0) updateThreshold.mutate(n); }
                       if (e.key === "Escape") setCvDaysEdit(false);
                     }}
                   />
-                  <span className="text-[10px] text-muted-foreground">days</span>
-                  <Button size="sm" className="h-5 rounded-none px-1.5 text-[10px]"
+                  <span className="text-xs text-muted-foreground">days</span>
+                  <Button size="sm" className="h-7 rounded-none px-2 text-xs"
                     disabled={updateThreshold.isPending}
                     onClick={() => { const n = parseInt(cvDaysDraft); if (!isNaN(n) && n > 0) updateThreshold.mutate(n); }}>
                     {updateThreshold.isPending ? "…" : "Save"}
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-5 rounded-none px-1 text-[10px]"
+                  <Button size="sm" variant="ghost" className="h-7 rounded-none px-2 text-xs"
                     onClick={() => setCvDaysEdit(false)}>
                     Cancel
                   </Button>
                 </div>
               ) : (
-                <div className="flex items-center gap-1.5 flex-1">
-                  <span className="text-[13px] font-bold text-teal-700 dark:text-teal-300">{cvDaysThreshold}</span>
-                  <span className="text-[10px] text-muted-foreground">days</span>
-                  <button type="button" className="ml-auto text-[10px] text-primary hover:underline"
+                <div className="flex items-center gap-2 flex-1">
+                  <span className="text-base font-bold text-teal-700 dark:text-teal-300">{cvDaysThreshold}</span>
+                  <span className="text-xs text-muted-foreground">days</span>
+                  <button type="button" className="ml-auto text-xs text-primary hover:underline"
                     onClick={() => { setCvDaysDraft(String(cvDaysThreshold)); setCvDaysEdit(true); }}>
                     Edit
                   </button>
@@ -504,14 +506,14 @@ function AssignmentsPage() {
               )}
             </div>
             {/* Status — locked */}
-            <div className="flex items-center gap-1.5 px-2 py-0.5 border border-emerald-200 bg-emerald-50/40 dark:border-emerald-800/40 dark:bg-emerald-900/10">
-              <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span className="text-[11px] text-muted-foreground w-16 shrink-0">Status</span>
-              <span className="flex-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">Available</span>
-              <span className="text-[10px] text-muted-foreground">Locked</span>
+            <div className="flex items-center gap-2 px-3 py-1.5 border border-emerald-200 bg-emerald-50/40 dark:border-emerald-800/40 dark:bg-emerald-900/10">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span className="text-sm text-muted-foreground w-16 shrink-0">Status</span>
+              <span className="flex-1 text-sm font-semibold text-emerald-700 dark:text-emerald-300">Available</span>
+              <span className="text-xs text-muted-foreground">Locked</span>
             </div>
             {/* Filter rows — 2-column grid */}
-            <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
               {(
                 [
                   { key: "age",          label: "Age",           opts: AGE_OPTIONS },
@@ -527,13 +529,13 @@ function AssignmentsPage() {
                   { key: "cv_sent_to",   label: "CV Sent To",    opts: agencyOptions },
                 ] as { key: keyof typeof DEFAULT_CV_REQ; label: string; opts: string[] }[]
               ).map(({ key, label, opts }) => (
-                <div key={key} className="flex items-center gap-1.5 min-w-0">
+                <div key={key} className="flex items-center gap-2 min-w-0">
                   <span className={cn(
-                    "text-[11px] w-[4.5rem] shrink-0 truncate",
+                    "text-sm w-20 shrink-0 truncate",
                     cvReq[key] !== "all" ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-muted-foreground",
                   )}>{label}</span>
                   <Select value={cvReq[key]} onValueChange={(v) => setCvReq((p: typeof cvReq) => ({ ...p, [key]: v }))}>
-                    <SelectTrigger className="h-6 flex-1 rounded-none text-[11px] min-w-0">
+                    <SelectTrigger className="h-7 flex-1 rounded-none text-xs min-w-0">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
