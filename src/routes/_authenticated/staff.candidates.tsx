@@ -1502,18 +1502,28 @@ function CandidateCardList({
               )}
             </Button>
             {showColPicker && (
-              <div className="absolute right-0 top-8 z-50 bg-popover border border-border rounded-none shadow-xl p-3 w-[340px] grid grid-cols-2 gap-x-4 gap-y-1">
-                {CANDIDATE_CARD_COLS.map((label) => (
-                  <label key={label} className="flex items-center gap-1.5 text-xs cursor-pointer py-1 hover:text-primary">
-                    <Checkbox
-                      checked={!hiddenCols.has(label)}
-                      onCheckedChange={(v) =>
-                        setHiddenCols((prev) => { const n = new Set(prev); v ? n.delete(label) : n.add(label); return n; })
-                      }
-                    />
-                    {label}
-                  </label>
-                ))}
+              <div className="absolute right-0 top-8 z-50 bg-popover border border-border rounded-none shadow-xl p-3 w-[340px]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Columns</span>
+                  <button type="button" onClick={() => setHiddenCols(new Set())}
+                    className="text-[11px] text-primary hover:underline disabled:opacity-40"
+                    disabled={hiddenCols.size === 0}>
+                    Reset
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                  {CANDIDATE_CARD_COLS.map((label) => (
+                    <label key={label} className="flex items-center gap-1.5 text-xs cursor-pointer py-1 hover:text-primary">
+                      <Checkbox
+                        checked={!hiddenCols.has(label)}
+                        onCheckedChange={(v) =>
+                          setHiddenCols((prev) => { const n = new Set(prev); v ? n.delete(label) : n.add(label); return n; })
+                        }
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -2044,18 +2054,28 @@ function ProcessingTable({
               )}
             </Button>
             {showColPicker && (
-              <div className="absolute right-0 top-8 z-50 bg-popover border border-border rounded-none shadow-xl p-3 w-[340px] grid grid-cols-2 gap-x-4 gap-y-1">
-                {allCols.map((col) => (
-                  <label key={col.key} className="flex items-center gap-1.5 text-xs cursor-pointer py-1 hover:text-primary">
-                    <Checkbox
-                      checked={!hiddenCols.has(col.key)}
-                      onCheckedChange={(v) =>
-                        setHiddenCols((prev) => { const n = new Set(prev); v ? n.delete(col.key) : n.add(col.key); return n; })
-                      }
-                    />
-                    {col.header}
-                  </label>
-                ))}
+              <div className="absolute right-0 top-8 z-50 bg-popover border border-border rounded-none shadow-xl p-3 w-[340px]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Columns</span>
+                  <button type="button" onClick={() => setHiddenCols(new Set())}
+                    className="text-[11px] text-primary hover:underline disabled:opacity-40"
+                    disabled={hiddenCols.size === 0}>
+                    Reset
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                  {allCols.map((col) => (
+                    <label key={col.key} className="flex items-center gap-1.5 text-xs cursor-pointer py-1 hover:text-primary">
+                      <Checkbox
+                        checked={!hiddenCols.has(col.key)}
+                        onCheckedChange={(v) =>
+                          setHiddenCols((prev) => { const n = new Set(prev); v ? n.delete(col.key) : n.add(col.key); return n; })
+                        }
+                      />
+                      {col.header}
+                    </label>
+                  ))}
+                </div>
               </div>
             )}
           </div>
