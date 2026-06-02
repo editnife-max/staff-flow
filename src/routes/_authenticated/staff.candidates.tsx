@@ -1882,8 +1882,8 @@ function ProcessingTable({
 
   return (
     <div className="space-y-2">
-      {/* Filter bar */}
-      <Card className="rounded-none">
+      {/* Filter bar — hidden when bulk bar is open */}
+      {selected.size === 0 && <Card className="rounded-none">
         <CardContent className="p-3">
           <div className="flex items-center justify-between gap-2">
             <button type="button" onClick={() => setShowFilters((s) => !s)}
@@ -1933,9 +1933,9 @@ function ProcessingTable({
             </div>
           )}
         </CardContent>
-      </Card>
+      </Card>}
 
-      {countryMeta.length > 0 && (
+      {selected.size === 0 && countryMeta.length > 0 && (
         <Card className="rounded-none">
           <CardContent className="px-3 py-2">
             <div className="flex items-center gap-1 flex-wrap">

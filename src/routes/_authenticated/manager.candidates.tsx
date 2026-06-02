@@ -1835,7 +1835,7 @@ function ProcessingTable({
 
   return (
     <div className="space-y-2">
-      <Card className="rounded-none">
+      {selected.size === 0 && <Card className="rounded-none">
         <CardContent className="p-3">
           <div className="flex items-center gap-2 flex-wrap">
             <button type="button" onClick={() => setShowFilters((s) => !s)}
@@ -1895,9 +1895,9 @@ function ProcessingTable({
             </div>
           )}
         </CardContent>
-      </Card>
+      </Card>}
 
-      {countryMeta.length > 0 && (
+      {selected.size === 0 && countryMeta.length > 0 && (
         <Card className="rounded-none">
           <CardContent className="px-3 py-2">
             <div className="flex items-center gap-1 flex-wrap">
