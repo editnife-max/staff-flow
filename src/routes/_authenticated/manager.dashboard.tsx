@@ -113,7 +113,7 @@ function ManagerDashboard() {
 
   const medExpired = candidates.filter((c) => c.medical_status === "Expired");
   const tasheerDoneWokalaUnpaid = candidates.filter(
-    (c) => c.tasheer_status === "Done" && c.wokala_status === "Unpaid",
+    (c) => c.status === "processing" && c.tasheer_status === "Done" && c.wokala_status === "Unpaid",
   );
   const recent = candidates.slice(0, 12);
 
