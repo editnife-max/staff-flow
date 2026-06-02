@@ -88,6 +88,14 @@ function ManagerDashboard() {
   const [dismissed, setDismissed] = useState(false);
   const [tasheerOpen, setTasheerOpen] = useState(false);
   const [tasheerDismissed, setTasheerDismissed] = useState(false);
+  const [cocNotDoneOpen, setCocNotDoneOpen] = useState(false);
+  const [cocNotDoneDismissed, setCocNotDoneDismissed] = useState(false);
+  const [medNotFitOpen, setMedNotFitOpen] = useState(false);
+  const [medNotFitDismissed, setMedNotFitDismissed] = useState(false);
+  const [cocDoneMedNotFitOpen, setCocDoneMedNotFitOpen] = useState(false);
+  const [cocDoneMedNotFitDismissed, setCocDoneMedNotFitDismissed] = useState(false);
+  const [visaReturnedOpen, setVisaReturnedOpen] = useState(false);
+  const [visaReturnedDismissed, setVisaReturnedDismissed] = useState(false);
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["dashboard-candidates", user?.id],
@@ -115,6 +123,10 @@ function ManagerDashboard() {
   const tasheerDoneWokalaUnpaid = candidates.filter(
     (c) => c.status === "processing" && c.tasheer_status === "Done" && c.wokala_status === "Unpaid",
   );
+  const cocNotDone = candidates.filter((c) => c.coc_status === "Not Done");
+  const medNotFit = candidates.filter((c) => c.medical_status === "Not Fit");
+  const cocDoneMedNotFit = candidates.filter((c) => c.coc_status === "Done" && c.medical_status === "Not Fit");
+  const visaReturned = candidates.filter((c) => c.visa_status === "Returned");
   const recent = candidates.slice(0, 12);
 
   return (
@@ -182,6 +194,130 @@ function ManagerDashboard() {
               type="button"
               onClick={(e) => { e.stopPropagation(); setTasheerDismissed(true); }}
               className="p-1 rounded-none text-violet-400 hover:text-violet-700 hover:bg-violet-200 dark:hover:bg-violet-800 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* COC Not Done Banner */}
+      {cocNotDone.length > 0 && !cocNotDoneDismissed && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-none border border-yellow-300 bg-yellow-50 dark:bg-yellow-950/40 dark:border-yellow-700 px-4 py-3 cursor-pointer hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition-colors"
+          onClick={() => setCocNotDoneOpen(true)}
+        >
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">
+                COC Not Done — {cocNotDone.length} candidate{cocNotDone.length > 1 ? "s" : ""}
+              </p>
+              <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                Click to view candidates with COC status Not Done
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <ChevronRight className="h-4 w-4 text-yellow-500" />
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setCocNotDoneDismissed(true); }}
+              className="p-1 rounded-none text-yellow-400 hover:text-yellow-700 hover:bg-yellow-200 dark:hover:bg-yellow-800 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Medical Not Fit Banner */}
+      {medNotFit.length > 0 && !medNotFitDismissed && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-none border border-red-300 bg-red-50 dark:bg-red-950/40 dark:border-red-700 px-4 py-3 cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+          onClick={() => setMedNotFitOpen(true)}
+        >
+          <div className="flex items-center gap-3">
+            <Stethoscope className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-red-800 dark:text-red-200">
+                Medical Not Fit — {medNotFit.length} candidate{medNotFit.length > 1 ? "s" : ""}
+              </p>
+              <p className="text-xs text-red-600 dark:text-red-400">
+                Click to view candidates with Medical status Not Fit
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <ChevronRight className="h-4 w-4 text-red-500" />
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setMedNotFitDismissed(true); }}
+              className="p-1 rounded-none text-red-400 hover:text-red-700 hover:bg-red-200 dark:hover:bg-red-800 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* COC Done + Medical Not Fit Banner */}
+      {cocDoneMedNotFit.length > 0 && !cocDoneMedNotFitDismissed && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-none border border-rose-300 bg-rose-50 dark:bg-rose-950/40 dark:border-rose-700 px-4 py-3 cursor-pointer hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors"
+          onClick={() => setCocDoneMedNotFitOpen(true)}
+        >
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-400 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-rose-800 dark:text-rose-200">
+                COC Done — Medical Not Fit — {cocDoneMedNotFit.length} candidate{cocDoneMedNotFit.length > 1 ? "s" : ""}
+              </p>
+              <p className="text-xs text-rose-600 dark:text-rose-400">
+                Click to view candidates with COC Done but Medical Not Fit
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <ChevronRight className="h-4 w-4 text-rose-500" />
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setCocDoneMedNotFitDismissed(true); }}
+              className="p-1 rounded-none text-rose-400 hover:text-rose-700 hover:bg-rose-200 dark:hover:bg-rose-800 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Visa Returned Banner */}
+      {visaReturned.length > 0 && !visaReturnedDismissed && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-none border border-sky-300 bg-sky-50 dark:bg-sky-950/40 dark:border-sky-700 px-4 py-3 cursor-pointer hover:bg-sky-100 dark:hover:bg-sky-900/40 transition-colors"
+          onClick={() => setVisaReturnedOpen(true)}
+        >
+          <div className="flex items-center gap-3">
+            <RotateCcw className="h-5 w-5 text-sky-600 dark:text-sky-400 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-sky-800 dark:text-sky-200">
+                Visa Returned — {visaReturned.length} candidate{visaReturned.length > 1 ? "s" : ""}
+              </p>
+              <p className="text-xs text-sky-600 dark:text-sky-400">
+                Click to view candidates with Visa status Returned
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <ChevronRight className="h-4 w-4 text-sky-500" />
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setVisaReturnedDismissed(true); }}
+              className="p-1 rounded-none text-sky-400 hover:text-sky-700 hover:bg-sky-200 dark:hover:bg-sky-800 transition-colors"
               aria-label="Dismiss"
             >
               <X className="h-4 w-4" />
@@ -341,6 +477,177 @@ function ManagerDashboard() {
           <div className="pt-2 flex justify-end">
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
               <Link to="/manager/candidates" onClick={() => setTasheerOpen(false)}>
+                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* COC Not Done Dialog */}
+      <Dialog open={cocNotDoneOpen} onOpenChange={setCocNotDoneOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-yellow-700 dark:text-yellow-300">
+              <AlertTriangle className="h-5 w-5" />
+              COC Not Done ({cocNotDone.length})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto space-y-0 divide-y divide-border">
+            {cocNotDone.map((c) => (
+              <div key={c.id} className="flex items-center gap-3 py-3">
+                <Avatar className="h-9 w-9 shrink-0">
+                  {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                  <AvatarFallback className="text-[11px] rounded-none">
+                    {c.full_name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300">
+                    Not Done
+                  </span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="pt-2 flex justify-end">
+            <Button asChild size="sm" className="rounded-none text-xs gap-1">
+              <Link to="/manager/candidates" onClick={() => setCocNotDoneOpen(false)}>
+                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Medical Not Fit Dialog */}
+      <Dialog open={medNotFitOpen} onOpenChange={setMedNotFitOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700 dark:text-red-300">
+              <Stethoscope className="h-5 w-5" />
+              Medical Not Fit ({medNotFit.length})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto space-y-0 divide-y divide-border">
+            {medNotFit.map((c) => (
+              <div key={c.id} className="flex items-center gap-3 py-3">
+                <Avatar className="h-9 w-9 shrink-0">
+                  {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                  <AvatarFallback className="text-[11px] rounded-none">
+                    {c.full_name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">
+                    Not Fit
+                  </span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="pt-2 flex justify-end">
+            <Button asChild size="sm" className="rounded-none text-xs gap-1">
+              <Link to="/manager/candidates" onClick={() => setMedNotFitOpen(false)}>
+                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* COC Done + Medical Not Fit Dialog */}
+      <Dialog open={cocDoneMedNotFitOpen} onOpenChange={setCocDoneMedNotFitOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-700 dark:text-rose-300">
+              <AlertTriangle className="h-5 w-5" />
+              COC Done — Medical Not Fit ({cocDoneMedNotFit.length})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto space-y-0 divide-y divide-border">
+            {cocDoneMedNotFit.map((c) => (
+              <div key={c.id} className="flex items-center gap-3 py-3">
+                <Avatar className="h-9 w-9 shrink-0">
+                  {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                  <AvatarFallback className="text-[11px] rounded-none">
+                    {c.full_name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">
+                    Medical Not Fit
+                  </span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="pt-2 flex justify-end">
+            <Button asChild size="sm" className="rounded-none text-xs gap-1">
+              <Link to="/manager/candidates" onClick={() => setCocDoneMedNotFitOpen(false)}>
+                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Visa Returned Dialog */}
+      <Dialog open={visaReturnedOpen} onOpenChange={setVisaReturnedOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sky-700 dark:text-sky-300">
+              <RotateCcw className="h-5 w-5" />
+              Visa Returned ({visaReturned.length})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto space-y-0 divide-y divide-border">
+            {visaReturned.map((c) => (
+              <div key={c.id} className="flex items-center gap-3 py-3">
+                <Avatar className="h-9 w-9 shrink-0">
+                  {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                  <AvatarFallback className="text-[11px] rounded-none">
+                    {c.full_name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300">
+                    Returned
+                  </span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="pt-2 flex justify-end">
+            <Button asChild size="sm" className="rounded-none text-xs gap-1">
+              <Link to="/manager/candidates" onClick={() => setVisaReturnedOpen(false)}>
                 Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
               </Link>
             </Button>
