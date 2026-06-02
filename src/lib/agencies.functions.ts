@@ -26,21 +26,16 @@ export const createAgencyLogin = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await resolveManagerId(context.userId);
 
-    // Create auth user with email confirmed
+    // Create auth user — user_metadata.role is read by the on_auth_user_created
+    // trigger, which inserts the correct role into user_roles automatically.
     const { data: newUser, error: authErr } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
       password: data.password,
       email_confirm: true,
+      user_metadata: { role: "agency" },
     });
     if (authErr) throw new Error(authErr.message);
     const userId = newUser.user.id;
-
-    // Assign agency role
-    const { error: roleErr } = await supabaseAdmin.from("user_roles").insert({
-      user_id: userId,
-      role: "agency",
-    } as never);
-    if (roleErr) throw new Error(roleErr.message);
 
     // Set agency_name in profiles
     const { error: profErr } = await supabaseAdmin.from("profiles").upsert({
