@@ -74,7 +74,6 @@ const BULK_FIELD_DEFS = [
   { key: "medical_status",   label: "Medical",      processingOnly: false },
   { key: "musaned_status",   label: "Country",      processingOnly: false },
   { key: "office",           label: "Office",       processingOnly: false },
-  { key: "passport_status",  label: "Passport",     processingOnly: false },
   { key: "tasheer_status",   label: "Tasheer",      processingOnly: true },
   { key: "wokala_status",    label: "Wokala",       processingOnly: true },
   { key: "visa_status",      label: "Visa",         processingOnly: true },
