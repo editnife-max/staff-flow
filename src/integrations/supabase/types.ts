@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      assignment_countries: {
+        Row: {
+          created_at: string
+          flag: string
+          id: string
+          manager_id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          flag?: string
+          id?: string
+          manager_id: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          flag?: string
+          id?: string
+          manager_id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      assignment_offices: {
+        Row: {
+          country_id: string
+          created_at: string
+          id: string
+          manager_id: string
+          name: string
+        }
+        Insert: {
+          country_id: string
+          created_at?: string
+          id?: string
+          manager_id: string
+          name: string
+        }
+        Update: {
+          country_id?: string
+          created_at?: string
+          id?: string
+          manager_id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignment_offices_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "assignment_countries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidates: {
         Row: {
           age: number | null
@@ -23,7 +79,7 @@ export type Database = {
           birth_place: string | null
           candidate_code: string | null
           children: number | null
-          coc_status: string
+          coc_status: string | null
           contract_date: string | null
           country: string | null
           created_at: string
@@ -33,13 +89,14 @@ export type Database = {
           cv_sent_date: string | null
           cv_sent_to: string | null
           destination_country: string | null
-          deleted_at: string | null
           dob: string | null
           education: string | null
           embassy_date: string | null
           emergency_contact: string | null
           english_level: string | null
           experience: string | null
+          experience_country: string | null
+          experience_years: string | null
           first_name: string | null
           full_name: string
           full_photo_url: string | null
@@ -54,9 +111,9 @@ export type Database = {
           manager_id: string
           marital_status: string | null
           medical_date: string | null
-          medical_days: number | null
-          medical_status: string
-          musaned_status: string
+          medical_days: string | null
+          medical_status: string | null
+          musaned_status: string | null
           narrative: string | null
           narrative_phone: string | null
           notes: string | null
@@ -66,7 +123,7 @@ export type Database = {
           passport_issue_date: string | null
           passport_number: string | null
           passport_scan_url: string | null
-          passport_status: string
+          passport_status: string | null
           photo_url: string | null
           place_of_issue: string | null
           processing_notes: string | null
@@ -95,7 +152,7 @@ export type Database = {
           birth_place?: string | null
           candidate_code?: string | null
           children?: number | null
-          coc_status?: string
+          coc_status?: string | null
           contract_date?: string | null
           country?: string | null
           created_at?: string
@@ -104,7 +161,6 @@ export type Database = {
           cv_pdf_url?: string | null
           cv_sent_date?: string | null
           cv_sent_to?: string | null
-          deleted_at?: string | null
           destination_country?: string | null
           dob?: string | null
           education?: string | null
@@ -112,6 +168,8 @@ export type Database = {
           emergency_contact?: string | null
           english_level?: string | null
           experience?: string | null
+          experience_country?: string | null
+          experience_years?: string | null
           first_name?: string | null
           full_name: string
           full_photo_url?: string | null
@@ -126,9 +184,9 @@ export type Database = {
           manager_id: string
           marital_status?: string | null
           medical_date?: string | null
-          medical_days?: number | null
-          medical_status?: string
-          musaned_status?: string
+          medical_days?: string | null
+          medical_status?: string | null
+          musaned_status?: string | null
           narrative?: string | null
           narrative_phone?: string | null
           notes?: string | null
@@ -138,7 +196,7 @@ export type Database = {
           passport_issue_date?: string | null
           passport_number?: string | null
           passport_scan_url?: string | null
-          passport_status?: string
+          passport_status?: string | null
           photo_url?: string | null
           place_of_issue?: string | null
           processing_notes?: string | null
@@ -161,11 +219,13 @@ export type Database = {
         }
         Update: {
           age?: number | null
+          arabic_level?: string | null
           arrival_city?: string | null
           assigned_staff_id?: string | null
           birth_place?: string | null
           candidate_code?: string | null
-          coc_status?: string
+          children?: number | null
+          coc_status?: string | null
           contract_date?: string | null
           country?: string | null
           created_at?: string
@@ -174,39 +234,51 @@ export type Database = {
           cv_pdf_url?: string | null
           cv_sent_date?: string | null
           cv_sent_to?: string | null
-          deleted_at?: string | null
           destination_country?: string | null
           dob?: string | null
           education?: string | null
           embassy_date?: string | null
           emergency_contact?: string | null
+          english_level?: string | null
           experience?: string | null
+          experience_country?: string | null
+          experience_years?: string | null
+          first_name?: string | null
           full_name?: string
+          full_photo_url?: string | null
           gender?: string | null
+          height?: number | null
           id?: string
           insurance_status?: string | null
           labour_id?: string | null
+          last_name?: string | null
           living_town?: string | null
           lmis_status?: string | null
           manager_id?: string
           marital_status?: string | null
           medical_date?: string | null
-          medical_days?: number | null
-          medical_status?: string
-          musaned_status?: string
+          medical_days?: string | null
+          medical_status?: string | null
+          musaned_status?: string | null
           narrative?: string | null
           narrative_phone?: string | null
           notes?: string | null
           occupation?: string | null
           office?: string | null
+          passport_expiry_date?: string | null
+          passport_issue_date?: string | null
           passport_number?: string | null
-          passport_status?: string
+          passport_scan_url?: string | null
+          passport_status?: string | null
           photo_url?: string | null
+          place_of_issue?: string | null
           processing_notes?: string | null
           religion?: string | null
+          remark?: string | null
           selected_by?: string | null
           serial_number?: string | null
           skills?: string | null
+          spoken_languages?: string | null
           status?: string
           tasheer_date?: string | null
           tasheer_status?: string | null
@@ -215,6 +287,7 @@ export type Database = {
           unfilled_lmis?: string | null
           updated_at?: string
           visa_status?: string | null
+          weight?: number | null
           wokala_status?: string | null
         }
         Relationships: [
@@ -229,83 +302,27 @@ export type Database = {
       }
       cv_templates: {
         Row: {
+          created_at: string
+          file_url: string
           id: string
           manager_id: string
           name: string
-          file_url: string
-          created_at: string
         }
         Insert: {
+          created_at?: string
+          file_url: string
           id?: string
           manager_id: string
           name: string
-          file_url: string
-          created_at?: string
         }
         Update: {
-          id?: string
-          manager_id?: string
-          name?: string
+          created_at?: string
           file_url?: string
-          created_at?: string
-        }
-        Relationships: []
-      }
-      assignment_countries: {
-        Row: {
-          id: string
-          manager_id: string
-          name: string
-          flag: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          manager_id: string
-          name: string
-          flag?: string
-          created_at?: string
-        }
-        Update: {
           id?: string
           manager_id?: string
           name?: string
-          flag?: string
-          created_at?: string
         }
         Relationships: []
-      }
-      assignment_offices: {
-        Row: {
-          id: string
-          manager_id: string
-          country_id: string
-          name: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          manager_id: string
-          country_id: string
-          name: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          manager_id?: string
-          country_id?: string
-          name?: string
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "assignment_offices_country_id_fkey"
-            columns: ["country_id"]
-            isOneToOne: false
-            referencedRelation: "assignment_countries"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       foreign_agencies: {
         Row: {
@@ -316,6 +333,7 @@ export type Database = {
           id: string
           manager_id: string
           name: string
+          portal_user_id: string | null
           status: string
           updated_at: string
         }
@@ -327,6 +345,7 @@ export type Database = {
           id?: string
           manager_id: string
           name: string
+          portal_user_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -338,13 +357,129 @@ export type Database = {
           id?: string
           manager_id?: string
           name?: string
+          portal_user_id?: string | null
           status?: string
           updated_at?: string
         }
         Relationships: []
       }
+      invoices: {
+        Row: {
+          agency_user_id: string | null
+          candidate_ids: string[] | null
+          created_at: string | null
+          date_from: string | null
+          date_to: string | null
+          from_address: string | null
+          from_company: string | null
+          from_email: string | null
+          from_phone: string | null
+          id: string
+          invoice_number: string
+          manager_user_id: string | null
+          office_name: string | null
+          other_expenses: number | null
+          payment_account: string | null
+          payment_branch: string | null
+          payment_name: string | null
+          recru_fee: number | null
+          status: string
+          subtotal: number | null
+          total: number | null
+        }
+        Insert: {
+          agency_user_id?: string | null
+          candidate_ids?: string[] | null
+          created_at?: string | null
+          date_from?: string | null
+          date_to?: string | null
+          from_address?: string | null
+          from_company?: string | null
+          from_email?: string | null
+          from_phone?: string | null
+          id?: string
+          invoice_number: string
+          manager_user_id?: string | null
+          office_name?: string | null
+          other_expenses?: number | null
+          payment_account?: string | null
+          payment_branch?: string | null
+          payment_name?: string | null
+          recru_fee?: number | null
+          status?: string
+          subtotal?: number | null
+          total?: number | null
+        }
+        Update: {
+          agency_user_id?: string | null
+          candidate_ids?: string[] | null
+          created_at?: string | null
+          date_from?: string | null
+          date_to?: string | null
+          from_address?: string | null
+          from_company?: string | null
+          from_email?: string | null
+          from_phone?: string | null
+          id?: string
+          invoice_number?: string
+          manager_user_id?: string | null
+          office_name?: string | null
+          other_expenses?: number | null
+          payment_account?: string | null
+          payment_branch?: string | null
+          payment_name?: string | null
+          recru_fee?: number | null
+          status?: string
+          subtotal?: number | null
+          total?: number | null
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          candidate_ids: string[] | null
+          created_at: string
+          id: string
+          read: boolean
+          recipient_id: string
+          reference_id: string | null
+          sender_id: string | null
+          status: string
+          title: string
+          type: string
+        }
+        Insert: {
+          body?: string | null
+          candidate_ids?: string[] | null
+          created_at?: string
+          id?: string
+          read?: boolean
+          recipient_id: string
+          reference_id?: string | null
+          sender_id?: string | null
+          status?: string
+          title: string
+          type?: string
+        }
+        Update: {
+          body?: string | null
+          candidate_ids?: string[] | null
+          created_at?: string
+          id?: string
+          read?: boolean
+          recipient_id?: string
+          reference_id?: string | null
+          sender_id?: string | null
+          status?: string
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          agency_name: string | null
           avatar_url: string | null
           created_at: string
           full_name: string | null
@@ -352,6 +487,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agency_name?: string | null
           avatar_url?: string | null
           created_at?: string
           full_name?: string | null
@@ -359,6 +495,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agency_name?: string | null
           avatar_url?: string | null
           created_at?: string
           full_name?: string | null
@@ -465,6 +602,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_agency_name: { Args: { user_id: string }; Returns: string }
       get_manager_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -473,8 +611,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       app_role: "admin" | "manager" | "staff" | "agency"

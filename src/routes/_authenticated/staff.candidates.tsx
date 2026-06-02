@@ -249,6 +249,8 @@ const initialForm = {
   arabic_level: "",
   // Experience & physical
   experience: "",
+  experience_country: "",
+  experience_years: "",
   weight: "" as string | number,
   height: "" as string | number,
   // Status
@@ -770,6 +772,8 @@ function StaffCandidatesPage() {
       english_level: c.english_level ?? "",
       arabic_level: c.arabic_level ?? "",
       experience: c.experience ?? "",
+      experience_country: c.experience_country ?? "",
+      experience_years: c.experience_years ?? "",
       weight: c.weight ?? "",
       height: c.height ?? "",
       passport_status: c.passport_status ?? "",
@@ -1202,8 +1206,14 @@ function StaffCandidatesPage() {
                 <FormSelect label="Spoken Languages" value={form.spoken_languages} onChange={(v) => setForm({ ...form, spoken_languages: v })} options={["Poor", "Little", "Fair", "Good"]} />
                 <FormSelect label="English Level" value={form.english_level} onChange={(v) => setForm({ ...form, english_level: v })} options={["Poor", "Little", "Fair", "Good"]} />
                 <FormSelect label="Arabic Level" value={form.arabic_level} onChange={(v) => setForm({ ...form, arabic_level: v })} options={["Poor", "Little", "Fair", "Good"]} />
-                <FormSelect label="Work Experience" value={form.experience} onChange={(v) => setForm({ ...form, experience: v })} options={["Yes", "No", "None"]} />
+                <FormSelect label="Work Experience" value={form.experience} onChange={(v) => setForm({ ...form, experience: v, experience_country: v !== "Yes" ? "" : form.experience_country, experience_years: v !== "Yes" ? "" : form.experience_years })} options={["Yes", "No", "None"]} />
               </div>
+              {form.experience === "Yes" && (
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <Field label="Experience Country" value={form.experience_country} onChange={(v) => setForm({ ...form, experience_country: v })} />
+                  <Field label="Years of Experience" value={form.experience_years} onChange={(v) => setForm({ ...form, experience_years: v })} />
+                </div>
+              )}
             </FormSection>
 
             {/* Physical */}

@@ -31,6 +31,8 @@ const CandidateInput = z.object({
   english_level: z.string().max(40).optional().nullable(),
   arabic_level: z.string().max(40).optional().nullable(),
   experience: z.string().max(120).optional().nullable(),
+  experience_country: z.string().max(120).optional().nullable(),
+  experience_years: z.string().max(40).optional().nullable(),
   weight: z.number().optional().nullable(),
   height: z.number().optional().nullable(),
   passport_status: z.string().max(80).optional().nullable(),

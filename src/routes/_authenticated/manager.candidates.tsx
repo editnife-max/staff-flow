@@ -225,6 +225,8 @@ const initialForm = {
   english_level: "",
   arabic_level: "",
   experience: "",
+  experience_country: "",
+  experience_years: "",
   weight: "" as string | number,
   height: "" as string | number,
   passport_status: "",
@@ -747,6 +749,8 @@ function ManagerCandidatesPage() {
       english_level: c.english_level ?? "",
       arabic_level: c.arabic_level ?? "",
       experience: c.experience ?? "",
+      experience_country: c.experience_country ?? "",
+      experience_years: c.experience_years ?? "",
       weight: c.weight ?? "",
       height: c.height ?? "",
       passport_status: c.passport_status ?? "",
@@ -1160,8 +1164,14 @@ function ManagerCandidatesPage() {
                 <FormSelect label="Spoken Languages" value={form.spoken_languages} onChange={(v) => setForm({ ...form, spoken_languages: v })} options={["Poor", "Little", "Fair", "Good"]} />
                 <FormSelect label="English Level" value={form.english_level} onChange={(v) => setForm({ ...form, english_level: v })} options={["Poor", "Little", "Fair", "Good"]} />
                 <FormSelect label="Arabic Level" value={form.arabic_level} onChange={(v) => setForm({ ...form, arabic_level: v })} options={["Poor", "Little", "Fair", "Good"]} />
-                <FormSelect label="Work Experience" value={form.experience} onChange={(v) => setForm({ ...form, experience: v })} options={["Yes", "No", "None"]} />
+                <FormSelect label="Work Experience" value={form.experience} onChange={(v) => setForm({ ...form, experience: v, experience_country: v !== "Yes" ? "" : form.experience_country, experience_years: v !== "Yes" ? "" : form.experience_years })} options={["Yes", "No", "None"]} />
               </div>
+              {form.experience === "Yes" && (
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <FormInput label="Experience Country" value={form.experience_country} onChange={(v) => setForm({ ...form, experience_country: v })} placeholder="e.g. Saudi Arabia" />
+                  <FormInput label="Years of Experience" value={form.experience_years} onChange={(v) => setForm({ ...form, experience_years: v })} placeholder="e.g. 3" />
+                </div>
+              )}
             </FormSection>
 
             <FormSection title="Physical">
@@ -2611,6 +2621,21 @@ function FormSelect({ label, value, onChange, options }: { label: string; value:
           {options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
         </SelectContent>
       </Select>
+    </div>
+  );
+}
+
+function FormInput({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-none border border-input bg-background px-3 h-9 text-sm outline-none focus:ring-1 focus:ring-ring"
+      />
     </div>
   );
 }
