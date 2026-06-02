@@ -1435,6 +1435,15 @@ function CandidateCardList({
             />
             Select all ({filtered.length})
           </label>
+          <div className="flex items-center gap-1">
+            {hiddenCols.size > 0 && (
+              <Button
+                size="sm" variant="ghost" className="h-7 gap-1 text-xs text-muted-foreground"
+                onClick={() => setHiddenCols(new Set())}
+              >
+                <RotateCcw className="h-3 w-3" /> Reset columns
+              </Button>
+            )}
           <div className="relative">
             <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs"
               onClick={() => setShowColPicker((v) => !v)}>
@@ -1471,6 +1480,7 @@ function CandidateCardList({
                 </div>
               </div>
             )}
+          </div>
           </div>
         </div>
       )}
