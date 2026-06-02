@@ -1612,7 +1612,7 @@ function CandidateCard({
 
   return (
     <>
-    <Card className={cn("relative overflow-visible transition-colors rounded-none mx-[5px]", selected && "ring-2 ring-primary")}>
+    <Card className={cn("group relative overflow-visible transition-colors rounded-none mx-[5px]", selected && "ring-2 ring-primary")}>
       <span className={cn(
         "absolute -top-2 left-3 rounded-none px-1.5 py-0.5 font-semibold tracking-wide",
         statusKey === "available" ? "text-[10px]" : "text-[16px]",
@@ -1629,7 +1629,7 @@ function CandidateCard({
               <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
           </button>
-          <div className="overflow-x-auto no-scrollbar">
+          <div className="overflow-x-auto scroll-on-card-hover">
             <div className="flex gap-5 items-start">
               {visibleFields.map((f) => (
                 <div key={f.label} className="shrink-0">
@@ -2164,7 +2164,7 @@ function ProcessingCard({
 
   return (
     <>
-    <Card className={cn("relative overflow-visible transition-colors rounded-none mx-[5px]", selected && "ring-2 ring-primary")}>
+    <Card className={cn("group relative overflow-visible transition-colors rounded-none mx-[5px]", selected && "ring-2 ring-primary")}>
       <span className="absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[9px] font-semibold tracking-wide bg-warning text-foreground">
         PROCESSING
       </span>
@@ -2177,7 +2177,7 @@ function ProcessingCard({
               <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
           </button>
-          <div className="overflow-x-auto no-scrollbar">
+          <div className="overflow-x-auto scroll-on-card-hover">
             <div className="flex gap-5 items-start">
               <div className="shrink-0">
                 <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">Full Name</div>

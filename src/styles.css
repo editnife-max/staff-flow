@@ -186,3 +186,19 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+@utility scroll-on-card-hover {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar { height: 0; }
+  .group:hover & {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+  .group:hover &::-webkit-scrollbar { height: 3px; }
+  .group:hover &::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+    border-radius: 9999px;
+  }
+  .group:hover &::-webkit-scrollbar-track { background: transparent; }
+}

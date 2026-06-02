@@ -379,7 +379,7 @@ function AgencyCandidateCard({
 
   return (
     <Card className={cn(
-      "relative overflow-visible transition-colors rounded-none mx-[5px]",
+      "group relative overflow-visible transition-colors rounded-none mx-[5px]",
       selected && "ring-2 ring-primary",
     )}>
       <span className={cn(
@@ -399,7 +399,7 @@ function AgencyCandidateCard({
               <AvatarFallback className="text-[10px]">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
           </div>
-          <div className="overflow-x-auto no-scrollbar">
+          <div className="overflow-x-auto scroll-on-card-hover">
             <div className="flex gap-5 items-start pt-[10px] pb-[10px] pr-[12px]">
               {fields.map(([label, val]) =>
                 val != null ? (

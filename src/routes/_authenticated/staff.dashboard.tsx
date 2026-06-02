@@ -293,7 +293,7 @@ function DashboardCandidateCard({
   ];
 
   return (
-    <Card className={cn("relative overflow-visible rounded-none mx-[5px]")}>
+    <Card className={cn("group relative overflow-visible rounded-none mx-[5px]")}>
       <span className={cn(
         "absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[10px] font-semibold tracking-wide",
         statusStyles[statusKey],
@@ -311,7 +311,7 @@ function DashboardCandidateCard({
             {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
             <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
-          <div className="overflow-x-auto no-scrollbar">
+          <div className="overflow-x-auto scroll-on-card-hover">
             <div className="flex gap-5 items-start py-3">
               {fields.map((f) => (
                 <div key={f.label} className="shrink-0">
