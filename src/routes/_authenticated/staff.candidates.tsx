@@ -910,7 +910,7 @@ function StaffCandidatesPage() {
             {TABS.map((t) => (
               <button
                 key={t.key}
-                onClick={() => setTab(t.key)}
+                onClick={() => { setTab(t.key); clearSelection(); }}
                 className={cn(
                   "pb-2 text-[16px] font-medium transition-colors",
                   tab === t.key
