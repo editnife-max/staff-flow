@@ -515,7 +515,6 @@ function StaffDashboard() {
               <div className="min-w-0">
                 <div className="flex items-baseline gap-1">
                   <span className={cn("text-lg font-bold leading-tight", s.value_color)}>{count}</span>
-                  <span className="text-[10px] text-muted-foreground">{pct}%</span>
                 </div>
                 <p className="text-[11px] text-foreground/70 font-medium truncate">{s.label}</p>
               </div>
