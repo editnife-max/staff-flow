@@ -390,17 +390,13 @@ function AgencyCandidateCard({
       </span>
       <CardContent className="p-0">
         <div className="grid grid-cols-[20px_40px_1fr] gap-3 items-center">
-          <div className="flex items-center justify-center pl-3">
-            <Checkbox checked={selected} onCheckedChange={onToggle} aria-label="Select candidate" />
-          </div>
-          <div className="flex items-center justify-center">
-            <Avatar className="h-10 w-10">
-              {c.photo_url && <AvatarImage src={c.photo_url} alt={c.full_name} />}
-              <AvatarFallback className="text-[10px]">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-            </Avatar>
-          </div>
-          <div className="overflow-x-auto scroll-on-card-hover">
-            <div className="flex gap-5 items-start pt-[10px] pb-[10px] pr-[12px]">
+          <Checkbox checked={selected} onCheckedChange={onToggle} aria-label="Select candidate" />
+          <Avatar className="h-10 w-10">
+            {c.photo_url && <AvatarImage src={c.photo_url} alt={c.full_name} />}
+            <AvatarFallback className="text-[10px]">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <div className="overflow-x-auto scroll-on-card-hover py-[30px]">
+            <div className="flex gap-5 items-start">
               {fields.map(([label, val]) =>
                 val != null ? (
                   <div key={label} className="shrink-0">
