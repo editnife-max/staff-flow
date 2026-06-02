@@ -86,6 +86,8 @@ function ManagerDashboard() {
   const { user } = useAuth();
   const [medOpen, setMedOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [tasheerOpen, setTasheerOpen] = useState(false);
+  const [tasheerDismissed, setTasheerDismissed] = useState(false);
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["dashboard-candidates", user?.id],
@@ -110,6 +112,9 @@ function ManagerDashboard() {
   const total = candidates.length;
 
   const medExpired = candidates.filter((c) => c.medical_status === "Expired");
+  const tasheerDoneWokalaUnpaid = candidates.filter(
+    (c) => c.tasheer_status === "Done" && c.wokala_status === "Unpaid",
+  );
   const recent = candidates.slice(0, 12);
 
   return (
@@ -146,6 +151,37 @@ function ManagerDashboard() {
               type="button"
               onClick={(e) => { e.stopPropagation(); setDismissed(true); }}
               className="p-1 rounded-none text-orange-400 hover:text-orange-700 hover:bg-orange-200 dark:hover:bg-orange-800 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Tasheer Done + Wokala Unpaid Banner */}
+      {tasheerDoneWokalaUnpaid.length > 0 && !tasheerDismissed && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-none border border-violet-300 bg-violet-50 dark:bg-violet-950/40 dark:border-violet-700 px-4 py-3 cursor-pointer hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-colors"
+          onClick={() => setTasheerOpen(true)}
+        >
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-violet-600 dark:text-violet-400 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">
+                Tasheer Done but Wokala Unpaid — {tasheerDoneWokalaUnpaid.length} candidate{tasheerDoneWokalaUnpaid.length > 1 ? "s" : ""}
+              </p>
+              <p className="text-xs text-violet-600 dark:text-violet-400">
+                Click to view candidates with Tasheer Done but Wokala not yet paid
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <ChevronRight className="h-4 w-4 text-violet-500" />
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setTasheerDismissed(true); }}
+              className="p-1 rounded-none text-violet-400 hover:text-violet-700 hover:bg-violet-200 dark:hover:bg-violet-800 transition-colors"
               aria-label="Dismiss"
             >
               <X className="h-4 w-4" />
@@ -262,6 +298,49 @@ function ManagerDashboard() {
           <div className="pt-2 flex justify-end">
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
               <Link to="/manager/candidates" onClick={() => setMedOpen(false)}>
+                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tasheer Done + Wokala Unpaid Dialog */}
+      <Dialog open={tasheerOpen} onOpenChange={setTasheerOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-violet-700 dark:text-violet-300">
+              <AlertTriangle className="h-5 w-5" />
+              Tasheer Done — Wokala Unpaid ({tasheerDoneWokalaUnpaid.length})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto space-y-0 divide-y divide-border">
+            {tasheerDoneWokalaUnpaid.map((c) => (
+              <div key={c.id} className="flex items-center gap-3 py-3">
+                <Avatar className="h-9 w-9 shrink-0">
+                  {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                  <AvatarFallback className="text-[11px] rounded-none">
+                    {c.full_name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
+                    Wokala Unpaid
+                  </span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="pt-2 flex justify-end">
+            <Button asChild size="sm" className="rounded-none text-xs gap-1">
+              <Link to="/manager/candidates" onClick={() => setTasheerOpen(false)}>
                 Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
               </Link>
             </Button>
