@@ -359,7 +359,7 @@ function CvCandidateCard({
             <AvatarFallback className="text-[10px]">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
 
-          <div className="overflow-x-auto scroll-on-card-hover">
+          <div className="overflow-x-auto scroll-on-card-hover py-[30px]">
             <div className="flex gap-5 items-start">
               {fields.map((f) => (
                 <div key={f.label} className="shrink-0">
