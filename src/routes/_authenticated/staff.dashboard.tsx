@@ -476,7 +476,7 @@ function StaffDashboard() {
     (c) => c.status === "processing" && c.tasheer_status === "Done" && c.visa_status !== "Ready for embassy" && c.processing_notes,
   );
 
-  const visaReady = candidates.filter((c) => c.status === "processing" && c.visa_status === "Ready for embassy");
+  const visaReady = candidates.filter((c) => c.status === "processing" && c.tasheer_status === "Done" && c.wokala_status === "Paid");
 
   const visaReturned = candidates.filter((c) => c.status === "processing" && c.visa_status === "Returned");
   const tasheerDoneWokalaUnpaid = candidates.filter(
