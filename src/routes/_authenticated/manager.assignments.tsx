@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot } from "lucide-react";
+import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -50,6 +50,41 @@ function AssignmentsPage() {
   const delOfficeFn    = useServerFn(deleteOffice);
   const addTemplateFn  = useServerFn(addCvTemplate);
   const delTemplateFn  = useServerFn(deleteCvTemplate);
+
+  // ── CV requirement days ──────────────────────────────────────────────────────
+  const [cvDaysEdit,  setCvDaysEdit]  = useState(false);
+  const [cvDaysDraft, setCvDaysDraft] = useState("");
+
+  const { data: profile } = useQuery({
+    queryKey: ["manager-profile", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("cv_days_threshold")
+        .eq("id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const cvDaysThreshold = profile?.cv_days_threshold ?? 7;
+
+  const updateThreshold = useMutation({
+    mutationFn: async (days: number) => {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ cv_days_threshold: days })
+        .eq("id", user!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["manager-profile", user?.id] });
+      setCvDaysEdit(false);
+      toast.success("CV requirement days updated");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   // ── selected country for office panel ──────────────────────────────────────
   const [activeCountryId, setActiveCountryId] = useState<string | null>(null);
@@ -431,6 +466,43 @@ function AssignmentsPage() {
             <span className="ml-auto text-[10px] text-muted-foreground">applied on CV page load</span>
           </div>
           <div className="p-2 space-y-1.5">
+            {/* CV Requirement Days */}
+            <div className="flex items-center gap-1.5 px-2 py-1 border border-teal-200 bg-teal-50/40 dark:border-teal-800/40 dark:bg-teal-900/10">
+              <Clock className="h-2.5 w-2.5 text-teal-600 dark:text-teal-400 shrink-0" />
+              <span className="text-[11px] text-muted-foreground w-[4.5rem] shrink-0 truncate">Resend after</span>
+              {cvDaysEdit ? (
+                <div className="flex items-center gap-1 flex-1">
+                  <input
+                    autoFocus type="number" min={1} value={cvDaysDraft}
+                    onChange={(e) => setCvDaysDraft(e.target.value)}
+                    className="w-12 border border-input rounded-none px-1 h-6 text-[11px]"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") { const n = parseInt(cvDaysDraft); if (!isNaN(n) && n > 0) updateThreshold.mutate(n); }
+                      if (e.key === "Escape") setCvDaysEdit(false);
+                    }}
+                  />
+                  <span className="text-[10px] text-muted-foreground">days</span>
+                  <Button size="sm" className="h-5 rounded-none px-1.5 text-[10px]"
+                    disabled={updateThreshold.isPending}
+                    onClick={() => { const n = parseInt(cvDaysDraft); if (!isNaN(n) && n > 0) updateThreshold.mutate(n); }}>
+                    {updateThreshold.isPending ? "…" : "Save"}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-5 rounded-none px-1 text-[10px]"
+                    onClick={() => setCvDaysEdit(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 flex-1">
+                  <span className="text-[13px] font-bold text-teal-700 dark:text-teal-300">{cvDaysThreshold}</span>
+                  <span className="text-[10px] text-muted-foreground">days</span>
+                  <button type="button" className="ml-auto text-[10px] text-primary hover:underline"
+                    onClick={() => { setCvDaysDraft(String(cvDaysThreshold)); setCvDaysEdit(true); }}>
+                    Edit
+                  </button>
+                </div>
+              )}
+            </div>
             {/* Status — locked */}
             <div className="flex items-center gap-1.5 px-2 py-0.5 border border-emerald-200 bg-emerald-50/40 dark:border-emerald-800/40 dark:bg-emerald-900/10">
               <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
