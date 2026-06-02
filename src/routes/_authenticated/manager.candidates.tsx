@@ -243,11 +243,11 @@ const initialFilters = {
   marital: "all",
   gender: "all",
   religion: "all",
-  medical: "all",
+  medical: [] as string[],
   narrative: "all",
   experience: "all",
-  coc: "all",
-  musaned: "all",
+  coc: [] as string[],
+  musaned: [] as string[],
   cv_sent_to: "all",
   selected_by: "all",
   availability: "all",
@@ -368,7 +368,7 @@ function ManagerCandidatesPage() {
   const [showFilters, setShowFilters] = useState(true);
   const [filters, setFilters] = useState(initialFilters);
   const activeCount = Object.entries(filters).filter(([k, v]) =>
-    k !== "sort" && v && v !== "all"
+    k !== "sort" && (Array.isArray(v) ? v.length > 0 : v && v !== "all")
   ).length;
   useEffect(() => { setFilters(initialFilters); setPassport(""); }, [tab]);
 
@@ -512,11 +512,11 @@ function ManagerCandidatesPage() {
     if (filters.marital !== "all") list = list.filter((c) => c.marital_status === filters.marital);
     if (filters.gender !== "all") list = list.filter((c) => c.gender === filters.gender);
     if (filters.religion !== "all") list = list.filter((c) => c.religion === filters.religion);
-    if (filters.medical !== "all") list = list.filter((c) => c.medical_status === filters.medical);
+    if (filters.medical.length > 0) list = list.filter((c) => filters.medical.includes(c.medical_status ?? ""));
     if (filters.narrative !== "all") list = list.filter((c) => c.narrative === filters.narrative);
     if (filters.experience !== "all") list = list.filter((c) => c.experience === filters.experience);
-    if (filters.coc !== "all") list = list.filter((c) => c.coc_status === filters.coc);
-    if (filters.musaned !== "all") list = list.filter((c) => c.musaned_status === filters.musaned);
+    if (filters.coc.length > 0) list = list.filter((c) => filters.coc.includes(c.coc_status ?? ""));
+    if (filters.musaned.length > 0) list = list.filter((c) => filters.musaned.includes(c.musaned_status ?? ""));
     if (filters.cv_sent_to !== "all") list = list.filter((c) => c.cv_sent_to === filters.cv_sent_to);
     if (filters.selected_by !== "all") list = list.filter((c) => c.selected_by === filters.selected_by);
     if (filters.availability !== "all") list = list.filter((c) => c.status === filters.availability);
@@ -617,7 +617,10 @@ function ManagerCandidatesPage() {
       toast.success(`Updated ${r.count} candidate(s)`);
       qc.invalidateQueries({ queryKey: ["manager-candidates"] });
       const fk = BULK_FIELD_TO_FILTER[field];
-      if (fk && tab !== "available") setFilters((prev) => ({ ...prev, [fk]: value }));
+      if (fk && tab !== "available") {
+        const isMulti = ["medical", "coc", "musaned"].includes(fk);
+        setFilters((prev) => ({ ...prev, [fk]: isMulti ? [value] : value }));
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -829,21 +832,21 @@ function ManagerCandidatesPage() {
                   <FilterSelect placeholder="Religion" value={filters.religion} icon={BookOpen}
                     onChange={(v) => setFilters({ ...filters, religion: v })}
                     options={[{ value: "all", label: "-----" }, { value: "Muslim", label: "Muslim" }, { value: "Non-muslim", label: "Non-muslim" }]} />
-                  <FilterSelect placeholder="Medical" value={filters.medical} icon={Stethoscope}
+                  <MultiFilterSelect placeholder="Medical" values={filters.medical} icon={Stethoscope}
                     onChange={(v) => setFilters({ ...filters, medical: v })}
-                    options={[{ value: "all", label: "-----" }, ...MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+                    options={MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))} />
                   <FilterSelect placeholder="Narrative" value={filters.narrative} icon={FileText}
                     onChange={(v) => setFilters({ ...filters, narrative: v })}
                     options={[{ value: "all", label: "-----" }, ...opts.narrative.map((o) => ({ value: o, label: o }))]} />
                   <FilterSelect placeholder="Experience" value={filters.experience} icon={Briefcase}
                     onChange={(v) => setFilters({ ...filters, experience: v })}
                     options={[{ value: "all", label: "-----" }, { value: "Yes", label: "Yes" }, { value: "No", label: "No" }, { value: "None", label: "None" }]} />
-                  <FilterSelect placeholder="COC" value={filters.coc} icon={FileCheck}
+                  <MultiFilterSelect placeholder="COC" values={filters.coc} icon={FileCheck}
                     onChange={(v) => setFilters({ ...filters, coc: v })}
-                    options={[{ value: "all", label: "-----" }, ...["Done","No","Booked","Placed","Yitazez","Pending Release"].map((o) => ({ value: o, label: o }))]} />
-                  <FilterSelect placeholder="Country" value={filters.musaned} icon={Globe}
+                    options={["Done","No","Booked","Placed","Yitazez","Pending Release"].map((o) => ({ value: o, label: o }))} />
+                  <MultiFilterSelect placeholder="Country" values={filters.musaned} icon={Globe}
                     onChange={(v) => setFilters({ ...filters, musaned: v })}
-                    options={[{ value: "all", label: "-----" }, ...assignCountries.map((c) => ({ value: c.name, label: c.name }))]} />
+                    options={assignCountries.map((c) => ({ value: c.name, label: c.name }))} />
                   <FilterSelect placeholder="Selected By" value={filters.selected_by} icon={ClipboardPaste}
                     onChange={(v) => setFilters({ ...filters, selected_by: v })}
                     options={[{ value: "all", label: "-----" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />
@@ -1123,7 +1126,7 @@ function ManagerCandidatesPage() {
                 <Field label="Living Town" value={form.living_town} onChange={(v) => setForm({ ...form, living_town: v })} />
                 <FormSelect label="Marital Status" value={form.marital_status} onChange={(v) => setForm({ ...form, marital_status: v })} options={["Single", "Married", "Divorced", "Widowed"]} />
                 <Field label="Children" type="number" value={String(form.children)} onChange={(v) => setForm({ ...form, children: v })} />
-                <Field label="Education" value={form.education} onChange={(v) => setForm({ ...form, education: v })} />
+                <FormSelect label="Education" value={form.education} onChange={(v) => setForm({ ...form, education: v })} options={["Illiterate", "Primary", "Secondary", "High School", "Diploma", "Degree", "Master's", "PhD"]} />
               </div>
             </FormSection>
 
@@ -1666,7 +1669,7 @@ function CandidateCard({
 
 const INITIAL_PROC_FILTERS = {
   narrative: "all",
-  medical_status: "all", coc_status: "all", tasheer_status: "all",
+  medical_status: [] as string[], coc_status: [] as string[], tasheer_status: "all",
   wokala_status: "all", visa_status: "all", insurance_status: "all",
   unfilled_lmis: "all", lmis_status: "all", ticket_status: "all",
   arrival_city: "all",
@@ -1707,7 +1710,7 @@ function ProcessingTable({
     ];
   }, [countryMeta]);
 
-  const activeCount = Object.values(procFilters).filter((v) => v !== "all").length;
+  const activeCount = Object.values(procFilters).filter((v) => Array.isArray(v) ? v.length > 0 : v !== "all").length;
 
   const narrativeOpts = useMemo(() =>
     Array.from(new Set(candidates.map((c) => (c.narrative as string | null) ?? "").filter(Boolean))).sort(),
@@ -1726,8 +1729,8 @@ function ProcessingTable({
       );
     }
     if (f.narrative       !== "all")   list = list.filter((c) => c.narrative        === f.narrative);
-    if (f.medical_status !== "all")   list = list.filter((c) => c.medical_status   === f.medical_status);
-    if (f.coc_status     !== "all")   list = list.filter((c) => c.coc_status       === f.coc_status);
+    if (f.medical_status.length > 0)  list = list.filter((c) => f.medical_status.includes(c.medical_status ?? ""));
+    if (f.coc_status.length > 0)      list = list.filter((c) => f.coc_status.includes(c.coc_status ?? ""));
     if (f.tasheer_status !== "all")   list = list.filter((c) => c.tasheer_status   === f.tasheer_status);
     if (f.wokala_status  !== "all")   list = list.filter((c) => c.wokala_status    === f.wokala_status);
     if (f.visa_status    !== "all")   list = list.filter((c) => c.visa_status      === f.visa_status);
@@ -1804,6 +1807,8 @@ function ProcessingTable({
 
   const set = (key: keyof typeof INITIAL_PROC_FILTERS) => (v: string) =>
     setProcFilters((p) => ({ ...p, [key]: v }));
+  const setMulti = (key: "medical_status" | "coc_status") => (v: string[]) =>
+    setProcFilters((p) => ({ ...p, [key]: v }));
 
   return (
     <div className="space-y-2">
@@ -1854,8 +1859,8 @@ function ProcessingTable({
           {showFilters && (
             <div className="mt-3 flex flex-wrap gap-1.5">
               <FilterSelect placeholder="Narrative" value={f.narrative} onChange={set("narrative")} options={[{ value: "all", label: "-----" }, ...narrativeOpts.map((o) => ({ value: o, label: o }))]} />
-              <FilterSelect placeholder="Medical" value={f.medical_status} onChange={set("medical_status")} options={[{ value: "all", label: "-----" }, ...MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))]} />
-              <FilterSelect placeholder="COC" value={f.coc_status} onChange={set("coc_status")} options={[{ value: "all", label: "-----" }, ...COC_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <MultiFilterSelect placeholder="Medical" values={f.medical_status} onChange={setMulti("medical_status")} options={MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))} />
+              <MultiFilterSelect placeholder="COC" values={f.coc_status} onChange={setMulti("coc_status")} options={COC_OPTIONS.map((o) => ({ value: o, label: o }))} />
               <FilterSelect placeholder="Tasheer" value={f.tasheer_status} onChange={set("tasheer_status")} options={[{ value: "all", label: "-----" }, ...TASHEER_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <FilterSelect placeholder="Wokala" value={f.wokala_status} onChange={set("wokala_status")} options={[{ value: "all", label: "-----" }, ...WOKALA_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <FilterSelect placeholder="Visa" value={f.visa_status} onChange={set("visa_status")} options={[{ value: "all", label: "-----" }, ...VISA_OPTIONS.map((o) => ({ value: o, label: o }))]} />
@@ -2442,6 +2447,84 @@ function FilterSelect({
         <button type="button" onClick={() => onChange("all")}
           className="rounded-none p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
           aria-label="Clear filter">
+          <X className="h-3 w-3" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function MultiFilterSelect({
+  values, onChange, options, placeholder, icon: Icon,
+}: {
+  values: string[];
+  onChange: (v: string[]) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+  icon?: React.ElementType;
+}) {
+  const [open, setOpen] = useState(false);
+  const isEmpty = values.length === 0;
+  const hasSingleColor = !isEmpty && values.length === 1 && !!OPTION_COLORS[values[0]];
+
+  const toggle = (val: string) =>
+    onChange(values.includes(val) ? values.filter((v) => v !== val) : [...values, val]);
+
+  const triggerLabel = isEmpty
+    ? placeholder
+    : values.length === 1
+      ? (options.find((o) => o.value === values[0])?.label ?? values[0])
+      : `${placeholder} (${values.length})`;
+
+  return (
+    <div className="flex items-center gap-0.5">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              "flex items-center gap-1.5 border shadow-none h-7 px-2 transition-colors rounded-none text-[13px] font-medium",
+              isEmpty
+                ? "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+                : hasSingleColor
+                  ? cn(OPTION_COLORS[values[0]], "border-transparent")
+                  : "bg-black/10 border-black/20 text-[#181A27] dark:bg-white/10 dark:border-white/20 dark:text-white",
+            )}
+          >
+            {Icon && <Icon className="h-3 w-3 shrink-0" />}
+            <span>{triggerLabel}</span>
+            <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-44 p-1 rounded-none" align="start">
+          {options.map((o) => {
+            const checked = values.includes(o.value);
+            const color = OPTION_COLORS[o.label] ?? OPTION_COLORS[o.value];
+            return (
+              <button
+                key={o.value}
+                type="button"
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 transition-colors"
+                onClick={() => toggle(o.value)}
+              >
+                <Checkbox checked={checked} className="h-3.5 w-3.5 pointer-events-none" />
+                {color ? (
+                  <span className={cn("text-[13px] font-medium px-1.5 py-0.5", color)}>{o.label}</span>
+                ) : (
+                  <span className="text-[13px] text-[#181A27] dark:text-white">{o.label}</span>
+                )}
+              </button>
+            );
+          })}
+        </PopoverContent>
+      </Popover>
+      {!isEmpty && (
+        <button
+          type="button"
+          onClick={() => onChange([])}
+          className="rounded-none p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          aria-label="Clear filter"
+        >
           <X className="h-3 w-3" />
         </button>
       )}
