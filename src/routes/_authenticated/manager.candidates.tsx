@@ -73,10 +73,18 @@ const UNFILLED_LMIS_OPTIONS = ["INSU", "COC", "ID"];
 const TICKET_OPTIONS = ["No", "Ready", "New Order", "Booked", "Exchange", "Urgent"];
 const ARRIVAL_CITY_OPTIONS = ["RIYADH", "JEDDAH", "DAMMAM", "JOUF", "HAIL", "ABHA", "OTHERS"];
 const BULK_FIELD_DEFS = [
-  { key: "medical_status",   label: "Medical" },
-  { key: "musaned_status",   label: "Country" },
-  { key: "office",           label: "Office" },
-  { key: "passport_status",  label: "Passport" },
+  { key: "medical_status",   label: "Medical",      processingOnly: false },
+  { key: "musaned_status",   label: "Country",      processingOnly: false },
+  { key: "office",           label: "Office",       processingOnly: false },
+  { key: "passport_status",  label: "Passport",     processingOnly: false },
+  { key: "tasheer_status",   label: "Tasheer",      processingOnly: true },
+  { key: "wokala_status",    label: "Wokala",       processingOnly: true },
+  { key: "visa_status",      label: "Visa",         processingOnly: true },
+  { key: "insurance_status", label: "Insurance",    processingOnly: true },
+  { key: "unfilled_lmis",    label: "LMIS file",    processingOnly: true },
+  { key: "lmis_status",      label: "LMIS",         processingOnly: true },
+  { key: "ticket_status",    label: "Ticket",       processingOnly: true },
+  { key: "arrival_city",     label: "Arrival City", processingOnly: true },
 ];
 
 const SKILLS_LIST = [
@@ -980,14 +988,31 @@ function ManagerCandidatesPage() {
                 </SelectContent>
               </Select>
 
-              {BULK_FIELD_DEFS.map((fd) => {
+              {BULK_FIELD_DEFS.filter((fd) => !fd.processingOnly || tab === "processing").map((fd) => {
                 const opts = Array.from(new Set(
                   filtered.map((c) => (c[fd.key as keyof Candidate] as string | null) ?? "").filter(Boolean)
                 )).sort();
                 if (opts.length === 0) return null;
                 return (
                   <Select key={fd.key} onValueChange={(v) => {
-                    bulkFieldMut.mutate({ field: fd.key, value: v });
+                    if (fd.key === "ticket_status" && v === "Booked") { setTicketDateOpen(true); }
+                    else if (fd.key === "tasheer_status" && v === "Booked") { setTasheerDateOpen(true); }
+                    else if (fd.key === "tasheer_status" && v === "Done") {
+                      const hasWokalaPaid = candidates.filter((c) => selected.has(c.id)).some((c) => c.wokala_status === "Paid");
+                      if (hasWokalaPaid) { setTasheerDoneOpen(true); setTasheerDoneStep("ask"); setTasheerDoneReason(""); }
+                      else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
+                    }
+                    else if (fd.key === "visa_status" && v === "Returned") {
+                      const blocked = candidates.filter((c) => selected.has(c.id) && (c.status !== "processing" || c.tasheer_status !== "Done" || c.wokala_status !== "Paid")).length;
+                      if (blocked > 0) { toast.error(`${blocked} candidate(s) must be Processing with Tasheer = Done and Wokala = Paid`); }
+                      else { setVisaReturnedOpen(true); setVisaReturnedReason(""); }
+                    }
+                    else if (fd.key === "visa_status" && v === "Ready for embassy") {
+                      const blocked = candidates.filter((c) => selected.has(c.id) && (c.status !== "processing" || c.tasheer_status !== "Done" || c.wokala_status !== "Paid"));
+                      if (blocked.length > 0) { toast.error(`${blocked.length} candidate(s) must be Processing with Tasheer = Done and Wokala = Paid`); }
+                      else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
+                    }
+                    else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
                   }}>
                     <SelectTrigger className="h-9 w-[120px]">
                       <SelectValue placeholder={fd.label} />
