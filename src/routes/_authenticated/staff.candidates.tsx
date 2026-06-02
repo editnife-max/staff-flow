@@ -918,7 +918,13 @@ function StaffCandidatesPage() {
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {t.label} <span className="ml-1 text-[16px] opacity-70">({counts[t.key] ?? 0})</span>
+                {t.label}
+                <span className={cn(
+                  "ml-1.5 text-[11px] px-1.5 py-0.5 rounded-full font-semibold",
+                  tab === t.key ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+                )}>
+                  {counts[t.key] ?? 0}
+                </span>
               </button>
             ))}
           </div>
