@@ -1623,26 +1623,26 @@ function CandidateCard({
       )}>
         {statusLabel[statusKey]}
       </span>
-      <CardContent className="p-0">
-        <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-center">
-          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
-          <button type="button" onClick={onViewPhotos} className="cursor-pointer">
+      <CardContent className="px-3 py-3">
+        <div className="grid grid-cols-[20px_40px_1fr_auto] gap-4 items-start">
+          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" className="mt-1" />
+          <button type="button" onClick={onViewPhotos} className="cursor-pointer mt-0.5">
             <Avatar className="h-10 w-10 hover:ring-2 hover:ring-primary transition-all">
               {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
               <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
           </button>
           <div
-            className="grid gap-x-4 gap-y-2 items-start"
-            style={{ gridTemplateColumns: `repeat(${visibleFields.length}, minmax(0, 1fr))` }}
+            className="grid gap-x-6 gap-y-4 items-start"
+            style={{ gridTemplateColumns: `repeat(auto-fill, minmax(140px, 1fr))` }}
           >
             {visibleFields.map((f) => (
               <div key={f.label} className="min-w-0">
-                <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">
+                <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-1.5">
                   {f.label}
                 </div>
                 <div className={cn(
-                  "text-[14px] text-[#181A27] break-words",
+                  "text-sm text-[#181A27] break-words leading-snug",
                   "bold" in f && f.bold && "font-semibold",
                 )}>
                   {"bold" in f && f.bold ? (
@@ -2171,32 +2171,32 @@ function ProcessingCard({
       <span className="absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[9px] font-semibold tracking-wide bg-warning text-foreground">
         PROCESSING
       </span>
-      <CardContent className="p-0">
-        <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-center">
-          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
-          <button type="button" onClick={onViewPhotos} className="cursor-pointer">
+      <CardContent className="px-3 py-3">
+        <div className="grid grid-cols-[20px_40px_1fr_auto] gap-4 items-start">
+          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" className="mt-1" />
+          <button type="button" onClick={onViewPhotos} className="cursor-pointer mt-0.5">
             <Avatar className="h-10 w-10 hover:ring-2 hover:ring-primary transition-all">
               {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
               <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
           </button>
           <div
-            className="grid gap-x-4 gap-y-2 items-start"
-            style={{ gridTemplateColumns: `repeat(${visibleCols.length + 1}, minmax(0, 1fr))` }}
+            className="grid gap-x-6 gap-y-4 items-start"
+            style={{ gridTemplateColumns: `repeat(auto-fill, minmax(140px, 1fr))` }}
           >
             <div className="min-w-0">
-              <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">Full Name</div>
-              <div className="text-[14px] text-[#181A27] font-semibold break-words">{candidate.full_name}</div>
+              <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-1.5">Full Name</div>
+              <div className="text-sm text-[#181A27] font-semibold break-words leading-snug">{candidate.full_name}</div>
             </div>
             {visibleCols.map((col) => {
               const raw = candidate[col.key as keyof Candidate];
               const strVal = raw == null ? "" : String(raw);
               return (
                 <div key={col.key} className="min-w-0">
-                  <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">
+                  <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-1.5">
                     {col.header}
                   </div>
-                  <div className="text-[14px] text-[#181A27] break-words">
+                  <div className="text-sm text-[#181A27] break-words leading-snug">
                     {col.type === "text" ? (
                       <InlineText value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
                     ) : col.type === "date" ? (
