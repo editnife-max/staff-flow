@@ -1422,6 +1422,7 @@ function CandidateCardList({
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const allSel = filtered.length > 0 && filtered.every((c) => selected.has(c.id));
   const someSel = !allSel && filtered.some((c) => selected.has(c.id));
+  const visibleCols = (CANDIDATE_CARD_COLS as readonly string[]).filter((l) => !hiddenCols.has(l));
 
   return (
     <div className="space-y-2">
@@ -1483,16 +1484,7 @@ function CandidateCardList({
         </Card>
       )}
       {filtered.length > 0 && (
-        <div className="flex items-center justify-between px-1">
-          <label className="flex items-center gap-2 text-sm font-medium cursor-pointer w-fit">
-            <Checkbox
-              checked={allSel ? true : someSel ? "indeterminate" : false}
-              onCheckedChange={(v) =>
-                filtered.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
-              }
-            />
-            Select all ({filtered.length})
-          </label>
+        <div className="flex items-center justify-end px-1">
           <div className="flex items-center gap-1">
             {hiddenCols.size > 0 && (
               <Button
@@ -1502,67 +1494,94 @@ function CandidateCardList({
                 <RotateCcw className="h-3 w-3" /> Reset columns
               </Button>
             )}
-          <div className="relative">
-            <Button
-              size="sm" variant="outline" className="h-7 gap-1.5 text-xs"
-              onClick={() => setShowColPicker((v) => !v)}
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              Columns
-              {hiddenCols.size > 0 && (
-                <span className="ml-1 rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
-                  {hiddenCols.size} hidden
-                </span>
+            <div className="relative">
+              <Button
+                size="sm" variant="outline" className="h-7 gap-1.5 text-xs"
+                onClick={() => setShowColPicker((v) => !v)}
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Columns
+                {hiddenCols.size > 0 && (
+                  <span className="ml-1 rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+                    {hiddenCols.size} hidden
+                  </span>
+                )}
+              </Button>
+              {showColPicker && (
+                <div className="absolute right-0 top-8 z-50 bg-popover border border-border rounded-none shadow-xl p-3 w-[340px]">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Columns</span>
+                    <button type="button" onClick={() => setHiddenCols(new Set())}
+                      className="text-[11px] text-primary hover:underline disabled:opacity-40"
+                      disabled={hiddenCols.size === 0}>
+                      Reset
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                    {CANDIDATE_CARD_COLS.map((label) => (
+                      <label key={label} className="flex items-center gap-1.5 text-xs cursor-pointer py-1 hover:text-primary">
+                        <Checkbox
+                          checked={!hiddenCols.has(label)}
+                          onCheckedChange={(v) =>
+                            setHiddenCols((prev) => { const n = new Set(prev); v ? n.delete(label) : n.add(label); return n; })
+                          }
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
               )}
-            </Button>
-            {showColPicker && (
-              <div className="absolute right-0 top-8 z-50 bg-popover border border-border rounded-none shadow-xl p-3 w-[340px]">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Columns</span>
-                  <button type="button" onClick={() => setHiddenCols(new Set())}
-                    className="text-[11px] text-primary hover:underline disabled:opacity-40"
-                    disabled={hiddenCols.size === 0}>
-                    Reset
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                  {CANDIDATE_CARD_COLS.map((label) => (
-                    <label key={label} className="flex items-center gap-1.5 text-xs cursor-pointer py-1 hover:text-primary">
-                      <Checkbox
-                        checked={!hiddenCols.has(label)}
-                        onCheckedChange={(v) =>
-                          setHiddenCols((prev) => { const n = new Set(prev); v ? n.delete(label) : n.add(label); return n; })
-                        }
-                      />
-                      {label}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+            </div>
           </div>
         </div>
       )}
       {filtered.length === 0 ? (
         <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates here yet.</CardContent></Card>
-      ) : paginated.map((c) => (
-        <CandidateCard
-          key={c.id}
-          candidate={c}
-          selected={selected.has(c.id)}
-          hiddenCols={hiddenCols}
-          cancelMode={cancelMode}
-          onToggleSelect={() => onToggleSelect(c.id)}
-          onViewPhotos={() => setViewingPhotos(c)}
-          onEdit={() => onEdit(c)}
-          onDelete={() => onDelete(c.id)}
-          onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
-          onReturn={onReturn ? () => onReturn(c.id) : undefined}
-          agencyOptions={agencyOptions}
-          countryOptions={countryOptions}
-        />
-      ))}
+      ) : (
+        <div className="overflow-x-auto border rounded-none">
+          <table className="w-full border-collapse text-sm">
+            <thead className="bg-muted/40">
+              <tr className="border-b">
+                <th className="px-2 py-2.5 w-8 text-left align-middle">
+                  <Checkbox
+                    checked={allSel ? true : someSel ? "indeterminate" : false}
+                    onCheckedChange={(v) =>
+                      filtered.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
+                    }
+                  />
+                </th>
+                <th className="px-2 py-2.5 w-10"></th>
+                {visibleCols.map((label) => (
+                  <th key={label} className="px-3 py-2.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase whitespace-nowrap text-left">
+                    {label}
+                  </th>
+                ))}
+                <th className="px-3 py-2.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase whitespace-nowrap text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginated.map((c) => (
+                <CandidateRow
+                  key={c.id}
+                  candidate={c}
+                  selected={selected.has(c.id)}
+                  visibleCols={visibleCols}
+                  cancelMode={cancelMode}
+                  onToggleSelect={() => onToggleSelect(c.id)}
+                  onViewPhotos={() => setViewingPhotos(c)}
+                  onEdit={() => onEdit(c)}
+                  onDelete={() => onDelete(c.id)}
+                  onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
+                  onReturn={onReturn ? () => onReturn(c.id) : undefined}
+                  agencyOptions={agencyOptions}
+                  countryOptions={countryOptions}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
 
       {filtered.length > 0 && (
@@ -1604,12 +1623,12 @@ function CandidateCardList({
   );
 }
 
-function CandidateCard({
-  candidate, selected, hiddenCols, onToggleSelect, onViewPhotos, onEdit, onDelete, onUpdateField, cancelMode, onReturn, agencyOptions, countryOptions,
+function CandidateRow({
+  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onEdit, onDelete, onUpdateField, cancelMode, onReturn, agencyOptions, countryOptions,
 }: {
   candidate: Candidate;
   selected: boolean;
-  hiddenCols: Set<string>;
+  visibleCols: readonly string[];
   cancelMode?: boolean;
   onToggleSelect: () => void;
   onViewPhotos: () => void;
@@ -1622,17 +1641,14 @@ function CandidateCard({
 }) {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
-  const statusStyles: Record<Status, string> = {
-    available: "bg-success text-success-foreground",
-    processing: "bg-warning text-foreground",
-    arrived: "bg-info text-info-foreground",
-    canceled: "bg-destructive text-destructive-foreground",
-    returned: "bg-orange-500 text-white",
+  const rowBorderColor: Record<Status, string> = {
+    available: "border-l-[3px] border-l-success/70",
+    processing: "border-l-[3px] border-l-warning/80",
+    arrived: "border-l-[3px] border-l-info/70",
+    canceled: "border-l-[3px] border-l-destructive/60",
+    returned: "border-l-[3px] border-l-orange-400/70",
   };
-  const statusLabel: Record<Status, string> = {
-    available: "Available", processing: "Processing", arrived: "Arrived", canceled: "Canceled", returned: "Returned",
-  };
-  const statusKey = (candidate.status in statusStyles ? candidate.status : "available") as Status;
+  const statusKey = (candidate.status in rowBorderColor ? candidate.status : "available") as Status;
 
   type FieldDef =
     | { label: string; value: string; bold?: boolean }
@@ -1640,7 +1656,7 @@ function CandidateCard({
     | { label: string; value: string; edit: "date"; field: EditableField }
     | { label: string; value: string; edit: "select"; field: EditableField; options: string[] };
 
-  const fields: FieldDef[] = [
+  const allFields: FieldDef[] = [
     { label: "FULL NAME", value: candidate.full_name, bold: true },
     { label: "CANDIDATE CODE", value: candidate.candidate_code ?? "—" },
     { label: "GENDER", value: candidate.gender ?? "—" },
@@ -1665,96 +1681,73 @@ function CandidateCard({
     { label: "NARRATIVE", value: candidate.narrative ?? "", edit: "text", field: "narrative", long: true },
     { label: "NOTES", value: candidate.notes ?? "", edit: "text", field: "notes", long: true },
   ];
-  const visibleFields = fields.filter((f) => !hiddenCols.has(f.label));
 
   return (
     <>
-    <Card className={cn("group relative overflow-visible transition-colors rounded-none mx-[5px]", selected && "ring-2 ring-primary")}>
-      <span className={cn(
-        "absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[10px] font-semibold tracking-wide",
-        statusStyles[statusKey],
-      )}>
-        {statusLabel[statusKey]}
-      </span>
-      <CardContent className="px-3 py-3">
-        <div className="grid grid-cols-[20px_40px_1fr_auto] gap-4 items-start">
-          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" className="mt-1" />
-          <button type="button" onClick={onViewPhotos} className="cursor-pointer mt-0.5">
-            <Avatar className="h-10 w-10 hover:ring-2 hover:ring-primary transition-all">
-              {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
-              <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-            </Avatar>
-          </button>
-          <div
-            className="grid gap-x-6 gap-y-4 items-start"
-            style={{ gridTemplateColumns: `repeat(auto-fill, minmax(140px, 1fr))` }}
-          >
-            {visibleFields.map((f) => (
-              <div key={f.label} className="min-w-0">
-                <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-1.5">
-                  {f.label}
-                </div>
-                <div className={cn(
-                  "text-sm text-[#181A27] break-words leading-snug",
-                  "bold" in f && f.bold && "font-semibold",
-                )}>
-                  {"edit" in f && f.edit === "text" ? (
-                    <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} truncate={"long" in f && f.long} />
-                  ) : "edit" in f && f.edit === "date" ? (
-                    <InlineDate value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
-                  ) : "edit" in f && f.edit === "select" ? (
-                    <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
-                  ) : (
-                    ("value" in f ? f.value : "—") || "—"
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-col items-end gap-1 mb-[8px] pt-[10px] pr-[12px] pb-[10px] pl-[4px]">
-            <Button asChild size="sm" className="h-6 w-18 text-[12px] px-2 rounded-none">
-              <Link to="/staff/cv-generator" search={{ id: candidate.id }}>
-                <FileText className="h-3.5 w-3.5 mr-1" /> VIEW
-              </Link>
-            </Button>
-            <button onClick={onEdit} className="text-[14px] text-primary hover:underline flex items-center gap-1">
-              <Pencil className="h-3.5 w-3.5" /> Edit
-            </button>
-            {onReturn && (
-              <button
-                onClick={() => setReturnOpen(true)}
-                className="text-[14px] text-orange-600 hover:underline flex items-center gap-1"
-              >
-                <RotateCcw className="h-3.5 w-3.5" /> Return
-              </button>
+    <tr className={cn("border-b transition-colors hover:bg-muted/30", selected && "bg-primary/5", rowBorderColor[statusKey])}>
+      <td className="px-2 py-2 align-middle">
+        <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
+      </td>
+      <td className="px-2 py-2 align-middle">
+        <button type="button" onClick={onViewPhotos} className="cursor-pointer">
+          <Avatar className="h-9 w-9 hover:ring-2 hover:ring-primary transition-all">
+            {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
+            <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+          </Avatar>
+        </button>
+      </td>
+      {visibleCols.map((colLabel) => {
+        const f = allFields.find((f) => f.label === colLabel);
+        if (!f) return <td key={colLabel} className="px-3 py-2 text-sm text-muted-foreground align-top">—</td>;
+        return (
+          <td key={colLabel} className="px-3 py-2 text-sm text-[#181A27] align-top min-w-[110px] max-w-[200px]">
+            {"bold" in f && f.bold ? (
+              <span className="font-semibold break-words">{f.value || "—"}</span>
+            ) : "edit" in f && f.edit === "text" ? (
+              <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} truncate={"long" in f && f.long} />
+            ) : "edit" in f && f.edit === "date" ? (
+              <InlineDate value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
+            ) : "edit" in f && f.edit === "select" ? (
+              <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
+            ) : (
+              ("value" in f ? f.value : "—") || "—"
             )}
-            <button
-              onClick={() => cancelMode ? setCancelOpen(true) : onDelete()}
-              className="text-[14px] text-destructive hover:underline flex items-center gap-1"
-            >
-              <Trash2 className="h-3.5 w-3.5" /> Delete
+          </td>
+        );
+      })}
+      <td className="px-2 py-2 align-middle whitespace-nowrap">
+        <div className="flex items-center gap-2">
+          <Button asChild size="sm" className="h-6 text-[11px] px-2 rounded-none">
+            <Link to="/staff/cv-generator" search={{ id: candidate.id }}>
+              <FileText className="h-3 w-3 mr-1" /> VIEW
+            </Link>
+          </Button>
+          <button onClick={onEdit} className="text-[12px] text-primary hover:underline flex items-center gap-1">
+            <Pencil className="h-3 w-3" /> Edit
+          </button>
+          {onReturn && (
+            <button onClick={() => setReturnOpen(true)} className="text-[12px] text-orange-600 hover:underline flex items-center gap-1">
+              <RotateCcw className="h-3 w-3" /> Return
             </button>
-          </div>
+          )}
+          <button
+            onClick={() => cancelMode ? setCancelOpen(true) : onDelete()}
+            className="text-[12px] text-destructive hover:underline flex items-center gap-1"
+          >
+            <Trash2 className="h-3 w-3" /> Delete
+          </button>
         </div>
-      </CardContent>
-    </Card>
+      </td>
+    </tr>
     {cancelOpen && (
       <CancelReasonDialog
-        onConfirm={(reason) => {
-          onUpdateField("notes", reason);
-          onDelete();
-          setCancelOpen(false);
-        }}
+        onConfirm={(reason) => { onUpdateField("notes", reason); onDelete(); setCancelOpen(false); }}
         onClose={() => setCancelOpen(false)}
       />
     )}
     {returnOpen && onReturn && (
       <ReturnReasonDialog
-        onConfirm={(reason) => {
-          onUpdateField("notes", reason);
-          onReturn();
-          setReturnOpen(false);
-        }}
+        onConfirm={(reason) => { onUpdateField("notes", reason); onReturn(); setReturnOpen(false); }}
         onClose={() => setReturnOpen(false)}
       />
     )}
