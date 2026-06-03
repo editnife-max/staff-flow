@@ -3117,9 +3117,50 @@ const EXCEL_COLUMNS = [
 
 type ExcelKey = (typeof EXCEL_COLUMNS)[number]["key"];
 
-const LABEL_TO_KEY = Object.fromEntries(
+const LABEL_TO_KEY_EXACT = Object.fromEntries(
   EXCEL_COLUMNS.map(({ key, label }) => [label.toLowerCase(), key]),
 ) as Record<string, ExcelKey>;
+
+function normalizeHeader(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+const LABEL_TO_KEY_NORM = Object.fromEntries(
+  EXCEL_COLUMNS.map(({ key, label }) => [normalizeHeader(label), key]),
+) as Record<string, ExcelKey>;
+
+const HEADER_ALIASES: Record<string, ExcelKey> = {
+  firstname: "first_name", fname: "first_name", givenname: "first_name",
+  lastname: "last_name", lname: "last_name", surname: "last_name", familyname: "last_name",
+  dob: "dob", birthdate: "dob", bdate: "dob", dateofbirth: "dob",
+  passportno: "passport_number", passportnumber: "passport_number", passportnum: "passport_number",
+  passportexpiry: "passport_expiry_date", expirydate: "passport_expiry_date", expiry: "passport_expiry_date",
+  passportissue: "passport_issue_date", issuedate: "passport_issue_date",
+  placeofissue: "place_of_issue",
+  labourid: "labour_id", laborid: "labour_id",
+  passportstatus: "passport_status",
+  medicalstatus: "medical_status", medical: "medical_status",
+  cocstatus: "coc_status", coc: "coc_status",
+  musanedstatus: "musaned_status", country: "musaned_status",
+  livingtown: "living_town", town: "living_town",
+  birthplace: "birth_place",
+  maritalstatus: "marital_status", marital: "marital_status",
+  englishlevel: "english_level", english: "english_level",
+  arabiclevel: "arabic_level", arabic: "arabic_level",
+  spokenlanguages: "spoken_languages", languages: "spoken_languages",
+  workexperience: "experience",
+  experiencecountry: "experience_country",
+  yearsofexperience: "experience_years", experienceyears: "experience_years",
+  weightkg: "weight",
+  heightcm: "height",
+  narrativephone: "narrative_phone", phone: "narrative_phone",
+};
+
+function resolveHeader(header: string): ExcelKey | undefined {
+  const lower = header.trim().toLowerCase();
+  const norm = normalizeHeader(header);
+  return LABEL_TO_KEY_EXACT[lower] ?? LABEL_TO_KEY_NORM[norm] ?? HEADER_ALIASES[norm];
+}
 
 const REQUIRED_KEYS = EXCEL_COLUMNS.filter((c) => c.required).map((c) => c.key as ExcelKey);
 const DATE_KEYS = new Set<ExcelKey>(["dob", "passport_issue_date", "passport_expiry_date"]);
@@ -3154,7 +3195,7 @@ function parseExcelFile(file: File): Promise<ParseResult> {
           .map((row, idx) => {
             const mapped: Record<string, unknown> = {};
             for (const [header, value] of Object.entries(row)) {
-              const colKey = LABEL_TO_KEY[header.trim().toLowerCase()];
+              const colKey = resolveHeader(header);
               if (!colKey) continue;
               mapped[colKey] = DATE_KEYS.has(colKey)
                 ? formatDateValue(value === "" ? null : value)
