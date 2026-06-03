@@ -230,6 +230,45 @@ export const bulkUpdateField = createServerFn({ method: "POST" })
     return { ok: true, count: count ?? 0 };
   });
 
+export const bulkImportCandidates = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ rows: z.array(CandidateInput).min(1).max(500) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const managerId = await resolveManagerId(context.userId);
+
+    let createdByName: string | null = null;
+    const { data: staffRow } = await supabaseAdmin
+      .from("staff")
+      .select("name")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (staffRow?.name) {
+      createdByName = staffRow.name.trim().split(/\s+/)[0];
+    } else {
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("full_name")
+        .eq("id", context.userId)
+        .maybeSingle();
+      if (profile?.full_name) createdByName = profile.full_name.trim().split(/\s+/)[0];
+    }
+
+    const rows = data.rows.map((r) => ({
+      ...r,
+      manager_id: managerId,
+      created_by_user_id: context.userId,
+      created_by_name: createdByName,
+    }));
+
+    const { error, count } = await supabaseAdmin
+      .from("candidates")
+      .insert(rows as never[], { count: "exact" });
+    if (error) throw new Error(error.message);
+    return { ok: true, count: count ?? rows.length };
+  });
+
 export const bulkAssignStaff = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>

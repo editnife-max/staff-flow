@@ -31,8 +31,10 @@ import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import {
   upsertCandidate, deleteCandidate, updateCandidateField,
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff, bulkUpdateField,
+  bulkImportCandidates,
 } from "@/lib/candidates.functions";
 import { UserCheck, X } from "lucide-react";
+import * as XLSX from "xlsx";
 
 type Status = "available" | "processing" | "arrived" | "canceled" | "returned";
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"] & {
@@ -789,6 +791,7 @@ function ManagerCandidatesPage() {
             <FileSignature className="h-4 w-4" />
             Action{selected.size > 0 ? ` (${selected.size})` : ""}
           </Button>
+          <ImportExcelButton onImported={() => qc.invalidateQueries({ queryKey: ["candidates"] })} />
           <Button size="sm" className="gap-2 text-xs h-8 rounded-none" onClick={openCreate}>
             <FilePlus className="h-4 w-4" /> ADD NEW CANDIDATE
           </Button>
@@ -3071,5 +3074,307 @@ function CandidateDetailDialog({ candidate, onClose }: { candidate: Candidate | 
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─── Excel Import ─────────────────────────────────────────────────────────────
+
+const EXCEL_COLUMNS = [
+  { key: "first_name",           label: "First Name" },
+  { key: "last_name",            label: "Last Name" },
+  { key: "candidate_code",       label: "Candidate Code" },
+  { key: "serial_number",        label: "Serial Number" },
+  { key: "passport_number",      label: "Passport Number" },
+  { key: "labour_id",            label: "Labour ID" },
+  { key: "dob",                  label: "Date of Birth (YYYY-MM-DD)" },
+  { key: "age",                  label: "Age" },
+  { key: "gender",               label: "Gender" },
+  { key: "religion",             label: "Religion" },
+  { key: "birth_place",          label: "Birth Place" },
+  { key: "living_town",          label: "Living Town" },
+  { key: "marital_status",       label: "Marital Status" },
+  { key: "children",             label: "Children" },
+  { key: "education",            label: "Education" },
+  { key: "occupation",           label: "Occupation" },
+  { key: "country",              label: "Country" },
+  { key: "spoken_languages",     label: "Spoken Languages" },
+  { key: "english_level",        label: "English Level" },
+  { key: "arabic_level",         label: "Arabic Level" },
+  { key: "experience",           label: "Experience" },
+  { key: "experience_country",   label: "Experience Country" },
+  { key: "experience_years",     label: "Experience Years" },
+  { key: "weight",               label: "Weight (kg)" },
+  { key: "height",               label: "Height (cm)" },
+  { key: "passport_issue_date",  label: "Passport Issue Date (YYYY-MM-DD)" },
+  { key: "passport_expiry_date", label: "Passport Expiry Date (YYYY-MM-DD)" },
+  { key: "place_of_issue",       label: "Place of Issue" },
+  { key: "passport_status",      label: "Passport Status" },
+  { key: "medical_status",       label: "Medical Status" },
+  { key: "coc_status",           label: "COC Status" },
+  { key: "musaned_status",       label: "Musaned Status" },
+  { key: "office",               label: "Office" },
+  { key: "skills",               label: "Skills" },
+  { key: "notes",                label: "Notes" },
+  { key: "remark",               label: "Remark" },
+] as const;
+
+type ExcelKey = (typeof EXCEL_COLUMNS)[number]["key"];
+
+const LABEL_TO_KEY = Object.fromEntries(
+  EXCEL_COLUMNS.map(({ key, label }) => [label.toLowerCase(), key]),
+) as Record<string, ExcelKey>;
+
+interface ParsedRow {
+  full_name: string;
+  [k: string]: unknown;
+}
+
+function parseExcelFile(file: File): Promise<ParsedRow[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target!.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
+
+        const rows: ParsedRow[] = raw
+          .map((row) => {
+            const mapped: Record<string, unknown> = {};
+            for (const [header, value] of Object.entries(row)) {
+              const colKey = LABEL_TO_KEY[header.trim().toLowerCase()];
+              if (colKey) mapped[colKey] = value === "" ? null : value;
+            }
+            const first = (mapped.first_name as string | null) ?? "";
+            const last  = (mapped.last_name  as string | null) ?? "";
+            const full_name = [first, last].filter(Boolean).join(" ") || (mapped.full_name as string | null) || "";
+            if (!full_name.trim()) return null;
+            return { ...mapped, full_name } as ParsedRow;
+          })
+          .filter((r): r is ParsedRow => r !== null);
+
+        resolve(rows);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = () => reject(new Error("File read error"));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function downloadSampleExcel() {
+  const sampleRow: Record<string, string | number> = {
+    "First Name": "Abebe",
+    "Last Name": "Kebede",
+    "Candidate Code": "C001",
+    "Serial Number": "SN-001",
+    "Passport Number": "EP1234567",
+    "Labour ID": "L-001",
+    "Date of Birth (YYYY-MM-DD)": "1995-06-15",
+    "Age": 29,
+    "Gender": "Female",
+    "Religion": "Christian",
+    "Birth Place": "Addis Ababa",
+    "Living Town": "Addis Ababa",
+    "Marital Status": "Single",
+    "Children": 0,
+    "Education": "High School",
+    "Occupation": "Housemaid",
+    "Country": "Ethiopia",
+    "Spoken Languages": "Amharic, English",
+    "English Level": "Good",
+    "Arabic Level": "Basic",
+    "Experience": "Housemaid",
+    "Experience Country": "Saudi Arabia",
+    "Experience Years": "2",
+    "Weight (kg)": 58,
+    "Height (cm)": 162,
+    "Passport Issue Date (YYYY-MM-DD)": "2022-01-10",
+    "Passport Expiry Date (YYYY-MM-DD)": "2027-01-09",
+    "Place of Issue": "Addis Ababa",
+    "Passport Status": "Original",
+    "Medical Status": "Fit",
+    "COC Status": "Done",
+    "Musaned Status": "",
+    "Office": "Riyadh",
+    "Skills": "Cooking, Cleaning, Childcare",
+    "Notes": "",
+    "Remark": "",
+  };
+
+  const ws = XLSX.utils.json_to_sheet([sampleRow]);
+  ws["!cols"] = Object.keys(sampleRow).map(() => ({ wch: 30 }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Candidates");
+  XLSX.writeFile(wb, "candidates_sample.xlsx");
+}
+
+function ImportExcelButton({ onImported }: { onImported: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState<ParsedRow[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const importFn = useServerFn(bulkImportCandidates);
+
+  const handleFile = async (file: File) => {
+    setError(null);
+    setRows([]);
+    try {
+      const parsed = await parseExcelFile(file);
+      if (parsed.length === 0) {
+        setError("No valid rows found. Make sure the file has the correct column headers.");
+        return;
+      }
+      setRows(parsed);
+    } catch {
+      setError("Failed to read file. Please upload a valid .xlsx or .xls file.");
+    }
+  };
+
+  const handleImport = async () => {
+    if (rows.length === 0) return;
+    setLoading(true);
+    try {
+      const result = await importFn({ data: { rows: rows as never[] } });
+      toast.success(`Imported ${result.count} candidate${result.count !== 1 ? "s" : ""} successfully`);
+      onImported();
+      setOpen(false);
+      setRows([]);
+    } catch (e: unknown) {
+      toast.error((e as Error).message ?? "Import failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        className="gap-2 text-xs h-8 rounded-none"
+        onClick={() => { setRows([]); setError(null); setOpen(true); }}
+      >
+        <Upload className="h-4 w-4" /> IMPORT EXCEL
+      </Button>
+
+      <Dialog open={open} onOpenChange={(v) => { if (!loading) setOpen(v); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Import Candidates from Excel</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => fileRef.current?.click()}
+              onKeyDown={(e) => e.key === "Enter" && fileRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const file = e.dataTransfer.files?.[0];
+                if (file) handleFile(file);
+              }}
+              className="border-2 border-dashed border-border rounded-none cursor-pointer hover:border-primary/60 transition-colors flex flex-col items-center justify-center gap-2 py-8 bg-muted/20 select-none"
+            >
+              <Upload className="h-7 w-7 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                Click or drag &amp; drop an <strong>.xlsx</strong> / <strong>.xls</strong> file
+              </span>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFile(file);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+
+            {error && (
+              <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-none">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                {error}
+              </div>
+            )}
+
+            {rows.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">
+                  {rows.length} candidate{rows.length !== 1 ? "s" : ""} ready to import — preview (first 5):
+                </p>
+                <div className="overflow-x-auto rounded-none border border-border">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-semibold">#</th>
+                        <th className="px-3 py-2 text-left font-semibold">Full Name</th>
+                        <th className="px-3 py-2 text-left font-semibold">Passport No.</th>
+                        <th className="px-3 py-2 text-left font-semibold">Occupation</th>
+                        <th className="px-3 py-2 text-left font-semibold">Country</th>
+                        <th className="px-3 py-2 text-left font-semibold">Gender</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.slice(0, 5).map((r, i) => (
+                        <tr key={i} className="border-t border-border">
+                          <td className="px-3 py-1.5 text-muted-foreground">{i + 1}</td>
+                          <td className="px-3 py-1.5">{r.full_name}</td>
+                          <td className="px-3 py-1.5">{String(r.passport_number ?? "—")}</td>
+                          <td className="px-3 py-1.5">{String(r.occupation ?? "—")}</td>
+                          <td className="px-3 py-1.5">{String(r.country ?? "—")}</td>
+                          <td className="px-3 py-1.5">{String(r.gender ?? "—")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {rows.length > 5 && (
+                  <p className="text-xs text-muted-foreground">…and {rows.length - 5} more</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-none gap-2 text-xs"
+              onClick={downloadSampleExcel}
+              type="button"
+            >
+              <FileText className="h-4 w-4" /> Download Sample Excel
+            </Button>
+            <div className="flex gap-2 ml-auto">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="rounded-none text-xs"
+                onClick={() => setOpen(false)}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="rounded-none gap-2 text-xs"
+                onClick={handleImport}
+                disabled={rows.length === 0 || loading}
+              >
+                {loading ? "Importing…" : `Import ${rows.length > 0 ? rows.length : ""} Candidate${rows.length !== 1 ? "s" : ""}`}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
