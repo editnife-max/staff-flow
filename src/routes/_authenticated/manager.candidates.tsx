@@ -194,11 +194,11 @@ const PROCESSING_COLS: ProcessingColDef[] = [
 ];
 
 const CANDIDATE_CARD_COLS = [
-  "FULL NAME", "ADDED BY", "CANDIDATE CODE", "GENDER", "RELIGION", "MARITAL STATUS",
-  "BIRTH PLACE", "LIVING TOWN", "OCCUPATION", "PASSPORT NUMBER", "LABOUR ID",
+  "FULL NAME", "ADDED BY", "CANDIDATE CODE", "GENDER", "AGE", "RELIGION", "MARITAL STATUS",
+  "BIRTH PLACE", "LIVING TOWN", "PASSPORT NUMBER", "LABOUR ID",
   "OFFICE", "PASSPORT STATUS", "COC STATUS", "COUNTRY", "MEDICAL STATUS",
   "MEDICAL DATE", "AVAILABILITY", "SELECTED BY", "CONTRACT DATE", "CV SENT TO", "CV SENT DATE",
-  "NARRATIVE", "NOTES",
+  "NARRATIVE", "NARRATIVE PHONE", "NOTES",
 ] as const;
 
 const initialForm = {
@@ -1606,11 +1606,11 @@ function CandidateRow({
     { label: "ADDED BY", value: firstName(candidate.created_by_name) || "—" },
     { label: "CANDIDATE CODE", value: candidate.candidate_code ?? "—" },
     { label: "GENDER", value: candidate.gender ?? "—" },
+    { label: "AGE", value: candidate.age != null ? String(candidate.age) : "—" },
     { label: "RELIGION", value: candidate.religion ?? "—" },
     { label: "MARITAL STATUS", value: candidate.marital_status ?? "—" },
     { label: "BIRTH PLACE", value: candidate.birth_place ?? "—" },
     { label: "LIVING TOWN", value: candidate.living_town ?? "", edit: "text", field: "living_town" },
-    { label: "OCCUPATION", value: candidate.occupation ?? "", edit: "text", field: "occupation" },
     { label: "PASSPORT NUMBER", value: candidate.passport_number ?? "—" },
     { label: "LABOUR ID", value: candidate.labour_id ?? "—" },
     { label: "OFFICE", value: candidate.office ?? "", edit: "select", field: "office", options: OFFICE_OPTIONS },
@@ -1625,6 +1625,7 @@ function CandidateRow({
     { label: "CV SENT TO", value: candidate.cv_sent_to ?? "", edit: "select", field: "cv_sent_to", options: agencyOptions },
     { label: "CV SENT DATE", value: candidate.cv_sent_date ? new Date(candidate.cv_sent_date).toLocaleDateString() : "—" },
     { label: "NARRATIVE", value: candidate.narrative ?? "", edit: "text", field: "narrative", long: true },
+    { label: "NARRATIVE PHONE", value: candidate.narrative_phone ?? "", edit: "text", field: "narrative_phone" },
     { label: "NOTES", value: candidate.notes ?? "", edit: "text", field: "notes", long: true },
   ];
 
@@ -3267,10 +3268,11 @@ function ImportExcelButton({ onImported }: { onImported: () => void }) {
   const [parseError, setParseError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [importStatus, setImportStatus] = useState<string>("available");
   const fileRef = useRef<HTMLInputElement>(null);
   const importFn = useServerFn(bulkImportCandidates);
 
-  const reset = () => { setRows([]); setParseError(null); setValidationErrors([]); };
+  const reset = () => { setRows([]); setParseError(null); setValidationErrors([]); setImportStatus("available"); };
 
   const handleFile = async (file: File) => {
     reset();
@@ -3291,7 +3293,7 @@ function ImportExcelButton({ onImported }: { onImported: () => void }) {
     if (rows.length === 0 || validationErrors.length > 0) return;
     setLoading(true);
     try {
-      const result = await importFn({ data: { rows: rows as never[] } });
+      const result = await importFn({ data: { rows: rows.map((r) => ({ ...r, status: importStatus as never })) as never[] } });
       toast.success(`Imported ${result.count} candidate${result.count !== 1 ? "s" : ""} successfully`);
       onImported();
       setOpen(false);
@@ -3361,6 +3363,22 @@ function ImportExcelButton({ onImported }: { onImported: () => void }) {
                   e.target.value = "";
                 }}
               />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Import as status:</label>
+              <Select value={importStatus} onValueChange={setImportStatus}>
+                <SelectTrigger className="h-8 text-xs rounded-none w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="available">Available</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="arrived">Arrived</SelectItem>
+                  <SelectItem value="canceled">Canceled</SelectItem>
+                  <SelectItem value="returned">Returned</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {parseError && (
