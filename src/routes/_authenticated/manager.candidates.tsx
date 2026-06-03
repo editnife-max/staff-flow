@@ -1425,16 +1425,7 @@ function CandidateCardList({
         </Card>
       )}
       {filtered.length > 0 && (
-        <div className="flex items-center justify-between px-1">
-          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-            <Checkbox
-              checked={allSel ? true : someSel ? "indeterminate" : false}
-              onCheckedChange={(v) =>
-                filtered.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
-              }
-            />
-            {selected.size > 0 ? `${selected.size} selected` : "Select all"}
-          </label>
+        <div className="flex items-center justify-end px-1">
           <div className="flex items-center gap-1">
             {hiddenCols.size > 0 && (
               <Button
@@ -1487,25 +1478,48 @@ function CandidateCardList({
       {filtered.length === 0 ? (
         <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates here yet.</CardContent></Card>
       ) : (
-        <div className="space-y-2">
-          {filtered.map((c) => (
-            <CandidateCard
-              key={c.id}
-              candidate={c}
-              selected={selected.has(c.id)}
-              visibleCols={visibleCols}
-              cancelMode={cancelMode}
-              onToggleSelect={() => onToggleSelect(c.id)}
-              onViewPhotos={() => setViewingPhotos(c)}
-              onView={() => onView(c)}
-              onEdit={() => onEdit(c)}
-              onDelete={() => onDelete(c.id)}
-              onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
-              onReturn={onReturn ? () => onReturn(c.id) : undefined}
-              agencyOptions={agencyOptions}
-              countryOptions={countryOptions}
-            />
-          ))}
+        <div className="overflow-x-auto border rounded-none">
+          <table className="w-full border-collapse text-sm">
+            <thead className="bg-muted/40 sticky top-0 z-10">
+              <tr className="border-b">
+                <th className="px-2 py-2.5 w-8 text-left align-middle">
+                  <Checkbox
+                    checked={allSel ? true : someSel ? "indeterminate" : false}
+                    onCheckedChange={(v) =>
+                      filtered.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
+                    }
+                  />
+                </th>
+                <th className="px-2 py-2.5 w-10"></th>
+                {visibleCols.map((label) => (
+                  <th key={label} className="px-3 py-2.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase whitespace-nowrap text-left">
+                    {label}
+                  </th>
+                ))}
+                <th className="px-3 py-2.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase whitespace-nowrap text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((c) => (
+                <CandidateRow
+                  key={c.id}
+                  candidate={c}
+                  selected={selected.has(c.id)}
+                  visibleCols={visibleCols}
+                  cancelMode={cancelMode}
+                  onToggleSelect={() => onToggleSelect(c.id)}
+                  onViewPhotos={() => setViewingPhotos(c)}
+                  onView={() => onView(c)}
+                  onEdit={() => onEdit(c)}
+                  onDelete={() => onDelete(c.id)}
+                  onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
+                  onReturn={onReturn ? () => onReturn(c.id) : undefined}
+                  agencyOptions={agencyOptions}
+                  countryOptions={countryOptions}
+                />
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
@@ -1513,7 +1527,7 @@ function CandidateCardList({
   );
 }
 
-function CandidateCard({
+function CandidateRow({
   candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onView, onEdit, onDelete, onUpdateField, cancelMode, onReturn, agencyOptions, countryOptions,
 }: {
   candidate: Candidate;
@@ -1532,14 +1546,14 @@ function CandidateCard({
 }) {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
-  const cardBorderColor: Record<Status, string> = {
+  const rowBorderColor: Record<Status, string> = {
     available: "border-l-[3px] border-l-success/70",
     processing: "border-l-[3px] border-l-warning/80",
     arrived: "border-l-[3px] border-l-info/70",
     canceled: "border-l-[3px] border-l-destructive/60",
     returned: "border-l-[3px] border-l-orange-400/70",
   };
-  const statusKey = (candidate.status in cardBorderColor ? candidate.status : "available") as Status;
+  const statusKey = (candidate.status in rowBorderColor ? candidate.status : "available") as Status;
 
   type FieldDef =
     | { label: string; value: string; bold?: boolean }
@@ -1577,20 +1591,41 @@ function CandidateCard({
 
   return (
     <>
-      <div className={cn("bg-card border border-border rounded-none transition-colors", selected && "ring-1 ring-primary/60 bg-primary/5", cardBorderColor[statusKey])}>
-        <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/40">
+      <tr className={cn("border-b transition-colors hover:bg-muted/30", selected && "bg-primary/5", rowBorderColor[statusKey])}>
+        <td className="px-2 py-2 align-middle">
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
-          <button type="button" onClick={onViewPhotos} className="shrink-0">
-            <Avatar className="h-8 w-8 hover:ring-2 hover:ring-primary transition-all">
+        </td>
+        <td className="px-2 py-2 align-middle">
+          <button type="button" onClick={onViewPhotos} className="cursor-pointer">
+            <Avatar className="h-9 w-9 hover:ring-2 hover:ring-primary transition-all">
               {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
               <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
           </button>
-          <button type="button" onClick={onView} className="font-semibold text-sm hover:text-primary hover:underline transition-colors text-left flex-1 min-w-0 truncate">
-            {candidate.full_name}
-          </button>
-          <StatusBadge status={candidate.status ?? "available"} className="shrink-0 text-[10px] px-2 py-0" />
-          <div className="flex items-center gap-2 shrink-0">
+        </td>
+        {visibleCols.map((colLabel) => {
+          const f = allFields.find((f) => f.label === colLabel);
+          if (!f) return <td key={colLabel} className="px-3 py-2 text-sm text-muted-foreground align-top">—</td>;
+          return (
+            <td key={colLabel} className="px-3 py-2 text-sm text-[#181A27] align-top min-w-[110px] max-w-[200px]">
+              {"bold" in f && f.bold ? (
+                <button type="button" onClick={onView} className="font-semibold text-left hover:text-primary hover:underline transition-colors break-words w-full">
+                  {f.value || "—"}
+                </button>
+              ) : "edit" in f && f.edit === "text" ? (
+                <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} truncate={"long" in f && f.long} />
+              ) : "edit" in f && f.edit === "date" ? (
+                <InlineDate value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
+              ) : "edit" in f && f.edit === "select" ? (
+                <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
+              ) : (
+                f.value || "—"
+              )}
+            </td>
+          );
+        })}
+        <td className="px-2 py-2 align-middle whitespace-nowrap">
+          <div className="flex items-center gap-2">
             <Button asChild size="sm" className="h-6 text-[11px] px-2 rounded-none">
               <Link to="/staff/cv-generator" search={{ id: candidate.id }}>
                 <FileText className="h-3 w-3 mr-1" /> VIEW
@@ -1611,30 +1646,8 @@ function CandidateCard({
               <Trash2 className="h-3 w-3" /> Delete
             </button>
           </div>
-        </div>
-        <div className="px-3 py-2.5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-4 gap-y-3">
-          {visibleCols.filter((col) => col !== "FULL NAME").map((colLabel) => {
-            const f = allFields.find((f) => f.label === colLabel);
-            if (!f) return null;
-            return (
-              <div key={colLabel} className="min-w-0">
-                <div className="text-[9px] font-semibold tracking-wider text-muted-foreground uppercase mb-0.5">{colLabel}</div>
-                <div className="text-xs text-foreground">
-                  {"edit" in f && f.edit === "text" ? (
-                    <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} truncate={"long" in f && f.long} />
-                  ) : "edit" in f && f.edit === "date" ? (
-                    <InlineDate value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
-                  ) : "edit" in f && f.edit === "select" ? (
-                    <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
-                  ) : (
-                    f.value || "—"
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+        </td>
+      </tr>
       {cancelOpen && (
         <CancelReasonDialog
           onConfirm={(reason) => { onUpdateField("notes", reason); onDelete(); setCancelOpen(false); }}
