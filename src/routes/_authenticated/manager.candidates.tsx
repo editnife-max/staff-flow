@@ -1632,35 +1632,35 @@ function CandidateCard({
               <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
           </button>
-          <div className="overflow-x-auto scroll-on-card-hover">
-            <div className="flex gap-5 items-start">
-              {visibleFields.map((f) => (
-                <div key={f.label} className="shrink-0">
-                  <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">
-                    {f.label}
-                  </div>
-                  <div className={cn(
-                    "text-[14px] text-[#181A27]",
-                    "edit" in f && "long" in f && f.long ? "whitespace-normal" : "whitespace-nowrap",
-                    "bold" in f && f.bold && "font-semibold",
-                  )}>
-                    {"bold" in f && f.bold ? (
-                      <button type="button" onClick={onView} className="font-semibold text-left hover:text-primary hover:underline transition-colors">
-                        {f.value || "—"}
-                      </button>
-                    ) : "edit" in f && f.edit === "text" ? (
-                      <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} truncate={"long" in f && f.long} />
-                    ) : "edit" in f && f.edit === "date" ? (
-                      <InlineDate value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
-                    ) : "edit" in f && f.edit === "select" ? (
-                      <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
-                    ) : (
-                      ("value" in f ? f.value : "—") || "—"
-                    )}
-                  </div>
+          <div
+            className="grid gap-x-4 gap-y-2 items-start"
+            style={{ gridTemplateColumns: `repeat(${visibleFields.length}, minmax(0, 1fr))` }}
+          >
+            {visibleFields.map((f) => (
+              <div key={f.label} className="min-w-0">
+                <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">
+                  {f.label}
                 </div>
-              ))}
-            </div>
+                <div className={cn(
+                  "text-[14px] text-[#181A27] break-words",
+                  "bold" in f && f.bold && "font-semibold",
+                )}>
+                  {"bold" in f && f.bold ? (
+                    <button type="button" onClick={onView} className="font-semibold text-left hover:text-primary hover:underline transition-colors break-words">
+                      {f.value || "—"}
+                    </button>
+                  ) : "edit" in f && f.edit === "text" ? (
+                    <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} truncate={"long" in f && f.long} />
+                  ) : "edit" in f && f.edit === "date" ? (
+                    <InlineDate value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
+                  ) : "edit" in f && f.edit === "select" ? (
+                    <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
+                  ) : (
+                    ("value" in f ? f.value : "—") || "—"
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
           <div className="flex flex-col items-end gap-1 mb-[8px] pt-[10px] pr-[12px] pb-[10px] pl-[4px]">
             <Button asChild size="sm" className="h-6 w-18 text-[12px] px-2 rounded-none">
@@ -2180,39 +2180,40 @@ function ProcessingCard({
               <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
           </button>
-          <div className="overflow-x-auto scroll-on-card-hover">
-            <div className="flex gap-5 items-start">
-              <div className="shrink-0">
-                <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">Full Name</div>
-                <div className="text-[14px] text-[#181A27] font-semibold whitespace-nowrap">{candidate.full_name}</div>
-              </div>
-              {visibleCols.map((col) => {
-                const raw = candidate[col.key as keyof Candidate];
-                const strVal = raw == null ? "" : String(raw);
-                return (
-                  <div key={col.key} className="shrink-0">
-                    <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">
-                      {col.header}
-                    </div>
-                    <div className="text-[14px] text-[#181A27] whitespace-nowrap">
-                      {col.type === "text" ? (
-                        <InlineText value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
-                      ) : col.type === "date" ? (
-                        <InlineDate value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
-                      ) : col.type === "select" ? (
-                        <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
-                      ) : col.type === "select-dynamic" ? (
-                        <InlineSelect
-                          value={strVal}
-                          options={officesByCountry[candidate.destination_country ?? ""] ?? []}
-                          onSave={(v) => handleColUpdate(col.key, v)}
-                        />
-                      ) : null}
-                    </div>
-                  </div>
-                );
-              })}
+          <div
+            className="grid gap-x-4 gap-y-2 items-start"
+            style={{ gridTemplateColumns: `repeat(${visibleCols.length + 1}, minmax(0, 1fr))` }}
+          >
+            <div className="min-w-0">
+              <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">Full Name</div>
+              <div className="text-[14px] text-[#181A27] font-semibold break-words">{candidate.full_name}</div>
             </div>
+            {visibleCols.map((col) => {
+              const raw = candidate[col.key as keyof Candidate];
+              const strVal = raw == null ? "" : String(raw);
+              return (
+                <div key={col.key} className="min-w-0">
+                  <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">
+                    {col.header}
+                  </div>
+                  <div className="text-[14px] text-[#181A27] break-words">
+                    {col.type === "text" ? (
+                      <InlineText value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
+                    ) : col.type === "date" ? (
+                      <InlineDate value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
+                    ) : col.type === "select" ? (
+                      <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
+                    ) : col.type === "select-dynamic" ? (
+                      <InlineSelect
+                        value={strVal}
+                        options={officesByCountry[candidate.destination_country ?? ""] ?? []}
+                        onSave={(v) => handleColUpdate(col.key, v)}
+                      />
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
           </div>
           <div className="flex flex-col items-end gap-1 mb-[8px] pt-[10px] pr-[12px] pb-[10px] pl-[4px]">
             <Button asChild size="sm" className="h-6 w-18 text-[12px] px-2 rounded-none">
