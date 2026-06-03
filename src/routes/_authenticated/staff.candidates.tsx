@@ -8,7 +8,7 @@ import {
   SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight,
   ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
-  Globe, Send, Activity, ClipboardPaste, Upload, ImageIcon, AlertTriangle,
+  Globe, Send, Activity, ClipboardPaste, Upload, ImageIcon, AlertTriangle, Table2,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -3079,42 +3079,46 @@ function CandidatePhotosDialog({ candidate, onClose }: { candidate: Candidate | 
 // ─── Excel Import ─────────────────────────────────────────────────────────────
 
 const EXCEL_COLUMNS = [
-  { key: "first_name",           label: "First Name" },
-  { key: "last_name",            label: "Last Name" },
-  { key: "candidate_code",       label: "Candidate Code" },
-  { key: "serial_number",        label: "Serial Number" },
-  { key: "passport_number",      label: "Passport Number" },
-  { key: "labour_id",            label: "Labour ID" },
-  { key: "dob",                  label: "Date of Birth (YYYY-MM-DD)" },
-  { key: "age",                  label: "Age" },
-  { key: "gender",               label: "Gender" },
-  { key: "religion",             label: "Religion" },
-  { key: "birth_place",          label: "Birth Place" },
-  { key: "living_town",          label: "Living Town" },
-  { key: "marital_status",       label: "Marital Status" },
-  { key: "children",             label: "Children" },
-  { key: "education",            label: "Education" },
-  { key: "occupation",           label: "Occupation" },
-  { key: "country",              label: "Country" },
-  { key: "spoken_languages",     label: "Spoken Languages" },
-  { key: "english_level",        label: "English Level" },
-  { key: "arabic_level",         label: "Arabic Level" },
-  { key: "experience",           label: "Experience" },
-  { key: "experience_country",   label: "Experience Country" },
-  { key: "experience_years",     label: "Experience Years" },
-  { key: "weight",               label: "Weight (kg)" },
-  { key: "height",               label: "Height (cm)" },
-  { key: "passport_issue_date",  label: "Passport Issue Date (YYYY-MM-DD)" },
-  { key: "passport_expiry_date", label: "Passport Expiry Date (YYYY-MM-DD)" },
-  { key: "place_of_issue",       label: "Place of Issue" },
-  { key: "passport_status",      label: "Passport Status" },
-  { key: "medical_status",       label: "Medical Status" },
-  { key: "coc_status",           label: "COC Status" },
-  { key: "musaned_status",       label: "Musaned Status" },
-  { key: "office",               label: "Office" },
-  { key: "skills",               label: "Skills" },
-  { key: "notes",                label: "Notes" },
-  { key: "remark",               label: "Remark" },
+  // NAMES & IDs
+  { key: "first_name",           label: "First Name",                    required: true  },
+  { key: "last_name",            label: "Last Name",                     required: true  },
+  { key: "candidate_code",       label: "Candidate Code",                required: false },
+  // PERSONAL
+  { key: "gender",               label: "Gender",                        required: true  },
+  { key: "dob",                  label: "Date of Birth (YYYY-MM-DD)",    required: true  },
+  { key: "religion",             label: "Religion",                      required: true  },
+  { key: "birth_place",          label: "Birth Place",                   required: false },
+  { key: "living_town",          label: "Living Town",                   required: false },
+  { key: "marital_status",       label: "Marital Status",                required: false },
+  { key: "children",             label: "Children",                      required: false },
+  { key: "education",            label: "Education",                     required: false },
+  // PASSPORT
+  { key: "passport_number",      label: "Passport Number",               required: true  },
+  { key: "labour_id",            label: "Labour ID",                     required: false },
+  { key: "passport_issue_date",  label: "Issue Date (YYYY-MM-DD)",       required: false },
+  { key: "passport_expiry_date", label: "Expiry Date (YYYY-MM-DD)",      required: true  },
+  { key: "place_of_issue",       label: "Place of Issue",                required: false },
+  // LANGUAGES & EXPERIENCE
+  { key: "spoken_languages",     label: "Spoken Languages",              required: false },
+  { key: "english_level",        label: "English Level",                 required: false },
+  { key: "arabic_level",         label: "Arabic Level",                  required: false },
+  { key: "experience",           label: "Work Experience",               required: false },
+  { key: "experience_country",   label: "Experience Country",            required: false },
+  { key: "experience_years",     label: "Years of Experience",           required: false },
+  // PHYSICAL
+  { key: "weight",               label: "Weight (kg)",                   required: false },
+  { key: "height",               label: "Height (cm)",                   required: false },
+  // STATUS
+  { key: "passport_status",      label: "Passport Status",               required: false },
+  { key: "medical_status",       label: "Medical Status",                required: false },
+  { key: "coc_status",           label: "COC Status",                    required: false },
+  { key: "musaned_status",       label: "Country",                       required: false },
+  // NARRATIVE
+  { key: "narrative",            label: "Narrative",                     required: false },
+  { key: "narrative_phone",      label: "Narrative Phone",               required: false },
+  // NOTES
+  { key: "remark",               label: "Remark",                        required: false },
+  { key: "notes",                label: "Notes",                         required: false },
 ] as const;
 
 type ExcelKey = (typeof EXCEL_COLUMNS)[number]["key"];
@@ -3123,37 +3127,64 @@ const LABEL_TO_KEY = Object.fromEntries(
   EXCEL_COLUMNS.map(({ key, label }) => [label.toLowerCase(), key]),
 ) as Record<string, ExcelKey>;
 
+const REQUIRED_KEYS = EXCEL_COLUMNS.filter((c) => c.required).map((c) => c.key as ExcelKey);
+const DATE_KEYS = new Set<ExcelKey>(["dob", "passport_issue_date", "passport_expiry_date"]);
+
 interface ParsedRow {
   full_name: string;
   [k: string]: unknown;
 }
 
-function parseExcelFile(file: File): Promise<ParsedRow[]> {
+function formatDateValue(v: unknown): string | null {
+  if (!v && v !== 0) return null;
+  if (v instanceof Date) return v.toISOString().split("T")[0];
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  return s || null;
+}
+
+interface ParseResult { rows: ParsedRow[]; validationErrors: string[] }
+
+function parseExcelFile(file: File): Promise<ParseResult> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target!.result as ArrayBuffer);
-        const wb = XLSX.read(data, { type: "array" });
+        const wb = XLSX.read(data, { type: "array", cellDates: true });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
 
+        const validationErrors: string[] = [];
         const rows: ParsedRow[] = raw
-          .map((row) => {
+          .map((row, idx) => {
             const mapped: Record<string, unknown> = {};
             for (const [header, value] of Object.entries(row)) {
               const colKey = LABEL_TO_KEY[header.trim().toLowerCase()];
-              if (colKey) mapped[colKey] = value === "" ? null : value;
+              if (!colKey) continue;
+              mapped[colKey] = DATE_KEYS.has(colKey)
+                ? formatDateValue(value === "" ? null : value)
+                : (value === "" ? null : value);
             }
             const first = (mapped.first_name as string | null) ?? "";
             const last  = (mapped.last_name  as string | null) ?? "";
-            const full_name = [first, last].filter(Boolean).join(" ") || (mapped.full_name as string | null) || "";
+            const full_name = [first, last].filter(Boolean).join(" ") || "";
             if (!full_name.trim()) return null;
+
+            const missing = REQUIRED_KEYS.filter(
+              (k) => k !== "first_name" && k !== "last_name" && !mapped[k],
+            );
+            if (missing.length > 0) {
+              const labels = missing.map(
+                (k) => EXCEL_COLUMNS.find((c) => c.key === k)?.label ?? k,
+              );
+              validationErrors.push(`Row ${idx + 2}: missing ${labels.join(", ")}`);
+            }
             return { ...mapped, full_name } as ParsedRow;
           })
           .filter((r): r is ParsedRow => r !== null);
 
-        resolve(rows);
+        resolve({ rows, validationErrors });
       } catch (err) {
         reject(err);
       }
@@ -3164,84 +3195,93 @@ function parseExcelFile(file: File): Promise<ParsedRow[]> {
 }
 
 function downloadSampleExcel() {
-  const sampleRow: Record<string, string | number> = {
+  const sampleRow: Record<string, unknown> = {
     "First Name": "Abebe",
     "Last Name": "Kebede",
     "Candidate Code": "C001",
-    "Serial Number": "SN-001",
-    "Passport Number": "EP1234567",
-    "Labour ID": "L-001",
-    "Date of Birth (YYYY-MM-DD)": "1995-06-15",
-    "Age": 29,
     "Gender": "Female",
-    "Religion": "Christian",
+    "Date of Birth (YYYY-MM-DD)": "1995-06-15",
+    "Religion": "Muslim",
     "Birth Place": "Addis Ababa",
     "Living Town": "Addis Ababa",
     "Marital Status": "Single",
     "Children": 0,
     "Education": "High School",
-    "Occupation": "Housemaid",
-    "Country": "Ethiopia",
-    "Spoken Languages": "Amharic, English",
+    "Passport Number": "EP1234567",
+    "Labour ID": "L-001",
+    "Issue Date (YYYY-MM-DD)": "2022-01-10",
+    "Expiry Date (YYYY-MM-DD)": "2027-01-09",
+    "Place of Issue": "Addis Ababa",
+    "Spoken Languages": "Good",
     "English Level": "Good",
     "Arabic Level": "Basic",
-    "Experience": "Housemaid",
+    "Work Experience": "Yes",
     "Experience Country": "Saudi Arabia",
-    "Experience Years": "2",
+    "Years of Experience": "2",
     "Weight (kg)": 58,
     "Height (cm)": 162,
-    "Passport Issue Date (YYYY-MM-DD)": "2022-01-10",
-    "Passport Expiry Date (YYYY-MM-DD)": "2027-01-09",
-    "Place of Issue": "Addis Ababa",
     "Passport Status": "Original",
     "Medical Status": "Fit",
     "COC Status": "Done",
-    "Musaned Status": "",
-    "Office": "Riyadh",
-    "Skills": "Cooking, Cleaning, Childcare",
-    "Notes": "",
+    "Country": "",
+    "Narrative": "",
+    "Narrative Phone": "",
     "Remark": "",
+    "Notes": "",
   };
 
-  const ws = XLSX.utils.json_to_sheet([sampleRow]);
-  ws["!cols"] = Object.keys(sampleRow).map(() => ({ wch: 30 }));
+  const instructionsData = EXCEL_COLUMNS.map(({ label, required }) => ({
+    "Column Header": label,
+    "Required": required ? "YES ★" : "No",
+  }));
+
+  const ws1 = XLSX.utils.json_to_sheet([sampleRow]);
+  ws1["!cols"] = Object.keys(sampleRow).map(() => ({ wch: 28 }));
+  const ws2 = XLSX.utils.json_to_sheet(instructionsData);
+  ws2["!cols"] = [{ wch: 36 }, { wch: 12 }];
+
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Candidates");
+  XLSX.utils.book_append_sheet(wb, ws1, "Candidates");
+  XLSX.utils.book_append_sheet(wb, ws2, "Instructions");
   XLSX.writeFile(wb, "candidates_sample.xlsx");
 }
 
 function ImportExcelButton({ onImported }: { onImported: () => void }) {
+  const [revealed, setRevealed] = useState(false);
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<ParsedRow[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const importFn = useServerFn(bulkImportCandidates);
 
+  const reset = () => { setRows([]); setParseError(null); setValidationErrors([]); };
+
   const handleFile = async (file: File) => {
-    setError(null);
-    setRows([]);
+    reset();
     try {
-      const parsed = await parseExcelFile(file);
+      const { rows: parsed, validationErrors: errs } = await parseExcelFile(file);
       if (parsed.length === 0) {
-        setError("No valid rows found. Make sure the file has the correct column headers.");
+        setParseError("No valid rows found. Make sure the file uses the correct column headers (see sample).");
         return;
       }
       setRows(parsed);
+      setValidationErrors(errs);
     } catch {
-      setError("Failed to read file. Please upload a valid .xlsx or .xls file.");
+      setParseError("Failed to read file. Please upload a valid .xlsx or .xls file.");
     }
   };
 
   const handleImport = async () => {
-    if (rows.length === 0) return;
+    if (rows.length === 0 || validationErrors.length > 0) return;
     setLoading(true);
     try {
       const result = await importFn({ data: { rows: rows as never[] } });
       toast.success(`Imported ${result.count} candidate${result.count !== 1 ? "s" : ""} successfully`);
       onImported();
       setOpen(false);
-      setRows([]);
+      reset();
     } catch (e: unknown) {
       toast.error((e as Error).message ?? "Import failed");
     } finally {
@@ -3253,12 +3293,24 @@ function ImportExcelButton({ onImported }: { onImported: () => void }) {
     <>
       <Button
         size="sm"
-        variant="outline"
-        className="gap-2 text-xs h-8 rounded-none"
-        onClick={() => { setRows([]); setError(null); setOpen(true); }}
+        variant={revealed ? "secondary" : "ghost"}
+        className="h-8 w-8 p-0 rounded-none"
+        title={revealed ? "Hide Excel import" : "Show Excel import"}
+        onClick={() => setRevealed((v) => !v)}
       >
-        <Upload className="h-4 w-4" /> IMPORT EXCEL
+        <Table2 className="h-4 w-4" />
       </Button>
+
+      {revealed && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-2 text-xs h-8 rounded-none"
+          onClick={() => { reset(); setOpen(true); }}
+        >
+          <Upload className="h-4 w-4" /> IMPORT EXCEL
+        </Button>
+      )}
 
       <Dialog open={open} onOpenChange={(v) => { if (!loading) setOpen(v); }}>
         <DialogContent className="max-w-2xl">
@@ -3297,14 +3349,26 @@ function ImportExcelButton({ onImported }: { onImported: () => void }) {
               />
             </div>
 
-            {error && (
+            {parseError && (
               <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-none">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
-                {error}
+                {parseError}
               </div>
             )}
 
-            {rows.length > 0 && (
+            {validationErrors.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 text-sm font-medium text-destructive">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  {validationErrors.length} row{validationErrors.length !== 1 ? "s" : ""} missing required fields — fix and re-upload:
+                </div>
+                <ul className="text-xs text-destructive bg-destructive/10 rounded-none px-3 py-2 max-h-28 overflow-y-auto space-y-0.5 list-none">
+                  {validationErrors.map((err, i) => <li key={i}>{err}</li>)}
+                </ul>
+              </div>
+            )}
+
+            {rows.length > 0 && validationErrors.length === 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium text-foreground">
                   {rows.length} candidate{rows.length !== 1 ? "s" : ""} ready to import — preview (first 5):
@@ -3316,9 +3380,9 @@ function ImportExcelButton({ onImported }: { onImported: () => void }) {
                         <th className="px-3 py-2 text-left font-semibold">#</th>
                         <th className="px-3 py-2 text-left font-semibold">Full Name</th>
                         <th className="px-3 py-2 text-left font-semibold">Passport No.</th>
-                        <th className="px-3 py-2 text-left font-semibold">Occupation</th>
-                        <th className="px-3 py-2 text-left font-semibold">Country</th>
                         <th className="px-3 py-2 text-left font-semibold">Gender</th>
+                        <th className="px-3 py-2 text-left font-semibold">Date of Birth</th>
+                        <th className="px-3 py-2 text-left font-semibold">Expiry Date</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -3327,9 +3391,9 @@ function ImportExcelButton({ onImported }: { onImported: () => void }) {
                           <td className="px-3 py-1.5 text-muted-foreground">{i + 1}</td>
                           <td className="px-3 py-1.5">{r.full_name}</td>
                           <td className="px-3 py-1.5">{String(r.passport_number ?? "—")}</td>
-                          <td className="px-3 py-1.5">{String(r.occupation ?? "—")}</td>
-                          <td className="px-3 py-1.5">{String(r.country ?? "—")}</td>
                           <td className="px-3 py-1.5">{String(r.gender ?? "—")}</td>
+                          <td className="px-3 py-1.5">{String(r.dob ?? "—")}</td>
+                          <td className="px-3 py-1.5">{String(r.passport_expiry_date ?? "—")}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -3339,6 +3403,12 @@ function ImportExcelButton({ onImported }: { onImported: () => void }) {
                   <p className="text-xs text-muted-foreground">…and {rows.length - 5} more</p>
                 )}
               </div>
+            )}
+
+            {rows.length > 0 && validationErrors.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {rows.length} row{rows.length !== 1 ? "s" : ""} parsed — import blocked until required fields are filled.
+              </p>
             )}
           </div>
 
@@ -3366,7 +3436,7 @@ function ImportExcelButton({ onImported }: { onImported: () => void }) {
                 size="sm"
                 className="rounded-none gap-2 text-xs"
                 onClick={handleImport}
-                disabled={rows.length === 0 || loading}
+                disabled={rows.length === 0 || validationErrors.length > 0 || loading}
               >
                 {loading ? "Importing…" : `Import ${rows.length > 0 ? rows.length : ""} Candidate${rows.length !== 1 ? "s" : ""}`}
               </Button>
