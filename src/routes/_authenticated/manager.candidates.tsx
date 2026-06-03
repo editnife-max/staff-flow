@@ -3076,7 +3076,7 @@ const EXCEL_COLUMNS = [
   { key: "last_name",            label: "Last Name",                     required: true  },
   // PERSONAL
   { key: "gender",               label: "Gender",                        required: true  },
-  { key: "dob",                  label: "Date of Birth (YYYY-MM-DD)",    required: true  },
+  { key: "dob",                  label: "Date of Birth (YYYY-MM-DD)",    required: false },
   { key: "religion",             label: "Religion",                      required: true  },
   { key: "birth_place",          label: "Birth Place",                   required: false },
   { key: "living_town",          label: "Living Town",                   required: false },
@@ -3087,7 +3087,7 @@ const EXCEL_COLUMNS = [
   { key: "passport_number",      label: "Passport Number",               required: true  },
   { key: "labour_id",            label: "Labour ID",                     required: false },
   { key: "passport_issue_date",  label: "Issue Date (YYYY-MM-DD)",       required: false },
-  { key: "passport_expiry_date", label: "Expiry Date (YYYY-MM-DD)",      required: true  },
+  { key: "passport_expiry_date", label: "Expiry Date (YYYY-MM-DD)",      required: false },
   { key: "place_of_issue",       label: "Place of Issue",                required: false },
   // LANGUAGES & EXPERIENCE
   { key: "spoken_languages",     label: "Spoken Languages",              required: false },
