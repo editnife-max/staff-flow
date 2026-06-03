@@ -1417,7 +1417,7 @@ function CandidateCardList({
 
   const [page, setPage] = useState(1);
   useEffect(() => { setPage(1); }, [filtered.length]);
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = 10;
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const allSel = filtered.length > 0 && filtered.every((c) => selected.has(c.id));
@@ -1834,7 +1834,7 @@ function ProcessingTable({
 
   const [page, setPage] = useState(1);
   useEffect(() => { setPage(1); }, [filteredCandidates.length]);
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = 10;
   const totalPages = Math.max(1, Math.ceil(filteredCandidates.length / PAGE_SIZE));
 
   const medExpiryChecked = useRef<Set<string>>(new Set());
