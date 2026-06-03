@@ -34,6 +34,7 @@ import {
   bulkImportCandidates,
 } from "@/lib/candidates.functions";
 import { UserCheck, X } from "lucide-react";
+import { StatusBadge } from "@/components/status-badge";
 import * as XLSX from "xlsx";
 
 type Status = "available" | "processing" | "arrived" | "canceled" | "returned";
@@ -1415,11 +1416,6 @@ function CandidateCardList({
     return list;
   }, [candidates, activeCountryTab, activeOfficeTab]);
 
-  const [page, setPage] = useState(1);
-  useEffect(() => { setPage(1); }, [filtered.length]);
-  const PAGE_SIZE = 10;
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const allSel = filtered.length > 0 && filtered.every((c) => selected.has(c.id));
   const someSel = !allSel && filtered.some((c) => selected.has(c.id));
   const visibleCols = (CANDIDATE_CARD_COLS as readonly string[]).filter((l) => !hiddenCols.has(l));
@@ -1484,7 +1480,16 @@ function CandidateCardList({
         </Card>
       )}
       {filtered.length > 0 && (
-        <div className="flex items-center justify-end px-1">
+        <div className="flex items-center justify-between px-1">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+            <Checkbox
+              checked={allSel ? true : someSel ? "indeterminate" : false}
+              onCheckedChange={(v) =>
+                filtered.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
+              }
+            />
+            {selected.size > 0 ? `${selected.size} selected` : "Select all"}
+          </label>
           <div className="flex items-center gap-1">
             {hiddenCols.size > 0 && (
               <Button
@@ -1539,91 +1544,32 @@ function CandidateCardList({
       {filtered.length === 0 ? (
         <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates here yet.</CardContent></Card>
       ) : (
-        <div className="overflow-x-auto border rounded-none">
-          <table className="w-full border-collapse text-sm">
-            <thead className="bg-muted/40">
-              <tr className="border-b">
-                <th className="px-2 py-2.5 w-8 text-left align-middle">
-                  <Checkbox
-                    checked={allSel ? true : someSel ? "indeterminate" : false}
-                    onCheckedChange={(v) =>
-                      filtered.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
-                    }
-                  />
-                </th>
-                <th className="px-2 py-2.5 w-10"></th>
-                {visibleCols.map((label) => (
-                  <th key={label} className="px-3 py-2.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase whitespace-nowrap text-left">
-                    {label}
-                  </th>
-                ))}
-                <th className="px-3 py-2.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase whitespace-nowrap text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginated.map((c) => (
-                <CandidateRow
-                  key={c.id}
-                  candidate={c}
-                  selected={selected.has(c.id)}
-                  visibleCols={visibleCols}
-                  cancelMode={cancelMode}
-                  onToggleSelect={() => onToggleSelect(c.id)}
-                  onViewPhotos={() => setViewingPhotos(c)}
-                  onEdit={() => onEdit(c)}
-                  onDelete={() => onDelete(c.id)}
-                  onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
-                  onReturn={onReturn ? () => onReturn(c.id) : undefined}
-                  agencyOptions={agencyOptions}
-                  countryOptions={countryOptions}
-                />
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-2">
+          {filtered.map((c) => (
+            <CandidateCard
+              key={c.id}
+              candidate={c}
+              selected={selected.has(c.id)}
+              visibleCols={visibleCols}
+              cancelMode={cancelMode}
+              onToggleSelect={() => onToggleSelect(c.id)}
+              onViewPhotos={() => setViewingPhotos(c)}
+              onEdit={() => onEdit(c)}
+              onDelete={() => onDelete(c.id)}
+              onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
+              onReturn={onReturn ? () => onReturn(c.id) : undefined}
+              agencyOptions={agencyOptions}
+              countryOptions={countryOptions}
+            />
+          ))}
         </div>
       )}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
-
-      {filtered.length > 0 && (
-        <div className="sticky bottom-0 z-10 bg-background flex items-center justify-between px-4 py-2 shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
-          <div className="flex items-center gap-1">
-            <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
-              onClick={() => { setPage((p) => p - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </Button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter((n) => n === 1 || n === totalPages || Math.abs(n - page) <= 1)
-              .map((n, i, arr) => (
-                <React.Fragment key={n}>
-                  {i > 0 && n - arr[i - 1] > 1 && <span className="text-xs text-muted-foreground px-0.5">…</span>}
-                  <Button size="sm" variant={page === n ? "default" : "outline"}
-                    className="h-7 w-7 p-0 rounded-none text-xs"
-                    onClick={() => { setPage(n); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
-                    {n}
-                  </Button>
-                </React.Fragment>
-              ))}
-            <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === totalPages}
-              onClick={() => { setPage((p) => p + 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground">
-              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
-            </span>
-            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"
-              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-              <ChevronUp className="h-3.5 w-3.5" /> Back to top
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-function CandidateRow({
+function CandidateCard({
   candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onEdit, onDelete, onUpdateField, cancelMode, onReturn, agencyOptions, countryOptions,
 }: {
   candidate: Candidate;
@@ -1641,14 +1587,14 @@ function CandidateRow({
 }) {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
-  const rowBorderColor: Record<Status, string> = {
+  const cardBorderColor: Record<Status, string> = {
     available: "border-l-[3px] border-l-success/70",
     processing: "border-l-[3px] border-l-warning/80",
     arrived: "border-l-[3px] border-l-info/70",
     canceled: "border-l-[3px] border-l-destructive/60",
     returned: "border-l-[3px] border-l-orange-400/70",
   };
-  const statusKey = (candidate.status in rowBorderColor ? candidate.status : "available") as Status;
+  const statusKey = (candidate.status in cardBorderColor ? candidate.status : "available") as Status;
 
   type FieldDef =
     | { label: string; value: string; bold?: boolean }
@@ -1685,73 +1631,74 @@ function CandidateRow({
 
   return (
     <>
-    <tr className={cn("border-b transition-colors hover:bg-muted/30", selected && "bg-primary/5", rowBorderColor[statusKey])}>
-      <td className="px-2 py-2 align-middle">
-        <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
-      </td>
-      <td className="px-2 py-2 align-middle">
-        <button type="button" onClick={onViewPhotos} className="cursor-pointer">
-          <Avatar className="h-9 w-9 hover:ring-2 hover:ring-primary transition-all">
-            {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
-            <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-          </Avatar>
-        </button>
-      </td>
-      {visibleCols.map((colLabel) => {
-        const f = allFields.find((f) => f.label === colLabel);
-        if (!f) return <td key={colLabel} className="px-3 py-2 text-sm text-muted-foreground align-top">—</td>;
-        return (
-          <td key={colLabel} className="px-3 py-2 text-sm text-[#181A27] align-top min-w-[110px] max-w-[200px]">
-            {"bold" in f && f.bold ? (
-              <span className="font-semibold break-words">{f.value || "—"}</span>
-            ) : "edit" in f && f.edit === "text" ? (
-              <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} truncate={"long" in f && f.long} />
-            ) : "edit" in f && f.edit === "date" ? (
-              <InlineDate value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
-            ) : "edit" in f && f.edit === "select" ? (
-              <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
-            ) : (
-              ("value" in f ? f.value : "—") || "—"
-            )}
-          </td>
-        );
-      })}
-      <td className="px-2 py-2 align-middle whitespace-nowrap">
-        <div className="flex items-center gap-2">
-          <Button asChild size="sm" className="h-6 text-[11px] px-2 rounded-none">
-            <Link to="/staff/cv-generator" search={{ id: candidate.id }}>
-              <FileText className="h-3 w-3 mr-1" /> VIEW
-            </Link>
-          </Button>
-          <button onClick={onEdit} className="text-[12px] text-primary hover:underline flex items-center gap-1">
-            <Pencil className="h-3 w-3" /> Edit
+      <div className={cn("bg-card border border-border rounded-none transition-colors", selected && "ring-1 ring-primary/60 bg-primary/5", cardBorderColor[statusKey])}>
+        <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/40">
+          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
+          <button type="button" onClick={onViewPhotos} className="shrink-0">
+            <Avatar className="h-8 w-8 hover:ring-2 hover:ring-primary transition-all">
+              {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
+              <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+            </Avatar>
           </button>
-          {onReturn && (
-            <button onClick={() => setReturnOpen(true)} className="text-[12px] text-orange-600 hover:underline flex items-center gap-1">
-              <RotateCcw className="h-3 w-3" /> Return
+          <span className="font-semibold text-sm flex-1 min-w-0 truncate">{candidate.full_name}</span>
+          <StatusBadge status={candidate.status ?? "available"} className="shrink-0 text-[10px] px-2 py-0" />
+          <div className="flex items-center gap-2 shrink-0">
+            <Button asChild size="sm" className="h-6 text-[11px] px-2 rounded-none">
+              <Link to="/staff/cv-generator" search={{ id: candidate.id }}>
+                <FileText className="h-3 w-3 mr-1" /> VIEW
+              </Link>
+            </Button>
+            <button onClick={onEdit} className="text-[12px] text-primary hover:underline flex items-center gap-1">
+              <Pencil className="h-3 w-3" /> Edit
             </button>
-          )}
-          <button
-            onClick={() => cancelMode ? setCancelOpen(true) : onDelete()}
-            className="text-[12px] text-destructive hover:underline flex items-center gap-1"
-          >
-            <Trash2 className="h-3 w-3" /> Delete
-          </button>
+            {onReturn && (
+              <button onClick={() => setReturnOpen(true)} className="text-[12px] text-orange-600 hover:underline flex items-center gap-1">
+                <RotateCcw className="h-3 w-3" /> Return
+              </button>
+            )}
+            <button
+              onClick={() => cancelMode ? setCancelOpen(true) : onDelete()}
+              className="text-[12px] text-destructive hover:underline flex items-center gap-1"
+            >
+              <Trash2 className="h-3 w-3" /> Delete
+            </button>
+          </div>
         </div>
-      </td>
-    </tr>
-    {cancelOpen && (
-      <CancelReasonDialog
-        onConfirm={(reason) => { onUpdateField("notes", reason); onDelete(); setCancelOpen(false); }}
-        onClose={() => setCancelOpen(false)}
-      />
-    )}
-    {returnOpen && onReturn && (
-      <ReturnReasonDialog
-        onConfirm={(reason) => { onUpdateField("notes", reason); onReturn(); setReturnOpen(false); }}
-        onClose={() => setReturnOpen(false)}
-      />
-    )}
+        <div className="px-3 py-2.5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-4 gap-y-3">
+          {visibleCols.filter((col) => col !== "FULL NAME").map((colLabel) => {
+            const f = allFields.find((f) => f.label === colLabel);
+            if (!f) return null;
+            return (
+              <div key={colLabel} className="min-w-0">
+                <div className="text-[9px] font-semibold tracking-wider text-muted-foreground uppercase mb-0.5">{colLabel}</div>
+                <div className="text-xs text-foreground">
+                  {"edit" in f && f.edit === "text" ? (
+                    <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} truncate={"long" in f && f.long} />
+                  ) : "edit" in f && f.edit === "date" ? (
+                    <InlineDate value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
+                  ) : "edit" in f && f.edit === "select" ? (
+                    <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
+                  ) : (
+                    f.value || "—"
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {cancelOpen && (
+        <CancelReasonDialog
+          onConfirm={(reason) => { onUpdateField("notes", reason); onDelete(); setCancelOpen(false); }}
+          onClose={() => setCancelOpen(false)}
+        />
+      )}
+      {returnOpen && onReturn && (
+        <ReturnReasonDialog
+          onConfirm={(reason) => { onUpdateField("notes", reason); onReturn(); setReturnOpen(false); }}
+          onClose={() => setReturnOpen(false)}
+        />
+      )}
     </>
   );
 }
