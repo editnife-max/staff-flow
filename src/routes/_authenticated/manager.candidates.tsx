@@ -3077,7 +3077,7 @@ const EXCEL_COLUMNS = [
   // PERSONAL
   { key: "gender",               label: "Gender",                        required: true  },
   { key: "dob",                  label: "Date of Birth (YYYY-MM-DD)",    required: false },
-  { key: "religion",             label: "Religion",                      required: true  },
+  { key: "religion",             label: "Religion",                      required: false },
   { key: "birth_place",          label: "Birth Place",                   required: false },
   { key: "living_town",          label: "Living Town",                   required: false },
   { key: "marital_status",       label: "Marital Status",                required: false },
