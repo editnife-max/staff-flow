@@ -2005,37 +2005,53 @@ function ProcessingTable({
         </Card>
       )}
 
-      {candidates.length > 0 && (
-        <label className="flex items-center gap-2 px-1 text-sm font-medium cursor-pointer w-fit">
-          <Checkbox
-            checked={allSel ? true : someSel ? "indeterminate" : false}
-            onCheckedChange={(v) =>
-              filteredCandidates.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
-            }
-          />
-          Select all ({filteredCandidates.length})
-        </label>
-      )}
-
       {candidates.length === 0 ? (
         <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates in processing.</CardContent></Card>
       ) : filteredCandidates.length === 0 ? (
         <Card><CardContent className="p-8 text-center text-muted-foreground">No matches for the selected filters.</CardContent></Card>
-      ) : paginated.map((c) => (
-        <ProcessingCard
-          key={c.id}
-          candidate={c}
-          selected={selected.has(c.id)}
-          visibleCols={visibleCols}
-          cancelMode={cancelMode}
-          onToggleSelect={() => onToggleSelect(c.id)}
-          onViewPhotos={() => setViewingPhotos(c)}
-          onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
-          onEdit={() => onEdit(c)}
-          onDelete={() => onDelete(c.id)}
-          officesByCountry={officesByCountry}
-        />
-      ))}
+      ) : (
+        <div className="overflow-x-auto border rounded-none">
+          <table className="w-full border-collapse text-sm">
+            <thead className="bg-muted/40">
+              <tr className="border-b">
+                <th className="px-2 py-2.5 w-8 text-left align-middle">
+                  <Checkbox
+                    checked={allSel ? true : someSel ? "indeterminate" : false}
+                    onCheckedChange={(v) =>
+                      filteredCandidates.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
+                    }
+                  />
+                </th>
+                <th className="px-2 py-2.5 w-10"></th>
+                <th className="px-3 py-2.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase whitespace-nowrap text-left">Full Name</th>
+                {visibleCols.map((col) => (
+                  <th key={col.key} className="px-3 py-2.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase whitespace-nowrap text-left">
+                    {col.header}
+                  </th>
+                ))}
+                <th className="px-3 py-2.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase whitespace-nowrap text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginated.map((c) => (
+                <ProcessingRow
+                  key={c.id}
+                  candidate={c}
+                  selected={selected.has(c.id)}
+                  visibleCols={visibleCols}
+                  cancelMode={cancelMode}
+                  onToggleSelect={() => onToggleSelect(c.id)}
+                  onViewPhotos={() => setViewingPhotos(c)}
+                  onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
+                  onEdit={() => onEdit(c)}
+                  onDelete={() => onDelete(c.id)}
+                  officesByCountry={officesByCountry}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
       {arrivedCheckCandidate && (
         <ArrivedCheckDialog
@@ -2093,7 +2109,7 @@ function ProcessingTable({
   );
 }
 
-function ProcessingCard({
+function ProcessingRow({
   candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onUpdateField, onEdit, onDelete, cancelMode,
   officesByCountry,
 }: {
@@ -2157,80 +2173,64 @@ function ProcessingCard({
 
   return (
     <>
-    <Card className={cn("group relative overflow-visible transition-colors rounded-none mx-[5px]", selected && "ring-2 ring-primary")}>
-      <span className="absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[9px] font-semibold tracking-wide bg-warning text-foreground">
-        PROCESSING
-      </span>
-      <CardContent className="px-3 py-3">
-        <div className="grid grid-cols-[20px_40px_1fr_auto] gap-4 items-start">
-          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" className="mt-1" />
-          <button type="button" onClick={onViewPhotos} className="cursor-pointer mt-0.5">
-            <Avatar className="h-10 w-10 hover:ring-2 hover:ring-primary transition-all">
-              {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
-              <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-            </Avatar>
+    <tr className={cn("border-b transition-colors hover:bg-muted/30 border-l-[3px] border-l-warning/80", selected && "bg-primary/5")}>
+      <td className="px-2 py-2 align-middle">
+        <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
+      </td>
+      <td className="px-2 py-2 align-middle">
+        <button type="button" onClick={onViewPhotos} className="cursor-pointer">
+          <Avatar className="h-9 w-9 hover:ring-2 hover:ring-primary transition-all">
+            {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
+            <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+          </Avatar>
+        </button>
+      </td>
+      <td className="px-3 py-2 text-sm text-[#181A27] align-top min-w-[110px] max-w-[200px] font-semibold">
+        {candidate.full_name}
+      </td>
+      {visibleCols.map((col) => {
+        const raw = candidate[col.key as keyof Candidate];
+        const strVal = raw == null ? "" : String(raw);
+        return (
+          <td key={col.key} className="px-3 py-2 text-sm text-[#181A27] align-top min-w-[110px] max-w-[200px]">
+            {col.type === "text" ? (
+              <InlineText value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
+            ) : col.type === "date" ? (
+              <InlineDate value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
+            ) : col.type === "select" ? (
+              <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
+            ) : col.type === "select-dynamic" ? (
+              <InlineSelect
+                value={strVal}
+                options={officesByCountry[candidate.destination_country ?? ""] ?? []}
+                onSave={(v) => handleColUpdate(col.key, v)}
+              />
+            ) : null}
+          </td>
+        );
+      })}
+      <td className="px-2 py-2 align-middle whitespace-nowrap">
+        <div className="flex items-center gap-2">
+          <Button asChild size="sm" className="h-6 text-[11px] px-2 rounded-none">
+            <Link to="/staff/cv-generator" search={{ id: candidate.id }}>
+              <FileText className="h-3 w-3 mr-1" /> VIEW
+            </Link>
+          </Button>
+          <button onClick={onEdit} className="text-[12px] text-primary hover:underline flex items-center gap-1">
+            <Pencil className="h-3 w-3" /> Edit
           </button>
-          <div
-            className="grid gap-x-6 gap-y-4 items-start"
-            style={{ gridTemplateColumns: `repeat(auto-fill, minmax(140px, 1fr))` }}
+          <button
+            onClick={() => cancelMode ? setCancelOpen(true) : onDelete()}
+            className="text-[12px] text-destructive hover:underline flex items-center gap-1"
           >
-            <div className="min-w-0">
-              <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-1.5">Full Name</div>
-              <div className="text-sm text-[#181A27] font-semibold break-words leading-snug">{candidate.full_name}</div>
-            </div>
-            {visibleCols.map((col) => {
-              const raw = candidate[col.key as keyof Candidate];
-              const strVal = raw == null ? "" : String(raw);
-              return (
-                <div key={col.key} className="min-w-0">
-                  <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-1.5">
-                    {col.header}
-                  </div>
-                  <div className="text-sm text-[#181A27] break-words leading-snug">
-                    {col.type === "text" ? (
-                      <InlineText value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
-                    ) : col.type === "date" ? (
-                      <InlineDate value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
-                    ) : col.type === "select" ? (
-                      <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
-                    ) : col.type === "select-dynamic" ? (
-                      <InlineSelect
-                        value={strVal}
-                        options={officesByCountry[candidate.destination_country ?? ""] ?? []}
-                        onSave={(v) => handleColUpdate(col.key, v)}
-                      />
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex flex-col items-end gap-1 mb-[8px] pt-[10px] pr-[12px] pb-[10px] pl-[4px]">
-            <Button asChild size="sm" className="h-6 w-18 text-[12px] px-2 rounded-none">
-              <Link to="/staff/cv-generator" search={{ id: candidate.id }}>
-                <FileText className="h-3.5 w-3.5 mr-1" /> VIEW
-              </Link>
-            </Button>
-            <button onClick={onEdit} className="text-[14px] text-primary hover:underline flex items-center gap-1">
-              <Pencil className="h-3.5 w-3.5" /> Edit
-            </button>
-            <button
-              onClick={() => cancelMode ? setCancelOpen(true) : onDelete()}
-              className="text-[14px] text-destructive hover:underline flex items-center gap-1"
-            >
-              <Trash2 className="h-3.5 w-3.5" /> Delete
-            </button>
-          </div>
+            <Trash2 className="h-3 w-3" /> Delete
+          </button>
         </div>
-      </CardContent>
-    </Card>
+      </td>
+    </tr>
     {cancelOpen && (
       <CancelReasonDialog
-        onConfirm={(reason) => {
-          onUpdateField("notes", reason);
-          onDelete();
-          setCancelOpen(false);
-        }}
+        onConfirm={(reason) => { onUpdateField("notes", reason); onDelete(); setCancelOpen(false); }}
         onClose={() => setCancelOpen(false)}
       />
     )}
