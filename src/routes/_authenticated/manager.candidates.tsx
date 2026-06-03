@@ -791,7 +791,7 @@ function ManagerCandidatesPage() {
             <FileSignature className="h-4 w-4" />
             Action{selected.size > 0 ? ` (${selected.size})` : ""}
           </Button>
-          <ImportExcelButton onImported={() => qc.invalidateQueries({ queryKey: ["candidates"] })} />
+          <ImportExcelButton onImported={() => qc.invalidateQueries({ queryKey: ["manager-candidates"] })} />
           <Button size="sm" className="gap-2 text-xs h-8 rounded-none" onClick={openCreate}>
             <FilePlus className="h-4 w-4" /> ADD NEW CANDIDATE
           </Button>
