@@ -3161,6 +3161,7 @@ function resolveHeader(header: string): ExcelKey | undefined {
 
 const REQUIRED_KEYS = EXCEL_COLUMNS.filter((c) => c.required).map((c) => c.key as ExcelKey);
 const DATE_KEYS = new Set<ExcelKey>(["dob", "passport_issue_date", "passport_expiry_date"]);
+const NUMBER_KEYS = new Set<ExcelKey>(["children", "weight", "height"]);
 
 interface ParsedRow {
   full_name: string;
@@ -3194,9 +3195,12 @@ function parseExcelFile(file: File): Promise<ParseResult> {
             for (const [header, value] of Object.entries(row)) {
               const colKey = resolveHeader(header);
               if (!colKey) continue;
+              const empty = value === "" || value == null;
               mapped[colKey] = DATE_KEYS.has(colKey)
-                ? formatDateValue(value === "" ? null : value)
-                : (value === "" ? null : value);
+                ? formatDateValue(empty ? null : value)
+                : NUMBER_KEYS.has(colKey)
+                  ? (empty ? null : Number(value))
+                  : (empty ? null : String(value));
             }
             const first = (mapped.first_name as string | null) ?? "";
             const last  = (mapped.last_name  as string | null) ?? "";
