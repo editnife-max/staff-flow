@@ -1416,6 +1416,11 @@ function CandidateCardList({
     return list;
   }, [candidates, activeCountryTab, activeOfficeTab]);
 
+  const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [filtered.length]);
+  const PAGE_SIZE = 10;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const allSel = filtered.length > 0 && filtered.every((c) => selected.has(c.id));
   const someSel = !allSel && filtered.some((c) => selected.has(c.id));
   const visibleCols = (CANDIDATE_CARD_COLS as readonly string[]).filter((l) => !hiddenCols.has(l));
@@ -1545,7 +1550,7 @@ function CandidateCardList({
         <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates here yet.</CardContent></Card>
       ) : (
         <div className="space-y-2">
-          {filtered.map((c) => (
+          {paginated.map((c) => (
             <CandidateCard
               key={c.id}
               candidate={c}

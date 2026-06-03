@@ -57,7 +57,11 @@
       "Bash(npx tsc *)",
       "PowerShell(npx supabase gen types typescript --linked 2>&1 | Select-Object -Last 5)",
       "PowerShell(bunx supabase gen types typescript --linked 2>&1 | Select-Object -Last 5)",
-      "mcp__supabase__generate_typescript_types"
+      "mcp__supabase__generate_typescript_types",
+      "Bash(bun tsc *)",
+      "Bash(bun build:dev)",
+      "PowerShell(npx tsc --noEmit 2>&1 | Select-Object -First 60)",
+      "PowerShell(bunx tsc --noEmit 2>&1 | Select-Object -First 80)"
     ]
   },
   "enableAllProjectMcpServers": true,
