@@ -1417,10 +1417,10 @@ function CandidateCardList({
   }, [candidates, activeCountryTab, activeOfficeTab]);
 
   const [page, setPage] = useState(1);
-  useEffect(() => { setPage(1); }, [filtered.length]);
-  const PAGE_SIZE = 10;
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const [pageSize, setPageSize] = useState(5);
+  useEffect(() => { setPage(1); }, [filtered.length, pageSize]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
   const allSel = filtered.length > 0 && filtered.every((c) => selected.has(c.id));
   const someSel = !allSel && filtered.some((c) => selected.has(c.id));
   const visibleCols = (CANDIDATE_CARD_COLS as readonly string[]).filter((l) => !hiddenCols.has(l));
@@ -1570,6 +1570,44 @@ function CandidateCardList({
         </div>
       )}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
+      <div className="flex items-center justify-between px-1 pt-1 flex-wrap gap-2">
+        <div className="flex items-center gap-1">
+          {[5, 10, 50, 100, 500].map((s) => (
+            <Button key={s} size="sm" variant={pageSize === s ? "default" : "outline"}
+              className="h-7 px-2 rounded-none text-xs"
+              onClick={() => { setPageSize(s); setPage(1); }}>
+              {s}
+            </Button>
+          ))}
+        </div>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
+              onClick={() => setPage((p) => p - 1)}>
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((n) => n === 1 || n === totalPages || Math.abs(n - page) <= 1)
+              .map((n, i, arr) => (
+                <React.Fragment key={n}>
+                  {i > 0 && n - arr[i - 1] > 1 && <span className="text-xs text-muted-foreground px-0.5">…</span>}
+                  <Button size="sm" variant={page === n ? "default" : "outline"}
+                    className="h-7 w-7 p-0 rounded-none text-xs"
+                    onClick={() => setPage(n)}>
+                    {n}
+                  </Button>
+                </React.Fragment>
+              ))}
+            <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === totalPages}
+              onClick={() => setPage((p) => p + 1)}>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+        <span className="text-xs text-muted-foreground">
+          {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filtered.length)} of {filtered.length}
+        </span>
+      </div>
     </div>
   );
 }
@@ -1785,9 +1823,9 @@ function ProcessingTable({
       f.ticket_status, f.arrival_city, activeCountryTab, activeOfficeTab]);
 
   const [page, setPage] = useState(1);
-  useEffect(() => { setPage(1); }, [filteredCandidates.length]);
-  const PAGE_SIZE = 10;
-  const totalPages = Math.max(1, Math.ceil(filteredCandidates.length / PAGE_SIZE));
+  const [pageSize, setPageSize] = useState(5);
+  useEffect(() => { setPage(1); }, [filteredCandidates.length, pageSize]);
+  const totalPages = Math.max(1, Math.ceil(filteredCandidates.length / pageSize));
 
   const medExpiryChecked = useRef<Set<string>>(new Set());
   const tasheerDoneChecked = useRef<Set<string>>(new Set());
@@ -1840,7 +1878,7 @@ function ProcessingTable({
       }
     }
   }, [candidates, arrivedCheckCandidate]);
-  const paginated = filteredCandidates.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const paginated = filteredCandidates.slice((page - 1) * pageSize, page * pageSize);
   const visibleCols = allCols.filter((col) => !hiddenCols.has(col.key));
   const allSel = filteredCandidates.length > 0 && filteredCandidates.every((c) => selected.has(c.id));
   const someSel = !allSel && filteredCandidates.some((c) => selected.has(c.id));
@@ -2098,7 +2136,7 @@ function ProcessingTable({
       )}
 
       {candidates.length > 0 && (
-        <div className="sticky bottom-0 z-10 bg-background flex items-center justify-between px-4 py-2 shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
+        <div className="sticky bottom-0 z-10 bg-background flex items-center justify-between px-4 py-2 shadow-[0_-1px_3px_rgba(0,0,0,0.06)] flex-wrap gap-2">
           <div className="flex items-center gap-1">
             <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
               onClick={() => { setPage((p) => p - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
@@ -2121,9 +2159,18 @@ function ProcessingTable({
               <ChevronRight className="h-3.5 w-3.5" />
             </Button>
           </div>
+          <div className="flex items-center gap-1">
+            {[5, 10, 50, 100, 500].map((s) => (
+              <Button key={s} size="sm" variant={pageSize === s ? "default" : "outline"}
+                className="h-7 px-2 rounded-none text-xs"
+                onClick={() => { setPageSize(s); setPage(1); }}>
+                {s}
+              </Button>
+            ))}
+          </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">
-              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredCandidates.length)} of {filteredCandidates.length}
+              {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filteredCandidates.length)} of {filteredCandidates.length}
             </span>
             <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
