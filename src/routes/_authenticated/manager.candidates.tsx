@@ -1495,8 +1495,7 @@ function CandidateCardList({
       {filtered.length === 0 ? (
         <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates here yet.</CardContent></Card>
       ) : (
-        <div className="overflow-x-auto">
-          <div className="space-y-2 min-w-max">
+        <div className="space-y-2">
             {paginated.map((c) => (
               <CandidateCard
                 key={c.id}
@@ -1516,7 +1515,6 @@ function CandidateCardList({
                 countryOptions={countryOptions}
               />
             ))}
-          </div>
         </div>
       )}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
@@ -1646,7 +1644,8 @@ function CandidateCard({
             </Avatar>
           </button>
           {/* Field columns */}
-          <div className="flex-1 flex items-start gap-6">
+          <div className="flex-1 overflow-x-auto min-w-0">
+            <div className="flex items-start gap-6 min-w-max">
             {visibleCols.map((colLabel) => {
               const f = allFields.find((f) => f.label === colLabel);
               if (!f) return null;
@@ -1671,9 +1670,10 @@ function CandidateCard({
                 </div>
               );
             })}
+            </div>
           </div>
           {/* Actions */}
-          <div className="shrink-0 flex flex-col items-end gap-1.5 ml-auto pl-4">
+          <div className="shrink-0 flex flex-col items-end gap-1.5 pl-4">
             <Button size="sm" onClick={onAction} className="bg-[#5cb8c4] hover:bg-[#4aa8b4] text-white px-5 h-8 rounded text-xs font-semibold tracking-wide">
               VIEW
             </Button>
@@ -2012,8 +2012,7 @@ function ProcessingTable({
       ) : filteredCandidates.length === 0 ? (
         <Card><CardContent className="p-8 text-center text-muted-foreground">No matches for the selected filters.</CardContent></Card>
       ) : (
-        <div className="overflow-x-auto">
-          <div className="space-y-2 min-w-max">
+        <div className="space-y-2">
             {paginated.map((c) => (
               <ProcessingCard
                 key={c.id}
@@ -2030,7 +2029,6 @@ function ProcessingTable({
                 officesByCountry={officesByCountry}
               />
             ))}
-          </div>
         </div>
       )}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
@@ -2179,7 +2177,8 @@ function ProcessingCard({
               <AvatarFallback className="text-[11px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
           </button>
-          <div className="flex-1 flex items-start gap-6">
+          <div className="flex-1 overflow-x-auto min-w-0">
+            <div className="flex items-start gap-6 min-w-max">
             <div className="shrink-0 w-[90px]">
               <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">FULL NAME</div>
               <div className="text-sm font-semibold">{candidate.full_name}</div>
@@ -2208,8 +2207,9 @@ function ProcessingCard({
                 </div>
               );
             })}
+            </div>
           </div>
-          <div className="shrink-0 flex flex-col items-end gap-1.5 ml-auto pl-4">
+          <div className="shrink-0 flex flex-col items-end gap-1.5 pl-4">
             <Button size="sm" onClick={onAction} className="bg-[#5cb8c4] hover:bg-[#4aa8b4] text-white px-5 h-8 rounded text-xs font-semibold tracking-wide">
               VIEW
             </Button>
