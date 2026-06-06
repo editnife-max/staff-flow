@@ -1572,20 +1572,11 @@ function CandidateCardList({
         </div>
       )}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
-      <div className="flex items-center justify-between px-1 pt-1 flex-wrap gap-2">
-        <div className="flex items-center gap-1">
-          {[5, 10, 50, 100, 500].map((s) => (
-            <Button key={s} size="sm" variant={pageSize === s ? "default" : "outline"}
-              className="h-7 px-2 rounded-none text-xs"
-              onClick={() => { setPageSize(s); setPage(1); }}>
-              {s}
-            </Button>
-          ))}
-        </div>
-        {totalPages > 1 && (
+      {filtered.length > 0 && (
+        <div className="sticky bottom-0 z-10 bg-background flex items-center justify-between px-4 py-2 shadow-[0_-1px_3px_rgba(0,0,0,0.06)] flex-wrap gap-2">
           <div className="flex items-center gap-1">
             <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}>
+              onClick={() => { setPage((p) => p - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
               <ChevronLeft className="h-3.5 w-3.5" />
             </Button>
             {Array.from({ length: totalPages }, (_, i) => i + 1)
@@ -1595,21 +1586,36 @@ function CandidateCardList({
                   {i > 0 && n - arr[i - 1] > 1 && <span className="text-xs text-muted-foreground px-0.5">…</span>}
                   <Button size="sm" variant={page === n ? "default" : "outline"}
                     className="h-7 w-7 p-0 rounded-none text-xs"
-                    onClick={() => setPage(n)}>
+                    onClick={() => { setPage(n); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
                     {n}
                   </Button>
                 </React.Fragment>
               ))}
             <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === totalPages}
-              onClick={() => setPage((p) => p + 1)}>
+              onClick={() => { setPage((p) => p + 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
               <ChevronRight className="h-3.5 w-3.5" />
             </Button>
           </div>
-        )}
-        <span className="text-xs text-muted-foreground">
-          {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filtered.length)} of {filtered.length}
-        </span>
-      </div>
+          <div className="flex items-center gap-1">
+            {[5, 10, 50, 100, 500].map((s) => (
+              <Button key={s} size="sm" variant={pageSize === s ? "default" : "outline"}
+                className="h-7 px-2 rounded-none text-xs"
+                onClick={() => { setPageSize(s); setPage(1); }}>
+                {s}
+              </Button>
+            ))}
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">
+              {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filtered.length)} of {filtered.length}
+            </span>
+            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
+              <ChevronUp className="h-3.5 w-3.5" /> Back to top
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
