@@ -1549,24 +1549,26 @@ function CandidateCardList({
       {filtered.length === 0 ? (
         <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates here yet.</CardContent></Card>
       ) : (
-        <div className="space-y-2">
-          {paginated.map((c) => (
-            <CandidateCard
-              key={c.id}
-              candidate={c}
-              selected={selected.has(c.id)}
-              visibleCols={visibleCols}
-              cancelMode={cancelMode}
-              onToggleSelect={() => onToggleSelect(c.id)}
-              onViewPhotos={() => setViewingPhotos(c)}
-              onEdit={() => onEdit(c)}
-              onDelete={() => onDelete(c.id)}
-              onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
-              onReturn={onReturn ? () => onReturn(c.id) : undefined}
-              agencyOptions={agencyOptions}
-              countryOptions={countryOptions}
-            />
-          ))}
+        <div className="overflow-x-auto">
+          <div className="space-y-2 min-w-max">
+            {paginated.map((c) => (
+              <CandidateCard
+                key={c.id}
+                candidate={c}
+                selected={selected.has(c.id)}
+                visibleCols={visibleCols}
+                cancelMode={cancelMode}
+                onToggleSelect={() => onToggleSelect(c.id)}
+                onViewPhotos={() => setViewingPhotos(c)}
+                onEdit={() => onEdit(c)}
+                onDelete={() => onDelete(c.id)}
+                onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
+                onReturn={onReturn ? () => onReturn(c.id) : undefined}
+                agencyOptions={agencyOptions}
+                countryOptions={countryOptions}
+              />
+            ))}
+          </div>
         </div>
       )}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
@@ -1687,7 +1689,7 @@ function CandidateCard({
             </Avatar>
           </button>
           {/* Field columns */}
-          <div className="flex-1 min-w-0 flex items-start gap-6 overflow-x-auto">
+          <div className="flex-1 flex items-start gap-6">
             {visibleCols.map((colLabel) => {
               const f = allFields.find((f) => f.label === colLabel);
               if (!f) return null;
@@ -2073,22 +2075,24 @@ function ProcessingTable({
       ) : filteredCandidates.length === 0 ? (
         <Card><CardContent className="p-8 text-center text-muted-foreground">No matches for the selected filters.</CardContent></Card>
       ) : (
-        <div className="space-y-2">
-          {paginated.map((c) => (
-            <ProcessingCard
-              key={c.id}
-              candidate={c}
-              selected={selected.has(c.id)}
-              visibleCols={visibleCols}
-              cancelMode={cancelMode}
-              onToggleSelect={() => onToggleSelect(c.id)}
-              onViewPhotos={() => setViewingPhotos(c)}
-              onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
-              onEdit={() => onEdit(c)}
-              onDelete={() => onDelete(c.id)}
-              officesByCountry={officesByCountry}
-            />
-          ))}
+        <div className="overflow-x-auto">
+          <div className="space-y-2 min-w-max">
+            {paginated.map((c) => (
+              <ProcessingCard
+                key={c.id}
+                candidate={c}
+                selected={selected.has(c.id)}
+                visibleCols={visibleCols}
+                cancelMode={cancelMode}
+                onToggleSelect={() => onToggleSelect(c.id)}
+                onViewPhotos={() => setViewingPhotos(c)}
+                onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
+                onEdit={() => onEdit(c)}
+                onDelete={() => onDelete(c.id)}
+                officesByCountry={officesByCountry}
+              />
+            ))}
+          </div>
         </div>
       )}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
@@ -2236,7 +2240,7 @@ function ProcessingCard({
               <AvatarFallback className="text-[11px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
             </Avatar>
           </button>
-          <div className="flex-1 min-w-0 flex items-start gap-6 overflow-x-auto">
+          <div className="flex-1 flex items-start gap-6">
             <div className="shrink-0 min-w-[110px]">
               <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">FULL NAME</div>
               <div className="text-sm font-semibold">{candidate.full_name}</div>
