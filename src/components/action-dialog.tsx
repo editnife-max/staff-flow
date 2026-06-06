@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Download, FileText, ArrowUpDown, ChevronDown, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -291,7 +291,6 @@ interface ActionDialogProps {
 
 export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
   const { user } = useAuth();
-  const cvRef   = useRef<HTMLDivElement>(null);
 
   const { data: templates = [] } = useQuery({
     queryKey: ["cv-templates", user?.id],
@@ -399,14 +398,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
           } else {
             if (downloadType !== "normal-cv")
               toast.info(`No template for "${currentType.label}" — using Normal CV format.`);
-            if (!cvRef.current) throw new Error("CV preview not ready — please wait and try again.");
-            const canvas = await html2canvas(cvRef.current, {
-              scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: false,
-              onclone: (_doc, el) => {
-                _doc.querySelectorAll("link[rel='stylesheet'], style").forEach((s) => s.remove());
-                el.style.color = "#222222"; el.style.backgroundColor = "#ffffff";
-              },
-            });
+            const canvas = await candidateToCanvas(preview!, null);
             const pxW = canvas.width / 2, pxH = canvas.height / 2;
             const pdf = new jsPDF({ unit: "px", format: [pxW, pxH] });
             pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pxW, pxH);
@@ -596,7 +588,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
                   </p>
                 )}
                 <div className="mx-auto w-fit" style={{ zoom: 0.62 }}>
-                  <div ref={cvRef} className="shadow-xl">
+                  <div className="shadow-xl">
                     <CvPreview candidate={preview} template={matchedTemplate} />
                   </div>
                 </div>
