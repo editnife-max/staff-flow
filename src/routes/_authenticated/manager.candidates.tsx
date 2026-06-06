@@ -1640,9 +1640,9 @@ function CandidateCard({
               const f = allFields.find((f) => f.label === colLabel);
               if (!f) return null;
               return (
-                <div key={colLabel} className="shrink-0 min-w-[90px]">
+                <div key={colLabel} className="shrink-0 w-[130px]">
                   <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">{colLabel}</div>
-                  <div className="text-sm text-foreground">
+                  <div className="text-sm text-foreground break-words">
                     {"bold" in f && f.bold ? (
                       <button type="button" onClick={onView} className="font-semibold text-left hover:text-primary hover:underline transition-colors">
                         {f.value || "—"}
@@ -2166,7 +2166,7 @@ function ProcessingCard({
             </Avatar>
           </button>
           <div className="flex-1 flex items-start gap-6">
-            <div className="shrink-0 min-w-[110px]">
+            <div className="shrink-0 w-[130px]">
               <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">FULL NAME</div>
               <div className="text-sm font-semibold">{candidate.full_name}</div>
             </div>
@@ -2174,9 +2174,9 @@ function ProcessingCard({
               const raw = candidate[col.key as keyof Candidate];
               const strVal = raw == null ? "" : String(raw);
               return (
-                <div key={col.key} className="shrink-0 min-w-[90px]">
+                <div key={col.key} className="shrink-0 w-[130px]">
                   <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">{col.header}</div>
-                  <div className="text-sm text-foreground">
+                  <div className="text-sm text-foreground break-words">
                     {col.type === "text" ? (
                       <InlineText value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
                     ) : col.type === "date" ? (
