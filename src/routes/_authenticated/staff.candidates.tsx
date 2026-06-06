@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ActionDialog } from "@/components/action-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -1089,6 +1089,7 @@ function StaffCandidatesPage() {
           candidates={filtered}
           selected={selected}
           onToggleSelect={toggleSelect}
+          onAction={(c) => setActionCandidates([c])}
           onUpdateField={(id, field, value) => {
             fieldMut.mutate({ id, field, value });
             if (field === "coc_status" && value === "Done")
@@ -1105,6 +1106,7 @@ function StaffCandidatesPage() {
           candidates={filtered}
           selected={selected}
           onToggleSelect={toggleSelect}
+          onAction={(c) => setActionCandidates([c])}
           onEdit={openEdit}
           cancelMode={tab === "available"}
           onDelete={(id) =>
@@ -1386,12 +1388,13 @@ type EditableField =
   | "processing_notes" | "remark" | "cv_sent_to";
 
 function CandidateCardList({
-  candidates, selected, onToggleSelect, onEdit, onDelete, onUpdateField, cancelMode, onReturn,
+  candidates, selected, onToggleSelect, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn,
   countryMeta, officesByCountry, agencyOptions,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
   onToggleSelect: (id: string) => void;
+  onAction: (c: Candidate) => void;
   onEdit: (c: Candidate) => void;
   onDelete: (id: string) => void;
   onUpdateField: (id: string, field: string, value: string | null) => void;
@@ -1560,6 +1563,7 @@ function CandidateCardList({
                 cancelMode={cancelMode}
                 onToggleSelect={() => onToggleSelect(c.id)}
                 onViewPhotos={() => setViewingPhotos(c)}
+                onAction={() => onAction(c)}
                 onEdit={() => onEdit(c)}
                 onDelete={() => onDelete(c.id)}
                 onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
@@ -1621,7 +1625,7 @@ function CandidateCardList({
 }
 
 function CandidateCard({
-  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onEdit, onDelete, onUpdateField, cancelMode, onReturn, agencyOptions, countryOptions,
+  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, agencyOptions, countryOptions,
 }: {
   candidate: Candidate;
   selected: boolean;
@@ -1629,6 +1633,7 @@ function CandidateCard({
   cancelMode?: boolean;
   onToggleSelect: () => void;
   onViewPhotos: () => void;
+  onAction: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onUpdateField: (field: EditableField, value: string | null) => void;
@@ -1721,8 +1726,8 @@ function CandidateCard({
           </div>
           {/* Actions */}
           <div className="shrink-0 flex flex-col items-end gap-1.5 ml-auto pl-4">
-            <Button asChild size="sm" className="bg-[#5cb8c4] hover:bg-[#4aa8b4] text-white px-5 h-8 rounded text-xs font-semibold tracking-wide">
-              <Link to="/staff/cv-generator" search={{ id: candidate.id }}>VIEW</Link>
+            <Button size="sm" onClick={onAction} className="bg-[#5cb8c4] hover:bg-[#4aa8b4] text-white px-5 h-8 rounded text-xs font-semibold tracking-wide">
+              VIEW
             </Button>
             <button onClick={onEdit} className="text-xs text-primary hover:underline">Edit</button>
             {onReturn && (
@@ -1762,12 +1767,13 @@ const INITIAL_PROC_FILTERS = {
 };
 
 function ProcessingTable({
-  candidates, selected, onToggleSelect, onUpdateField, onEdit, onDelete, cancelMode,
+  candidates, selected, onToggleSelect, onAction, onUpdateField, onEdit, onDelete, cancelMode,
   countryMeta, officesByCountry,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
   onToggleSelect: (id: string) => void;
+  onAction: (c: Candidate) => void;
   onUpdateField: (id: string, field: string, value: string | null) => void;
   onEdit: (c: Candidate) => void;
   onDelete: (id: string) => void;
@@ -2092,6 +2098,7 @@ function ProcessingTable({
                 cancelMode={cancelMode}
                 onToggleSelect={() => onToggleSelect(c.id)}
                 onViewPhotos={() => setViewingPhotos(c)}
+                onAction={() => onAction(c)}
                 onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
                 onEdit={() => onEdit(c)}
                 onDelete={() => onDelete(c.id)}
@@ -2168,7 +2175,7 @@ function ProcessingTable({
 }
 
 function ProcessingCard({
-  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onUpdateField, onEdit, onDelete, cancelMode,
+  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onUpdateField, onEdit, onDelete, cancelMode,
   officesByCountry,
 }: {
   candidate: Candidate;
@@ -2177,6 +2184,7 @@ function ProcessingCard({
   cancelMode?: boolean;
   onToggleSelect: () => void;
   onViewPhotos: () => void;
+  onAction: () => void;
   onUpdateField: (field: string, value: string | null) => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -2277,8 +2285,8 @@ function ProcessingCard({
             })}
           </div>
           <div className="shrink-0 flex flex-col items-end gap-1.5 ml-auto pl-4">
-            <Button asChild size="sm" className="bg-[#5cb8c4] hover:bg-[#4aa8b4] text-white px-5 h-8 rounded text-xs font-semibold tracking-wide">
-              <Link to="/staff/cv-generator" search={{ id: candidate.id }}>VIEW</Link>
+            <Button size="sm" onClick={onAction} className="bg-[#5cb8c4] hover:bg-[#4aa8b4] text-white px-5 h-8 rounded text-xs font-semibold tracking-wide">
+              VIEW
             </Button>
             <button onClick={onEdit} className="text-xs text-primary hover:underline">Edit</button>
             <button
