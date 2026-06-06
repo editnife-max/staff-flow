@@ -1880,8 +1880,6 @@ function ProcessingTable({
   }, [candidates, arrivedCheckCandidate]);
   const paginated = filteredCandidates.slice((page - 1) * pageSize, page * pageSize);
   const visibleCols = allCols.filter((col) => !hiddenCols.has(col.key));
-  const allSel = filteredCandidates.length > 0 && filteredCandidates.every((c) => selected.has(c.id));
-  const someSel = !allSel && filteredCandidates.some((c) => selected.has(c.id));
 
   const set = (key: keyof typeof INITIAL_PROC_FILTERS) => (v: string) =>
     setProcFilters((p) => ({ ...p, [key]: v }));
@@ -2075,46 +2073,22 @@ function ProcessingTable({
       ) : filteredCandidates.length === 0 ? (
         <Card><CardContent className="p-8 text-center text-muted-foreground">No matches for the selected filters.</CardContent></Card>
       ) : (
-        <div className="overflow-x-auto border rounded-none">
-          <table className="w-full border-collapse text-sm">
-            <thead className="bg-muted/40">
-              <tr className="border-b">
-                <th className="px-2 py-2.5 w-8 text-left align-middle">
-                  <Checkbox
-                    checked={allSel ? true : someSel ? "indeterminate" : false}
-                    onCheckedChange={(v) =>
-                      filteredCandidates.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
-                    }
-                  />
-                </th>
-                <th className="px-2 py-2.5 w-10"></th>
-                <th className="px-3 py-2.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase whitespace-nowrap text-left">Full Name</th>
-                {visibleCols.map((col) => (
-                  <th key={col.key} className="px-3 py-2.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase whitespace-nowrap text-left">
-                    {col.header}
-                  </th>
-                ))}
-                <th className="px-3 py-2.5 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase whitespace-nowrap text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginated.map((c) => (
-                <ProcessingRow
-                  key={c.id}
-                  candidate={c}
-                  selected={selected.has(c.id)}
-                  visibleCols={visibleCols}
-                  cancelMode={cancelMode}
-                  onToggleSelect={() => onToggleSelect(c.id)}
-                  onViewPhotos={() => setViewingPhotos(c)}
-                  onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
-                  onEdit={() => onEdit(c)}
-                  onDelete={() => onDelete(c.id)}
-                  officesByCountry={officesByCountry}
-                />
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-2">
+          {paginated.map((c) => (
+            <ProcessingCard
+              key={c.id}
+              candidate={c}
+              selected={selected.has(c.id)}
+              visibleCols={visibleCols}
+              cancelMode={cancelMode}
+              onToggleSelect={() => onToggleSelect(c.id)}
+              onViewPhotos={() => setViewingPhotos(c)}
+              onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
+              onEdit={() => onEdit(c)}
+              onDelete={() => onDelete(c.id)}
+              officesByCountry={officesByCountry}
+            />
+          ))}
         </div>
       )}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
@@ -2183,7 +2157,7 @@ function ProcessingTable({
   );
 }
 
-function ProcessingRow({
+function ProcessingCard({
   candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onUpdateField, onEdit, onDelete, cancelMode,
   officesByCountry,
 }: {
@@ -2247,61 +2221,65 @@ function ProcessingRow({
 
   return (
     <>
-    <tr className={cn("border-b transition-colors hover:bg-muted/30 border-l-[3px] border-l-warning/80", selected && "bg-primary/5")}>
-      <td className="px-2 py-2 align-middle">
-        <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
-      </td>
-      <td className="px-2 py-2 align-middle">
-        <button type="button" onClick={onViewPhotos} className="cursor-pointer">
-          <Avatar className="h-9 w-9 hover:ring-2 hover:ring-primary transition-all">
-            {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
-            <AvatarFallback className="text-[10px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-          </Avatar>
-        </button>
-      </td>
-      <td className="px-3 py-2 text-sm text-[#181A27] align-top min-w-[110px] max-w-[200px] font-semibold">
-        {candidate.full_name}
-      </td>
-      {visibleCols.map((col) => {
-        const raw = candidate[col.key as keyof Candidate];
-        const strVal = raw == null ? "" : String(raw);
-        return (
-          <td key={col.key} className="px-3 py-2 text-sm text-[#181A27] align-top min-w-[110px] max-w-[200px]">
-            {col.type === "text" ? (
-              <InlineText value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
-            ) : col.type === "date" ? (
-              <InlineDate value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
-            ) : col.type === "select" ? (
-              <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
-            ) : col.type === "select-dynamic" ? (
-              <InlineSelect
-                value={strVal}
-                options={officesByCountry[candidate.destination_country ?? ""] ?? []}
-                onSave={(v) => handleColUpdate(col.key, v)}
-              />
-            ) : null}
-          </td>
-        );
-      })}
-      <td className="px-2 py-2 align-middle whitespace-nowrap">
-        <div className="flex items-center gap-2">
-          <Button asChild size="sm" className="h-6 text-[11px] px-2 rounded-none">
-            <Link to="/staff/cv-generator" search={{ id: candidate.id }}>
-              <FileText className="h-3 w-3 mr-1" /> VIEW
-            </Link>
-          </Button>
-          <button onClick={onEdit} className="text-[12px] text-primary hover:underline flex items-center gap-1">
-            <Pencil className="h-3 w-3" /> Edit
-          </button>
-          <button
-            onClick={() => cancelMode ? setCancelOpen(true) : onDelete()}
-            className="text-[12px] text-destructive hover:underline flex items-center gap-1"
-          >
-            <Trash2 className="h-3 w-3" /> Delete
-          </button>
+      <div className={cn(
+        "bg-white border border-border shadow-sm rounded-sm overflow-hidden transition-colors",
+        selected && "ring-1 ring-primary/50 bg-primary/5",
+      )}>
+        <div className="flex items-center gap-2 px-4 pt-2.5 pb-1">
+          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
+          <StatusBadge status="processing" />
         </div>
-      </td>
-    </tr>
+        <div className="flex items-center gap-4 px-4 pb-3 pt-1">
+          <button type="button" onClick={onViewPhotos} className="shrink-0">
+            <Avatar className="h-14 w-14 hover:ring-2 hover:ring-primary transition-all">
+              {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
+              <AvatarFallback className="text-[11px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+            </Avatar>
+          </button>
+          <div className="flex-1 min-w-0 flex items-start gap-6 overflow-x-auto">
+            <div className="shrink-0 min-w-[110px]">
+              <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">FULL NAME</div>
+              <div className="text-sm font-semibold">{candidate.full_name}</div>
+            </div>
+            {visibleCols.map((col) => {
+              const raw = candidate[col.key as keyof Candidate];
+              const strVal = raw == null ? "" : String(raw);
+              return (
+                <div key={col.key} className="shrink-0 min-w-[90px]">
+                  <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">{col.header}</div>
+                  <div className="text-sm text-foreground">
+                    {col.type === "text" ? (
+                      <InlineText value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
+                    ) : col.type === "date" ? (
+                      <InlineDate value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
+                    ) : col.type === "select" ? (
+                      <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
+                    ) : col.type === "select-dynamic" ? (
+                      <InlineSelect
+                        value={strVal}
+                        options={officesByCountry[candidate.destination_country ?? ""] ?? []}
+                        onSave={(v) => handleColUpdate(col.key, v)}
+                      />
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="shrink-0 flex flex-col items-end gap-1.5 ml-auto pl-4">
+            <Button asChild size="sm" className="bg-[#5cb8c4] hover:bg-[#4aa8b4] text-white px-5 h-8 rounded text-xs font-semibold tracking-wide">
+              <Link to="/staff/cv-generator" search={{ id: candidate.id }}>VIEW</Link>
+            </Button>
+            <button onClick={onEdit} className="text-xs text-primary hover:underline">Edit</button>
+            <button
+              onClick={() => cancelMode ? setCancelOpen(true) : onDelete()}
+              className="text-xs text-destructive hover:underline"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
     {cancelOpen && (
       <CancelReasonDialog
         onConfirm={(reason) => { onUpdateField("notes", reason); onDelete(); setCancelOpen(false); }}
