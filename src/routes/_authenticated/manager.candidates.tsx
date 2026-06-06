@@ -1647,7 +1647,7 @@ function CandidateCard({
               if (!f) return null;
               return (
                 <div key={colLabel} className="shrink-0 w-[90px]">
-                  <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">{colLabel}</div>
+                  <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">{colLabel}</div>
                   <div className="text-sm text-foreground break-words">
                     {"bold" in f && f.bold ? (
                       <button type="button" onClick={onView} className="font-semibold text-left hover:text-primary hover:underline transition-colors">
@@ -2181,7 +2181,7 @@ function ProcessingCard({
               const strVal = raw == null ? "" : String(raw);
               return (
                 <div key={col.key} className="shrink-0 w-[90px]">
-                  <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">{col.header}</div>
+                  <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">{col.header}</div>
                   <div className="text-sm text-foreground break-words">
                     {col.type === "text" ? (
                       <InlineText value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
