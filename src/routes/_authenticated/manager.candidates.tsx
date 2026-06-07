@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { cn, calcAge } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
@@ -1602,7 +1602,7 @@ function CandidateCard({
     { label: "ADDED BY", value: firstName(candidate.created_by_name) || "—" },
     { label: "CANDIDATE CODE", value: candidate.candidate_code ?? "—" },
     { label: "GENDER", value: candidate.gender ?? "—" },
-    { label: "AGE", value: candidate.age != null ? String(candidate.age) : "—" },
+    { label: "AGE", value: String(calcAge(candidate.dob) ?? candidate.age ?? "—") },
     { label: "RELIGION", value: candidate.religion ?? "—" },
     { label: "MARITAL STATUS", value: candidate.marital_status ?? "—" },
     { label: "BIRTH PLACE", value: candidate.birth_place ?? "—" },
@@ -3009,7 +3009,7 @@ function CandidateDetailDialog({ candidate, onClose }: { candidate: Candidate | 
             <InfoRow label="First Name" value={candidate.first_name} />
             <InfoRow label="Last Name" value={candidate.last_name} />
             <InfoRow label="Date of Birth" value={candidate.dob} />
-            <InfoRow label="Age" value={candidate.age} />
+            <InfoRow label="Age" value={calcAge(candidate.dob) ?? candidate.age} />
             <InfoRow label="Gender" value={candidate.gender} />
             <InfoRow label="Religion" value={candidate.religion} />
             <InfoRow label="Marital Status" value={candidate.marital_status} />

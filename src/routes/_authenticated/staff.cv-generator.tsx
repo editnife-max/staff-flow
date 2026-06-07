@@ -25,7 +25,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { cn, calcAge } from "@/lib/utils";
+import { StatusBadge } from "@/components/status-badge";
 import type { Database } from "@/integrations/supabase/types";
 
 export const Route = createFileRoute("/_authenticated/staff/cv-generator")({
@@ -311,6 +312,7 @@ function CvCandidateCard({
     { label: "FULL NAME",      value: c.full_name,                                                   bold: true },
     { label: "CANDIDATE CODE", value: c.candidate_code ?? "—" },
     { label: "GENDER",         value: c.gender ?? "—" },
+    { label: "AGE",            value: String(calcAge(c.dob) ?? c.age ?? "—") },
     { label: "RELIGION",       value: c.religion ?? "—" },
     { label: "MARITAL STATUS", value: c.marital_status ?? "—" },
     { label: "BIRTH PLACE",    value: c.birth_place ?? "—" },
@@ -329,77 +331,81 @@ function CvCandidateCard({
   ];
 
   return (
-    <Card className={cn(
-      "group relative overflow-visible transition-colors rounded-none mx-[5px]",
-      selected && "ring-2 ring-primary",
+    <div className={cn(
+      "bg-white border border-border shadow-sm rounded-sm overflow-hidden transition-colors",
+      selected && "ring-1 ring-primary/50 bg-primary/5",
       lockedDaysLeft != null && "opacity-60",
     )}>
-      <span className="absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[10px] font-semibold tracking-wide bg-success text-success-foreground">
-        Available
-      </span>
-      {lockedDaysLeft != null ? (
-        <span className="absolute -top-2 right-3 rounded-none px-1.5 py-0.5 text-[10px] font-semibold bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-          Locked · {lockedDaysLeft}d left
-        </span>
-      ) : overdueDays != null ? (
-        <span className="absolute -top-2 right-3 rounded-none px-1.5 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
-          Resend · {overdueDays}d
-        </span>
-      ) : null}
-      <CardContent className="p-0">
-        <div className="grid grid-cols-[20px_40px_1fr_auto] gap-3 items-center">
-          <Checkbox
-            checked={selected}
-            onCheckedChange={onToggleSelect}
-            disabled={lockedDaysLeft != null}
-            aria-label="Select candidate"
-          />
-          <Avatar className="h-10 w-10">
+      {/* Status badge + checkbox + indicators row */}
+      <div className="flex items-center gap-2 px-4 pt-2.5 pb-1">
+        <Checkbox
+          checked={selected}
+          onCheckedChange={onToggleSelect}
+          disabled={lockedDaysLeft != null}
+          aria-label="Select candidate"
+        />
+        <StatusBadge status="available" />
+        {lockedDaysLeft != null ? (
+          <span className="ml-auto rounded-none px-1.5 py-0.5 text-[10px] font-semibold bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+            Locked · {lockedDaysLeft}d left
+          </span>
+        ) : overdueDays != null ? (
+          <span className="ml-auto rounded-none px-1.5 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+            Resend · {overdueDays}d
+          </span>
+        ) : null}
+      </div>
+
+      {/* Main content row */}
+      <div className="flex items-center gap-4 px-4 pb-3 pt-1">
+        {/* Photo */}
+        <div className="shrink-0">
+          <Avatar className="h-14 w-14">
             {c.photo_url && <AvatarImage src={c.photo_url} alt={c.full_name} />}
-            <AvatarFallback className="text-[10px]">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+            <AvatarFallback className="text-[11px]">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
+        </div>
 
-          <div className="overflow-x-auto scroll-on-card-hover py-[30px]">
-            <div className="flex gap-5 items-start">
-              {fields.map((f) => (
-                <div key={f.label} className="shrink-0">
-                  <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">
-                    {f.label}
-                  </div>
-                  {f.badge && f.value && f.value !== "—" ? (
-                    <span className={cn(
-                      "text-[11px] font-semibold px-1.5 py-0.5 rounded-sm whitespace-nowrap",
-                      OPTION_COLORS[f.value] ?? "bg-zinc-100/50 text-[#181A27]",
-                    )}>
-                      {f.value}
-                    </span>
-                  ) : (
-                    <div className={cn(
-                      "text-[14px] text-[#181A27] whitespace-nowrap dark:text-foreground",
-                      f.bold && "font-semibold",
-                    )}>
-                      {f.value}
-                    </div>
-                  )}
+        {/* Scrollable fields */}
+        <div className="flex-1 overflow-x-auto">
+          <div className="flex gap-6 items-start py-1">
+            {fields.map((f) => (
+              <div key={f.label} className="shrink-0 w-[90px]">
+                <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">
+                  {f.label}
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-col items-end gap-1 mb-[8px] pt-[10px] pr-[12px] pb-[10px] pl-[4px]">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-6 text-[12px] px-2 rounded-none whitespace-nowrap"
-              onClick={onAction}
-            >
-              <FileText className="h-3.5 w-3.5 mr-1" />
-              Action
-            </Button>
+                {f.badge && f.value && f.value !== "—" ? (
+                  <span className={cn(
+                    "text-[11px] font-semibold px-1.5 py-0.5 rounded-sm whitespace-nowrap",
+                    OPTION_COLORS[f.value] ?? "bg-zinc-100/50 text-[#181A27]",
+                  )}>
+                    {f.value}
+                  </span>
+                ) : (
+                  <div className={cn(
+                    "text-sm text-foreground break-words",
+                    f.bold && "font-semibold",
+                  )}>
+                    {f.value || "—"}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
-      </CardContent>
-    </Card>
+
+        {/* Actions */}
+        <div className="shrink-0 flex flex-col items-end gap-1.5 ml-auto pl-4">
+          <Button
+            size="sm"
+            onClick={onAction}
+            className="bg-[#5cb8c4] hover:bg-[#4aa8b4] text-white px-5 h-8 rounded text-xs font-semibold tracking-wide"
+          >
+            VIEW
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 

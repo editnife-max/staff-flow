@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { cn, calcAge } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
@@ -1656,7 +1656,7 @@ function CandidateCard({
     { label: "FULL NAME", value: candidate.full_name, bold: true },
     { label: "CANDIDATE CODE", value: candidate.candidate_code ?? "—" },
     { label: "GENDER", value: candidate.gender ?? "—" },
-    { label: "AGE", value: candidate.age != null ? String(candidate.age) : "—" },
+    { label: "AGE", value: String(calcAge(candidate.dob) ?? candidate.age ?? "—") },
     { label: "RELIGION", value: candidate.religion ?? "—" },
     { label: "MARITAL STATUS", value: candidate.marital_status ?? "—" },
     { label: "BIRTH PLACE", value: candidate.birth_place ?? "—" },
