@@ -379,46 +379,51 @@ function AgencyCandidateCard({
 
   return (
     <div className={cn(
-      "bg-white border border-border shadow-sm rounded-sm transition-colors",
+      "bg-white border border-border shadow-sm rounded-sm transition-colors flex items-center",
       selected && "ring-1 ring-primary/50 bg-primary/5",
     )}>
-      {/* Status badge + checkbox row */}
-      <div className="flex items-center gap-2 px-4 pt-2.5 pb-1">
+      {/* Sticky left — checkbox + status badge */}
+      <div className={cn(
+        "sticky left-0 z-10 self-stretch shrink-0 flex flex-col items-center justify-center gap-2 px-4",
+        "shadow-[6px_0_10px_-4px_rgba(0,0,0,0.07)]",
+        selected ? "bg-primary/5" : "bg-white",
+      )}>
         <Checkbox checked={selected} onCheckedChange={onToggle} aria-label="Select candidate" />
         <StatusBadge status={c.status} />
       </div>
-      {/* Main content row */}
-      <div className="flex items-center gap-4 px-4 pb-3 pt-1">
-        <div className="shrink-0">
-          <Avatar className="h-14 w-14">
-            {c.photo_url && <AvatarImage src={c.photo_url} alt={c.full_name} />}
-            <AvatarFallback className="text-[11px]">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-          </Avatar>
-        </div>
-        <div className="flex items-start gap-6">
-          {fields.map((f) => (
-            <div key={f.label} className="shrink-0 w-[90px]">
-              <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">
-                {f.label}
-              </div>
-              {f.badge && f.value && f.value !== "—" ? (
-                <span className={cn(
-                  "text-[11px] font-semibold px-1.5 py-0.5 rounded-sm whitespace-nowrap",
-                  BADGE_COLORS[f.value] ?? "bg-zinc-100/50 text-[#181A27]",
-                )}>
-                  {f.value}
-                </span>
-              ) : (
-                <div className={cn(
-                  "text-sm text-foreground break-words",
-                  f.bold && "font-semibold",
-                )}>
-                  {f.value}
-                </div>
-              )}
+
+      {/* Avatar */}
+      <div className="shrink-0 px-4 py-3">
+        <Avatar className="h-14 w-14">
+          {c.photo_url && <AvatarImage src={c.photo_url} alt={c.full_name} />}
+          <AvatarFallback className="text-[11px]">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+        </Avatar>
+      </div>
+
+      {/* Fields */}
+      <div className="flex items-start gap-6 py-3 pr-4">
+        {fields.map((f) => (
+          <div key={f.label} className="shrink-0 w-[90px]">
+            <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">
+              {f.label}
             </div>
-          ))}
-        </div>
+            {f.badge && f.value && f.value !== "—" ? (
+              <span className={cn(
+                "text-[11px] font-semibold px-1.5 py-0.5 rounded-sm whitespace-nowrap",
+                BADGE_COLORS[f.value] ?? "bg-zinc-100/50 text-[#181A27]",
+              )}>
+                {f.value}
+              </span>
+            ) : (
+              <div className={cn(
+                "text-sm text-foreground break-words",
+                f.bold && "font-semibold",
+              )}>
+                {f.value}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
