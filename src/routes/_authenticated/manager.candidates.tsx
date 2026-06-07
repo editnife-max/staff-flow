@@ -442,6 +442,16 @@ function ManagerCandidatesPage() {
     },
   });
 
+  const { data: foreignAgencies = [] } = useQuery({
+    queryKey: ["foreign-agencies-detail", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("foreign_agencies").select("name, country").order("name");
+      if (error) throw error;
+      return data as { name: string; country: string }[];
+    },
+  });
+
   const countryMeta = useMemo(
     () => assignCountries.map((c) => ({ name: c.name, flag: c.flag })),
     [assignCountries],
@@ -472,6 +482,29 @@ function ManagerCandidatesPage() {
     onMutate: async (input) => {
       await qc.cancelQueries({ queryKey: ["manager-candidates", user?.id] });
       const previous = qc.getQueryData<Candidate[]>(["manager-candidates", user?.id]);
+
+      // Resolve auto-fill values when selected_by is set
+      let autoFill: { destination_country?: string; office?: string } = {};
+      if (input.field === "selected_by" && input.value) {
+        const sel = input.value;
+        // If the selected name matches an assignment office, infer country from its country_id
+        const matchedOffice = assignOffices.find((o) => o.name === sel);
+        if (matchedOffice) {
+          const country = assignCountries.find((c) => c.id === matchedOffice.country_id);
+          if (country) { autoFill.destination_country = country.name; autoFill.office = sel; }
+        } else {
+          // Otherwise treat it as a foreign agency and look up its country
+          const matchedAgency = foreignAgencies.find((a) => a.name === sel);
+          if (matchedAgency) {
+            autoFill.destination_country = matchedAgency.country;
+            const offices = officesByCountry[matchedAgency.country] ?? [];
+            if (offices.length === 1) autoFill.office = offices[0];
+          }
+        }
+      }
+
+      const candidateBefore = previous?.find((c) => c.id === input.id);
+
       qc.setQueryData<Candidate[]>(["manager-candidates", user?.id], (old) =>
         old?.map((c) => {
           if (c.id !== input.id) return c;
@@ -480,10 +513,30 @@ function ManagerCandidatesPage() {
             updated.status = "processing";
             if (!c.contract_date) updated.contract_date = new Date().toISOString().split("T")[0];
           }
+          if (autoFill.destination_country && !candidateBefore?.destination_country)
+            updated.destination_country = autoFill.destination_country;
+          if (autoFill.office && !candidateBefore?.office)
+            updated.office = autoFill.office;
           return updated;
         }) ?? []
       );
-      return { previous };
+
+      // Only carry forward fields that were actually empty before
+      return {
+        previous,
+        autoFill: {
+          destination_country: !candidateBefore?.destination_country ? autoFill.destination_country : undefined,
+          office: !candidateBefore?.office ? autoFill.office : undefined,
+        },
+      };
+    },
+    onSuccess: (_, input, ctx) => {
+      if (input.field === "selected_by" && input.value && ctx?.autoFill) {
+        if (ctx.autoFill.destination_country)
+          fieldMut.mutate({ id: input.id, field: "destination_country", value: ctx.autoFill.destination_country });
+        if (ctx.autoFill.office)
+          fieldMut.mutate({ id: input.id, field: "office", value: ctx.autoFill.office });
+      }
     },
     onError: (e: Error, _, ctx) => {
       if (ctx?.previous) qc.setQueryData(["manager-candidates", user?.id], ctx.previous);
