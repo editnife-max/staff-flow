@@ -1695,17 +1695,17 @@ function CandidateCard({
                   <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">{colLabel}</div>
                   <div className="text-sm text-foreground break-words">
                     {"bold" in f && f.bold ? (
-                      <button type="button" onClick={onView} className="font-semibold text-left hover:text-primary hover:underline transition-colors">
+                      <button type="button" onClick={onView} className="font-semibold text-left hover:text-primary hover:underline transition-colors line-clamp-2 break-words">
                         {f.value || "—"}
                       </button>
                     ) : "edit" in f && f.edit === "text" ? (
-                      <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} truncate={"long" in f && f.long} />
+                      <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
                     ) : "edit" in f && f.edit === "date" ? (
                       <InlineDate value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
                     ) : "edit" in f && f.edit === "select" ? (
                       <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
                     ) : (
-                      f.value || "—"
+                      <span className="line-clamp-2 break-words">{f.value || "—"}</span>
                     )}
                   </div>
                 </div>
@@ -2222,7 +2222,7 @@ function ProcessingCard({
           <div className="flex-1 flex items-start gap-6">
             <div className="shrink-0 w-[90px]">
               <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">FULL NAME</div>
-              <div className="text-sm font-semibold">{candidate.full_name}</div>
+              <div className="text-sm font-semibold line-clamp-2 break-words">{candidate.full_name}</div>
             </div>
             {visibleCols.map((col) => {
               const raw = candidate[col.key as keyof Candidate];
@@ -2404,36 +2404,18 @@ function InlineDate({ value, onSave }: { value: string; onSave: (v: string | nul
   );
 }
 
-function InlineText({ value, onSave, truncate }: { value: string; onSave: (v: string | null) => void; truncate?: boolean }) {
+function InlineText({ value, onSave }: { value: string; onSave: (v: string | null) => void }) {
   const [editing, setEditing] = useState(false);
-  const [expanded, setExpanded] = useState(false);
   const [draft, setDraft] = useState(value);
-  const words = value.trim().split(/\s+/);
-  const isLong = truncate && words.length > 1;
-  const display = isLong && !expanded ? `${words[0]}...` : (value || null);
   if (!editing) {
-    if (truncate && expanded) {
-      return (
-        <button
-          type="button"
-          onClick={() => setExpanded(false)}
-          className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border block whitespace-normal max-w-[260px] break-words"
-        >
-          {value}
-        </button>
-      );
-    }
     return (
       <button
         type="button"
-        title={isLong ? value : undefined}
-        onClick={() => { if (isLong) { setExpanded(true); } else { setDraft(value); setEditing(true); } }}
-        className={cn(
-          "text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[40px] block",
-          isLong && "cursor-pointer",
-        )}
+        title={value || undefined}
+        onClick={() => { setDraft(value); setEditing(true); }}
+        className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[40px] line-clamp-2 break-words"
       >
-        {display ?? <span className="text-muted-foreground">—</span>}
+        {value || <span className="text-muted-foreground">—</span>}
       </button>
     );
   }
@@ -2452,7 +2434,7 @@ function InlineText({ value, onSave, truncate }: { value: string; onSave: (v: st
 function InlineSelect({ value, options, onSave }: { value: string; options: string[]; onSave: (v: string | null) => void }) {
   return (
     <Select value={value || "__clear__"} onValueChange={(v) => onSave(v === "__clear__" ? null : v)}>
-      <SelectTrigger className="h-auto w-auto min-w-[80px] gap-1 border-transparent bg-transparent p-0 shadow-none focus:ring-0 [&>svg]:shrink-0">
+      <SelectTrigger className="h-auto w-full max-w-full overflow-hidden gap-1 border-transparent bg-transparent p-0 shadow-none focus:ring-0 [&>svg]:shrink-0">
         <SelectValue placeholder={<span className="text-muted-foreground text-[14px] px-1">—</span>} />
       </SelectTrigger>
       <SelectContent>
