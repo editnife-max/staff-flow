@@ -332,7 +332,7 @@ function CvCandidateCard({
 
   return (
     <div className={cn(
-      "bg-white border border-border shadow-sm rounded-sm overflow-hidden transition-colors",
+      "bg-white border border-border shadow-sm rounded-sm transition-colors",
       selected && "ring-1 ring-primary/50 bg-primary/5",
       lockedDaysLeft != null && "opacity-60",
     )}>
@@ -357,7 +357,7 @@ function CvCandidateCard({
       </div>
 
       {/* Main content row */}
-      <div className="flex items-center gap-4 px-4 pb-3 pt-1">
+      <div className="flex items-center gap-4 pl-4 pb-3 pt-1">
         {/* Photo */}
         <div className="shrink-0">
           <Avatar className="h-14 w-14">
@@ -394,8 +394,12 @@ function CvCandidateCard({
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="shrink-0 flex flex-col items-end gap-1.5 ml-auto pl-4">
+        {/* Actions — sticky right */}
+        <div className={cn(
+          "sticky right-0 z-10 self-stretch shrink-0 flex flex-col justify-center items-end gap-1.5 pr-4 pl-3",
+          "shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.07)]",
+          selected ? "bg-primary/5" : "bg-white",
+        )}>
           <Button
             size="sm"
             onClick={onAction}
