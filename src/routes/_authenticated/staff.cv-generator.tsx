@@ -366,8 +366,8 @@ function CvCandidateCard({
           </Avatar>
         </div>
 
-        {/* Scrollable fields */}
-        <div className="flex-1 overflow-x-auto">
+        {/* Fields */}
+        <div className="flex-1">
           <div className="flex gap-6 items-start py-1">
             {fields.map((f) => (
               <div key={f.label} className="shrink-0 w-[90px]">
@@ -1104,26 +1104,28 @@ function CvGeneratorPage() {
       )}
 
       {/* Card list */}
-      <div className="flex-1 overflow-y-auto space-y-2">
-        {filtered.map((c) => {
-          const status = candidateStatus.get(c.id);
-          return (
-            <CvCandidateCard
-              key={c.id}
-              candidate={c}
-              selected={selected.has(c.id)}
-              onToggleSelect={() => toggleSelect(c.id)}
-              onAction={() => setActionCandidates([c])}
-              overdueDays={status?.overdueDays}
-              lockedDaysLeft={status?.lockedDaysLeft}
-            />
-          );
-        })}
-        {filtered.length === 0 && (
-          <div className="text-center text-sm text-muted-foreground py-16">
-            No candidates with Medical Fit and COC Done.
-          </div>
-        )}
+      <div className="flex-1 overflow-auto">
+        <div className="min-w-max space-y-2">
+          {filtered.map((c) => {
+            const status = candidateStatus.get(c.id);
+            return (
+              <CvCandidateCard
+                key={c.id}
+                candidate={c}
+                selected={selected.has(c.id)}
+                onToggleSelect={() => toggleSelect(c.id)}
+                onAction={() => setActionCandidates([c])}
+                overdueDays={status?.overdueDays}
+                lockedDaysLeft={status?.lockedDaysLeft}
+              />
+            );
+          })}
+          {filtered.length === 0 && (
+            <div className="text-center text-sm text-muted-foreground py-16">
+              No candidates with Medical Fit and COC Done.
+            </div>
+          )}
+        </div>
       </div>
 
       {actionCandidates.length > 0 && (
