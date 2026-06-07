@@ -18,16 +18,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { cn, calcAge } from "@/lib/utils";
 import { X } from "lucide-react";
+import { StatusBadge } from "@/components/status-badge";
 import { getStaffList, sendCandidatesNotification } from "@/lib/notifications.functions";
 
 export const Route = createFileRoute("/_authenticated/agency/candidates")({
   head: () => ({ meta: [{ title: "Candidates — Agency Portal" }] }),
   component: AgencyCandidatesPage,
 });
-
-type Status = "available" | "processing" | "arrived" | "canceled" | "returned";
 
 type Candidate = {
   id: string;
@@ -36,6 +35,7 @@ type Candidate = {
   occupation: string | null;
   country: string | null;
   gender: string | null;
+  dob: string | null;
   age: number | null;
   religion: string | null;
   marital_status: string | null;
@@ -51,18 +51,6 @@ type Candidate = {
   status: string;
 };
 
-const STATUS_STYLES: Record<Status, string> = {
-  available:  "bg-success text-success-foreground",
-  processing: "bg-warning text-foreground",
-  arrived:    "bg-info text-info-foreground",
-  canceled:   "bg-destructive text-destructive-foreground",
-  returned:   "bg-orange-500 text-white",
-};
-
-const STATUS_LABEL: Record<Status, string> = {
-  available: "Available", processing: "Processing", arrived: "Arrived",
-  canceled: "Canceled", returned: "Returned",
-};
 
 const initialFilters = {
   sort:       "newest",
@@ -94,7 +82,7 @@ function AgencyCandidatesPage() {
       const { data, error } = await supabase
         .from("candidates")
         .select(
-          "id,full_name,photo_url,occupation,country,gender,age,religion,marital_status," +
+          "id,full_name,photo_url,occupation,country,gender,dob,age,religion,marital_status," +
           "experience,education,english_level,arabic_level,medical_status,passport_status," +
           "coc_status,selected_by,cv_sent_to,status"
         )
@@ -294,15 +282,17 @@ function AgencyCandidatesPage() {
       ) : filtered.length === 0 ? (
         <Card className="rounded-none"><CardContent className="p-8 text-center text-sm text-muted-foreground">No candidates found.</CardContent></Card>
       ) : (
-        <div className="space-y-2">
-          {filtered.map((c) => (
-            <AgencyCandidateCard
-              key={c.id}
-              candidate={c}
-              selected={selected.has(c.id)}
-              onToggle={() => toggleSelect(c.id)}
-            />
-          ))}
+        <div className="overflow-x-auto">
+          <div className="min-w-max space-y-2">
+            {filtered.map((c) => (
+              <AgencyCandidateCard
+                key={c.id}
+                candidate={c}
+                selected={selected.has(c.id)}
+                onToggle={() => toggleSelect(c.id)}
+              />
+            ))}
+          </div>
         </div>
       )}
 
@@ -355,63 +345,82 @@ function AgencyCandidatesPage() {
   );
 }
 
+const BADGE_COLORS: Record<string, string> = {
+  Fit:           "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
+  Unfit:         "bg-red-100/50 text-[#181A27] dark:bg-red-900/40 dark:text-red-300",
+  Booked:        "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
+  "In progress": "bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
+  Expired:       "bg-orange-100/50 text-[#181A27] dark:bg-orange-900/40 dark:text-orange-300",
+  Done:          "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
+  No:            "bg-zinc-100/50 text-[#181A27] dark:bg-zinc-800 dark:text-zinc-400",
+  Yes:           "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
+};
+
 function AgencyCandidateCard({
   candidate: c, selected, onToggle,
 }: { candidate: Candidate; selected: boolean; onToggle: () => void }) {
-  const statusKey = (c.status in STATUS_STYLES ? c.status : "available") as Status;
-
-  const fields: [string, string | number | null][] = [
-    ["FULL NAME",  c.full_name],
-    ["OCCUPATION", c.occupation],
-    ["COUNTRY",    c.country],
-    ["AGE",        c.age],
-    ["GENDER",     c.gender],
-    ["RELIGION",   c.religion],
-    ["MARITAL",    c.marital_status],
-    ["EXPERIENCE", c.experience],
-    ["EDUCATION",  c.education],
-    ["ENGLISH",    c.english_level],
-    ["ARABIC",     c.arabic_level],
-    ["MEDICAL",    c.medical_status],
-    ["COC",        c.coc_status],
-    ["PASSPORT",   c.passport_status],
+  type FieldDef = { label: string; value: string; bold?: boolean; badge?: boolean };
+  const fields: FieldDef[] = [
+    { label: "FULL NAME",  value: c.full_name,                                         bold: true },
+    { label: "OCCUPATION", value: c.occupation ?? "—" },
+    { label: "COUNTRY",    value: c.country ?? "—" },
+    { label: "AGE",        value: String(calcAge(c.dob) ?? c.age ?? "—") },
+    { label: "GENDER",     value: c.gender ?? "—" },
+    { label: "RELIGION",   value: c.religion ?? "—" },
+    { label: "MARITAL",    value: c.marital_status ?? "—" },
+    { label: "EXPERIENCE", value: c.experience ?? "—" },
+    { label: "EDUCATION",  value: c.education ?? "—" },
+    { label: "ENGLISH",    value: c.english_level ?? "—" },
+    { label: "ARABIC",     value: c.arabic_level ?? "—" },
+    { label: "MEDICAL",    value: c.medical_status ?? "—",  badge: true },
+    { label: "COC",        value: c.coc_status ?? "—",      badge: true },
+    { label: "PASSPORT",   value: c.passport_status ?? "—", badge: true },
   ];
 
   return (
-    <Card className={cn(
-      "group relative overflow-visible transition-colors rounded-none mx-[5px]",
-      selected && "ring-2 ring-primary",
+    <div className={cn(
+      "bg-white border border-border shadow-sm rounded-sm transition-colors",
+      selected && "ring-1 ring-primary/50 bg-primary/5",
     )}>
-      <span className={cn(
-        "absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[10px] font-semibold tracking-wide",
-        STATUS_STYLES[statusKey],
-      )}>
-        {STATUS_LABEL[statusKey]}
-      </span>
-      <CardContent className="p-0">
-        <div className="grid grid-cols-[20px_40px_1fr] gap-3 items-center">
-          <Checkbox checked={selected} onCheckedChange={onToggle} aria-label="Select candidate" />
-          <Avatar className="h-10 w-10">
+      {/* Status badge + checkbox row */}
+      <div className="flex items-center gap-2 px-4 pt-2.5 pb-1">
+        <Checkbox checked={selected} onCheckedChange={onToggle} aria-label="Select candidate" />
+        <StatusBadge status={c.status} />
+      </div>
+      {/* Main content row */}
+      <div className="flex items-center gap-4 px-4 pb-3 pt-1">
+        <div className="shrink-0">
+          <Avatar className="h-14 w-14">
             {c.photo_url && <AvatarImage src={c.photo_url} alt={c.full_name} />}
-            <AvatarFallback className="text-[10px]">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+            <AvatarFallback className="text-[11px]">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
-          <div className="overflow-x-auto scroll-on-card-hover py-[30px]">
-            <div className="flex gap-5 items-start">
-              {fields.map(([label, val]) =>
-                val != null ? (
-                  <div key={label} className="shrink-0">
-                    <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap mb-[5px]">
-                      {label}
-                    </div>
-                    <div className="text-[14px] text-[#181A27] whitespace-nowrap">{val}</div>
-                  </div>
-                ) : null
+        </div>
+        <div className="flex items-start gap-6">
+          {fields.map((f) => (
+            <div key={f.label} className="shrink-0 w-[90px]">
+              <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">
+                {f.label}
+              </div>
+              {f.badge && f.value && f.value !== "—" ? (
+                <span className={cn(
+                  "text-[11px] font-semibold px-1.5 py-0.5 rounded-sm whitespace-nowrap",
+                  BADGE_COLORS[f.value] ?? "bg-zinc-100/50 text-[#181A27]",
+                )}>
+                  {f.value}
+                </span>
+              ) : (
+                <div className={cn(
+                  "text-sm text-foreground break-words",
+                  f.bold && "font-semibold",
+                )}>
+                  {f.value}
+                </div>
               )}
             </div>
-          </div>
+          ))}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
