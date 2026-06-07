@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ActionDialog } from "@/components/action-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, FilePlus, FileText, Pencil, Trash2, FileSignature, Calendar,
   SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
@@ -512,26 +512,6 @@ function StaffCandidatesPage() {
     onMutate: async (input) => {
       await qc.cancelQueries({ queryKey: ["staff-candidates", user?.id] });
       const previous = qc.getQueryData<Candidate[]>(["staff-candidates", user?.id]);
-
-      let autoFill: { destination_country?: string; office?: string } = {};
-      if (input.field === "selected_by" && input.value) {
-        const sel = input.value;
-        const matchedOffice = assignOffices.find((o) => o.name === sel);
-        if (matchedOffice) {
-          const country = assignCountries.find((c) => c.id === matchedOffice.country_id);
-          if (country) { autoFill.destination_country = country.name; autoFill.office = sel; }
-        } else {
-          const matchedAgency = foreignAgencies.find((a) => a.name === sel);
-          if (matchedAgency) {
-            autoFill.destination_country = matchedAgency.country;
-            const offices = officesByCountry[matchedAgency.country] ?? [];
-            if (offices.length === 1) autoFill.office = offices[0];
-          }
-        }
-      }
-
-      const candidateBefore = previous?.find((c) => c.id === input.id);
-
       qc.setQueryData<Candidate[]>(["staff-candidates", user?.id], (old) =>
         old?.map((c) => {
           if (c.id !== input.id) return c;
@@ -540,35 +520,45 @@ function StaffCandidatesPage() {
             updated.status = "processing";
             if (!c.contract_date) updated.contract_date = new Date().toISOString().split("T")[0];
           }
-          if (autoFill.destination_country && !candidateBefore?.destination_country)
-            updated.destination_country = autoFill.destination_country;
-          if (autoFill.office && !candidateBefore?.office)
-            updated.office = autoFill.office;
           return updated;
         }) ?? []
       );
-
-      return {
-        previous,
-        autoFill: {
-          destination_country: !candidateBefore?.destination_country ? autoFill.destination_country : undefined,
-          office: !candidateBefore?.office ? autoFill.office : undefined,
-        },
-      };
-    },
-    onSuccess: (_, input, ctx) => {
-      if (input.field === "selected_by" && input.value && ctx?.autoFill) {
-        if (ctx.autoFill.destination_country)
-          fieldMut.mutate({ id: input.id, field: "destination_country", value: ctx.autoFill.destination_country });
-        if (ctx.autoFill.office)
-          fieldMut.mutate({ id: input.id, field: "office", value: ctx.autoFill.office });
-      }
+      return { previous };
     },
     onError: (e: Error, _, ctx) => {
       if (ctx?.previous) qc.setQueryData(["staff-candidates", user?.id], ctx.previous);
       toast.error(e.message);
     },
   });
+
+  const resolveSelectedBy = useCallback((sel: string): { destination_country?: string; office?: string } => {
+    const matchedOffice = assignOffices.find((o) => o.name === sel);
+    if (matchedOffice) {
+      const country = assignCountries.find((c) => c.id === matchedOffice.country_id);
+      if (country) return { destination_country: country.name, office: sel };
+    }
+    const matchedAgency = foreignAgencies.find((a) => a.name === sel);
+    if (matchedAgency) {
+      const offices = officesByCountry[matchedAgency.country] ?? [];
+      return {
+        destination_country: matchedAgency.country,
+        office: offices.length === 1 ? offices[0] : undefined,
+      };
+    }
+    return {};
+  }, [assignOffices, assignCountries, foreignAgencies, officesByCountry]);
+
+  const handleUpdateField = useCallback((id: string, field: string, value: string | null) => {
+    fieldMut.mutate({ id, field, value });
+    if (field === "selected_by" && value) {
+      const current = qc.getQueryData<Candidate[]>(["staff-candidates", user?.id])?.find((c) => c.id === id);
+      const fill = resolveSelectedBy(value);
+      if (fill.destination_country && !current?.destination_country)
+        fieldMut.mutate({ id, field: "destination_country", value: fill.destination_country });
+      if (fill.office && !current?.office)
+        fieldMut.mutate({ id, field: "office", value: fill.office });
+    }
+  }, [fieldMut, resolveSelectedBy, qc, user?.id]);
 
   const opts = useMemo(() => {
     const uniq = (k: keyof Candidate) =>
@@ -1163,7 +1153,7 @@ function StaffCandidatesPage() {
               ? fieldMut.mutate({ id, field: "status", value: "canceled" })
               : removeMut.mutate(id)
           }
-          onUpdateField={(id, field, value) => fieldMut.mutate({ id, field, value })}
+          onUpdateField={handleUpdateField}
           onReturn={tab === "arrived" ? (id) => fieldMut.mutate({ id, field: "status", value: "returned" }) : undefined}
           countryMeta={tab === "available" ? [] : countryMeta}
           officesByCountry={tab === "available" ? {} : officesByCountry}
