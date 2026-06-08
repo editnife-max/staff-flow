@@ -107,7 +107,6 @@ function AgencyCandidatesPage() {
     if (!el) return;
     const sync = () => {
       const atEnd = el.scrollLeft >= el.scrollWidth - el.clientWidth - 1;
-      el.style.setProperty("--sx", atEnd ? "0px" : `${el.scrollLeft}px`);
       if (fadeRef.current) fadeRef.current.style.opacity = (!atEnd && el.scrollWidth > el.clientWidth) ? "1" : "0";
     };
     sync();
@@ -403,8 +402,7 @@ function AgencyCandidateCard({
     )}>
       {/* Fixed left — checkbox + status badge */}
       <div
-        className="z-10 self-stretch shrink-0 flex flex-col items-center justify-center gap-2 px-4 bg-white shadow-[6px_0_10px_-4px_rgba(0,0,0,0.07)]"
-        style={{ transform: "translateX(var(--sx, 0px))", willChange: "transform" }}
+        className="sticky left-0 z-10 self-stretch shrink-0 flex flex-col items-center justify-center gap-2 px-4 bg-white shadow-[6px_0_10px_-4px_rgba(0,0,0,0.07)]"
       >
         <Checkbox checked={selected} onCheckedChange={onToggle} aria-label="Select candidate" />
         <StatusBadge status={c.status} />
