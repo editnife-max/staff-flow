@@ -1394,15 +1394,6 @@ function CandidateCardList({
   const [showColPicker, setShowColPicker] = useState(false);
   const [activeCountryTab, setActiveCountryTab] = useState("all");
   const [activeOfficeTab, setActiveOfficeTab] = useState("all");
-  const scrollRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const onScroll = () => el.style.setProperty("--scroll-x", `${el.scrollLeft}px`);
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, []);
-
   const countryOptions = useMemo(() => countryMeta.map((c) => c.name), [countryMeta]);
 
   const filtered = useMemo(() => {
@@ -1543,7 +1534,7 @@ function CandidateCardList({
       {filtered.length === 0 ? (
         <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates here yet.</CardContent></Card>
       ) : (
-        <div ref={scrollRef} className="overflow-x-auto">
+        <div className="overflow-x-auto">
           <div className="space-y-2 min-w-max">
             {paginated.map((c) => (
               <CandidateCard
@@ -1679,37 +1670,42 @@ function CandidateCard({
         "bg-white border border-border shadow-sm rounded-sm transition-colors",
         selected && "ring-1 ring-primary/50 bg-primary/5",
       )}>
-        {/* Status badge + checkbox row */}
-        <div
-          className={cn("flex items-center gap-2 px-4 pt-2.5 pb-1", selected ? "bg-primary/5" : "bg-white")}
-          style={{ transform: "translateX(var(--scroll-x, 0px))" }}
-        >
+        {/* Status badge + checkbox row — sticky left */}
+        <div className={cn("sticky left-0 z-10 flex items-center gap-2 px-4 pt-2.5 pb-1", selected ? "bg-primary/5" : "bg-white")}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status={candidate.status ?? "available"} />
         </div>
         {/* Main content row */}
-        <div className="flex items-center gap-4 px-4 pb-3 pt-1">
-          {/* Photo */}
-          <button type="button" onClick={onViewPhotos} className="shrink-0">
-            <Avatar className="h-14 w-14 hover:ring-2 hover:ring-primary transition-all">
-              {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
-              <AvatarFallback className="text-[11px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-            </Avatar>
-          </button>
-          {/* Field columns */}
+        <div className="flex items-center pb-3 pt-1">
+          {/* Sticky left: photo + full name */}
+          <div className={cn(
+            "sticky left-0 z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3",
+            selected ? "bg-primary/5" : "bg-white",
+          )}>
+            <button type="button" onClick={onViewPhotos} className="shrink-0">
+              <Avatar className="h-14 w-14 hover:ring-2 hover:ring-primary transition-all">
+                {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
+                <AvatarFallback className="text-[11px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+            </button>
+            <div className="shrink-0 w-[90px]">
+              <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">FULL NAME</div>
+              <button type="button" onClick={onView} className="text-sm font-semibold text-left hover:text-primary hover:underline transition-colors line-clamp-2 break-words">
+                {candidate.full_name || "—"}
+              </button>
+            </div>
+          </div>
+          {/* Field columns (FULL NAME rendered in sticky section above) */}
           <div className="flex-1 flex items-start gap-6">
             {visibleCols.map((colLabel) => {
+              if (colLabel === "FULL NAME") return null;
               const f = allFields.find((f) => f.label === colLabel);
               if (!f) return null;
               return (
                 <div key={colLabel} className="shrink-0 w-[90px]">
                   <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">{colLabel}</div>
                   <div className="text-sm text-foreground break-words">
-                    {"bold" in f && f.bold ? (
-                      <button type="button" onClick={onView} className="font-semibold text-left hover:text-primary hover:underline transition-colors line-clamp-2 break-words">
-                        {f.value || "—"}
-                      </button>
-                    ) : "edit" in f && f.edit === "text" ? (
+                    {"edit" in f && f.edit === "text" ? (
                       <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
                     ) : "edit" in f && f.edit === "date" ? (
                       <InlineDate value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
@@ -1724,7 +1720,7 @@ function CandidateCard({
             })}
           </div>
           {/* Actions */}
-          <div className="shrink-0 flex flex-col items-end gap-1.5 ml-auto pl-4">
+          <div className="shrink-0 flex flex-col items-end gap-1.5 ml-auto pl-4 pr-4">
             <Button size="sm" onClick={onAction} className="bg-[#5cb8c4] hover:bg-[#4aa8b4] text-white px-5 h-8 rounded text-xs font-semibold tracking-wide">
               VIEW
             </Button>
@@ -1789,15 +1785,6 @@ function ProcessingTable({
   const [activeCountryTab, setActiveCountryTab] = useState("all");
   const [activeOfficeTab, setActiveOfficeTab] = useState("all");
   const f = procFilters;
-  const scrollRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const onScroll = () => el.style.setProperty("--scroll-x", `${el.scrollLeft}px`);
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, []);
-
   const allCols = useMemo((): ProcessingColDef[] => {
     const countryNames = countryMeta.map((c) => c.name);
     return [
@@ -2071,7 +2058,7 @@ function ProcessingTable({
       ) : filteredCandidates.length === 0 ? (
         <Card><CardContent className="p-8 text-center text-muted-foreground">No matches for the selected filters.</CardContent></Card>
       ) : (
-        <div ref={scrollRef} className="overflow-x-auto">
+        <div className="overflow-x-auto">
           <div className="space-y-2 min-w-max">
             {paginated.map((c) => (
               <ProcessingCard
@@ -2227,26 +2214,29 @@ function ProcessingCard({
         "bg-white border border-border shadow-sm rounded-sm transition-colors",
         selected && "ring-1 ring-primary/50 bg-primary/5",
       )}>
-        {/* Status badge + checkbox row */}
-        <div
-          className={cn("flex items-center gap-2 px-4 pt-2.5 pb-1", selected ? "bg-primary/5" : "bg-white")}
-          style={{ transform: "translateX(var(--scroll-x, 0px))" }}
-        >
+        {/* Status badge + checkbox row — sticky left */}
+        <div className={cn("sticky left-0 z-10 flex items-center gap-2 px-4 pt-2.5 pb-1", selected ? "bg-primary/5" : "bg-white")}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status="processing" />
         </div>
-        <div className="flex items-center gap-4 px-4 pb-3 pt-1">
-          <button type="button" onClick={onViewPhotos} className="shrink-0">
-            <Avatar className="h-14 w-14 hover:ring-2 hover:ring-primary transition-all">
-              {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
-              <AvatarFallback className="text-[11px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-            </Avatar>
-          </button>
-          <div className="flex-1 flex items-start gap-6">
+        <div className="flex items-center pb-3 pt-1">
+          {/* Sticky left: photo + full name */}
+          <div className={cn(
+            "sticky left-0 z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3",
+            selected ? "bg-primary/5" : "bg-white",
+          )}>
+            <button type="button" onClick={onViewPhotos} className="shrink-0">
+              <Avatar className="h-14 w-14 hover:ring-2 hover:ring-primary transition-all">
+                {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
+                <AvatarFallback className="text-[11px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+            </button>
             <div className="shrink-0 w-[90px]">
               <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">FULL NAME</div>
               <div className="text-sm font-semibold line-clamp-2 break-words">{candidate.full_name}</div>
             </div>
+          </div>
+          <div className="flex-1 flex items-start gap-6">
             {visibleCols.map((col) => {
               const raw = candidate[col.key as keyof Candidate];
               const strVal = raw == null ? "" : String(raw);
@@ -2272,7 +2262,7 @@ function ProcessingCard({
               );
             })}
           </div>
-          <div className="shrink-0 flex flex-col items-end gap-1.5 ml-auto pl-4">
+          <div className="shrink-0 flex flex-col items-end gap-1.5 ml-auto pl-4 pr-4">
             <Button size="sm" onClick={onAction} className="bg-[#5cb8c4] hover:bg-[#4aa8b4] text-white px-5 h-8 rounded text-xs font-semibold tracking-wide">
               VIEW
             </Button>
