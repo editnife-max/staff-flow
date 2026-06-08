@@ -402,7 +402,7 @@ function AgencyCandidateCard({
     )}>
       {/* Fixed left — checkbox + status badge */}
       <div
-        className="sticky left-0 z-10 self-stretch shrink-0 flex flex-col items-center justify-center gap-2 px-4 bg-white shadow-[6px_0_10px_-4px_rgba(0,0,0,0.07)]"
+        className={cn("sticky left-0 z-10 self-stretch shrink-0 flex flex-col items-center justify-center gap-2 px-4 shadow-[6px_0_10px_-4px_rgba(0,0,0,0.07)]", selected ? "bg-primary/5" : "bg-white")}
       >
         <Checkbox checked={selected} onCheckedChange={onToggle} aria-label="Select candidate" />
         <StatusBadge status={c.status} />
