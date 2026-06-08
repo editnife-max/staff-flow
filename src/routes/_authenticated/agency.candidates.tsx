@@ -396,13 +396,14 @@ function AgencyCandidateCard({
   ];
 
   return (
-    <div className={cn(
-      "bg-white border border-border shadow-sm rounded-sm transition-colors flex items-center",
-      selected && "ring-1 ring-primary/50 bg-primary/5",
-    )}>
+    <div
+      className={cn("border border-border shadow-sm rounded-sm transition-colors flex items-center", selected && "ring-1 ring-primary/50")}
+      style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}
+    >
       {/* Fixed left — checkbox + status badge */}
       <div
-        className="sticky left-0 z-10 self-stretch shrink-0 flex flex-col items-center justify-center gap-2 px-4" style={{ background: selected ? "color-mix(in srgb, var(--primary) 5%, white)" : "white" }}
+        className="sticky left-0 z-10 self-stretch shrink-0 flex flex-col items-center justify-center gap-2 px-4"
+        style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}
       >
         <Checkbox checked={selected} onCheckedChange={onToggle} aria-label="Select candidate" />
         <StatusBadge status={c.status} />

@@ -1737,19 +1737,19 @@ function CandidateCard({
 
   return (
     <>
-      <div className={cn(
-        "bg-white border border-border shadow-sm rounded-sm transition-colors",
-        selected && "ring-1 ring-primary/50 bg-primary/5",
-      )}>
+      <div
+        className={cn("border border-border shadow-sm rounded-sm transition-colors", selected && "ring-1 ring-primary/50")}
+        style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}
+      >
         {/* Status badge + checkbox — sticky left */}
-        <div className="sticky left-0 z-10 w-fit flex items-center gap-2 px-4 pt-2.5 pb-1" style={{ background: selected ? "color-mix(in srgb, var(--primary) 5%, white)" : "white" }}>
+        <div className="sticky left-0 z-10 w-fit flex items-center gap-2 px-4 pt-2.5 pb-1" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status={candidate.status ?? "available"} />
         </div>
         {/* Main content row */}
         <div className="flex items-center pb-3 pt-1">
           {/* Sticky left: photo + full name */}
-          <div className="sticky left-0 z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3" style={{ background: selected ? "color-mix(in srgb, var(--primary) 5%, white)" : "white" }}>
+          <div className="sticky left-0 z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
             <button type="button" onClick={onViewPhotos} className="shrink-0">
               <Avatar className="h-14 w-14 hover:ring-2 hover:ring-primary transition-all">
                 {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
@@ -2321,18 +2321,18 @@ function ProcessingCard({
 
   return (
     <>
-      <div className={cn(
-        "bg-white border border-border shadow-sm rounded-sm transition-colors",
-        selected && "ring-1 ring-primary/50 bg-primary/5",
-      )}>
+      <div
+        className={cn("border border-border shadow-sm rounded-sm transition-colors", selected && "ring-1 ring-primary/50")}
+        style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}
+      >
         {/* Status badge + checkbox — sticky left */}
-        <div className="sticky left-0 z-10 w-fit flex items-center gap-2 px-4 pt-2.5 pb-1" style={{ background: selected ? "color-mix(in srgb, var(--primary) 5%, white)" : "white" }}>
+        <div className="sticky left-0 z-10 w-fit flex items-center gap-2 px-4 pt-2.5 pb-1" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status="processing" />
         </div>
         <div className="flex items-center pb-3 pt-1">
           {/* Sticky left: photo + full name */}
-          <div className="sticky left-0 z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3" style={{ background: selected ? "color-mix(in srgb, var(--primary) 5%, white)" : "white" }}>
+          <div className="sticky left-0 z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
             <button type="button" onClick={onViewPhotos} className="shrink-0">
               <Avatar className="h-14 w-14 hover:ring-2 hover:ring-primary transition-all">
                 {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
