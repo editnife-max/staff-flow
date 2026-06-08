@@ -1394,6 +1394,14 @@ function CandidateCardList({
   const [showColPicker, setShowColPicker] = useState(false);
   const [activeCountryTab, setActiveCountryTab] = useState("all");
   const [activeOfficeTab, setActiveOfficeTab] = useState("all");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => el.style.setProperty("--scroll-x", `${el.scrollLeft}px`);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
 
   const countryOptions = useMemo(() => countryMeta.map((c) => c.name), [countryMeta]);
 
@@ -1535,7 +1543,7 @@ function CandidateCardList({
       {filtered.length === 0 ? (
         <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates here yet.</CardContent></Card>
       ) : (
-        <div className="overflow-x-auto">
+        <div ref={scrollRef} className="overflow-x-auto">
           <div className="space-y-2 min-w-max">
             {paginated.map((c) => (
               <CandidateCard
@@ -1671,11 +1679,11 @@ function CandidateCard({
         "bg-white border border-border shadow-sm rounded-sm transition-colors",
         selected && "ring-1 ring-primary/50 bg-primary/5",
       )}>
-        {/* Status badge + checkbox row — sticky so it never scrolls */}
-        <div className={cn(
-          "sticky left-0 z-10 flex items-center gap-2 px-4 pt-2.5 pb-1",
-          selected ? "bg-primary/5" : "bg-white",
-        )}>
+        {/* Status badge + checkbox row */}
+        <div
+          className={cn("flex items-center gap-2 px-4 pt-2.5 pb-1", selected ? "bg-primary/5" : "bg-white")}
+          style={{ transform: "translateX(var(--scroll-x, 0px))" }}
+        >
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status={candidate.status ?? "available"} />
         </div>
@@ -1781,6 +1789,14 @@ function ProcessingTable({
   const [activeCountryTab, setActiveCountryTab] = useState("all");
   const [activeOfficeTab, setActiveOfficeTab] = useState("all");
   const f = procFilters;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => el.style.setProperty("--scroll-x", `${el.scrollLeft}px`);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
 
   const allCols = useMemo((): ProcessingColDef[] => {
     const countryNames = countryMeta.map((c) => c.name);
@@ -2055,7 +2071,7 @@ function ProcessingTable({
       ) : filteredCandidates.length === 0 ? (
         <Card><CardContent className="p-8 text-center text-muted-foreground">No matches for the selected filters.</CardContent></Card>
       ) : (
-        <div className="overflow-x-auto">
+        <div ref={scrollRef} className="overflow-x-auto">
           <div className="space-y-2 min-w-max">
             {paginated.map((c) => (
               <ProcessingCard
@@ -2211,11 +2227,11 @@ function ProcessingCard({
         "bg-white border border-border shadow-sm rounded-sm transition-colors",
         selected && "ring-1 ring-primary/50 bg-primary/5",
       )}>
-        {/* Status badge + checkbox row — sticky so it never scrolls */}
-        <div className={cn(
-          "sticky left-0 z-10 flex items-center gap-2 px-4 pt-2.5 pb-1",
-          selected ? "bg-primary/5" : "bg-white",
-        )}>
+        {/* Status badge + checkbox row */}
+        <div
+          className={cn("flex items-center gap-2 px-4 pt-2.5 pb-1", selected ? "bg-primary/5" : "bg-white")}
+          style={{ transform: "translateX(var(--scroll-x, 0px))" }}
+        >
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status="processing" />
         </div>
