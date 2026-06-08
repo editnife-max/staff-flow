@@ -1449,15 +1449,20 @@ function CandidateCardList({
   const [activeCountryTab, setActiveCountryTab] = useState("all");
   const [activeOfficeTab, setActiveOfficeTab] = useState("all");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fadeRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const onScroll = () => {
+    const sync = () => {
       const atEnd = el.scrollLeft >= el.scrollWidth - el.clientWidth - 1;
       el.style.setProperty("--sx", atEnd ? "0px" : `${el.scrollLeft}px`);
+      if (fadeRef.current) fadeRef.current.style.opacity = (!atEnd && el.scrollWidth > el.clientWidth) ? "1" : "0";
     };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
+    sync();
+    el.addEventListener("scroll", sync, { passive: true });
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => { el.removeEventListener("scroll", sync); ro.disconnect(); };
   }, []);
   const countryOptions = useMemo(() => countryMeta.map((c) => c.name), [countryMeta]);
 
@@ -1601,27 +1606,30 @@ function CandidateCardList({
       {filtered.length === 0 ? (
         <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates here yet.</CardContent></Card>
       ) : (
-        <div ref={scrollRef} className="overflow-x-auto">
-          <div className="space-y-2 min-w-max">
-            {paginated.map((c) => (
-              <CandidateCard
-                key={c.id}
-                candidate={c}
-                selected={selected.has(c.id)}
-                visibleCols={visibleCols}
-                cancelMode={cancelMode}
-                onToggleSelect={() => onToggleSelect(c.id)}
-                onViewPhotos={() => setViewingPhotos(c)}
-                onAction={() => onAction(c)}
-                onEdit={() => onEdit(c)}
-                onDelete={() => onDelete(c.id)}
-                onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
-                onReturn={onReturn ? () => onReturn(c.id) : undefined}
-                agencyOptions={agencyOptions}
-                countryOptions={countryOptions}
-              />
-            ))}
+        <div className="relative">
+          <div ref={scrollRef} className="overflow-x-auto">
+            <div className="space-y-2 min-w-max">
+              {paginated.map((c) => (
+                <CandidateCard
+                  key={c.id}
+                  candidate={c}
+                  selected={selected.has(c.id)}
+                  visibleCols={visibleCols}
+                  cancelMode={cancelMode}
+                  onToggleSelect={() => onToggleSelect(c.id)}
+                  onViewPhotos={() => setViewingPhotos(c)}
+                  onAction={() => onAction(c)}
+                  onEdit={() => onEdit(c)}
+                  onDelete={() => onDelete(c.id)}
+                  onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
+                  onReturn={onReturn ? () => onReturn(c.id) : undefined}
+                  agencyOptions={agencyOptions}
+                  countryOptions={countryOptions}
+                />
+              ))}
+            </div>
           </div>
+          <div ref={fadeRef} aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-white to-transparent opacity-0 transition-opacity duration-200" />
         </div>
       )}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
@@ -1735,14 +1743,14 @@ function CandidateCard({
         selected && "ring-1 ring-primary/50 bg-primary/5",
       )}>
         {/* Status badge + checkbox row — sticky left */}
-        <div className="z-10 flex items-center gap-2 px-4 pt-2.5 pb-1 bg-white" style={{ transform: "translateX(var(--sx, 0px))" }}>
+        <div className="z-10 flex items-center gap-2 px-4 pt-2.5 pb-1 bg-white" style={{ transform: "translateX(var(--sx, 0px))", willChange: "transform" }}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status={candidate.status ?? "available"} />
         </div>
         {/* Main content row */}
         <div className="flex items-center pb-3 pt-1">
           {/* Sticky left: photo + full name */}
-          <div className="z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3 bg-white" style={{ transform: "translateX(var(--sx, 0px))" }}>
+          <div className="z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3 bg-white shadow-[4px_0_8px_-2px_rgba(0,0,0,0.07)]" style={{ transform: "translateX(var(--sx, 0px))", willChange: "transform" }}>
             <button type="button" onClick={onViewPhotos} className="shrink-0">
               <Avatar className="h-14 w-14 hover:ring-2 hover:ring-primary transition-all">
                 {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
@@ -1849,15 +1857,20 @@ function ProcessingTable({
   const [activeOfficeTab, setActiveOfficeTab] = useState("all");
   const f = procFilters;
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fadeRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const onScroll = () => {
+    const sync = () => {
       const atEnd = el.scrollLeft >= el.scrollWidth - el.clientWidth - 1;
       el.style.setProperty("--sx", atEnd ? "0px" : `${el.scrollLeft}px`);
+      if (fadeRef.current) fadeRef.current.style.opacity = (!atEnd && el.scrollWidth > el.clientWidth) ? "1" : "0";
     };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
+    sync();
+    el.addEventListener("scroll", sync, { passive: true });
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => { el.removeEventListener("scroll", sync); ro.disconnect(); };
   }, []);
   const allCols = useMemo((): ProcessingColDef[] => {
     const countryNames = countryMeta.map((c) => c.name);
@@ -2155,25 +2168,28 @@ function ProcessingTable({
       ) : filteredCandidates.length === 0 ? (
         <Card><CardContent className="p-8 text-center text-muted-foreground">No matches for the selected filters.</CardContent></Card>
       ) : (
-        <div ref={scrollRef} className="overflow-x-auto">
-          <div className="space-y-2 min-w-max">
-            {paginated.map((c) => (
-              <ProcessingCard
-                key={c.id}
-                candidate={c}
-                selected={selected.has(c.id)}
-                visibleCols={visibleCols}
-                cancelMode={cancelMode}
-                onToggleSelect={() => onToggleSelect(c.id)}
-                onViewPhotos={() => setViewingPhotos(c)}
-                onAction={() => onAction(c)}
-                onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
-                onEdit={() => onEdit(c)}
-                onDelete={() => onDelete(c.id)}
-                officesByCountry={officesByCountry}
-              />
-            ))}
+        <div className="relative">
+          <div ref={scrollRef} className="overflow-x-auto">
+            <div className="space-y-2 min-w-max">
+              {paginated.map((c) => (
+                <ProcessingCard
+                  key={c.id}
+                  candidate={c}
+                  selected={selected.has(c.id)}
+                  visibleCols={visibleCols}
+                  cancelMode={cancelMode}
+                  onToggleSelect={() => onToggleSelect(c.id)}
+                  onViewPhotos={() => setViewingPhotos(c)}
+                  onAction={() => onAction(c)}
+                  onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
+                  onEdit={() => onEdit(c)}
+                  onDelete={() => onDelete(c.id)}
+                  officesByCountry={officesByCountry}
+                />
+              ))}
+            </div>
           </div>
+          <div ref={fadeRef} aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-white to-transparent opacity-0 transition-opacity duration-200" />
         </div>
       )}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
@@ -2312,13 +2328,13 @@ function ProcessingCard({
         selected && "ring-1 ring-primary/50 bg-primary/5",
       )}>
         {/* Status badge + checkbox row — sticky left */}
-        <div className="z-10 flex items-center gap-2 px-4 pt-2.5 pb-1 bg-white" style={{ transform: "translateX(var(--sx, 0px))" }}>
+        <div className="z-10 flex items-center gap-2 px-4 pt-2.5 pb-1 bg-white" style={{ transform: "translateX(var(--sx, 0px))", willChange: "transform" }}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status="processing" />
         </div>
         <div className="flex items-center pb-3 pt-1">
           {/* Sticky left: photo + full name */}
-          <div className="z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3 bg-white" style={{ transform: "translateX(var(--sx, 0px))" }}>
+          <div className="z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3 bg-white shadow-[4px_0_8px_-2px_rgba(0,0,0,0.07)]" style={{ transform: "translateX(var(--sx, 0px))", willChange: "transform" }}>
             <button type="button" onClick={onViewPhotos} className="shrink-0">
               <Avatar className="h-14 w-14 hover:ring-2 hover:ring-primary transition-all">
                 {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}

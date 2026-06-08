@@ -101,15 +101,20 @@ function AgencyCandidatesPage() {
   const ageFromNum = filters.ageFrom !== "" ? Number(filters.ageFrom) : null;
   const ageToNum   = filters.ageTo   !== "" ? Number(filters.ageTo)   : null;
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fadeRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const onScroll = () => {
+    const sync = () => {
       const atEnd = el.scrollLeft >= el.scrollWidth - el.clientWidth - 1;
       el.style.setProperty("--sx", atEnd ? "0px" : `${el.scrollLeft}px`);
+      if (fadeRef.current) fadeRef.current.style.opacity = (!atEnd && el.scrollWidth > el.clientWidth) ? "1" : "0";
     };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
+    sync();
+    el.addEventListener("scroll", sync, { passive: true });
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => { el.removeEventListener("scroll", sync); ro.disconnect(); };
   }, []);
 
   const filtered = candidates
@@ -293,17 +298,20 @@ function AgencyCandidatesPage() {
       ) : filtered.length === 0 ? (
         <Card className="rounded-none"><CardContent className="p-8 text-center text-sm text-muted-foreground">No candidates found.</CardContent></Card>
       ) : (
-        <div ref={scrollRef} className="overflow-x-auto">
-          <div className="min-w-max space-y-2">
-            {filtered.map((c) => (
-              <AgencyCandidateCard
-                key={c.id}
-                candidate={c}
-                selected={selected.has(c.id)}
-                onToggle={() => toggleSelect(c.id)}
-              />
-            ))}
+        <div className="relative">
+          <div ref={scrollRef} className="overflow-x-auto">
+            <div className="min-w-max space-y-2">
+              {filtered.map((c) => (
+                <AgencyCandidateCard
+                  key={c.id}
+                  candidate={c}
+                  selected={selected.has(c.id)}
+                  onToggle={() => toggleSelect(c.id)}
+                />
+              ))}
+            </div>
           </div>
+          <div ref={fadeRef} aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-white to-transparent opacity-0 transition-opacity duration-200" />
         </div>
       )}
 
@@ -396,7 +404,7 @@ function AgencyCandidateCard({
       {/* Fixed left — checkbox + status badge */}
       <div
         className="z-10 self-stretch shrink-0 flex flex-col items-center justify-center gap-2 px-4 bg-white shadow-[6px_0_10px_-4px_rgba(0,0,0,0.07)]"
-        style={{ transform: "translateX(var(--sx, 0px))" }}
+        style={{ transform: "translateX(var(--sx, 0px))", willChange: "transform" }}
       >
         <Checkbox checked={selected} onCheckedChange={onToggle} aria-label="Select candidate" />
         <StatusBadge status={c.status} />
