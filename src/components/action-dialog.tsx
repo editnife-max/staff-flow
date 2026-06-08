@@ -1,5 +1,5 @@
+import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { useEffect, useState } from "react";
 import { Download, FileText, ArrowUpDown, ChevronDown, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -25,30 +25,55 @@ function xmlEsc(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-function fillField(xml: string, label: string, value: string): string {
-  const marker = ">" + label + "</w:t>";
-  const pos = xml.indexOf(marker);
-  if (pos === -1) return xml;
-  const cellClose = xml.indexOf("</w:tc>", pos + marker.length);
-  if (cellClose === -1) return xml;
-  const valueCellStart = xml.indexOf("<w:tc", cellClose + 7);
-  if (valueCellStart === -1) return xml;
-  const valueCellEnd = xml.indexOf("</w:tc>", valueCellStart);
-  if (valueCellEnd === -1) return xml;
-  let searchFrom = valueCellStart, tOpenStart = -1, tOpenEnd = -1;
-  while (searchFrom < valueCellEnd) {
-    const idx = xml.indexOf("<w:t", searchFrom);
-    if (idx === -1 || idx >= valueCellEnd) break;
-    const ch = xml[idx + 4];
-    if (ch === ">" || ch === " " || ch === "\n" || ch === "\t") {
-      tOpenStart = idx; tOpenEnd = xml.indexOf(">", tOpenStart); break;
-    }
-    searchFrom = idx + 1;
+function cellText(xml: string, from: number, to: number): string {
+  let text = "";
+  let p = from;
+  while (p < to) {
+    const tOpen = xml.indexOf("<w:t", p);
+    if (tOpen === -1 || tOpen >= to) break;
+    const gt = xml.indexOf(">", tOpen);
+    if (gt === -1 || gt >= to) break;
+    const tClose = xml.indexOf("</w:t>", gt + 1);
+    if (tClose === -1 || tClose >= to) break;
+    text += xml.slice(gt + 1, tClose);
+    p = tClose + 6;
   }
-  if (tOpenStart === -1 || tOpenEnd === -1 || tOpenEnd >= valueCellEnd) return xml;
-  const tClose = xml.indexOf("</w:t>", tOpenEnd + 1);
-  if (tClose === -1 || tClose >= valueCellEnd) return xml;
-  return xml.slice(0, tOpenEnd + 1) + xmlEsc(value) + xml.slice(tClose);
+  return text;
+}
+
+function fillField(xml: string, label: string, value: string): string {
+  let pos = 0;
+  while (pos < xml.length) {
+    const cellStart = xml.indexOf("<w:tc", pos);
+    if (cellStart === -1) break;
+    const cellEnd = xml.indexOf("</w:tc>", cellStart);
+    if (cellEnd === -1) break;
+
+    if (cellText(xml, cellStart, cellEnd).trim() === label) {
+      const nextStart = xml.indexOf("<w:tc", cellEnd + 7);
+      if (nextStart === -1) { pos = cellEnd + 7; continue; }
+      const nextEnd = xml.indexOf("</w:tc>", nextStart);
+      if (nextEnd === -1) { pos = cellEnd + 7; continue; }
+
+      // Replace the first <w:t> in the value cell with the new value; clear the rest
+      let first = true;
+      const newCell = xml.slice(nextStart, nextEnd + 7).replace(
+        /<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g,
+        (_, attrs) => {
+          if (first) {
+            first = false;
+            const spaceAttr = value.includes(" ") ? ' xml:space="preserve"' : (attrs ?? "");
+            return `<w:t${spaceAttr}>${xmlEsc(value)}</w:t>`;
+          }
+          return `<w:t${attrs ?? ""}></w:t>`;
+        },
+      );
+      return xml.slice(0, nextStart) + newCell + xml.slice(nextEnd + 7);
+    }
+
+    pos = cellEnd + 7;
+  }
+  return xml;
 }
 
 export async function buildFilledDocxBase64(url: string, c: Candidate): Promise<string> {
