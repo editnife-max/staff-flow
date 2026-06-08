@@ -1053,7 +1053,7 @@ function ManagerCandidatesPage() {
                 </SelectContent>
               </Select>
 
-              {BULK_FIELD_DEFS.filter((fd) => !fd.processingOnly || tab === "processing").map((fd) => {
+              {BULK_FIELD_DEFS.map((fd) => {
                 const staticOpts = BULK_FIELD_OPTIONS[fd.key];
                 const opts = staticOpts ?? Array.from(new Set(
                   filtered.map((c) => (c[fd.key as keyof Candidate] as string | null) ?? "").filter(Boolean)
