@@ -61,7 +61,17 @@
       "Bash(bun tsc *)",
       "Bash(bun build:dev)",
       "PowerShell(npx tsc --noEmit 2>&1 | Select-Object -First 60)",
-      "PowerShell(bunx tsc --noEmit 2>&1 | Select-Object -First 80)"
+      "PowerShell(bunx tsc --noEmit 2>&1 | Select-Object -First 80)",
+      "Bash(awk NR>=2058 && NR<=2080 *)",
+      "Bash(awk 'NR>=1668 && NR<=1950' src/routes/_authenticated/manager.candidates.tsx)",
+      "Bash(awk 'NR>=2209 && NR<=2450' src/routes/_authenticated/manager.candidates.tsx)",
+      "Bash(awk 'NR>=1200 && NR<=1545' src/routes/_authenticated/manager.candidates.tsx)",
+      "Bash(awk 'NR>=1800 && NR<=2060' src/routes/_authenticated/manager.candidates.tsx)",
+      "Bash(awk NR>=1370 && NR<=1380 *)",
+      "Bash(awk 'NR>=1800 && NR<=2070' src/routes/_authenticated/manager.candidates.tsx)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "PowerShell(Start-Sleep -Seconds 8; try { $r = Invoke-WebRequest -Uri \"http://localhost:3000\" -TimeoutSec 5 -UseBasicParsing; $r.StatusCode } catch { \"not ready: $_\" })",
+      "PowerShell(Receive-Job *)"
     ]
   },
   "enableAllProjectMcpServers": true,

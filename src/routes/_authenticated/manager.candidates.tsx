@@ -1878,6 +1878,8 @@ function ProcessingTable({
   const totalPages = Math.max(1, Math.ceil(filteredCandidates.length / pageSize));
   const paginated = filteredCandidates.slice((page - 1) * pageSize, page * pageSize);
   const visibleCols = allCols.filter((col) => !hiddenCols.has(col.key));
+  const allSel = filteredCandidates.length > 0 && filteredCandidates.every((c) => selected.has(c.id));
+  const someSel = !allSel && filteredCandidates.some((c) => selected.has(c.id));
 
   const medExpiryChecked = useRef<Set<string>>(new Set());
   const tasheerDoneChecked = useRef<Set<string>>(new Set());
@@ -2093,6 +2095,20 @@ function ProcessingTable({
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {filteredCandidates.length > 0 && (
+        <div className="flex items-center px-1">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+            <Checkbox
+              checked={allSel ? true : someSel ? "indeterminate" : false}
+              onCheckedChange={(v) =>
+                filteredCandidates.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
+              }
+            />
+            {selected.size > 0 ? `${selected.size} selected` : "Select all"}
+          </label>
+        </div>
       )}
 
       {candidates.length === 0 ? (

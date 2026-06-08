@@ -1973,6 +1973,8 @@ function ProcessingTable({
   }, [candidates, arrivedCheckCandidate]);
   const paginated = filteredCandidates.slice((page - 1) * pageSize, page * pageSize);
   const visibleCols = allCols.filter((col) => !hiddenCols.has(col.key));
+  const allSel = filteredCandidates.length > 0 && filteredCandidates.every((c) => selected.has(c.id));
+  const someSel = !allSel && filteredCandidates.some((c) => selected.has(c.id));
 
   const set = (key: keyof typeof INITIAL_PROC_FILTERS) => (v: string) =>
     setProcFilters((p) => ({ ...p, [key]: v }));
@@ -2120,7 +2122,16 @@ function ProcessingTable({
       )}
 
       {filteredCandidates.length > 0 && (
-        <div className="flex items-center justify-end px-1">
+        <div className="flex items-center justify-between px-1">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+            <Checkbox
+              checked={allSel ? true : someSel ? "indeterminate" : false}
+              onCheckedChange={(v) =>
+                filteredCandidates.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
+              }
+            />
+            {selected.size > 0 ? `${selected.size} selected` : "Select all"}
+          </label>
           <div className="relative">
             <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs"
               onClick={() => setShowColPicker((v) => !v)}>

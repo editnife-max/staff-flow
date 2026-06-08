@@ -29,35 +29,50 @@ function cellText(xml: string, from: number, to: number): string {
   let text = "";
   let p = from;
   while (p < to) {
-    const tOpen = xml.indexOf("<w:t", p);
-    if (tOpen === -1 || tOpen >= to) break;
-    const gt = xml.indexOf(">", tOpen);
+    const idx = xml.indexOf("<w:t", p);
+    if (idx === -1 || idx >= to) break;
+    // Skip <w:tbl>, <w:tr>, <w:tc*> — only match <w:t> or <w:t followed by whitespace
+    const ch = xml[idx + 4];
+    if (ch !== ">" && ch !== " " && ch !== "\n" && ch !== "\t") { p = idx + 1; continue; }
+    const gt = xml.indexOf(">", idx);
     if (gt === -1 || gt >= to) break;
-    const tClose = xml.indexOf("</w:t>", gt + 1);
-    if (tClose === -1 || tClose >= to) break;
-    text += xml.slice(gt + 1, tClose);
-    p = tClose + 6;
+    const close = xml.indexOf("</w:t>", gt + 1);
+    if (close === -1 || close >= to) break;
+    text += xml.slice(gt + 1, close);
+    p = close + 6;
   }
   return text;
+}
+
+function nextCell(xml: string, from: number): number {
+  let p = from;
+  while (p < xml.length) {
+    const idx = xml.indexOf("<w:tc", p);
+    if (idx === -1) return -1;
+    // Skip <w:tcPr>, <w:tcBorders>, etc. — only match <w:tc> or <w:tc followed by whitespace
+    const ch = xml[idx + 5];
+    if (ch === ">" || ch === " " || ch === "\n" || ch === "\t") return idx;
+    p = idx + 1;
+  }
+  return -1;
 }
 
 function fillField(xml: string, label: string, value: string): string {
   let pos = 0;
   while (pos < xml.length) {
-    const cellStart = xml.indexOf("<w:tc", pos);
+    const cellStart = nextCell(xml, pos);
     if (cellStart === -1) break;
     const cellEnd = xml.indexOf("</w:tc>", cellStart);
     if (cellEnd === -1) break;
 
     if (cellText(xml, cellStart, cellEnd).trim() === label) {
-      const nextStart = xml.indexOf("<w:tc", cellEnd + 7);
-      if (nextStart === -1) { pos = cellEnd + 7; continue; }
-      const nextEnd = xml.indexOf("</w:tc>", nextStart);
-      if (nextEnd === -1) { pos = cellEnd + 7; continue; }
+      const nStart = nextCell(xml, cellEnd + 7);
+      if (nStart === -1) { pos = cellEnd + 7; continue; }
+      const nEnd = xml.indexOf("</w:tc>", nStart);
+      if (nEnd === -1) { pos = cellEnd + 7; continue; }
 
-      // Replace the first <w:t> in the value cell with the new value; clear the rest
       let first = true;
-      const newCell = xml.slice(nextStart, nextEnd + 7).replace(
+      const newCell = xml.slice(nStart, nEnd + 7).replace(
         /<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g,
         (_, attrs) => {
           if (first) {
@@ -68,7 +83,7 @@ function fillField(xml: string, label: string, value: string): string {
           return `<w:t${attrs ?? ""}></w:t>`;
         },
       );
-      return xml.slice(0, nextStart) + newCell + xml.slice(nextEnd + 7);
+      return xml.slice(0, nStart) + newCell + xml.slice(nEnd + 7);
     }
 
     pos = cellEnd + 7;
@@ -607,6 +622,14 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
           <div className="flex-1 overflow-auto bg-muted/30 p-4">
             {preview && isCV ? (
               <div>
+                {matchedTemplate && (
+                  <div className="mb-3 px-3 py-2 border border-primary/30 bg-primary/5 text-xs text-primary flex items-center gap-2">
+                    <FileText className="h-3.5 w-3.5 shrink-0" />
+                    <span>
+                      Template selected: <strong>{matchedTemplate.name}</strong> — candidate data below will be filled into this template on download.
+                    </span>
+                  </div>
+                )}
                 {isBulk && (
                   <p className="text-xs text-muted-foreground mb-3 text-center">
                     Previewing 1 of {candidates.length} — all candidates will be downloaded
