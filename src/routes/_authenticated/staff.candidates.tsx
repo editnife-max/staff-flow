@@ -1449,13 +1449,15 @@ function CandidateCardList({
   const [activeCountryTab, setActiveCountryTab] = useState("all");
   const [activeOfficeTab, setActiveOfficeTab] = useState("all");
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [atScrollEnd, setAtScrollEnd] = useState(false);
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const check = () => setAtScrollEnd(el.scrollLeft >= el.scrollWidth - el.clientWidth - 1);
-    el.addEventListener("scroll", check, { passive: true });
-    return () => el.removeEventListener("scroll", check);
+    const onScroll = () => {
+      const atEnd = el.scrollLeft >= el.scrollWidth - el.clientWidth - 1;
+      el.style.setProperty("--sx", atEnd ? "0px" : `${el.scrollLeft}px`);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
   }, []);
   const countryOptions = useMemo(() => countryMeta.map((c) => c.name), [countryMeta]);
 
@@ -1608,7 +1610,6 @@ function CandidateCardList({
                 selected={selected.has(c.id)}
                 visibleCols={visibleCols}
                 cancelMode={cancelMode}
-                atScrollEnd={atScrollEnd}
                 onToggleSelect={() => onToggleSelect(c.id)}
                 onViewPhotos={() => setViewingPhotos(c)}
                 onAction={() => onAction(c)}
@@ -1673,13 +1674,12 @@ function CandidateCardList({
 }
 
 function CandidateCard({
-  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, agencyOptions, countryOptions, atScrollEnd,
+  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, agencyOptions, countryOptions,
 }: {
   candidate: Candidate;
   selected: boolean;
   visibleCols: readonly string[];
   cancelMode?: boolean;
-  atScrollEnd?: boolean;
   onToggleSelect: () => void;
   onViewPhotos: () => void;
   onAction: () => void;
@@ -1735,17 +1735,14 @@ function CandidateCard({
         selected && "ring-1 ring-primary/50 bg-primary/5",
       )}>
         {/* Status badge + checkbox row — sticky left */}
-        <div className={cn(!atScrollEnd && "sticky left-0", "z-10 flex items-center gap-2 px-4 pt-2.5 pb-1 bg-white")}>
+        <div className="z-10 flex items-center gap-2 px-4 pt-2.5 pb-1 bg-white" style={{ transform: "translateX(var(--sx, 0px))" }}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status={candidate.status ?? "available"} />
         </div>
         {/* Main content row */}
         <div className="flex items-center pb-3 pt-1">
           {/* Sticky left: photo + full name */}
-          <div className={cn(
-            !atScrollEnd && "sticky left-0",
-            "z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3 bg-white",
-          )}>
+          <div className="z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3 bg-white" style={{ transform: "translateX(var(--sx, 0px))" }}>
             <button type="button" onClick={onViewPhotos} className="shrink-0">
               <Avatar className="h-14 w-14 hover:ring-2 hover:ring-primary transition-all">
                 {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
@@ -1852,13 +1849,15 @@ function ProcessingTable({
   const [activeOfficeTab, setActiveOfficeTab] = useState("all");
   const f = procFilters;
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [atScrollEnd, setAtScrollEnd] = useState(false);
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const check = () => setAtScrollEnd(el.scrollLeft >= el.scrollWidth - el.clientWidth - 1);
-    el.addEventListener("scroll", check, { passive: true });
-    return () => el.removeEventListener("scroll", check);
+    const onScroll = () => {
+      const atEnd = el.scrollLeft >= el.scrollWidth - el.clientWidth - 1;
+      el.style.setProperty("--sx", atEnd ? "0px" : `${el.scrollLeft}px`);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
   }, []);
   const allCols = useMemo((): ProcessingColDef[] => {
     const countryNames = countryMeta.map((c) => c.name);
@@ -2165,7 +2164,6 @@ function ProcessingTable({
                 selected={selected.has(c.id)}
                 visibleCols={visibleCols}
                 cancelMode={cancelMode}
-                atScrollEnd={atScrollEnd}
                 onToggleSelect={() => onToggleSelect(c.id)}
                 onViewPhotos={() => setViewingPhotos(c)}
                 onAction={() => onAction(c)}
@@ -2246,13 +2244,12 @@ function ProcessingTable({
 
 function ProcessingCard({
   candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onUpdateField, onEdit, onDelete, cancelMode,
-  officesByCountry, atScrollEnd,
+  officesByCountry,
 }: {
   candidate: Candidate;
   selected: boolean;
   visibleCols: ProcessingColDef[];
   cancelMode?: boolean;
-  atScrollEnd?: boolean;
   onToggleSelect: () => void;
   onViewPhotos: () => void;
   onAction: () => void;
@@ -2315,16 +2312,13 @@ function ProcessingCard({
         selected && "ring-1 ring-primary/50 bg-primary/5",
       )}>
         {/* Status badge + checkbox row — sticky left */}
-        <div className={cn(!atScrollEnd && "sticky left-0", "z-10 flex items-center gap-2 px-4 pt-2.5 pb-1 bg-white")}>
+        <div className="z-10 flex items-center gap-2 px-4 pt-2.5 pb-1 bg-white" style={{ transform: "translateX(var(--sx, 0px))" }}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status="processing" />
         </div>
         <div className="flex items-center pb-3 pt-1">
           {/* Sticky left: photo + full name */}
-          <div className={cn(
-            !atScrollEnd && "sticky left-0",
-            "z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3 bg-white",
-          )}>
+          <div className="z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3 bg-white" style={{ transform: "translateX(var(--sx, 0px))" }}>
             <button type="button" onClick={onViewPhotos} className="shrink-0">
               <Avatar className="h-14 w-14 hover:ring-2 hover:ring-primary transition-all">
                 {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}

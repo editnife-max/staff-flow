@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Search, SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
   ArrowUpDown, Users, User, BookOpen, Briefcase, Heart, Send,
@@ -100,6 +100,17 @@ function AgencyCandidatesPage() {
 
   const ageFromNum = filters.ageFrom !== "" ? Number(filters.ageFrom) : null;
   const ageToNum   = filters.ageTo   !== "" ? Number(filters.ageTo)   : null;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const atEnd = el.scrollLeft >= el.scrollWidth - el.clientWidth - 1;
+      el.style.setProperty("--sx", atEnd ? "0px" : `${el.scrollLeft}px`);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
 
   const filtered = candidates
     .filter((c) => !search || c.full_name.toLowerCase().includes(search.toLowerCase()))
@@ -282,7 +293,7 @@ function AgencyCandidatesPage() {
       ) : filtered.length === 0 ? (
         <Card className="rounded-none"><CardContent className="p-8 text-center text-sm text-muted-foreground">No candidates found.</CardContent></Card>
       ) : (
-        <div className="overflow-x-auto">
+        <div ref={scrollRef} className="overflow-x-auto">
           <div className="min-w-max space-y-2">
             {filtered.map((c) => (
               <AgencyCandidateCard
@@ -382,12 +393,11 @@ function AgencyCandidateCard({
       "bg-white border border-border shadow-sm rounded-sm transition-colors flex items-center",
       selected && "ring-1 ring-primary/50 bg-primary/5",
     )}>
-      {/* Sticky left — checkbox + status badge */}
-      <div className={cn(
-        "sticky left-0 z-10 self-stretch shrink-0 flex flex-col items-center justify-center gap-2 px-4",
-        "shadow-[6px_0_10px_-4px_rgba(0,0,0,0.07)]",
-        selected ? "bg-primary/5" : "bg-white",
-      )}>
+      {/* Fixed left — checkbox + status badge */}
+      <div
+        className="z-10 self-stretch shrink-0 flex flex-col items-center justify-center gap-2 px-4 bg-white shadow-[6px_0_10px_-4px_rgba(0,0,0,0.07)]"
+        style={{ transform: "translateX(var(--sx, 0px))" }}
+      >
         <Checkbox checked={selected} onCheckedChange={onToggle} aria-label="Select candidate" />
         <StatusBadge status={c.status} />
       </div>
