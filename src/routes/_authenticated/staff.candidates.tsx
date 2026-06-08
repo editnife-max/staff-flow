@@ -1735,7 +1735,7 @@ function CandidateCard({
         selected && "ring-1 ring-primary/50 bg-primary/5",
       )}>
         {/* Status badge + checkbox row — sticky left */}
-        <div className={cn(!atScrollEnd && "sticky left-0", "z-10 flex items-center gap-2 px-4 pt-2.5 pb-1", selected ? "bg-primary/5" : "bg-white")}>
+        <div className={cn(!atScrollEnd && "sticky left-0", "z-10 flex items-center gap-2 px-4 pt-2.5 pb-1 bg-white")}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status={candidate.status ?? "available"} />
         </div>
@@ -1744,8 +1744,7 @@ function CandidateCard({
           {/* Sticky left: photo + full name */}
           <div className={cn(
             !atScrollEnd && "sticky left-0",
-            "z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3",
-            selected ? "bg-primary/5" : "bg-white",
+            "z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3 bg-white",
           )}>
             <button type="button" onClick={onViewPhotos} className="shrink-0">
               <Avatar className="h-14 w-14 hover:ring-2 hover:ring-primary transition-all">
@@ -2316,7 +2315,7 @@ function ProcessingCard({
         selected && "ring-1 ring-primary/50 bg-primary/5",
       )}>
         {/* Status badge + checkbox row — sticky left */}
-        <div className={cn(!atScrollEnd && "sticky left-0", "z-10 flex items-center gap-2 px-4 pt-2.5 pb-1", selected ? "bg-primary/5" : "bg-white")}>
+        <div className={cn(!atScrollEnd && "sticky left-0", "z-10 flex items-center gap-2 px-4 pt-2.5 pb-1 bg-white")}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status="processing" />
         </div>
@@ -2324,8 +2323,7 @@ function ProcessingCard({
           {/* Sticky left: photo + full name */}
           <div className={cn(
             !atScrollEnd && "sticky left-0",
-            "z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3",
-            selected ? "bg-primary/5" : "bg-white",
+            "z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3 bg-white",
           )}>
             <button type="button" onClick={onViewPhotos} className="shrink-0">
               <Avatar className="h-14 w-14 hover:ring-2 hover:ring-primary transition-all">
