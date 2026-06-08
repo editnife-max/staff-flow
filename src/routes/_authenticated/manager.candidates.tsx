@@ -1394,6 +1394,15 @@ function CandidateCardList({
   const [showColPicker, setShowColPicker] = useState(false);
   const [activeCountryTab, setActiveCountryTab] = useState("all");
   const [activeOfficeTab, setActiveOfficeTab] = useState("all");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [atScrollEnd, setAtScrollEnd] = useState(false);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const check = () => setAtScrollEnd(el.scrollLeft >= el.scrollWidth - el.clientWidth - 1);
+    el.addEventListener("scroll", check, { passive: true });
+    return () => el.removeEventListener("scroll", check);
+  }, []);
   const countryOptions = useMemo(() => countryMeta.map((c) => c.name), [countryMeta]);
 
   const filtered = useMemo(() => {
@@ -1534,7 +1543,7 @@ function CandidateCardList({
       {filtered.length === 0 ? (
         <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates here yet.</CardContent></Card>
       ) : (
-        <div className="overflow-x-auto">
+        <div ref={scrollRef} className="overflow-x-auto">
           <div className="space-y-2 min-w-max">
             {paginated.map((c) => (
               <CandidateCard
@@ -1543,6 +1552,7 @@ function CandidateCardList({
                 selected={selected.has(c.id)}
                 visibleCols={visibleCols}
                 cancelMode={cancelMode}
+                atScrollEnd={atScrollEnd}
                 onToggleSelect={() => onToggleSelect(c.id)}
                 onViewPhotos={() => setViewingPhotos(c)}
                 onView={() => onView(c)}
@@ -1608,12 +1618,13 @@ function CandidateCardList({
 }
 
 function CandidateCard({
-  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, agencyOptions, countryOptions,
+  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, agencyOptions, countryOptions, atScrollEnd,
 }: {
   candidate: Candidate;
   selected: boolean;
   visibleCols: readonly string[];
   cancelMode?: boolean;
+  atScrollEnd?: boolean;
   onToggleSelect: () => void;
   onViewPhotos: () => void;
   onView: () => void;
@@ -1671,7 +1682,7 @@ function CandidateCard({
         selected && "ring-1 ring-primary/50 bg-primary/5",
       )}>
         {/* Status badge + checkbox row — sticky left */}
-        <div className={cn("sticky left-0 z-10 flex items-center gap-2 px-4 pt-2.5 pb-1", selected ? "bg-primary/5" : "bg-white")}>
+        <div className={cn(!atScrollEnd && "sticky left-0", "z-10 flex items-center gap-2 px-4 pt-2.5 pb-1", selected ? "bg-primary/5" : "bg-white")}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status={candidate.status ?? "available"} />
         </div>
@@ -1679,7 +1690,8 @@ function CandidateCard({
         <div className="flex items-center pb-3 pt-1">
           {/* Sticky left: photo + full name */}
           <div className={cn(
-            "sticky left-0 z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3",
+            !atScrollEnd && "sticky left-0",
+            "z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3",
             selected ? "bg-primary/5" : "bg-white",
           )}>
             <button type="button" onClick={onViewPhotos} className="shrink-0">
@@ -1785,6 +1797,15 @@ function ProcessingTable({
   const [activeCountryTab, setActiveCountryTab] = useState("all");
   const [activeOfficeTab, setActiveOfficeTab] = useState("all");
   const f = procFilters;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [atScrollEnd, setAtScrollEnd] = useState(false);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const check = () => setAtScrollEnd(el.scrollLeft >= el.scrollWidth - el.clientWidth - 1);
+    el.addEventListener("scroll", check, { passive: true });
+    return () => el.removeEventListener("scroll", check);
+  }, []);
   const allCols = useMemo((): ProcessingColDef[] => {
     const countryNames = countryMeta.map((c) => c.name);
     return [
@@ -2058,7 +2079,7 @@ function ProcessingTable({
       ) : filteredCandidates.length === 0 ? (
         <Card><CardContent className="p-8 text-center text-muted-foreground">No matches for the selected filters.</CardContent></Card>
       ) : (
-        <div className="overflow-x-auto">
+        <div ref={scrollRef} className="overflow-x-auto">
           <div className="space-y-2 min-w-max">
             {paginated.map((c) => (
               <ProcessingCard
@@ -2067,6 +2088,7 @@ function ProcessingTable({
                 selected={selected.has(c.id)}
                 visibleCols={visibleCols}
                 cancelMode={cancelMode}
+                atScrollEnd={atScrollEnd}
                 onToggleSelect={() => onToggleSelect(c.id)}
                 onViewPhotos={() => setViewingPhotos(c)}
                 onAction={() => onAction(c)}
@@ -2147,12 +2169,13 @@ function ProcessingTable({
 
 function ProcessingCard({
   candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onUpdateField, onEdit, onDelete, cancelMode,
-  officesByCountry,
+  officesByCountry, atScrollEnd,
 }: {
   candidate: Candidate;
   selected: boolean;
   visibleCols: ProcessingColDef[];
   cancelMode?: boolean;
+  atScrollEnd?: boolean;
   onToggleSelect: () => void;
   onViewPhotos: () => void;
   onAction: () => void;
@@ -2215,14 +2238,15 @@ function ProcessingCard({
         selected && "ring-1 ring-primary/50 bg-primary/5",
       )}>
         {/* Status badge + checkbox row — sticky left */}
-        <div className={cn("sticky left-0 z-10 flex items-center gap-2 px-4 pt-2.5 pb-1", selected ? "bg-primary/5" : "bg-white")}>
+        <div className={cn(!atScrollEnd && "sticky left-0", "z-10 flex items-center gap-2 px-4 pt-2.5 pb-1", selected ? "bg-primary/5" : "bg-white")}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status="processing" />
         </div>
         <div className="flex items-center pb-3 pt-1">
           {/* Sticky left: photo + full name */}
           <div className={cn(
-            "sticky left-0 z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3",
+            !atScrollEnd && "sticky left-0",
+            "z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3",
             selected ? "bg-primary/5" : "bg-white",
           )}>
             <button type="button" onClick={onViewPhotos} className="shrink-0">
