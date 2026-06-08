@@ -1668,16 +1668,20 @@ function CandidateCard({
   return (
     <>
       <div className={cn(
-        "bg-white border border-border shadow-sm rounded-sm overflow-hidden transition-colors",
+        "bg-white border border-border shadow-sm rounded-sm transition-colors flex",
         selected && "ring-1 ring-primary/50 bg-primary/5",
       )}>
-        {/* Status badge + checkbox row */}
-        <div className="flex items-center gap-2 px-4 pt-2.5 pb-1">
+        {/* Sticky left: checkbox + status badge */}
+        <div className={cn(
+          "sticky left-0 z-10 self-stretch shrink-0 flex flex-col items-center justify-start gap-2 px-3 pt-2.5 pb-3",
+          "shadow-[6px_0_10px_-4px_rgba(0,0,0,0.07)]",
+          selected ? "bg-primary/5" : "bg-white",
+        )}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status={candidate.status ?? "available"} />
         </div>
-        {/* Main content row */}
-        <div className="flex items-center gap-4 px-4 pb-3 pt-1">
+        {/* Main content */}
+        <div className="flex-1 flex items-center gap-4 px-4 py-3">
           {/* Photo */}
           <button type="button" onClick={onViewPhotos} className="shrink-0">
             <Avatar className="h-14 w-14 hover:ring-2 hover:ring-primary transition-all">
@@ -2205,14 +2209,20 @@ function ProcessingCard({
   return (
     <>
       <div className={cn(
-        "bg-white border border-border shadow-sm rounded-sm overflow-hidden transition-colors",
+        "bg-white border border-border shadow-sm rounded-sm transition-colors flex",
         selected && "ring-1 ring-primary/50 bg-primary/5",
       )}>
-        <div className="flex items-center gap-2 px-4 pt-2.5 pb-1">
+        {/* Sticky left: checkbox + status badge */}
+        <div className={cn(
+          "sticky left-0 z-10 self-stretch shrink-0 flex flex-col items-center justify-start gap-2 px-3 pt-2.5 pb-3",
+          "shadow-[6px_0_10px_-4px_rgba(0,0,0,0.07)]",
+          selected ? "bg-primary/5" : "bg-white",
+        )}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status="processing" />
         </div>
-        <div className="flex items-center gap-4 px-4 pb-3 pt-1">
+        {/* Main content */}
+        <div className="flex-1 flex items-center gap-4 px-4 py-3">
           <button type="button" onClick={onViewPhotos} className="shrink-0">
             <Avatar className="h-14 w-14 hover:ring-2 hover:ring-primary transition-all">
               {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
