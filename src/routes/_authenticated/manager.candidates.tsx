@@ -1535,7 +1535,8 @@ function CandidateCardList({
       {filtered.length === 0 ? (
         <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates here yet.</CardContent></Card>
       ) : (
-        <div className="space-y-2">
+        <div className="overflow-x-auto">
+          <div className="space-y-2 min-w-max">
             {paginated.map((c) => (
               <CandidateCard
                 key={c.id}
@@ -1555,6 +1556,7 @@ function CandidateCardList({
                 countryOptions={countryOptions}
               />
             ))}
+          </div>
         </div>
       )}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
@@ -1666,17 +1668,19 @@ function CandidateCard({
   return (
     <>
       <div className={cn(
-        "bg-white border border-border shadow-sm rounded-sm overflow-hidden transition-colors",
+        "bg-white border border-border shadow-sm rounded-sm transition-colors",
         selected && "ring-1 ring-primary/50 bg-primary/5",
       )}>
-        {/* Status badge + checkbox row */}
-        <div className="flex items-center gap-2 px-4 pt-2.5 pb-1">
+        {/* Status badge + checkbox row — sticky so it never scrolls */}
+        <div className={cn(
+          "sticky left-0 z-10 flex items-center gap-2 px-4 pt-2.5 pb-1",
+          selected ? "bg-primary/5" : "bg-white",
+        )}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status={candidate.status ?? "available"} />
         </div>
         {/* Main content row */}
-        <div className="overflow-x-auto">
-          <div className="flex items-center gap-4 px-4 pb-3 pt-1 min-w-max">
+        <div className="flex items-center gap-4 px-4 pb-3 pt-1">
           {/* Photo */}
           <button type="button" onClick={onViewPhotos} className="shrink-0">
             <Avatar className="h-14 w-14 hover:ring-2 hover:ring-primary transition-all">
@@ -1726,7 +1730,6 @@ function CandidateCard({
             >
               Delete
             </button>
-          </div>
           </div>
         </div>
       </div>
@@ -2052,7 +2055,8 @@ function ProcessingTable({
       ) : filteredCandidates.length === 0 ? (
         <Card><CardContent className="p-8 text-center text-muted-foreground">No matches for the selected filters.</CardContent></Card>
       ) : (
-        <div className="space-y-2">
+        <div className="overflow-x-auto">
+          <div className="space-y-2 min-w-max">
             {paginated.map((c) => (
               <ProcessingCard
                 key={c.id}
@@ -2069,6 +2073,7 @@ function ProcessingTable({
                 officesByCountry={officesByCountry}
               />
             ))}
+          </div>
         </div>
       )}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
@@ -2203,16 +2208,18 @@ function ProcessingCard({
   return (
     <>
       <div className={cn(
-        "bg-white border border-border shadow-sm rounded-sm overflow-hidden transition-colors",
+        "bg-white border border-border shadow-sm rounded-sm transition-colors",
         selected && "ring-1 ring-primary/50 bg-primary/5",
       )}>
-        {/* Status badge + checkbox row */}
-        <div className="flex items-center gap-2 px-4 pt-2.5 pb-1">
+        {/* Status badge + checkbox row — sticky so it never scrolls */}
+        <div className={cn(
+          "sticky left-0 z-10 flex items-center gap-2 px-4 pt-2.5 pb-1",
+          selected ? "bg-primary/5" : "bg-white",
+        )}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status="processing" />
         </div>
-        <div className="overflow-x-auto">
-          <div className="flex items-center gap-4 px-4 pb-3 pt-1 min-w-max">
+        <div className="flex items-center gap-4 px-4 pb-3 pt-1">
           <button type="button" onClick={onViewPhotos} className="shrink-0">
             <Avatar className="h-14 w-14 hover:ring-2 hover:ring-primary transition-all">
               {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
@@ -2260,7 +2267,6 @@ function ProcessingCard({
             >
               Delete
             </button>
-          </div>
           </div>
         </div>
       </div>
