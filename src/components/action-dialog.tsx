@@ -131,7 +131,7 @@ function fillField(xml: string, label: string, value: string): string {
   return xml;
 }
 
-export async function buildFilledDocxBase64(url: string, c: Candidate): Promise<string> {
+export async function buildFilledDocx(url: string, c: Candidate): Promise<Uint8Array> {
   const res = await fetch(url, { mode: "cors" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const buf = await res.arrayBuffer();
@@ -145,7 +145,16 @@ export async function buildFilledDocxBase64(url: string, c: Candidate): Promise<
     xml = fillField(xml, label, value);
   }
   zip.file("word/document.xml", new TextEncoder().encode(xml));
-  return zip.generate({ type: "base64" });
+  return zip.generate({ type: "uint8array" });
+}
+
+function downloadDocx(bytes: Uint8Array, filename: string) {
+  const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
 // ── CV Preview ────────────────────────────────────────────────────────────────
@@ -412,22 +421,33 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
     try {
       if (isCV) {
         if (isBulk) {
-          // Bulk CV → one independent PDF per candidate
-          toast.info(`Generating ${candidates.length} CVs — please wait…`);
-          for (const c of sortedCandidates) {
-            const canvas = await candidateToCanvas(c, matchedTemplate);
-            const w = canvas.width / 2, h = canvas.height / 2;
-            const pdf = new jsPDF({ unit: "px", format: [w, h] });
-            pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, w, h);
-            pdf.save(`${c.full_name} — ${currentType.label}.pdf`);
+          const isDocxTemplate = !!matchedTemplate && matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
+          if (isDocxTemplate) {
+            // Bulk DOCX template → one filled DOCX per candidate
+            toast.info(`Generating ${candidates.length} DOCX files — please wait…`);
+            for (const c of sortedCandidates) {
+              const bytes = await buildFilledDocx(matchedTemplate!.file_url, c);
+              downloadDocx(bytes, `${c.full_name} — ${currentType.label}.docx`);
+            }
+            toast.success(`${candidates.length} DOCX files downloaded`);
+          } else {
+            // Normal CV or PDF template → one PDF per candidate
+            toast.info(`Generating ${candidates.length} CVs — please wait…`);
+            for (const c of sortedCandidates) {
+              const canvas = await candidateToCanvas(c, matchedTemplate);
+              const w = canvas.width / 2, h = canvas.height / 2;
+              const pdf = new jsPDF({ unit: "px", format: [w, h] });
+              pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, w, h);
+              pdf.save(`${c.full_name} — ${currentType.label}.pdf`);
+            }
+            toast.success(`${candidates.length} CVs downloaded`);
           }
-          toast.success(`${candidates.length} CVs downloaded`);
         } else {
           // Single CV
           if (matchedTemplate) {
             const isDocx = matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
             if (isDocx && docxFormat === "pdf") {
-              // Staff chose PDF output from a DOCX template — render preview to PDF
+              // User chose PDF output from a DOCX template — render HTML preview as PDF
               const canvas = await candidateToCanvas(preview!, matchedTemplate);
               const w = canvas.width / 2, h = canvas.height / 2;
               const pdf = new jsPDF({ unit: "px", format: [w, h] });
@@ -435,11 +455,8 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
               pdf.save(`${preview!.full_name} — ${currentType.label}.pdf`);
               toast.success(`${currentType.label} downloaded as PDF`);
             } else if (isDocx) {
-              const b64 = await buildFilledDocxBase64(matchedTemplate.file_url, preview!);
-              const a = document.createElement("a");
-              a.href = `data:application/octet-stream;base64,${b64}`;
-              a.download = `${preview!.full_name} — ${currentType.label}.docx`;
-              document.body.appendChild(a); a.click(); document.body.removeChild(a);
+              const bytes = await buildFilledDocx(matchedTemplate.file_url, preview!);
+              downloadDocx(bytes, `${preview!.full_name} — ${currentType.label}.docx`);
               toast.success(`${currentType.label} downloaded`);
             } else {
               const res = await fetch(matchedTemplate.file_url);
