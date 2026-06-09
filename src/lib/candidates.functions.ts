@@ -168,6 +168,26 @@ export const updateCandidateField = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .eq("manager_id", managerId);
     if (error) throw new Error(error.message);
+
+    const TRACKED_FIELDS = ["visa_status", "ticket_status", "ticket_date", "arrival_city"];
+    if (TRACKED_FIELDS.includes(data.field)) {
+      let changedByName = "Unknown";
+      const { data: staffRow } = await supabaseAdmin.from("staff").select("name").eq("user_id", context.userId).maybeSingle();
+      if (staffRow?.name) {
+        changedByName = staffRow.name;
+      } else {
+        const { data: profile } = await supabaseAdmin.from("profiles").select("full_name").eq("id", context.userId).maybeSingle();
+        if (profile?.full_name) changedByName = profile.full_name;
+      }
+      await supabaseAdmin.from("candidate_field_log").insert({
+        candidate_id: data.id,
+        field: data.field,
+        new_value: raw,
+        changed_by_user_id: context.userId,
+        changed_by_name: changedByName,
+      });
+    }
+
     return { ok: true };
   });
 export const deleteCandidate = createServerFn({ method: "POST" })

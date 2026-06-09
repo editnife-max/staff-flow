@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { flushSync } from "react-dom";
 import { Download, FileText, ArrowUpDown, ChevronDown, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -264,11 +265,10 @@ export function CvPreview({ candidate: c, template }: { candidate: Candidate; te
 
 async function candidateToCanvas(c: Candidate, template: CvTemplate | null): Promise<HTMLCanvasElement> {
   const container = document.createElement("div");
-  container.style.cssText = "position:fixed;top:0;left:-9999px;z-index:-1;";
+  container.style.cssText = "position:fixed;top:0;left:-9999px;";
   document.body.appendChild(container);
   const root = createRoot(container);
-  root.render(<CvPreview candidate={c} template={template} />);
-  await new Promise((r) => setTimeout(r, 250));
+  flushSync(() => root.render(<CvPreview candidate={c} template={template} />));
   const el = (container.firstElementChild as HTMLElement) ?? container;
   const canvas = await html2canvas(el, {
     scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: false,

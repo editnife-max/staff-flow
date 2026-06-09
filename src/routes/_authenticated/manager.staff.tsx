@@ -44,6 +44,13 @@ const VISA_OPTIONS = [
 const TICKET_OPTIONS = ["No", "Ready", "New Order", "Booked", "Exchange", "Urgent"];
 const ARRIVAL_CITY_OPTIONS = ["RIYADH", "JEDDAH", "DAMMAM", "JOUF", "HAIL", "ABHA", "OTHERS"];
 
+const FIELD_LABELS: Record<string, string> = {
+  visa_status: "Visa",
+  ticket_status: "Ticket",
+  ticket_date: "Ticket Date",
+  arrival_city: "Arrival City",
+};
+
 type StaffRow = {
   id: string;
   name: string;
@@ -66,6 +73,15 @@ type CandidateRow = {
   ticket_updated_at: string | null;
   ticket_date_updated_at: string | null;
   arrival_city_updated_at: string | null;
+};
+
+type FieldLogRow = {
+  id: string;
+  candidate_id: string;
+  field: string;
+  new_value: string | null;
+  changed_by_name: string;
+  changed_at: string;
 };
 
 function startOfWeek() {
@@ -114,8 +130,8 @@ function EditCell({
   if (options) {
     return (
       <Select value={value ?? ""} onValueChange={(v) => save(v)}>
-        <SelectTrigger className="h-7 text-xs px-1.5 border-0 bg-transparent hover:bg-muted/60 focus:ring-0 min-w-[110px]">
-          <SelectValue placeholder="—" />
+        <SelectTrigger className="h-8 text-xs px-2 border border-border bg-background hover:bg-muted/60 focus:ring-1 min-w-[130px] rounded-md">
+          <SelectValue placeholder="— not set —" />
         </SelectTrigger>
         <SelectContent>
           {options.map((o) => <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>)}
@@ -133,7 +149,7 @@ function EditCell({
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => save()}
         onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
-        className="h-7 text-xs px-1.5 min-w-[90px]"
+        className="h-8 text-xs px-2 min-w-[110px]"
       />
     );
   }
@@ -141,9 +157,9 @@ function EditCell({
   return (
     <button
       onClick={() => { setDraft(value ?? ""); setEditing(true); }}
-      className="text-left text-xs hover:bg-muted/60 rounded px-1.5 py-0.5 w-full min-w-[70px] transition-colors"
+      className="h-8 text-left text-xs hover:bg-muted/60 border border-border rounded-md px-2 w-full min-w-[110px] transition-colors flex items-center"
     >
-      {type === "date" ? fmtDate(value) : (value || <span className="text-muted-foreground/40 italic">—</span>)}
+      {type === "date" ? fmtDate(value) : (value || <span className="text-muted-foreground/40 italic">— not set —</span>)}
     </button>
   );
 }
@@ -156,21 +172,34 @@ function StaffDetailSheet({ staff, open, onClose }: {
 }) {
   const qc = useQueryClient();
 
-  const { data: candidates = [], isLoading } = useQuery<CandidateRow[]>({
-    queryKey: ["staff-candidates", staff?.id],
+  const { data = { candidates: [] as CandidateRow[], logs: [] as FieldLogRow[] }, isLoading } = useQuery({
+    queryKey: ["staff-detail", staff?.id],
     enabled: open && !!staff,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: cands, error: cErr } = await supabase
         .from("candidates")
         .select(`id, full_name, visa_status, ticket_status, ticket_date, arrival_city,
                  updated_at, created_at,
                  visa_updated_at, ticket_updated_at, ticket_date_updated_at, arrival_city_updated_at`)
         .eq("assigned_staff_id", staff!.id)
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as CandidateRow[];
+      if (cErr) throw cErr;
+
+      const candidates = (cands ?? []) as CandidateRow[];
+      if (candidates.length === 0) return { candidates, logs: [] as FieldLogRow[] };
+
+      const { data: logRows, error: lErr } = await supabase
+        .from("candidate_field_log")
+        .select("id, candidate_id, field, new_value, changed_by_name, changed_at")
+        .in("candidate_id", candidates.map((c) => c.id))
+        .order("changed_at", { ascending: false });
+      if (lErr) throw lErr;
+
+      return { candidates, logs: (logRows ?? []) as FieldLogRow[] };
     },
   });
+
+  const { candidates, logs: fieldLogs } = data;
 
   const weekStart = startOfWeek().toISOString();
   const monthStart = startOfMonth().toISOString();
@@ -214,7 +243,7 @@ function StaffDetailSheet({ staff, open, onClose }: {
     },
   ];
 
-  function refresh() { qc.invalidateQueries({ queryKey: ["staff-candidates", staff?.id] }); }
+  function refresh() { qc.invalidateQueries({ queryKey: ["staff-detail", staff?.id] }); }
 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -244,8 +273,8 @@ function StaffDetailSheet({ staff, open, onClose }: {
               Registered Candidates
             </p>
             <div className="grid grid-cols-3 gap-3">
-              <StatTile icon={Users}        label="Total"      value={total}   color="text-primary" />
-              <StatTile icon={CalendarDays} label="This Week"  value={weekly}  color="text-teal-500" />
+              <StatTile icon={Users}         label="Total"      value={total}   color="text-primary" />
+              <StatTile icon={CalendarDays}  label="This Week"  value={weekly}  color="text-teal-500" />
               <StatTile icon={CalendarRange} label="This Month" value={monthly} color="text-violet-500" />
             </div>
           </div>
@@ -262,14 +291,10 @@ function StaffDetailSheet({ staff, open, onClose }: {
                     <TableHead className="text-xs py-2">Field</TableHead>
                     <TableHead className="text-xs py-2 text-center">Total set</TableHead>
                     <TableHead className="text-xs py-2 text-center">
-                      <span className="flex items-center justify-center gap-1">
-                        <CalendarDays className="h-3 w-3" /> This Week
-                      </span>
+                      <span className="flex items-center justify-center gap-1"><CalendarDays className="h-3 w-3" />This Week</span>
                     </TableHead>
                     <TableHead className="text-xs py-2 text-center">
-                      <span className="flex items-center justify-center gap-1">
-                        <CalendarRange className="h-3 w-3" /> This Month
-                      </span>
+                      <span className="flex items-center justify-center gap-1"><CalendarRange className="h-3 w-3" />This Month</span>
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -278,22 +303,17 @@ function StaffDetailSheet({ staff, open, onClose }: {
                     <TableRow key={fs.key}>
                       <TableCell className="py-2 text-xs">
                         <span className="flex items-center gap-1.5 text-muted-foreground">
-                          <fs.icon className="h-3.5 w-3.5" />
-                          {fs.label}
+                          <fs.icon className="h-3.5 w-3.5" />{fs.label}
                         </span>
                       </TableCell>
                       <TableCell className="py-2 text-center">
                         <span className="text-sm font-semibold">{fs.total}</span>
                       </TableCell>
                       <TableCell className="py-2 text-center">
-                        <span className={`text-sm font-semibold ${fs.weekly > 0 ? "text-teal-600" : "text-muted-foreground"}`}>
-                          {fs.weekly}
-                        </span>
+                        <span className={`text-sm font-semibold ${fs.weekly > 0 ? "text-teal-600" : "text-muted-foreground"}`}>{fs.weekly}</span>
                       </TableCell>
                       <TableCell className="py-2 text-center">
-                        <span className={`text-sm font-semibold ${fs.monthly > 0 ? "text-violet-600" : "text-muted-foreground"}`}>
-                          {fs.monthly}
-                        </span>
+                        <span className={`text-sm font-semibold ${fs.monthly > 0 ? "text-violet-600" : "text-muted-foreground"}`}>{fs.monthly}</span>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -302,10 +322,10 @@ function StaffDetailSheet({ staff, open, onClose }: {
             </div>
           </div>
 
-          {/* Candidates table */}
+          {/* Assigned candidates */}
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-              Assigned Candidates
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+              Assigned Candidates ({candidates.length})
             </p>
 
             {isLoading ? (
@@ -315,64 +335,72 @@ function StaffDetailSheet({ staff, open, onClose }: {
                 No candidates assigned to this staff member yet.
               </div>
             ) : (
-              <div className="rounded-md border overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/40">
-                      <TableHead className="text-xs">Candidate</TableHead>
-                      <TableHead className="text-xs">
-                        <span className="flex items-center gap-1"><FileCheck className="h-3 w-3" /> Visa</span>
-                      </TableHead>
-                      <TableHead className="text-xs">
-                        <span className="flex items-center gap-1"><Ticket className="h-3 w-3" /> Ticket</span>
-                      </TableHead>
-                      <TableHead className="text-xs">
-                        <span className="flex items-center gap-1"><Plane className="h-3 w-3" /> Ticket Date</span>
-                      </TableHead>
-                      <TableHead className="text-xs">
-                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> Arrival City</span>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {candidates.map((c) => (
-                      <TableRow key={c.id} className="hover:bg-muted/20 align-top">
-                        <TableCell className="py-2.5 max-w-[140px]">
-                          <span className="font-medium text-sm truncate block" title={c.full_name}>{c.full_name}</span>
-                          <span className="text-xs text-muted-foreground">{fmtDate(c.created_at)}</span>
-                        </TableCell>
+              <div className="space-y-3">
+                {candidates.map((c) => {
+                  const logs = fieldLogs.filter((l) => l.candidate_id === c.id);
+                  return (
+                    <div key={c.id} className="border rounded-md overflow-hidden">
+                      {/* Candidate header */}
+                      <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30 border-b">
+                        <span className="font-medium text-sm">{c.full_name}</span>
+                        <span className="text-xs text-muted-foreground">Registered {fmtDate(c.created_at)}</span>
+                      </div>
 
-                        <TableCell className="py-2">
+                      {/* Editable fields */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-4 py-3 border-b">
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                            <FileCheck className="h-3 w-3" /> Visa
+                          </p>
                           <EditCell value={c.visa_status} candidateId={c.id} field="visa_status" options={VISA_OPTIONS} onSaved={refresh} />
-                          {c.visa_updated_at && (
-                            <p className="text-[10px] text-muted-foreground/60 pl-1.5 mt-0.5">{fmtTs(c.visa_updated_at)}</p>
-                          )}
-                        </TableCell>
-
-                        <TableCell className="py-2">
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                            <Ticket className="h-3 w-3" /> Ticket
+                          </p>
                           <EditCell value={c.ticket_status} candidateId={c.id} field="ticket_status" options={TICKET_OPTIONS} onSaved={refresh} />
-                          {c.ticket_updated_at && (
-                            <p className="text-[10px] text-muted-foreground/60 pl-1.5 mt-0.5">{fmtTs(c.ticket_updated_at)}</p>
-                          )}
-                        </TableCell>
-
-                        <TableCell className="py-2">
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                            <Plane className="h-3 w-3" /> Ticket Date
+                          </p>
                           <EditCell value={c.ticket_date} candidateId={c.id} field="ticket_date" type="date" onSaved={refresh} />
-                          {c.ticket_date_updated_at && (
-                            <p className="text-[10px] text-muted-foreground/60 pl-1.5 mt-0.5">{fmtTs(c.ticket_date_updated_at)}</p>
-                          )}
-                        </TableCell>
-
-                        <TableCell className="py-2">
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                            <MapPin className="h-3 w-3" /> Arrival City
+                          </p>
                           <EditCell value={c.arrival_city} candidateId={c.id} field="arrival_city" options={ARRIVAL_CITY_OPTIONS} onSaved={refresh} />
-                          {c.arrival_city_updated_at && (
-                            <p className="text-[10px] text-muted-foreground/60 pl-1.5 mt-0.5">{fmtTs(c.arrival_city_updated_at)}</p>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                        </div>
+                      </div>
+
+                      {/* Change history */}
+                      {logs.length > 0 ? (
+                        <div className="px-4 py-3 space-y-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Change History</p>
+                          {logs.map((log) => (
+                            <div key={log.id} className="flex items-start gap-2.5 text-xs">
+                              <div className="w-1.5 h-1.5 rounded-full bg-primary/50 mt-1.5 shrink-0" />
+                              <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+                                <span className="text-muted-foreground whitespace-nowrap">{fmtTs(log.changed_at)}</span>
+                                <span className="font-semibold text-foreground">{FIELD_LABELS[log.field] ?? log.field}</span>
+                                <span className="text-muted-foreground">→</span>
+                                <span className="font-medium text-primary">
+                                  {log.new_value ? (log.field === "ticket_date" ? fmtDate(log.new_value) : log.new_value) : <em className="text-muted-foreground/60">cleared</em>}
+                                </span>
+                                <span className="text-muted-foreground/60">by {log.changed_by_name}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="px-4 py-2.5 text-xs text-muted-foreground/50 italic">
+                          No changes recorded yet.
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
