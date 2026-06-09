@@ -1066,7 +1066,7 @@ function StaffCandidatesPage() {
                 </SelectContent>
               </Select>
 
-              {BULK_FIELD_DEFS.filter((fd) => !fd.processingOnly || tab === "processing").map((fd) => {
+              {BULK_FIELD_DEFS.filter((fd) => fd.processingOnly === (tab === "processing")).map((fd) => {
                 const opts = Array.from(new Set(
                   filtered.map((c) => (c[fd.key as keyof Candidate] as string | null) ?? "").filter(Boolean)
                 )).sort();
@@ -1444,7 +1444,7 @@ function CandidateCardList({
   agencyOptions: string[];
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
-  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set(["COUNTRY", "OFFICE"]));
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set(["COUNTRY", "OFFICE", "BIRTH PLACE", "LIVING TOWN"]));
   const [showColPicker, setShowColPicker] = useState(false);
   const [activeCountryTab, setActiveCountryTab] = useState("all");
   const [activeOfficeTab, setActiveOfficeTab] = useState("all");
