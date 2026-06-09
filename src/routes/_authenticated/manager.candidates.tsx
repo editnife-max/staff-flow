@@ -971,6 +971,14 @@ function ManagerCandidatesPage() {
         </Card>
       )}
 
+      {isFiltered && (
+        <div className="px-1 py-1.5 text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground">
+            {Object.entries(filteredCounts).reduce((sum, [k, v]) => k !== "processing" ? sum + v : sum, 0)}
+          </span>{" "}candidates found under filter
+        </div>
+      )}
+
       <Card className="rounded-none">
         <CardContent className="p-4">
           <div className="flex items-center gap-8 border-b border-border">
