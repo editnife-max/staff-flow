@@ -584,7 +584,10 @@ function ManagerCandidatesPage() {
     if (filters.added_by !== "all") list = list.filter((c) => firstName(c.created_by_name) === filters.added_by);
     if (filters.age !== "all") {
       const [min, max] = filters.age.split("-").map(Number);
-      list = list.filter((c) => c.age != null && c.age >= min && c.age <= max);
+      list = list.filter((c) => {
+        const age = calcAge(c.dob) ?? c.age;
+        return age != null && age >= min && age <= max;
+      });
     }
     if (filters.from) list = list.filter((c) => c.created_at >= filters.from);
     if (filters.to) list = list.filter((c) => c.created_at <= filters.to + "T23:59:59");
@@ -1747,7 +1750,7 @@ function CandidateCard({
             })}
           </div>
           {/* Actions */}
-          <div className="shrink-0 flex flex-col items-end gap-1.5 ml-auto pl-4 pr-4">
+          <div className="sticky right-0 z-10 shrink-0 self-stretch flex flex-col items-end justify-center gap-1.5 pl-3 pr-4 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.07)]" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
             <Button size="sm" onClick={onAction} className="bg-[#5cb8c4] hover:bg-[#4aa8b4] text-white px-5 h-8 rounded text-xs font-semibold tracking-wide">
               VIEW
             </Button>
@@ -2320,7 +2323,7 @@ function ProcessingCard({
               );
             })}
           </div>
-          <div className="shrink-0 flex flex-col items-end gap-1.5 ml-auto pl-4 pr-4">
+          <div className="sticky right-0 z-10 shrink-0 self-stretch flex flex-col items-end justify-center gap-1.5 pl-3 pr-4 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.07)]" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
             <Button size="sm" onClick={onAction} className="bg-[#5cb8c4] hover:bg-[#4aa8b4] text-white px-5 h-8 rounded text-xs font-semibold tracking-wide">
               VIEW
             </Button>

@@ -596,7 +596,10 @@ function StaffCandidatesPage() {
     if (filters.availability !== "all") list = list.filter((c) => c.status === filters.availability);
     if (filters.age !== "all") {
       const [min, max] = filters.age.split("-").map(Number);
-      list = list.filter((c) => c.age != null && c.age >= min && c.age <= max);
+      list = list.filter((c) => {
+        const age = calcAge(c.dob) ?? c.age;
+        return age != null && age >= min && age <= max;
+      });
     }
     if (filters.from) list = list.filter((c) => c.created_at >= filters.from);
     if (filters.to) list = list.filter((c) => c.created_at <= filters.to + "T23:59:59");
