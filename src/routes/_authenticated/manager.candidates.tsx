@@ -27,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn, calcAge } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   upsertCandidate, deleteCandidate, updateCandidateField,
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff, bulkUpdateField,
@@ -456,9 +457,9 @@ function ManagerCandidatesPage() {
     queryKey: ["foreign-agencies-detail", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.from("foreign_agencies").select("name, country").order("name");
+      const { data, error } = await supabase.from("foreign_agencies").select("name, country, contact_phone").order("name");
       if (error) throw error;
-      return data as { name: string; country: string }[];
+      return data as { name: string; country: string; contact_phone: string | null }[];
     },
   });
 
@@ -478,6 +479,11 @@ function ManagerCandidatesPage() {
     }
     return map;
   }, [assignCountries, assignOffices]);
+
+  const agencyPhones = useMemo<Record<string, string>>(
+    () => Object.fromEntries(foreignAgencies.map((a) => [a.name, a.contact_phone ?? ""])),
+    [foreignAgencies],
+  );
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { available: 0, processing: 0, arrived: 0, returned: 0, canceled: 0 };
@@ -816,9 +822,16 @@ function ManagerCandidatesPage() {
   const tasheerDoneMut = useMutation({
     mutationFn: async (passportAccepted: boolean) => {
       const ids = Array.from(selected);
-      await bulkField({ data: { ids, field: "tasheer_status", value: "Done" } });
-      await bulkField({ data: { ids, field: "passport_accepted", value: String(passportAccepted) } });
-      await bulkField({ data: { ids, field: "wokala_status", value: "Unpaid" } });
+      if (passportAccepted) {
+        await bulkField({ data: { ids, field: "tasheer_status", value: "Done" } });
+        await bulkField({ data: { ids, field: "passport_accepted", value: "true" } });
+        await bulkField({ data: { ids, field: "wokala_status", value: "Unpaid" } });
+        await bulkField({ data: { ids, field: "visa_status", value: "Ready for embassy" } });
+      } else {
+        await bulkField({ data: { ids, field: "tasheer_status", value: "Ready" } });
+        await bulkField({ data: { ids, field: "passport_accepted", value: "false" } });
+        await bulkField({ data: { ids, field: "wokala_status", value: "Unpaid" } });
+      }
     },
     onSuccess: () => {
       toast.success(`Updated ${selected.size} candidate(s)`);
@@ -1206,6 +1219,7 @@ function ManagerCandidatesPage() {
           onDelete={(id) => fieldMut.mutate({ id, field: "status", value: "canceled" })}
           countryMeta={countryMeta}
           officesByCountry={officesByCountry}
+          agencyPhones={agencyPhones}
         />
       ) : (
         <CandidateCardList
@@ -1226,6 +1240,7 @@ function ManagerCandidatesPage() {
           countryMeta={tab === "available" ? [] : countryMeta}
           officesByCountry={tab === "available" ? {} : officesByCountry}
           agencyOptions={agencyOptions}
+          agencyPhones={agencyPhones}
         />
       )}
 
@@ -1444,7 +1459,7 @@ type EditableField =
 
 function CandidateCardList({
   candidates, selected, onToggleSelect, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn,
-  countryMeta, officesByCountry, agencyOptions,
+  countryMeta, officesByCountry, agencyOptions, agencyPhones,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -1459,6 +1474,7 @@ function CandidateCardList({
   countryMeta: Array<{ name: string; flag: string }>;
   officesByCountry: Record<string, string[]>;
   agencyOptions: string[];
+  agencyPhones: Record<string, string>;
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set(["COUNTRY", "OFFICE", "BIRTH PLACE", "LIVING TOWN"]));
@@ -1639,6 +1655,7 @@ function CandidateCardList({
                   onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
                   onReturn={onReturn ? () => onReturn(c.id) : undefined}
                   agencyOptions={agencyOptions}
+                  agencyPhones={agencyPhones}
                   countryOptions={countryOptions}
                 />
               ))}
@@ -1697,7 +1714,7 @@ function CandidateCardList({
 }
 
 function CandidateCard({
-  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, agencyOptions, countryOptions,
+  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, agencyOptions, agencyPhones, countryOptions,
 }: {
   candidate: Candidate;
   selected: boolean;
@@ -1712,6 +1729,7 @@ function CandidateCard({
   onUpdateField: (field: EditableField, value: string | null) => void;
   onReturn?: () => void;
   agencyOptions: string[];
+  agencyPhones: Record<string, string>;
   countryOptions: string[];
 }) {
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -1807,7 +1825,21 @@ function CandidateCard({
                     ) : "edit" in f && f.edit === "date" ? (
                       <InlineDate value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
                     ) : "edit" in f && f.edit === "select" ? (
-                      <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
+                      colLabel === "COC STATUS" && f.value === "Placed" ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span><InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} /></span>
+                            </TooltipTrigger>
+                            <TooltipContent className="rounded-none text-xs p-2 space-y-0.5">
+                              <div className="font-semibold">{candidate.selected_by || "—"}</div>
+                              <div>{agencyPhones[candidate.selected_by ?? ""] || "No phone"}</div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
+                      )
                     ) : (
                       <span className="line-clamp-2 break-words">{f.value || "—"}</span>
                     )}
@@ -1860,7 +1892,7 @@ const INITIAL_PROC_FILTERS = {
 
 function ProcessingTable({
   candidates, selected, onToggleSelect, onAction, onUpdateField, onEdit, onDelete, cancelMode,
-  countryMeta, officesByCountry,
+  countryMeta, officesByCountry, agencyPhones,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -1872,6 +1904,7 @@ function ProcessingTable({
   cancelMode?: boolean;
   countryMeta: Array<{ name: string; flag: string }>;
   officesByCountry: Record<string, string[]>;
+  agencyPhones: Record<string, string>;
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set(["destination_country", "office"]));
@@ -2204,6 +2237,7 @@ function ProcessingTable({
                   onEdit={() => onEdit(c)}
                   onDelete={() => onDelete(c.id)}
                   officesByCountry={officesByCountry}
+                  agencyPhones={agencyPhones}
                 />
               ))}
             </div>
@@ -2279,7 +2313,7 @@ function ProcessingTable({
 
 function ProcessingCard({
   candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onUpdateField, onEdit, onDelete, cancelMode,
-  officesByCountry,
+  officesByCountry, agencyPhones,
 }: {
   candidate: Candidate;
   selected: boolean;
@@ -2292,6 +2326,7 @@ function ProcessingCard({
   onEdit: () => void;
   onDelete: () => void;
   officesByCountry: Record<string, string[]>;
+  agencyPhones: Record<string, string>;
 }) {
   const [requireDate, setRequireDate] = useState<{
     field: "ticket_date" | "tasheer_date" | "medical_date";
@@ -2330,15 +2365,6 @@ function ProcessingCard({
     }
     if (colKey === "tasheer_status" && value === "Done") {
       setEmbassyOpen(true); setEmbassyStep("ask"); setEmbassyReason("");
-      return;
-    }
-    if (colKey === "wokala_status" && value === "Paid" && candidate.tasheer_status === "Done") {
-      onUpdateField("wokala_status", "Paid");
-      if (candidate.passport_accepted === true) {
-        onUpdateField("visa_status", "Ready for embassy");
-      } else if (candidate.passport_accepted === false) {
-        onUpdateField("tasheer_status", "Ready");
-      }
       return;
     }
     if (colKey === "medical_status" && value === "Fit" && !candidate.medical_date) {
@@ -2387,7 +2413,21 @@ function ProcessingCard({
                     ) : col.type === "date" ? (
                       <InlineDate value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
                     ) : col.type === "select" ? (
-                      <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
+                      col.key === "coc_status" && strVal === "Placed" ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span><InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} /></span>
+                            </TooltipTrigger>
+                            <TooltipContent className="rounded-none text-xs p-2 space-y-0.5">
+                              <div className="font-semibold">{candidate.selected_by || "—"}</div>
+                              <div>{agencyPhones[candidate.selected_by ?? ""] || "No phone"}</div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
+                      )
                     ) : col.type === "select-dynamic" ? (
                       <InlineSelect
                         value={strVal}
@@ -2467,12 +2507,13 @@ function ProcessingCard({
               onUpdateField("tasheer_status", "Done");
               onUpdateField("passport_accepted", "true");
               onUpdateField("wokala_status", "Unpaid");
+              onUpdateField("visa_status", "Ready for embassy");
               setEmbassyOpen(false);
             }}>
               Yes — Accepted
             </Button>
             <Button variant="outline" onClick={() => {
-              onUpdateField("tasheer_status", "Done");
+              onUpdateField("tasheer_status", "Ready");
               onUpdateField("passport_accepted", "false");
               onUpdateField("wokala_status", "Unpaid");
               setEmbassyOpen(false);

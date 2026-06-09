@@ -575,7 +575,7 @@ function StaffDashboard() {
           <AlertSection icon={RotateCcw}     title="Visa Returned"               iconColor="text-rose-600 dark:text-rose-400"       pillKey="visareturn" candidates={visaReturned}  onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => c.remark ?? null} />
           <AlertSection icon={AlertTriangle} title="Tasheer Done — Wokala Unpaid" iconColor="text-violet-600 dark:text-violet-400"   pillKey="tasheer"   candidates={tasheerDoneWokalaUnpaid} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
-          <AlertSection icon={XCircle}      title="Passport Not Accepted"        iconColor="text-red-600 dark:text-red-400"          pillKey="tasheer"   candidates={passportNotAccepted}    onUpdateField={handleUpdateField} countryOptions={countryOptions} />
+          <AlertSection icon={XCircle}      title="Tasheer — Ready"               iconColor="text-red-600 dark:text-red-400"          pillKey="tasheer"   candidates={passportNotAccepted}    onUpdateField={handleUpdateField} countryOptions={countryOptions} />
           <AlertSection icon={Send}          title="CV Sent — No Selection"        iconColor="text-teal-600 dark:text-teal-400"        pillKey="cvoverdue" candidates={cvOverdue}               onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => c.cv_sent_date ? `${Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000)}d ago` : null} />
         </div>

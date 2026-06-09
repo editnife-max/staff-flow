@@ -27,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn, calcAge } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   upsertCandidate, deleteCandidate, updateCandidateField,
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff, bulkUpdateField,
@@ -473,9 +474,9 @@ function StaffCandidatesPage() {
     queryKey: ["foreign-agencies-detail", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.from("foreign_agencies").select("name, country").order("name");
+      const { data, error } = await supabase.from("foreign_agencies").select("name, country, contact_phone").order("name");
       if (error) throw error;
-      return data as { name: string; country: string }[];
+      return data as { name: string; country: string; contact_phone: string | null }[];
     },
   });
 
@@ -495,6 +496,11 @@ function StaffCandidatesPage() {
     }
     return map;
   }, [assignCountries, assignOffices]);
+
+  const agencyPhones = useMemo<Record<string, string>>(
+    () => Object.fromEntries(foreignAgencies.map((a) => [a.name, a.contact_phone ?? ""])),
+    [foreignAgencies],
+  );
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { available: 0, processing: 0, arrived: 0, returned: 0, canceled: 0 };
@@ -1138,6 +1144,7 @@ function StaffCandidatesPage() {
           onDelete={(id) => fieldMut.mutate({ id, field: "status", value: "canceled" })}
           countryMeta={countryMeta}
           officesByCountry={officesByCountry}
+          agencyPhones={agencyPhones}
         />
       ) : (
         <CandidateCardList
@@ -1157,6 +1164,7 @@ function StaffCandidatesPage() {
           countryMeta={tab === "available" ? [] : countryMeta}
           officesByCountry={tab === "available" ? {} : officesByCountry}
           agencyOptions={agencyOptions}
+          agencyPhones={agencyPhones}
         />
       )}
 
@@ -1427,7 +1435,7 @@ type EditableField =
 
 function CandidateCardList({
   candidates, selected, onToggleSelect, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn,
-  countryMeta, officesByCountry, agencyOptions,
+  countryMeta, officesByCountry, agencyOptions, agencyPhones,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -1441,6 +1449,7 @@ function CandidateCardList({
   countryMeta: Array<{ name: string; flag: string }>;
   officesByCountry: Record<string, string[]>;
   agencyOptions: string[];
+  agencyPhones: Record<string, string>;
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set(["COUNTRY", "OFFICE", "BIRTH PLACE", "LIVING TOWN"]));
@@ -1622,6 +1631,7 @@ function CandidateCardList({
                   onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
                   onReturn={onReturn ? () => onReturn(c.id) : undefined}
                   agencyOptions={agencyOptions}
+                  agencyPhones={agencyPhones}
                   countryOptions={countryOptions}
                 />
               ))}
@@ -1680,7 +1690,7 @@ function CandidateCardList({
 }
 
 function CandidateCard({
-  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, agencyOptions, countryOptions,
+  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, agencyOptions, agencyPhones, countryOptions,
 }: {
   candidate: Candidate;
   selected: boolean;
@@ -1694,6 +1704,7 @@ function CandidateCard({
   onUpdateField: (field: EditableField, value: string | null) => void;
   onReturn?: () => void;
   agencyOptions: string[];
+  agencyPhones: Record<string, string>;
   countryOptions: string[];
 }) {
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -1775,7 +1786,21 @@ function CandidateCard({
                     ) : "edit" in f && f.edit === "date" ? (
                       <InlineDate value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
                     ) : "edit" in f && f.edit === "select" ? (
-                      <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
+                      colLabel === "COC STATUS" && f.value === "Placed" ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span><InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} /></span>
+                            </TooltipTrigger>
+                            <TooltipContent className="rounded-none text-xs p-2 space-y-0.5">
+                              <div className="font-semibold">{candidate.selected_by || "—"}</div>
+                              <div>{agencyPhones[candidate.selected_by ?? ""] || "No phone"}</div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
+                      )
                     ) : (
                       <span className="line-clamp-2 break-words">{f.value || "—"}</span>
                     )}
@@ -1832,7 +1857,7 @@ const INITIAL_PROC_FILTERS = {
 
 function ProcessingTable({
   candidates, selected, onToggleSelect, onAction, onUpdateField, onEdit, onDelete, cancelMode,
-  countryMeta, officesByCountry,
+  countryMeta, officesByCountry, agencyPhones,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -1844,6 +1869,7 @@ function ProcessingTable({
   cancelMode?: boolean;
   countryMeta: Array<{ name: string; flag: string }>;
   officesByCountry: Record<string, string[]>;
+  agencyPhones: Record<string, string>;
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set(["destination_country", "office"]));
@@ -2194,6 +2220,7 @@ function ProcessingTable({
                   onEdit={() => onEdit(c)}
                   onDelete={() => onDelete(c.id)}
                   officesByCountry={officesByCountry}
+                  agencyPhones={agencyPhones}
                 />
               ))}
             </div>
@@ -2269,7 +2296,7 @@ function ProcessingTable({
 
 function ProcessingCard({
   candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onUpdateField, onEdit, onDelete, cancelMode,
-  officesByCountry,
+  officesByCountry, agencyPhones,
 }: {
   candidate: Candidate;
   selected: boolean;
@@ -2282,6 +2309,7 @@ function ProcessingCard({
   onEdit: () => void;
   onDelete: () => void;
   officesByCountry: Record<string, string[]>;
+  agencyPhones: Record<string, string>;
 }) {
   const [requireDate, setRequireDate] = useState<{
     field: "ticket_date" | "tasheer_date" | "medical_date";
@@ -2369,7 +2397,21 @@ function ProcessingCard({
                     ) : col.type === "date" ? (
                       <InlineDate value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
                     ) : col.type === "select" ? (
-                      <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
+                      col.key === "coc_status" && strVal === "Placed" ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span><InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} /></span>
+                            </TooltipTrigger>
+                            <TooltipContent className="rounded-none text-xs p-2 space-y-0.5">
+                              <div className="font-semibold">{candidate.selected_by || "—"}</div>
+                              <div>{agencyPhones[candidate.selected_by ?? ""] || "No phone"}</div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
+                      )
                     ) : col.type === "select-dynamic" ? (
                       <InlineSelect
                         value={strVal}
