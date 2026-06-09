@@ -118,7 +118,8 @@ type EditableField =
   | "narrative_phone" | "contract_date" | "medical_date" | "medical_days"
   | "tasheer_status" | "tasheer_date" | "wokala_status" | "embassy_date"
   | "visa_status" | "insurance_status" | "unfilled_lmis" | "lmis_status"
-  | "ticket_status" | "ticket_date" | "arrival_city" | "emergency_contact" | "processing_notes";
+  | "ticket_status" | "ticket_date" | "arrival_city" | "emergency_contact" | "processing_notes"
+  | "passport_accepted";
 
 function OptionPill({ value }: { value: string }) {
   return (
@@ -232,12 +233,13 @@ function InlineDate({ value, onSave }: { value: string; onSave: (v: string | nul
 
 // ─── Full candidate card (HR Pool style, no checkbox) ────────────────────────
 function DashboardCandidateCard({
-  candidate, onUpdateField, note, countryOptions,
+  candidate, onUpdateField, note, countryOptions, extraAction,
 }: {
   candidate: Candidate;
   onUpdateField: (field: EditableField, value: string | null) => void;
   note?: string | null;
   countryOptions: string[];
+  extraAction?: React.ReactNode;
 }) {
   const statusStyles: Record<Status, string> = {
     available: "bg-success text-success-foreground",
@@ -338,6 +340,7 @@ function DashboardCandidateCard({
             </div>
           </div>
           <div className="flex flex-col items-end gap-1 mb-[8px] pt-[10px] pr-[12px] pb-[10px] pl-[4px]">
+            {extraAction}
             <Button asChild size="sm" className="h-6 w-18 text-[12px] px-2 rounded-none">
               <Link to="/staff/cv-generator" search={{ id: candidate.id }}>
                 <FileText className="h-3.5 w-3.5 mr-1" /> VIEW
@@ -352,7 +355,7 @@ function DashboardCandidateCard({
 
 // ─── Alert section ───────────────────────────────────────────────────────────
 function AlertSection({
-  icon: Icon, title, iconColor, pillKey, candidates, getNote, onUpdateField, countryOptions,
+  icon: Icon, title, iconColor, pillKey, candidates, getNote, onUpdateField, countryOptions, renderCardAction,
 }: {
   icon: React.ElementType;
   title: string;
@@ -362,6 +365,7 @@ function AlertSection({
   getNote?: (c: Candidate) => string | null;
   onUpdateField: (id: string, field: EditableField, value: string | null) => void;
   countryOptions: string[];
+  renderCardAction?: (candidate: Candidate) => React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   if (candidates.length === 0) return null;
@@ -392,6 +396,7 @@ function AlertSection({
               note={getNote?.(c) ?? null}
               onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
               countryOptions={countryOptions}
+              extraAction={renderCardAction?.(c)}
             />
           ))}
         </div>
@@ -575,7 +580,20 @@ function StaffDashboard() {
           <AlertSection icon={RotateCcw}     title="Visa Returned"               iconColor="text-rose-600 dark:text-rose-400"       pillKey="visareturn" candidates={visaReturned}  onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => c.remark ?? null} />
           <AlertSection icon={AlertTriangle} title="Tasheer Done — Wokala Unpaid" iconColor="text-violet-600 dark:text-violet-400"   pillKey="tasheer"   candidates={tasheerDoneWokalaUnpaid} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
-          <AlertSection icon={XCircle}      title="Tasheer — Ready"               iconColor="text-red-600 dark:text-red-400"          pillKey="tasheer"   candidates={passportNotAccepted}    onUpdateField={handleUpdateField} countryOptions={countryOptions} />
+          <AlertSection icon={XCircle}      title="Tasheer — Ready"               iconColor="text-red-600 dark:text-red-400"          pillKey="tasheer"   candidates={passportNotAccepted}    onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            renderCardAction={(c) => (
+              <Button
+                size="sm"
+                className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => {
+                  handleUpdateField(c.id, "passport_accepted", "true");
+                  handleUpdateField(c.id, "tasheer_status", "Done");
+                  handleUpdateField(c.id, "visa_status", "Ready for embassy");
+                }}
+              >
+                Yes
+              </Button>
+            )} />
           <AlertSection icon={Send}          title="CV Sent — No Selection"        iconColor="text-teal-600 dark:text-teal-400"        pillKey="cvoverdue" candidates={cvOverdue}               onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => c.cv_sent_date ? `${Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000)}d ago` : null} />
         </div>

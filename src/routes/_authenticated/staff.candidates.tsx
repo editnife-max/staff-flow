@@ -1317,7 +1317,21 @@ function StaffCandidatesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <FormSelect label="Passport Status" value={form.passport_status} onChange={(v) => setForm({ ...form, passport_status: v })} options={PASSPORT_OPTIONS} />
                 <FormSelect label="Medical Status" value={form.medical_status} onChange={(v) => setForm({ ...form, medical_status: v })} options={MEDICAL_OPTIONS} />
-                <FormSelect label="COC Status" value={form.coc_status} onChange={(v) => setForm({ ...form, coc_status: v })} options={COC_OPTIONS} />
+                {form.coc_status === "Placed" ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div><FormSelect label="COC Status" value={form.coc_status} onChange={(v) => setForm({ ...form, coc_status: v })} options={COC_OPTIONS} /></div>
+                      </TooltipTrigger>
+                      <TooltipContent className="rounded-none text-xs p-2 space-y-0.5">
+                        <div className="font-semibold">{form.selected_by || "—"}</div>
+                        <div>{(form.selected_by && agencyPhones[form.selected_by]) || "No phone"}</div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <FormSelect label="COC Status" value={form.coc_status} onChange={(v) => setForm({ ...form, coc_status: v })} options={COC_OPTIONS} />
+                )}
                 <FormSelect label="Country" value={form.musaned_status} onChange={(v) => setForm({ ...form, musaned_status: v })} options={assignCountries.map((c) => c.name)} />
               </div>
             </FormSection>
