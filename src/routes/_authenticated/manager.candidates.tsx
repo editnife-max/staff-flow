@@ -1164,13 +1164,13 @@ function ManagerCandidatesPage() {
                       setTasheerDoneOpen(true); setTasheerDoneStep("ask"); setTasheerDoneReason("");
                     }
                     else if (fd.key === "visa_status" && v === "Returned") {
-                      const blocked = candidates.filter((c) => selected.has(c.id) && (c.status !== "processing" || c.tasheer_status !== "Done" || c.wokala_status !== "Paid")).length;
-                      if (blocked > 0) { toast.error(`${blocked} candidate(s) must be Processing with Tasheer = Done and Wokala = Paid`); }
+                      const blocked = candidates.filter((c) => selected.has(c.id) && (c.status !== "processing" || c.tasheer_status !== "Done" || (c.wokala_status !== "Paid" && c.passport_accepted !== true))).length;
+                      if (blocked > 0) { toast.error(`${blocked} candidate(s) must be Processing with Tasheer = Done and either Passport Accepted or Wokala = Paid`); }
                       else { setVisaReturnedOpen(true); setVisaReturnedReason(""); }
                     }
                     else if (fd.key === "visa_status" && v === "Ready for embassy") {
-                      const blocked = candidates.filter((c) => selected.has(c.id) && (c.status !== "processing" || c.tasheer_status !== "Done" || c.wokala_status !== "Paid"));
-                      if (blocked.length > 0) { toast.error(`${blocked.length} candidate(s) must be Processing with Tasheer = Done and Wokala = Paid`); }
+                      const blocked = candidates.filter((c) => selected.has(c.id) && (c.status !== "processing" || c.tasheer_status !== "Done" || (c.wokala_status !== "Paid" && c.passport_accepted !== true)));
+                      if (blocked.length > 0) { toast.error(`${blocked.length} candidate(s) must be Processing with Tasheer = Done and either Passport Accepted or Wokala = Paid`); }
                       else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
                     }
                     else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
@@ -2344,8 +2344,11 @@ function ProcessingCard({
 
   function handleColUpdate(colKey: string, value: string | null) {
     if (colKey === "visa_status" && (value === "Ready for embassy" || value === "Returned")) {
-      if (candidate.status !== "processing" || candidate.tasheer_status !== "Done" || candidate.wokala_status !== "Paid") {
-        toast.error("Candidate must be Processing with Tasheer = Done and Wokala = Paid");
+      const tasheerDone = candidate.tasheer_status === "Done";
+      const passportOk = candidate.passport_accepted === true;
+      const wokalaPaid = candidate.wokala_status === "Paid";
+      if (candidate.status !== "processing" || !tasheerDone || (!passportOk && !wokalaPaid)) {
+        toast.error("Candidate must be Processing with Tasheer = Done and either Passport Accepted or Wokala = Paid");
         return;
       }
     }
