@@ -686,6 +686,8 @@ function StaffCandidatesPage() {
       qc.invalidateQueries({ queryKey: ["staff-candidates"] });
       if (field === "coc_status" && value === "Done")
         bulkField({ data: { ids: Array.from(selected), field: "lmis_status", value: "Placed" } });
+      if (field === "tasheer_status" && value === "Done")
+        bulkField({ data: { ids: Array.from(selected), field: "wokala_status", value: "Unpaid" } });
       const fk = BULK_FIELD_TO_FILTER[field];
       if (fk && tab !== "available") {
         const isMulti = ["medical", "musaned"].includes(fk);
@@ -739,6 +741,7 @@ function StaffCandidatesPage() {
     mutationFn: async (readyForEmbassy: boolean) => {
       const ids = Array.from(selected);
       await bulkField({ data: { ids, field: "tasheer_status", value: "Done" } });
+      await bulkField({ data: { ids, field: "wokala_status", value: "Unpaid" } });
       if (readyForEmbassy) {
         await bulkField({ data: { ids, field: "visa_status", value: "Ready for embassy" } });
       } else if (tasheerDoneReason.trim()) {
@@ -1931,6 +1934,7 @@ function ProcessingTable({
         if (today > tasheerDate) {
           tasheerDoneChecked.current.add(c.id);
           onUpdateField(c.id, "tasheer_status", "Done");
+          onUpdateField(c.id, "wokala_status", "Unpaid");
         }
       }
     }
@@ -2324,6 +2328,7 @@ function ProcessingCard({
       return;
     }
     onUpdateField(colKey, value);
+    if (colKey === "tasheer_status" && value === "Done") onUpdateField("wokala_status", "Unpaid");
   }
 
   return (
@@ -2450,6 +2455,7 @@ function ProcessingCard({
               <DialogFooter className="flex gap-2 sm:justify-start">
                 <Button onClick={() => {
                   onUpdateField("tasheer_status", "Done");
+                  onUpdateField("wokala_status", "Unpaid");
                   onUpdateField("visa_status", "Ready for embassy");
                   setEmbassyOpen(false);
                 }}>
@@ -2471,6 +2477,7 @@ function ProcessingCard({
                   disabled={!embassyReason.trim()}
                   onClick={() => {
                     onUpdateField("tasheer_status", "Done");
+                    onUpdateField("wokala_status", "Unpaid");
                     onUpdateField("processing_notes", embassyReason.trim());
                     setEmbassyOpen(false);
                     setEmbassyStep("ask");

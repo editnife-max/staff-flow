@@ -254,6 +254,7 @@ const initialForm = {
   skills: "",
   remark: "",
   notes: "",
+  is_private: false,
 };
 
 const initialFilters = {
@@ -272,6 +273,7 @@ const initialFilters = {
   selected_by: "all",
   availability: "all",
   added_by: "all",
+  private_filter: "all",
 };
 
 const firstName = (s: string | null | undefined) =>
@@ -504,6 +506,9 @@ function ManagerCandidatesPage() {
       if (filters.selected_by !== "all") list = list.filter((c) => c.selected_by === filters.selected_by);
       if (filters.availability !== "all") list = list.filter((c) => c.status === filters.availability);
       if (filters.added_by !== "all") list = list.filter((c) => firstName(c.created_by_name) === filters.added_by);
+      if (status === "available" && filters.private_filter !== "all") {
+        list = list.filter((c) => filters.private_filter === "private" ? c.is_private : !c.is_private);
+      }
       if (filters.age !== "all") {
         const [min, max] = filters.age.split("-").map(Number);
         list = list.filter((c) => {
@@ -515,6 +520,35 @@ function ManagerCandidatesPage() {
     }
     return result;
   }, [isFiltered, candidates, counts, passport, filters]);
+
+  const filteredTotal = useMemo(() => {
+    if (!isFiltered) return candidates.length;
+    let list = candidates;
+    if (passport) list = list.filter((c) => (c.passport_number ?? "").toLowerCase().includes(passport.toLowerCase()));
+    if (filters.education !== "all") list = list.filter((c) => c.education === filters.education);
+    if (filters.marital !== "all") list = list.filter((c) => c.marital_status === filters.marital);
+    if (filters.gender !== "all") list = list.filter((c) => c.gender === filters.gender);
+    if (filters.religion !== "all") list = list.filter((c) => c.religion === filters.religion);
+    if (filters.medical.length > 0) list = list.filter((c) => filters.medical.includes(c.medical_status ?? ""));
+    if (filters.narrative !== "all") list = list.filter((c) => c.narrative === filters.narrative);
+    if (filters.experience !== "all") list = list.filter((c) => c.experience === filters.experience);
+    if (filters.coc.length > 0) list = list.filter((c) => filters.coc.includes(c.coc_status ?? ""));
+    if (filters.musaned.length > 0) list = list.filter((c) => filters.musaned.includes(c.musaned_status ?? ""));
+    if (filters.cv_sent_to !== "all") list = list.filter((c) => c.cv_sent_to === filters.cv_sent_to);
+    if (filters.selected_by !== "all") list = list.filter((c) => c.selected_by === filters.selected_by);
+    if (filters.availability !== "all") list = list.filter((c) => c.status === filters.availability);
+    if (filters.added_by !== "all") list = list.filter((c) => firstName(c.created_by_name) === filters.added_by);
+    if (filters.age !== "all") {
+      const [min, max] = filters.age.split("-").map(Number);
+      list = list.filter((c) => {
+        const age = calcAge(c.dob) ?? c.age;
+        return age != null && age >= min && age <= max;
+      });
+    }
+    if (filters.from) list = list.filter((c) => c.created_at >= filters.from);
+    if (filters.to) list = list.filter((c) => c.created_at <= filters.to + "T23:59:59");
+    return list.length;
+  }, [isFiltered, candidates, passport, filters]);
 
   const updateField = useServerFn(updateCandidateField);
   const fieldMut = useMutation({
@@ -612,6 +646,9 @@ function ManagerCandidatesPage() {
     if (filters.selected_by !== "all") list = list.filter((c) => c.selected_by === filters.selected_by);
     if (filters.availability !== "all") list = list.filter((c) => c.status === filters.availability);
     if (filters.added_by !== "all") list = list.filter((c) => firstName(c.created_by_name) === filters.added_by);
+    if (tab === "available" && filters.private_filter !== "all") {
+      list = list.filter((c) => filters.private_filter === "private" ? c.is_private : !c.is_private);
+    }
     if (filters.age !== "all") {
       const [min, max] = filters.age.split("-").map(Number);
       list = list.filter((c) => {
@@ -707,6 +744,8 @@ function ManagerCandidatesPage() {
       qc.invalidateQueries({ queryKey: ["manager-candidates"] });
       if (field === "coc_status" && value === "Done")
         bulkField({ data: { ids: Array.from(selected), field: "lmis_status", value: "Placed" } });
+      if (field === "tasheer_status" && value === "Done")
+        bulkField({ data: { ids: Array.from(selected), field: "wokala_status", value: "Unpaid" } });
       const fk = BULK_FIELD_TO_FILTER[field];
       if (fk && tab !== "available") {
         const isMulti = ["medical", "musaned"].includes(fk);
@@ -778,6 +817,7 @@ function ManagerCandidatesPage() {
     mutationFn: async (readyForEmbassy: boolean) => {
       const ids = Array.from(selected);
       await bulkField({ data: { ids, field: "tasheer_status", value: "Done" } });
+      await bulkField({ data: { ids, field: "wokala_status", value: "Unpaid" } });
       if (readyForEmbassy) {
         await bulkField({ data: { ids, field: "visa_status", value: "Ready for embassy" } });
       } else if (tasheerDoneReason.trim()) {
@@ -850,6 +890,7 @@ function ManagerCandidatesPage() {
       skills: c.skills ?? "",
       remark: c.remark ?? "",
       notes: c.notes ?? "",
+      is_private: c.is_private ?? false,
     });
     setOpen(true);
   };
@@ -955,6 +996,15 @@ function ManagerCandidatesPage() {
                         .filter((s) => opts.availability.includes(s))
                         .map((o) => ({ value: o, label: o.charAt(0).toUpperCase() + o.slice(1) })),
                     ]} />
+                  {tab === "available" && (
+                    <FilterSelect placeholder="Availability Type" value={filters.private_filter} icon={Activity}
+                      onChange={(v) => setFilters({ ...filters, private_filter: v })}
+                      options={[
+                        { value: "all", label: "-----" },
+                        { value: "available", label: "Available" },
+                        { value: "private", label: "Private" },
+                      ]} />
+                  )}
                   <FilterSelect placeholder="Added By" value={filters.added_by} icon={UserPlus}
                     onChange={(v) => setFilters({ ...filters, added_by: v })}
                     options={[{ value: "all", label: "-----" }, ...addedByOptions.map((o) => ({ value: o, label: o }))]} />
@@ -973,9 +1023,7 @@ function ManagerCandidatesPage() {
 
       {isFiltered && (
         <div className="px-1 py-1.5 text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground">
-            {Object.entries(filteredCounts).reduce((sum, [k, v]) => k !== "processing" ? sum + v : sum, 0)}
-          </span>{" "}candidates found under filter
+          <span className="font-semibold text-foreground">{filteredTotal}</span>{" "}candidates found under filter
         </div>
       )}
 
@@ -1322,6 +1370,16 @@ function ManagerCandidatesPage() {
 
             <FormSection title="Notes">
               <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="is_private"
+                    checked={form.is_private}
+                    onChange={(e) => setForm({ ...form, is_private: e.target.checked })}
+                    className="h-4 w-4 rounded border-border accent-primary"
+                  />
+                  <Label htmlFor="is_private" className="text-xs cursor-pointer">Private (candidate came with own contract)</Label>
+                </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Remark</Label>
                   <Textarea rows={2} value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} className="rounded-none text-sm" />
@@ -1743,6 +1801,11 @@ function CandidateCard({
         <div className="sticky left-0 z-10 w-fit flex items-center gap-2 px-4 pt-2.5 pb-1" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status={candidate.status ?? "available"} />
+          {candidate.is_private && (
+            <span className="inline-flex items-center rounded-sm bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 text-[10px] font-semibold px-1.5 py-0.5 leading-none">
+              Private
+            </span>
+          )}
         </div>
         {/* Main content row */}
         <div className="flex items-center pb-3 pt-1">
@@ -1935,6 +1998,7 @@ function ProcessingTable({
         if (today > tasheerDate) {
           tasheerDoneChecked.current.add(c.id);
           onUpdateField(c.id, "tasheer_status", "Done");
+          onUpdateField(c.id, "wokala_status", "Unpaid");
         }
       }
     }
@@ -2306,6 +2370,7 @@ function ProcessingCard({
       return;
     }
     onUpdateField(colKey, value);
+    if (colKey === "tasheer_status" && value === "Done") onUpdateField("wokala_status", "Unpaid");
   }
 
   return (
@@ -2427,6 +2492,7 @@ function ProcessingCard({
               <DialogFooter className="flex gap-2 sm:justify-start">
                 <Button onClick={() => {
                   onUpdateField("tasheer_status", "Done");
+                  onUpdateField("wokala_status", "Unpaid");
                   onUpdateField("visa_status", "Ready for embassy");
                   setEmbassyOpen(false);
                 }}>
@@ -2448,6 +2514,7 @@ function ProcessingCard({
                   disabled={!embassyReason.trim()}
                   onClick={() => {
                     onUpdateField("tasheer_status", "Done");
+                    onUpdateField("wokala_status", "Unpaid");
                     onUpdateField("processing_notes", embassyReason.trim());
                     setEmbassyOpen(false);
                     setEmbassyStep("ask");

@@ -104,6 +104,7 @@ export type Database = {
           height: number | null
           id: string
           insurance_status: string | null
+          is_private: boolean
           labour_id: string | null
           last_name: string | null
           living_town: string | null
@@ -177,6 +178,7 @@ export type Database = {
           height?: number | null
           id?: string
           insurance_status?: string | null
+          is_private?: boolean
           labour_id?: string | null
           last_name?: string | null
           living_town?: string | null
@@ -250,6 +252,7 @@ export type Database = {
           height?: number | null
           id?: string
           insurance_status?: string | null
+          is_private?: boolean
           labour_id?: string | null
           last_name?: string | null
           living_town?: string | null

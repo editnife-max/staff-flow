@@ -72,7 +72,8 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
       "PowerShell(Start-Sleep -Seconds 8; try { $r = Invoke-WebRequest -Uri \"http://localhost:3000\" -TimeoutSec 5 -UseBasicParsing; $r.StatusCode } catch { \"not ready: $_\" })",
       "PowerShell(Receive-Job *)",
-      "Bash(supabase db *)"
+      "Bash(supabase db *)",
+      "Bash(bunx supabase *)"
     ]
   },
   "enableAllProjectMcpServers": true,
