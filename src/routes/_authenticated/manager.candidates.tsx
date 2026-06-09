@@ -1402,7 +1402,7 @@ function CandidateCardList({
   agencyOptions: string[];
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
-  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set(["COUNTRY", "OFFICE"]));
   const [showColPicker, setShowColPicker] = useState(false);
   const [activeCountryTab, setActiveCountryTab] = useState("all");
   const [activeOfficeTab, setActiveOfficeTab] = useState("all");
@@ -1804,7 +1804,7 @@ function ProcessingTable({
   officesByCountry: Record<string, string[]>;
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
-  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set(["destination_country", "office"]));
   const [showColPicker, setShowColPicker] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
   const [search, setSearch] = useState("");

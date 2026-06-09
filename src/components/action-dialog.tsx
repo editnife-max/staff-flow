@@ -21,8 +21,37 @@ export type Candidate  = Database["public"]["Tables"]["candidates"]["Row"];
 
 // ── DOCX fill ─────────────────────────────────────────────────────────────────
 
+// Field label → candidate value accessor, used both for filling and for the preview field-map
+export const CV_FIELD_MAP = (c: Candidate): [string, string][] => [
+  ["FULL NAME",      c.full_name                                        ?? ""],
+  ["POSITION",       c.occupation                                       ?? ""],
+  ["NUMBER",         c.passport_number                                  ?? ""],
+  ["DATE OF ISSUE",  c.passport_issue_date                              ?? ""],
+  ["DATE OF EXPIRY", c.passport_expiry_date                             ?? ""],
+  ["PLACE OF ISSUE", c.place_of_issue ?? c.country                     ?? ""],
+  ["ENGLISH",        c.english_level                                    ?? ""],
+  ["ARABIC",         c.arabic_level                                     ?? ""],
+  ["EXPERIENCE",     c.experience                                       ?? ""],
+  ["NATIONALITY",    c.country                                          ?? ""],
+  ["RELIGION",       c.religion                                         ?? ""],
+  ["DATE OF BIRTH",  c.dob                                             ?? ""],
+  ["PLACE OF BIRTH", c.birth_place                                      ?? ""],
+  ["LIVING TOWN",    c.living_town                                      ?? ""],
+  ["AGE",            c.age      != null ? String(c.age)                 : ""],
+  ["MARITAL STATUS", c.marital_status                                   ?? ""],
+  ["CHILDREN",       c.children != null ? String(c.children)            : ""],
+  ["WEIGHT",         c.weight   != null ? `${c.weight} kg`              : ""],
+  ["HEIGHT",         c.height   != null ? `${c.height} cm`              : ""],
+  ["REMARK",         c.notes ?? c.remark                               ?? ""],
+];
+
 function xmlEsc(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// Normalize label text: collapse whitespace, strip non-breaking spaces, uppercase
+function normLabel(s: string) {
+  return s.replace(/[   ]/g, " ").replace(/\s+/g, " ").trim().toUpperCase();
 }
 
 function cellText(xml: string, from: number, to: number): string {
@@ -31,7 +60,7 @@ function cellText(xml: string, from: number, to: number): string {
   while (p < to) {
     const idx = xml.indexOf("<w:t", p);
     if (idx === -1 || idx >= to) break;
-    // Skip <w:tbl>, <w:tr>, <w:tc*> — only match <w:t> or <w:t followed by whitespace
+    // Skip <w:tbl>, <w:tr>, <w:tc*> — only match <w:t> and <w:t<space>
     const ch = xml[idx + 4];
     if (ch !== ">" && ch !== " " && ch !== "\n" && ch !== "\t") { p = idx + 1; continue; }
     const gt = xml.indexOf(">", idx);
@@ -49,7 +78,7 @@ function nextCell(xml: string, from: number): number {
   while (p < xml.length) {
     const idx = xml.indexOf("<w:tc", p);
     if (idx === -1) return -1;
-    // Skip <w:tcPr>, <w:tcBorders>, etc. — only match <w:tc> or <w:tc followed by whitespace
+    // Skip <w:tcPr>, <w:tcBorders>, etc. — only match <w:tc> and <w:tc<space>
     const ch = xml[idx + 5];
     if (ch === ">" || ch === " " || ch === "\n" || ch === "\t") return idx;
     p = idx + 1;
@@ -58,6 +87,7 @@ function nextCell(xml: string, from: number): number {
 }
 
 function fillField(xml: string, label: string, value: string): string {
+  const normTarget = normLabel(label);
   let pos = 0;
   while (pos < xml.length) {
     const cellStart = nextCell(xml, pos);
@@ -65,24 +95,33 @@ function fillField(xml: string, label: string, value: string): string {
     const cellEnd = xml.indexOf("</w:tc>", cellStart);
     if (cellEnd === -1) break;
 
-    if (cellText(xml, cellStart, cellEnd).trim() === label) {
+    if (normLabel(cellText(xml, cellStart, cellEnd)) === normTarget) {
       const nStart = nextCell(xml, cellEnd + 7);
       if (nStart === -1) { pos = cellEnd + 7; continue; }
       const nEnd = xml.indexOf("</w:tc>", nStart);
       if (nEnd === -1) { pos = cellEnd + 7; continue; }
 
+      const spaceAttr = value.includes(" ") ? ' xml:space="preserve"' : "";
       let first = true;
-      const newCell = xml.slice(nStart, nEnd + 7).replace(
+      let newCell = xml.slice(nStart, nEnd + 7).replace(
         /<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g,
         (_, attrs) => {
           if (first) {
             first = false;
-            const spaceAttr = value.includes(" ") ? ' xml:space="preserve"' : (attrs ?? "");
-            return `<w:t${spaceAttr}>${xmlEsc(value)}</w:t>`;
+            return `<w:t${value.includes(" ") ? ' xml:space="preserve"' : (attrs ?? "")}>${xmlEsc(value)}</w:t>`;
           }
           return `<w:t${attrs ?? ""}></w:t>`;
         },
       );
+      // If the value cell had no <w:t> at all, inject a run into the first paragraph
+      if (first) {
+        const pEnd = newCell.indexOf("</w:p>");
+        if (pEnd !== -1) {
+          newCell = newCell.slice(0, pEnd)
+            + `<w:r><w:t${spaceAttr}>${xmlEsc(value)}</w:t></w:r>`
+            + newCell.slice(pEnd);
+        }
+      }
       return xml.slice(0, nStart) + newCell + xml.slice(nEnd + 7);
     }
 
@@ -100,31 +139,9 @@ export async function buildFilledDocxBase64(url: string, c: Candidate): Promise<
   const entry = zip.file("word/document.xml");
   if (!entry) throw new Error("word/document.xml missing");
   let xml = new TextDecoder("utf-8").decode(entry.asUint8Array());
-  const fields: [string, string | null | undefined][] = [
-    ["FULL NAME",      c.full_name],
-    ["POSITION",       c.occupation],
-    ["NUMBER",         c.passport_number],
-    ["DATE OF ISSUE",  c.passport_issue_date],
-    ["DATE OF EXPIRY", c.passport_expiry_date],
-    ["PLACE OF ISSUE", c.place_of_issue ?? c.country],
-    ["ENGLISH",        c.english_level],
-    ["ARABIC",         c.arabic_level],
-    ["EXPERIENCE",     c.experience],
-    ["NATIONALITY",    c.country],
-    ["RELIGION",       c.religion],
-    ["DATE OF BIRTH",  c.dob],
-    ["PLACE OF BIRTH", c.birth_place],
-    ["LIVING TOWN",    c.living_town],
-    ["AGE",            c.age  != null ? String(c.age)  : null],
-    ["MARITAL STATUS", c.marital_status],
-    ["CHILDREN",       c.children != null ? String(c.children) : null],
-    ["WEIGHT",         c.weight != null ? `${c.weight} kg` : null],
-    ["HEIGHT",         c.height != null ? `${c.height} cm` : null],
-    ["REMARK",         c.notes ?? c.remark],
-  ];
-  for (const [label, value] of fields) {
+  for (const [label, value] of CV_FIELD_MAP(c)) {
     if (!value) continue;
-    xml = fillField(xml, label, String(value));
+    xml = fillField(xml, label, value);
   }
   zip.file("word/document.xml", new TextEncoder().encode(xml));
   return zip.generate({ type: "base64" });
@@ -620,16 +637,35 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
 
           {/* Right panel — preview */}
           <div className="flex-1 overflow-auto bg-muted/30 p-4">
-            {preview && isCV ? (
-              <div>
-                {matchedTemplate && (
-                  <div className="mb-3 px-3 py-2 border border-primary/30 bg-primary/5 text-xs text-primary flex items-center gap-2">
-                    <FileText className="h-3.5 w-3.5 shrink-0" />
-                    <span>
-                      Template selected: <strong>{matchedTemplate.name}</strong> — candidate data below will be filled into this template on download.
-                    </span>
+            {preview && isCV && matchedTemplate ? (
+              // DOCX template selected — show field map so user can see what will be filled
+              <div className="max-w-lg mx-auto">
+                <div className="mb-4 flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{matchedTemplate.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx") ? "DOCX" : "PDF"} template
+                      {isBulk ? ` · ${candidates.length} candidates` : ""}
+                    </p>
                   </div>
+                </div>
+                <div className="border bg-white divide-y text-xs">
+                  {CV_FIELD_MAP(preview).map(([label, value]) => (
+                    <div key={label} className={cn("grid grid-cols-2 gap-2 px-3 py-1.5", !value && "opacity-40")}>
+                      <span className="font-semibold text-muted-foreground uppercase tracking-wide">{label}</span>
+                      <span className={cn("text-foreground", !value && "italic")}>{value || "empty"}</span>
+                    </div>
+                  ))}
+                </div>
+                {isBulk && (
+                  <p className="text-xs text-muted-foreground mt-3 text-center">
+                    Showing data for {preview.full_name} — all {candidates.length} candidates will be downloaded
+                  </p>
                 )}
+              </div>
+            ) : preview && isCV ? (
+              <div>
                 {isBulk && (
                   <p className="text-xs text-muted-foreground mb-3 text-center">
                     Previewing 1 of {candidates.length} — all candidates will be downloaded
@@ -637,7 +673,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
                 )}
                 <div className="mx-auto w-fit" style={{ zoom: 0.62 }}>
                   <div className="shadow-xl">
-                    <CvPreview candidate={preview} template={matchedTemplate} />
+                    <CvPreview candidate={preview} template={null} />
                   </div>
                 </div>
               </div>
