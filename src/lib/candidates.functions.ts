@@ -65,6 +65,7 @@ const InlineFieldSchema = z.object({
     "ticket_status", "ticket_date", "arrival_city", "emergency_contact",
     "processing_notes", "remark",
     "destination_country", "cv_sent_to",
+    "passport_accepted",
   ]),
   value: z.string().nullable(),
 });
@@ -134,8 +135,11 @@ export const updateCandidateField = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const managerId = await resolveManagerId(context.userId);
     const raw = data.value === "" ? null : data.value;
-    // medical_days is stored as integer
-    const coerced = data.field === "medical_days" && raw !== null ? Number(raw) : raw;
+    // medical_days is stored as integer; passport_accepted is stored as boolean
+    const coerced =
+      data.field === "medical_days" && raw !== null ? Number(raw) :
+      data.field === "passport_accepted" && raw !== null ? raw === "true" :
+      raw;
     const payload: Record<string, unknown> = { [data.field]: coerced };
 
     const FIELD_TS_MAP: Record<string, string> = {
@@ -247,7 +251,9 @@ export const bulkUpdateField = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const managerId = await resolveManagerId(context.userId);
     const raw = data.value === "" ? null : data.value;
-    const patch: Record<string, unknown> = { [data.field]: raw };
+    const coercedBulk =
+      data.field === "passport_accepted" && raw !== null ? raw === "true" : raw;
+    const patch: Record<string, unknown> = { [data.field]: coercedBulk };
     if (data.field === "cv_sent_to" && raw) {
       patch.cv_sent_date = new Date().toISOString().split("T")[0];
     }

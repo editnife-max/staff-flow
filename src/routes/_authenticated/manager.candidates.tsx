@@ -208,7 +208,7 @@ const CANDIDATE_CARD_COLS = [
   "FULL NAME", "ADDED BY", "CANDIDATE CODE", "GENDER", "AGE", "RELIGION", "MARITAL STATUS",
   "BIRTH PLACE", "LIVING TOWN", "PASSPORT NUMBER", "LABOUR ID",
   "OFFICE", "PASSPORT STATUS", "COC STATUS", "COUNTRY", "MEDICAL STATUS",
-  "MEDICAL DATE", "AVAILABILITY", "SELECTED BY", "CONTRACT DATE", "CV SENT TO", "CV SENT DATE",
+  "MEDICAL DATE", "AVAILABILITY", "AVAILABILITY TYPE", "SELECTED BY", "CONTRACT DATE", "CV SENT TO", "CV SENT DATE",
   "NARRATIVE", "NARRATIVE PHONE", "NOTES",
 ] as const;
 
@@ -816,18 +816,9 @@ function ManagerCandidatesPage() {
   const tasheerDoneMut = useMutation({
     mutationFn: async (passportAccepted: boolean) => {
       const ids = Array.from(selected);
-      if (passportAccepted) {
-        await bulkField({ data: { ids, field: "tasheer_status", value: "Done" } });
-        const idsWokalaPaid = candidates
-          .filter((c) => selected.has(c.id) && c.wokala_status === "Paid")
-          .map((c) => c.id);
-        if (idsWokalaPaid.length > 0) {
-          await bulkField({ data: { ids: idsWokalaPaid, field: "visa_status", value: "Ready for embassy" } });
-          await bulkField({ data: { ids: idsWokalaPaid, field: "wokala_status", value: "Unpaid" } });
-        }
-      } else {
-        await bulkField({ data: { ids, field: "tasheer_status", value: "Ready" } });
-      }
+      await bulkField({ data: { ids, field: "tasheer_status", value: "Done" } });
+      await bulkField({ data: { ids, field: "passport_accepted", value: String(passportAccepted) } });
+      await bulkField({ data: { ids, field: "wokala_status", value: "Unpaid" } });
     },
     onSuccess: () => {
       toast.success(`Updated ${selected.size} candidate(s)`);
@@ -1448,7 +1439,8 @@ type EditableField =
   | "tasheer_status" | "tasheer_date" | "wokala_status" | "embassy_date"
   | "visa_status" | "insurance_status" | "unfilled_lmis" | "lmis_status"
   | "ticket_status" | "ticket_date" | "arrival_city" | "emergency_contact"
-  | "processing_notes" | "remark" | "destination_country" | "cv_sent_to";
+  | "processing_notes" | "remark" | "destination_country" | "cv_sent_to" | "passport_accepted"
+  | "availability_type";
 
 function CandidateCardList({
   candidates, selected, onToggleSelect, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn,
@@ -1752,6 +1744,7 @@ function CandidateCard({
     { label: "MEDICAL STATUS", value: candidate.medical_status ?? "", edit: "select", field: "medical_status", options: MEDICAL_OPTIONS },
     { label: "MEDICAL DATE", value: candidate.medical_date ? new Date(candidate.medical_date).toLocaleDateString() : "—" },
     { label: "AVAILABILITY", value: statusKey, edit: "select", field: "status", options: AVAILABILITY_OPTIONS },
+    { label: "AVAILABILITY TYPE", value: candidate.availability_type ?? "available", edit: "select", field: "availability_type", options: ["available", "private", "unavailable"] },
     { label: "SELECTED BY", value: candidate.selected_by ?? "", edit: "select", field: "selected_by", options: agencyOptions },
     { label: "CONTRACT DATE", value: candidate.contract_date ?? "", edit: "date", field: "contract_date" },
     { label: "CV SENT TO", value: candidate.cv_sent_to ?? "", edit: "select", field: "cv_sent_to", options: agencyOptions },
@@ -2339,6 +2332,15 @@ function ProcessingCard({
       setEmbassyOpen(true); setEmbassyStep("ask"); setEmbassyReason("");
       return;
     }
+    if (colKey === "wokala_status" && value === "Paid" && candidate.tasheer_status === "Done") {
+      onUpdateField("wokala_status", "Paid");
+      if (candidate.passport_accepted === true) {
+        onUpdateField("visa_status", "Ready for embassy");
+      } else if (candidate.passport_accepted === false) {
+        onUpdateField("tasheer_status", "Ready");
+      }
+      return;
+    }
     if (colKey === "medical_status" && value === "Fit" && !candidate.medical_date) {
       setRequireDate({ field: "medical_date", label: "Medical Date", pendingStatus: "Fit", statusField: "medical_status" });
       setPendingDate("");
@@ -2463,16 +2465,16 @@ function ProcessingCard({
           <DialogFooter className="flex gap-2 sm:justify-start">
             <Button onClick={() => {
               onUpdateField("tasheer_status", "Done");
-              if (candidate.wokala_status === "Paid") {
-                onUpdateField("wokala_status", "Unpaid");
-                onUpdateField("visa_status", "Ready for embassy");
-              }
+              onUpdateField("passport_accepted", "true");
+              onUpdateField("wokala_status", "Unpaid");
               setEmbassyOpen(false);
             }}>
               Yes — Accepted
             </Button>
             <Button variant="outline" onClick={() => {
-              onUpdateField("tasheer_status", "Ready");
+              onUpdateField("tasheer_status", "Done");
+              onUpdateField("passport_accepted", "false");
+              onUpdateField("wokala_status", "Unpaid");
               setEmbassyOpen(false);
             }}>
               No — Not Accepted

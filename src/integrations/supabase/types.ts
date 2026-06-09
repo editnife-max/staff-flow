@@ -120,6 +120,7 @@ export type Database = {
           notes: string | null
           occupation: string | null
           office: string | null
+          passport_accepted: boolean | null
           passport_expiry_date: string | null
           passport_issue_date: string | null
           passport_number: string | null
@@ -194,6 +195,7 @@ export type Database = {
           notes?: string | null
           occupation?: string | null
           office?: string | null
+          passport_accepted?: boolean | null
           passport_expiry_date?: string | null
           passport_issue_date?: string | null
           passport_number?: string | null
@@ -268,6 +270,7 @@ export type Database = {
           notes?: string | null
           occupation?: string | null
           office?: string | null
+          passport_accepted?: boolean | null
           passport_expiry_date?: string | null
           passport_issue_date?: string | null
           passport_number?: string | null
