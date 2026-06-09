@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Search, FilePlus, FileText, Pencil, Trash2, FileSignature, Calendar,
+  Search, FilePlus, FileText, Pencil, Trash2, FileSignature,
   SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight,
   ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
@@ -27,7 +27,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn, calcAge } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import {
   upsertCandidate, deleteCandidate, updateCandidateField,
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff, bulkUpdateField,
@@ -289,8 +288,6 @@ const initialFilters = {
   cv_sent_to: "all",
   selected_by: "all",
   availability: "all",
-  from: "",
-  to: "",
 };
 
 function parsePasteData(text: string): Partial<typeof initialForm> {
@@ -601,8 +598,6 @@ function StaffCandidatesPage() {
         return age != null && age >= min && age <= max;
       });
     }
-    if (filters.from) list = list.filter((c) => c.created_at >= filters.from);
-    if (filters.to) list = list.filter((c) => c.created_at <= filters.to + "T23:59:59");
     list = [...list].sort((a, b) =>
       filters.sort === "newest"
         ? b.created_at.localeCompare(a.created_at)
@@ -945,8 +940,6 @@ function StaffCandidatesPage() {
                   .filter((s) => opts.availability.includes(s))
                   .map((o) => ({ value: o, label: o.charAt(0).toUpperCase() + o.slice(1) })),
               ]} />
-            <DateField label="From Date" value={filters.from} onChange={(v) => setFilters({ ...filters, from: v })} />
-            <DateField label="To Date" value={filters.to} onChange={(v) => setFilters({ ...filters, to: v })} />
           </div>
           <div className="mt-3 flex flex-wrap gap-3">
             <div className="relative w-60">
@@ -2758,73 +2751,6 @@ function MultiFilterSelect({
           onClick={() => onChange([])}
           className="rounded-none p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
           aria-label="Clear filter"
-        >
-          <X className="h-3 w-3" />
-        </button>
-      )}
-    </div>
-  );
-}
-
-function DateField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const hasValue = !!value;
-  const selected = value ? new Date(value + "T00:00:00") : undefined;
-
-  function handleSelect(date: Date | undefined) {
-    if (date) {
-      const y = date.getFullYear();
-      const m = String(date.getMonth() + 1).padStart(2, "0");
-      const d = String(date.getDate()).padStart(2, "0");
-      onChange(`${y}-${m}-${d}`);
-    } else {
-      onChange("");
-    }
-    setOpen(false);
-  }
-
-  return (
-    <div className="flex items-center gap-0.5">
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            className={cn(
-              "flex items-center gap-1.5 border shadow-none w-auto h-7 px-2 transition-colors rounded-none text-[13px] font-medium cursor-pointer",
-              hasValue
-                ? "bg-black/10 border-black/20 text-[#181A27] dark:bg-white/10 dark:border-white/20 dark:text-white"
-                : "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground",
-            )}
-          >
-            <Calendar className="h-3 w-3 shrink-0" />
-            <span>{hasValue ? selected?.toLocaleDateString() : label}</span>
-          </button>
-        </PopoverTrigger>
-        <PopoverContent
-          className="w-auto p-0 rounded-none"
-          align="start"
-          side="bottom"
-          sideOffset={6}
-          collisionPadding={16}
-          avoidCollisions
-        >
-          <CalendarPicker
-            mode="single"
-            selected={selected}
-            onSelect={handleSelect}
-            captionLayout="dropdown"
-            fromYear={2020}
-            toYear={2030}
-            initialFocus
-          />
-        </PopoverContent>
-      </Popover>
-      {hasValue && (
-        <button
-          type="button"
-          onClick={() => onChange("")}
-          className="rounded-none p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-          aria-label="Clear date"
         >
           <X className="h-3 w-3" />
         </button>
