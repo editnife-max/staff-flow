@@ -1,0 +1,5 @@
+ALTER TABLE candidates
+  ADD COLUMN IF NOT EXISTS visa_updated_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS ticket_updated_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS ticket_date_updated_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS arrival_city_updated_at TIMESTAMPTZ;

@@ -138,6 +138,16 @@ export const updateCandidateField = createServerFn({ method: "POST" })
     const coerced = data.field === "medical_days" && raw !== null ? Number(raw) : raw;
     const payload: Record<string, unknown> = { [data.field]: coerced };
 
+    const FIELD_TS_MAP: Record<string, string> = {
+      visa_status: "visa_updated_at",
+      ticket_status: "ticket_updated_at",
+      ticket_date: "ticket_date_updated_at",
+      arrival_city: "arrival_city_updated_at",
+    };
+    if (FIELD_TS_MAP[data.field]) {
+      payload[FIELD_TS_MAP[data.field]] = raw !== null ? new Date().toISOString() : null;
+    }
+
     if (data.field === "cv_sent_to" && raw) {
       payload.cv_sent_date = new Date().toISOString().split("T")[0];
     }

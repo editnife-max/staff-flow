@@ -71,7 +71,8 @@
       "Bash(awk 'NR>=1800 && NR<=2070' src/routes/_authenticated/manager.candidates.tsx)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
       "PowerShell(Start-Sleep -Seconds 8; try { $r = Invoke-WebRequest -Uri \"http://localhost:3000\" -TimeoutSec 5 -UseBasicParsing; $r.StatusCode } catch { \"not ready: $_\" })",
-      "PowerShell(Receive-Job *)"
+      "PowerShell(Receive-Job *)",
+      "Bash(supabase db *)"
     ]
   },
   "enableAllProjectMcpServers": true,

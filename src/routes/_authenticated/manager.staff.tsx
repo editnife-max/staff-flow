@@ -3,9 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Plus, Trash2, KeyRound, ChevronRight, Users, CalendarDays,
-  CalendarRange, Plane, FileCheck, MapPin, Ticket, Clock,
+  CalendarRange, Plane, FileCheck, MapPin, Ticket,
 } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -25,6 +25,9 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
   createStaffAccount, deleteStaffAccount, resetStaffPassword,
 } from "@/lib/staff-accounts.functions";
 import { updateCandidateField } from "@/lib/candidates.functions";
@@ -33,6 +36,13 @@ export const Route = createFileRoute("/_authenticated/manager/staff")({
   head: () => ({ meta: [{ title: "Staff — Staff-Flow" }] }),
   component: StaffPage,
 });
+
+const VISA_OPTIONS = [
+  "Ready for embassy", "Sent to Embassy", "Privately Sent", "Issued",
+  "Visa canceled", "Arrived KSA", "Returned", "Waiting Replacement",
+];
+const TICKET_OPTIONS = ["No", "Ready", "New Order", "Booked", "Exchange", "Urgent"];
+const ARRIVAL_CITY_OPTIONS = ["RIYADH", "JEDDAH", "DAMMAM", "JOUF", "HAIL", "ABHA", "OTHERS"];
 
 type StaffRow = {
   id: string;
@@ -52,47 +62,48 @@ type CandidateRow = {
   arrival_city: string | null;
   updated_at: string;
   created_at: string;
+  visa_updated_at: string | null;
+  ticket_updated_at: string | null;
+  ticket_date_updated_at: string | null;
+  arrival_city_updated_at: string | null;
 };
 
-function now() { return new Date(); }
 function startOfWeek() {
-  const d = now(); d.setDate(d.getDate() - d.getDay()); d.setHours(0, 0, 0, 0); return d;
+  const d = new Date(); d.setDate(d.getDate() - d.getDay()); d.setHours(0, 0, 0, 0); return d;
 }
 function startOfMonth() {
-  const d = now(); d.setDate(1); d.setHours(0, 0, 0, 0); return d;
+  const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0); return d;
 }
 function fmtDate(iso: string | null) {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
-function fmtTimestamp(iso: string) {
-  return new Date(iso).toLocaleString(undefined, {
-    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
-  });
+function fmtTs(iso: string | null) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 // ─── Inline editable cell ────────────────────────────────────────────────────
 function EditCell({
-  value, candidateId, field, type = "text", onSaved,
+  value, candidateId, field, type = "text", options, onSaved,
 }: {
   value: string | null;
   candidateId: string;
   field: "visa_status" | "ticket_status" | "ticket_date" | "arrival_city";
   type?: "text" | "date";
+  options?: string[];
   onSaved: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value ?? "");
   const doUpdate = useServerFn(updateCandidateField);
-  const ref = useRef<HTMLInputElement>(null);
 
-  function startEdit() { setDraft(value ?? ""); setEditing(true); setTimeout(() => ref.current?.focus(), 0); }
-
-  async function save() {
+  async function save(val?: string) {
+    const next = val ?? draft;
     setEditing(false);
-    if (draft === (value ?? "")) return;
+    if (next === (value ?? "")) return;
     try {
-      await doUpdate({ data: { id: candidateId, field, value: draft || null } });
+      await doUpdate({ data: { id: candidateId, field, value: next || null } });
       toast.success("Saved");
       onSaved();
     } catch (e: any) {
@@ -100,14 +111,27 @@ function EditCell({
     }
   }
 
+  if (options) {
+    return (
+      <Select value={value ?? ""} onValueChange={(v) => save(v)}>
+        <SelectTrigger className="h-7 text-xs px-1.5 border-0 bg-transparent hover:bg-muted/60 focus:ring-0 min-w-[110px]">
+          <SelectValue placeholder="—" />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((o) => <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    );
+  }
+
   if (editing) {
     return (
       <Input
-        ref={ref}
+        autoFocus
         type={type}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
-        onBlur={save}
+        onBlur={() => save()}
         onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
         className="h-7 text-xs px-1.5 min-w-[90px]"
       />
@@ -116,20 +140,16 @@ function EditCell({
 
   return (
     <button
-      onClick={startEdit}
+      onClick={() => { setDraft(value ?? ""); setEditing(true); }}
       className="text-left text-xs hover:bg-muted/60 rounded px-1.5 py-0.5 w-full min-w-[70px] transition-colors"
     >
-      {type === "date" ? fmtDate(value) : (value || <span className="text-muted-foreground/50 italic">—</span>)}
+      {type === "date" ? fmtDate(value) : (value || <span className="text-muted-foreground/40 italic">—</span>)}
     </button>
   );
 }
 
 // ─── Staff detail sheet ───────────────────────────────────────────────────────
-function StaffDetailSheet({
-  staff,
-  open,
-  onClose,
-}: {
+function StaffDetailSheet({ staff, open, onClose }: {
   staff: StaffRow | null;
   open: boolean;
   onClose: () => void;
@@ -142,7 +162,9 @@ function StaffDetailSheet({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("candidates")
-        .select("id, full_name, visa_status, ticket_status, ticket_date, arrival_city, updated_at, created_at")
+        .select(`id, full_name, visa_status, ticket_status, ticket_date, arrival_city,
+                 updated_at, created_at,
+                 visa_updated_at, ticket_updated_at, ticket_date_updated_at, arrival_city_updated_at`)
         .eq("assigned_staff_id", staff!.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -152,15 +174,51 @@ function StaffDetailSheet({
 
   const weekStart = startOfWeek().toISOString();
   const monthStart = startOfMonth().toISOString();
-  const total = candidates.length;
-  const weekly = candidates.filter((c) => c.created_at >= weekStart).length;
+
+  const total   = candidates.length;
+  const weekly  = candidates.filter((c) => c.created_at >= weekStart).length;
   const monthly = candidates.filter((c) => c.created_at >= monthStart).length;
+
+  const fieldStats = [
+    {
+      key: "visa",
+      label: "Visa",
+      icon: FileCheck,
+      total:   candidates.filter((c) => c.visa_status).length,
+      weekly:  candidates.filter((c) => c.visa_updated_at && c.visa_updated_at >= weekStart).length,
+      monthly: candidates.filter((c) => c.visa_updated_at && c.visa_updated_at >= monthStart).length,
+    },
+    {
+      key: "ticket",
+      label: "Ticket",
+      icon: Ticket,
+      total:   candidates.filter((c) => c.ticket_status).length,
+      weekly:  candidates.filter((c) => c.ticket_updated_at && c.ticket_updated_at >= weekStart).length,
+      monthly: candidates.filter((c) => c.ticket_updated_at && c.ticket_updated_at >= monthStart).length,
+    },
+    {
+      key: "ticket_date",
+      label: "Ticket Date",
+      icon: Plane,
+      total:   candidates.filter((c) => c.ticket_date).length,
+      weekly:  candidates.filter((c) => c.ticket_date_updated_at && c.ticket_date_updated_at >= weekStart).length,
+      monthly: candidates.filter((c) => c.ticket_date_updated_at && c.ticket_date_updated_at >= monthStart).length,
+    },
+    {
+      key: "arrival_city",
+      label: "Arrival City",
+      icon: MapPin,
+      total:   candidates.filter((c) => c.arrival_city).length,
+      weekly:  candidates.filter((c) => c.arrival_city_updated_at && c.arrival_city_updated_at >= weekStart).length,
+      monthly: candidates.filter((c) => c.arrival_city_updated_at && c.arrival_city_updated_at >= monthStart).length,
+    },
+  ];
 
   function refresh() { qc.invalidateQueries({ queryKey: ["staff-candidates", staff?.id] }); }
 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto p-0">
+      <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto p-0">
         {/* Header */}
         <SheetHeader className="px-6 py-5 border-b bg-muted/30">
           <div className="flex items-start gap-4">
@@ -180,18 +238,75 @@ function StaffDetailSheet({
         </SheetHeader>
 
         <div className="px-6 py-5 space-y-6">
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-3">
-            <StatTile icon={Users} label="Total Candidates" value={total} color="text-primary" />
-            <StatTile icon={CalendarDays} label="This Week" value={weekly} color="text-teal-500" />
-            <StatTile icon={CalendarRange} label="This Month" value={monthly} color="text-violet-500" />
+          {/* Registration stats */}
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              Registered Candidates
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              <StatTile icon={Users}        label="Total"      value={total}   color="text-primary" />
+              <StatTile icon={CalendarDays} label="This Week"  value={weekly}  color="text-teal-500" />
+              <StatTile icon={CalendarRange} label="This Month" value={monthly} color="text-violet-500" />
+            </div>
+          </div>
+
+          {/* Processing field activity */}
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              Processing Activity
+            </p>
+            <div className="rounded-md border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40">
+                    <TableHead className="text-xs py-2">Field</TableHead>
+                    <TableHead className="text-xs py-2 text-center">Total set</TableHead>
+                    <TableHead className="text-xs py-2 text-center">
+                      <span className="flex items-center justify-center gap-1">
+                        <CalendarDays className="h-3 w-3" /> This Week
+                      </span>
+                    </TableHead>
+                    <TableHead className="text-xs py-2 text-center">
+                      <span className="flex items-center justify-center gap-1">
+                        <CalendarRange className="h-3 w-3" /> This Month
+                      </span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {fieldStats.map((fs) => (
+                    <TableRow key={fs.key}>
+                      <TableCell className="py-2 text-xs">
+                        <span className="flex items-center gap-1.5 text-muted-foreground">
+                          <fs.icon className="h-3.5 w-3.5" />
+                          {fs.label}
+                        </span>
+                      </TableCell>
+                      <TableCell className="py-2 text-center">
+                        <span className="text-sm font-semibold">{fs.total}</span>
+                      </TableCell>
+                      <TableCell className="py-2 text-center">
+                        <span className={`text-sm font-semibold ${fs.weekly > 0 ? "text-teal-600" : "text-muted-foreground"}`}>
+                          {fs.weekly}
+                        </span>
+                      </TableCell>
+                      <TableCell className="py-2 text-center">
+                        <span className={`text-sm font-semibold ${fs.monthly > 0 ? "text-violet-600" : "text-muted-foreground"}`}>
+                          {fs.monthly}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
 
           {/* Candidates table */}
           <div>
-            <h3 className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
               Assigned Candidates
-            </h3>
+            </p>
 
             {isLoading ? (
               <div className="py-10 text-center text-muted-foreground text-sm">Loading…</div>
@@ -217,53 +332,42 @@ function StaffDetailSheet({
                       <TableHead className="text-xs">
                         <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> Arrival City</span>
                       </TableHead>
-                      <TableHead className="text-xs">
-                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Updated</span>
-                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {candidates.map((c) => (
-                      <TableRow key={c.id} className="hover:bg-muted/20">
-                        <TableCell className="font-medium text-sm py-2.5 max-w-[140px]">
-                          <span className="truncate block" title={c.full_name}>{c.full_name}</span>
+                      <TableRow key={c.id} className="hover:bg-muted/20 align-top">
+                        <TableCell className="py-2.5 max-w-[140px]">
+                          <span className="font-medium text-sm truncate block" title={c.full_name}>{c.full_name}</span>
                           <span className="text-xs text-muted-foreground">{fmtDate(c.created_at)}</span>
                         </TableCell>
-                        <TableCell className="py-2.5">
-                          <EditCell
-                            value={c.visa_status}
-                            candidateId={c.id}
-                            field="visa_status"
-                            onSaved={refresh}
-                          />
+
+                        <TableCell className="py-2">
+                          <EditCell value={c.visa_status} candidateId={c.id} field="visa_status" options={VISA_OPTIONS} onSaved={refresh} />
+                          {c.visa_updated_at && (
+                            <p className="text-[10px] text-muted-foreground/60 pl-1.5 mt-0.5">{fmtTs(c.visa_updated_at)}</p>
+                          )}
                         </TableCell>
-                        <TableCell className="py-2.5">
-                          <EditCell
-                            value={c.ticket_status}
-                            candidateId={c.id}
-                            field="ticket_status"
-                            onSaved={refresh}
-                          />
+
+                        <TableCell className="py-2">
+                          <EditCell value={c.ticket_status} candidateId={c.id} field="ticket_status" options={TICKET_OPTIONS} onSaved={refresh} />
+                          {c.ticket_updated_at && (
+                            <p className="text-[10px] text-muted-foreground/60 pl-1.5 mt-0.5">{fmtTs(c.ticket_updated_at)}</p>
+                          )}
                         </TableCell>
-                        <TableCell className="py-2.5">
-                          <EditCell
-                            value={c.ticket_date}
-                            candidateId={c.id}
-                            field="ticket_date"
-                            type="date"
-                            onSaved={refresh}
-                          />
+
+                        <TableCell className="py-2">
+                          <EditCell value={c.ticket_date} candidateId={c.id} field="ticket_date" type="date" onSaved={refresh} />
+                          {c.ticket_date_updated_at && (
+                            <p className="text-[10px] text-muted-foreground/60 pl-1.5 mt-0.5">{fmtTs(c.ticket_date_updated_at)}</p>
+                          )}
                         </TableCell>
-                        <TableCell className="py-2.5">
-                          <EditCell
-                            value={c.arrival_city}
-                            candidateId={c.id}
-                            field="arrival_city"
-                            onSaved={refresh}
-                          />
-                        </TableCell>
-                        <TableCell className="py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                          {fmtTimestamp(c.updated_at)}
+
+                        <TableCell className="py-2">
+                          <EditCell value={c.arrival_city} candidateId={c.id} field="arrival_city" options={ARRIVAL_CITY_OPTIONS} onSaved={refresh} />
+                          {c.arrival_city_updated_at && (
+                            <p className="text-[10px] text-muted-foreground/60 pl-1.5 mt-0.5">{fmtTs(c.arrival_city_updated_at)}</p>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -278,9 +382,7 @@ function StaffDetailSheet({
   );
 }
 
-function StatTile({
-  icon: Icon, label, value, color,
-}: {
+function StatTile({ icon: Icon, label, value, color }: {
   icon: React.ElementType;
   label: string;
   value: number;
@@ -441,14 +543,12 @@ function StaffPage() {
         </CardContent>
       </Card>
 
-      {/* Staff detail sheet */}
       <StaffDetailSheet
         staff={selectedStaff}
         open={!!selectedStaff}
         onClose={() => setSelectedStaff(null)}
       />
 
-      {/* Reset password dialog */}
       <Dialog open={!!resetTarget} onOpenChange={(o) => { if (!o) closeReset(); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
