@@ -254,7 +254,7 @@ const initialForm = {
   skills: "",
   remark: "",
   notes: "",
-  is_private: false,
+  availability_type: "available",
 };
 
 const initialFilters = {
@@ -507,7 +507,7 @@ function ManagerCandidatesPage() {
       if (filters.availability !== "all") list = list.filter((c) => c.status === filters.availability);
       if (filters.added_by !== "all") list = list.filter((c) => firstName(c.created_by_name) === filters.added_by);
       if (status === "available" && filters.private_filter !== "all") {
-        list = list.filter((c) => filters.private_filter === "private" ? c.is_private : !c.is_private);
+        list = list.filter((c) => (c.availability_type ?? "available") === filters.private_filter);
       }
       if (filters.age !== "all") {
         const [min, max] = filters.age.split("-").map(Number);
@@ -647,7 +647,7 @@ function ManagerCandidatesPage() {
     if (filters.availability !== "all") list = list.filter((c) => c.status === filters.availability);
     if (filters.added_by !== "all") list = list.filter((c) => firstName(c.created_by_name) === filters.added_by);
     if (tab === "available" && filters.private_filter !== "all") {
-      list = list.filter((c) => filters.private_filter === "private" ? c.is_private : !c.is_private);
+      list = list.filter((c) => (c.availability_type ?? "available") === filters.private_filter);
     }
     if (filters.age !== "all") {
       const [min, max] = filters.age.split("-").map(Number);
@@ -814,14 +814,19 @@ function ManagerCandidatesPage() {
   const [tasheerDoneReason, setTasheerDoneReason] = useState("");
 
   const tasheerDoneMut = useMutation({
-    mutationFn: async (readyForEmbassy: boolean) => {
+    mutationFn: async (passportAccepted: boolean) => {
       const ids = Array.from(selected);
-      await bulkField({ data: { ids, field: "tasheer_status", value: "Done" } });
-      await bulkField({ data: { ids, field: "wokala_status", value: "Unpaid" } });
-      if (readyForEmbassy) {
-        await bulkField({ data: { ids, field: "visa_status", value: "Ready for embassy" } });
-      } else if (tasheerDoneReason.trim()) {
-        await bulkField({ data: { ids, field: "processing_notes", value: tasheerDoneReason.trim() } });
+      if (passportAccepted) {
+        await bulkField({ data: { ids, field: "tasheer_status", value: "Done" } });
+        const idsWokalaPaid = candidates
+          .filter((c) => selected.has(c.id) && c.wokala_status === "Paid")
+          .map((c) => c.id);
+        if (idsWokalaPaid.length > 0) {
+          await bulkField({ data: { ids: idsWokalaPaid, field: "visa_status", value: "Ready for embassy" } });
+          await bulkField({ data: { ids: idsWokalaPaid, field: "wokala_status", value: "Unpaid" } });
+        }
+      } else {
+        await bulkField({ data: { ids, field: "tasheer_status", value: "Ready" } });
       }
     },
     onSuccess: () => {
@@ -890,7 +895,7 @@ function ManagerCandidatesPage() {
       skills: c.skills ?? "",
       remark: c.remark ?? "",
       notes: c.notes ?? "",
-      is_private: c.is_private ?? false,
+      availability_type: c.availability_type ?? "available",
     });
     setOpen(true);
   };
@@ -1003,6 +1008,7 @@ function ManagerCandidatesPage() {
                         { value: "all", label: "-----" },
                         { value: "available", label: "Available" },
                         { value: "private", label: "Private" },
+                        { value: "unavailable", label: "Unavailable" },
                       ]} />
                   )}
                   <FilterSelect placeholder="Added By" value={filters.added_by} icon={UserPlus}
@@ -1151,9 +1157,7 @@ function ManagerCandidatesPage() {
                     if (fd.key === "ticket_status" && v === "Booked") { setTicketDateOpen(true); }
                     else if (fd.key === "tasheer_status" && v === "Booked") { setTasheerDateOpen(true); }
                     else if (fd.key === "tasheer_status" && v === "Done") {
-                      const hasWokalaPaid = candidates.filter((c) => selected.has(c.id)).some((c) => c.wokala_status === "Paid");
-                      if (hasWokalaPaid) { setTasheerDoneOpen(true); setTasheerDoneStep("ask"); setTasheerDoneReason(""); }
-                      else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
+                      setTasheerDoneOpen(true); setTasheerDoneStep("ask"); setTasheerDoneReason("");
                     }
                     else if (fd.key === "visa_status" && v === "Returned") {
                       const blocked = candidates.filter((c) => selected.has(c.id) && (c.status !== "processing" || c.tasheer_status !== "Done" || c.wokala_status !== "Paid")).length;
@@ -1370,16 +1374,8 @@ function ManagerCandidatesPage() {
 
             <FormSection title="Notes">
               <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="is_private"
-                    checked={form.is_private}
-                    onChange={(e) => setForm({ ...form, is_private: e.target.checked })}
-                    className="h-4 w-4 rounded border-border accent-primary"
-                  />
-                  <Label htmlFor="is_private" className="text-xs cursor-pointer">Private (candidate came with own contract)</Label>
-                </div>
+                <FormSelect label="Availability" value={form.availability_type} onChange={(v) => setForm({ ...form, availability_type: v })}
+                  options={["available", "private", "unavailable"]} />
                 <div className="space-y-1.5">
                   <Label className="text-xs">Remark</Label>
                   <Textarea rows={2} value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} className="rounded-none text-sm" />
@@ -1419,50 +1415,24 @@ function ManagerCandidatesPage() {
         <ActionDialog candidates={actionCandidates} onClose={() => setActionCandidates([])} />
       )}
 
-      {/* Tasheer Done — embassy readiness dialog */}
+      {/* Tasheer Done — passport accepted dialog */}
       <Dialog open={tasheerDoneOpen} onOpenChange={(o) => { if (!o) { setTasheerDoneOpen(false); setTasheerDoneStep("ask"); setTasheerDoneReason(""); } }}>
         <DialogContent className="max-w-sm">
-          {tasheerDoneStep === "ask" ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>Ready for Embassy Visa?</DialogTitle>
-              </DialogHeader>
-              <p className="text-sm text-muted-foreground">
-                Tasheer is Done for <strong>{selected.size}</strong> candidate{selected.size !== 1 ? "s" : ""}.
-                Are they ready for embassy visa?
-              </p>
-              <DialogFooter className="flex gap-2 sm:justify-start">
-                <Button disabled={tasheerDoneMut.isPending} onClick={() => tasheerDoneMut.mutate(true)}>
-                  {tasheerDoneMut.isPending ? "Updating…" : "Yes — Ready for Embassy"}
-                </Button>
-                <Button variant="outline" onClick={() => setTasheerDoneStep("reason")}>
-                  No — Enter Reason
-                </Button>
-              </DialogFooter>
-            </>
-          ) : (
-            <>
-              <DialogHeader>
-                <DialogTitle>Reason Not Ready</DialogTitle>
-              </DialogHeader>
-              <p className="text-sm text-muted-foreground">Why are these candidates not ready for embassy visa?</p>
-              <Textarea
-                rows={3}
-                placeholder="Enter reason…"
-                value={tasheerDoneReason}
-                onChange={(e) => setTasheerDoneReason(e.target.value)}
-              />
-              <DialogFooter className="flex gap-2">
-                <Button variant="ghost" onClick={() => setTasheerDoneStep("ask")}>Back</Button>
-                <Button
-                  disabled={tasheerDoneMut.isPending || !tasheerDoneReason.trim()}
-                  onClick={() => tasheerDoneMut.mutate(false)}
-                >
-                  {tasheerDoneMut.isPending ? "Updating…" : "Submit"}
-                </Button>
-              </DialogFooter>
-            </>
-          )}
+          <DialogHeader>
+            <DialogTitle>Passport Accepted?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Tasheer is Done for <strong>{selected.size}</strong> candidate{selected.size !== 1 ? "s" : ""}.
+            Is the passport accepted?
+          </p>
+          <DialogFooter className="flex gap-2 sm:justify-start">
+            <Button disabled={tasheerDoneMut.isPending} onClick={() => tasheerDoneMut.mutate(true)}>
+              {tasheerDoneMut.isPending ? "Updating…" : "Yes — Accepted"}
+            </Button>
+            <Button variant="outline" disabled={tasheerDoneMut.isPending} onClick={() => tasheerDoneMut.mutate(false)}>
+              {tasheerDoneMut.isPending ? "Updating…" : "No — Not Accepted"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -1801,9 +1771,14 @@ function CandidateCard({
         <div className="sticky left-0 z-10 w-fit flex items-center gap-2 px-4 pt-2.5 pb-1" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status={candidate.status ?? "available"} />
-          {candidate.is_private && (
+          {candidate.availability_type === "private" && (
             <span className="inline-flex items-center rounded-sm bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 text-[10px] font-semibold px-1.5 py-0.5 leading-none">
               Private
+            </span>
+          )}
+          {candidate.availability_type === "unavailable" && (
+            <span className="inline-flex items-center rounded-sm bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 text-[10px] font-semibold px-1.5 py-0.5 leading-none">
+              Unavailable
             </span>
           )}
         </div>
@@ -2360,7 +2335,7 @@ function ProcessingCard({
       setPendingDate(candidate.tasheer_date ?? "");
       return;
     }
-    if (colKey === "tasheer_status" && value === "Done" && candidate.wokala_status === "Paid") {
+    if (colKey === "tasheer_status" && value === "Done") {
       setEmbassyOpen(true); setEmbassyStep("ask"); setEmbassyReason("");
       return;
     }
@@ -2370,7 +2345,6 @@ function ProcessingCard({
       return;
     }
     onUpdateField(colKey, value);
-    if (colKey === "tasheer_status" && value === "Done") onUpdateField("wokala_status", "Unpaid");
   }
 
   return (
@@ -2482,50 +2456,28 @@ function ProcessingCard({
     {embassyOpen && (
       <Dialog open onOpenChange={(o) => { if (!o) { setEmbassyOpen(false); setEmbassyStep("ask"); setEmbassyReason(""); } }}>
         <DialogContent className="max-w-sm">
-          {embassyStep === "ask" ? (
-            <>
-              <DialogHeader><DialogTitle>Ready for Embassy Visa?</DialogTitle></DialogHeader>
-              <p className="text-sm text-muted-foreground">
-                Tasheer is Done and Wokala is Paid for <strong>{candidate.full_name}</strong>.
-                Are they ready for embassy visa?
-              </p>
-              <DialogFooter className="flex gap-2 sm:justify-start">
-                <Button onClick={() => {
-                  onUpdateField("tasheer_status", "Done");
-                  onUpdateField("wokala_status", "Unpaid");
-                  onUpdateField("visa_status", "Ready for embassy");
-                  setEmbassyOpen(false);
-                }}>
-                  Yes — Ready for Embassy
-                </Button>
-                <Button variant="outline" onClick={() => setEmbassyStep("reason")}>
-                  No — Enter Reason
-                </Button>
-              </DialogFooter>
-            </>
-          ) : (
-            <>
-              <DialogHeader><DialogTitle>Reason Not Ready</DialogTitle></DialogHeader>
-              <p className="text-sm text-muted-foreground">Why is this candidate not ready for embassy visa?</p>
-              <Textarea rows={3} placeholder="Enter reason…" value={embassyReason} onChange={(e) => setEmbassyReason(e.target.value)} />
-              <DialogFooter className="flex gap-2">
-                <Button variant="ghost" onClick={() => setEmbassyStep("ask")}>Back</Button>
-                <Button
-                  disabled={!embassyReason.trim()}
-                  onClick={() => {
-                    onUpdateField("tasheer_status", "Done");
-                    onUpdateField("wokala_status", "Unpaid");
-                    onUpdateField("processing_notes", embassyReason.trim());
-                    setEmbassyOpen(false);
-                    setEmbassyStep("ask");
-                    setEmbassyReason("");
-                  }}
-                >
-                  Submit
-                </Button>
-              </DialogFooter>
-            </>
-          )}
+          <DialogHeader><DialogTitle>Passport Accepted?</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Tasheer is Done for <strong>{candidate.full_name}</strong>. Is the passport accepted?
+          </p>
+          <DialogFooter className="flex gap-2 sm:justify-start">
+            <Button onClick={() => {
+              onUpdateField("tasheer_status", "Done");
+              if (candidate.wokala_status === "Paid") {
+                onUpdateField("wokala_status", "Unpaid");
+                onUpdateField("visa_status", "Ready for embassy");
+              }
+              setEmbassyOpen(false);
+            }}>
+              Yes — Accepted
+            </Button>
+            <Button variant="outline" onClick={() => {
+              onUpdateField("tasheer_status", "Ready");
+              setEmbassyOpen(false);
+            }}>
+              No — Not Accepted
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     )}
