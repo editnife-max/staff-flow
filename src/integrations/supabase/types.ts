@@ -79,6 +79,8 @@ export type Database = {
           birth_place: string | null
           candidate_code: string | null
           children: number | null
+          coc_agency_name: string | null
+          coc_agency_phone: string | null
           coc_status: string | null
           contract_date: string | null
           country: string | null
@@ -154,6 +156,8 @@ export type Database = {
           birth_place?: string | null
           candidate_code?: string | null
           children?: number | null
+          coc_agency_name?: string | null
+          coc_agency_phone?: string | null
           coc_status?: string | null
           contract_date?: string | null
           country?: string | null
@@ -229,6 +233,8 @@ export type Database = {
           birth_place?: string | null
           candidate_code?: string | null
           children?: number | null
+          coc_agency_name?: string | null
+          coc_agency_phone?: string | null
           coc_status?: string | null
           contract_date?: string | null
           country?: string | null

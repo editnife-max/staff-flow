@@ -246,6 +246,8 @@ const initialForm = {
   passport_status: "",
   medical_status: "",
   coc_status: "",
+  coc_agency_name: "",
+  coc_agency_phone: "",
   musaned_status: "",
   status: "available" as Status,
   office: "",
@@ -397,6 +399,9 @@ function ManagerCandidatesPage() {
   const [editing, setEditing] = useState<Candidate | null>(null);
   const [form, setForm] = useState(initialForm);
   const [viewing, setViewing] = useState<Candidate | null>(null);
+  const [cocPlacedPending, setCocPlacedPending] = useState<{ id: string } | null>(null);
+  const [cocPlacedName, setCocPlacedName] = useState("");
+  const [cocPlacedPhone, setCocPlacedPhone] = useState("");
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["manager-candidates", user?.id],
@@ -611,6 +616,16 @@ function ManagerCandidatesPage() {
         fieldMut.mutate({ id, field: "office", value: fill.office });
     }
   }, [fieldMut, resolveSelectedBy, qc, user?.id]);
+
+  const handleCocAwareUpdate = useCallback((id: string, field: string, value: string | null) => {
+    if (field === "coc_status" && value === "Placed") {
+      setCocPlacedPending({ id });
+      setCocPlacedName("");
+      setCocPlacedPhone("");
+      return;
+    }
+    handleUpdateField(id, field, value);
+  }, [handleUpdateField]);
 
   const opts = useMemo(() => {
     const uniq = (k: keyof Candidate) =>
@@ -890,6 +905,8 @@ function ManagerCandidatesPage() {
       passport_status: c.passport_status ?? "",
       medical_status: c.medical_status ?? "",
       coc_status: c.coc_status ?? "",
+      coc_agency_name: (c as any).coc_agency_name ?? "",
+      coc_agency_phone: (c as any).coc_agency_phone ?? "",
       musaned_status: c.musaned_status ?? "",
       status: (c.status as Status) ?? "available",
       office: c.office ?? "",
@@ -1235,7 +1252,7 @@ function ManagerCandidatesPage() {
               ? fieldMut.mutate({ id, field: "status", value: "canceled" })
               : removeMut.mutate(id)
           }
-          onUpdateField={handleUpdateField}
+          onUpdateField={handleCocAwareUpdate}
           onReturn={tab === "arrived" ? (id) => fieldMut.mutate({ id, field: "status", value: "returned" }) : undefined}
           countryMeta={tab === "available" ? [] : countryMeta}
           officesByCountry={tab === "available" ? {} : officesByCountry}
@@ -1245,6 +1262,44 @@ function ManagerCandidatesPage() {
       )}
 
       <CandidateDetailDialog candidate={viewing} onClose={() => setViewing(null)} agencyPhones={agencyPhones} />
+
+      {cocPlacedPending && (
+        <Dialog open onOpenChange={(o) => { if (!o) setCocPlacedPending(null); }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>COC Placed — Agency Details</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">Enter the agency name and phone number for this placement.</p>
+            <div className="space-y-3 py-2">
+              <Input
+                placeholder="Agency Name"
+                value={cocPlacedName}
+                onChange={(e) => setCocPlacedName(e.target.value)}
+                className="rounded-none h-9"
+              />
+              <Input
+                placeholder="Phone Number"
+                value={cocPlacedPhone}
+                onChange={(e) => setCocPlacedPhone(e.target.value)}
+                className="rounded-none h-9"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setCocPlacedPending(null)}>Cancel</Button>
+              <Button
+                disabled={!cocPlacedName.trim()}
+                onClick={() => {
+                  const { id } = cocPlacedPending;
+                  handleUpdateField(id, "coc_status", "Placed");
+                  handleUpdateField(id, "coc_agency_name", cocPlacedName.trim());
+                  if (cocPlacedPhone.trim()) handleUpdateField(id, "coc_agency_phone", cocPlacedPhone.trim());
+                  setCocPlacedPending(null);
+                }}
+              >
+                Confirm
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Add / Edit dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
@@ -1368,10 +1423,20 @@ function ManagerCandidatesPage() {
                 <FormSelect label="Medical Status" value={form.medical_status} onChange={(v) => setForm({ ...form, medical_status: v })} options={MEDICAL_OPTIONS} />
                 <div>
                   <FormSelect label="COC Status" value={form.coc_status} onChange={(v) => setForm({ ...form, coc_status: v })} options={COC_OPTIONS} />
-                  {form.coc_status === "Placed" && form.selected_by && (
-                    <div className="mt-1 text-[10px] text-muted-foreground leading-tight">
-                      <div className="font-medium truncate">{form.selected_by}</div>
-                      <div className="truncate">{agencyPhones[form.selected_by] || ""}</div>
+                  {form.coc_status === "Placed" && (
+                    <div className="mt-2 space-y-1.5">
+                      <Input
+                        placeholder="Agency Name"
+                        value={form.coc_agency_name}
+                        onChange={(e) => setForm({ ...form, coc_agency_name: e.target.value })}
+                        className="rounded-none h-8 text-xs"
+                      />
+                      <Input
+                        placeholder="Phone Number"
+                        value={form.coc_agency_phone}
+                        onChange={(e) => setForm({ ...form, coc_agency_phone: e.target.value })}
+                        className="rounded-none h-8 text-xs"
+                      />
                     </div>
                   )}
                 </div>
@@ -1834,15 +1899,19 @@ function CandidateCard({
                       <InlineDate value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
                     ) : "edit" in f && f.edit === "select" ? (
                       colLabel === "COC STATUS" && f.value === "Placed" ? (
-                        <div>
-                          <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
-                          {candidate.selected_by && (
-                            <div className="mt-0.5 text-[10px] text-muted-foreground leading-tight">
-                              <div className="font-medium truncate">{candidate.selected_by}</div>
-                              <div className="truncate">{agencyPhones[candidate.selected_by] || ""}</div>
-                            </div>
-                          )}
-                        </div>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div>
+                                <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="rounded-none text-xs p-2 space-y-0.5">
+                              <div className="font-semibold">{(candidate as any).coc_agency_name || "—"}</div>
+                              <div>{(candidate as any).coc_agency_phone || "No phone"}</div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       ) : (
                         <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
                       )
@@ -2347,8 +2416,15 @@ function ProcessingCard({
   const [embassyReason, setEmbassyReason] = useState("");
   const [visaReturnOpen, setVisaReturnOpen] = useState(false);
   const [visaReturnReason, setVisaReturnReason] = useState("");
+  const [cocPlacedOpen, setCocPlacedOpen] = useState(false);
+  const [cocPlacedName, setCocPlacedName] = useState("");
+  const [cocPlacedPhone, setCocPlacedPhone] = useState("");
 
   function handleColUpdate(colKey: string, value: string | null) {
+    if (colKey === "coc_status" && value === "Placed") {
+      setCocPlacedOpen(true); setCocPlacedName(""); setCocPlacedPhone("");
+      return;
+    }
     if (colKey === "visa_status" && (value === "Ready for embassy" || value === "Returned")) {
       const tasheerDone = candidate.tasheer_status === "Done";
       const passportOk = candidate.passport_accepted === true;
@@ -2423,15 +2499,19 @@ function ProcessingCard({
                       <InlineDate value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
                     ) : col.type === "select" ? (
                       col.key === "coc_status" && strVal === "Placed" ? (
-                        <div>
-                          <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
-                          {candidate.selected_by && (
-                            <div className="mt-0.5 text-[10px] text-muted-foreground leading-tight">
-                              <div className="font-medium truncate">{candidate.selected_by}</div>
-                              <div className="truncate">{agencyPhones[candidate.selected_by ?? ""] || ""}</div>
-                            </div>
-                          )}
-                        </div>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div>
+                                <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="rounded-none text-xs p-2 space-y-0.5">
+                              <div className="font-semibold">{(candidate as any).coc_agency_name || "—"}</div>
+                              <div>{(candidate as any).coc_agency_phone || "No phone"}</div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       ) : (
                         <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
                       )
@@ -2546,6 +2626,44 @@ function ProcessingCard({
                 onUpdateField("remark", visaReturnReason.trim());
                 setVisaReturnOpen(false);
                 setVisaReturnReason("");
+              }}
+            >
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )}
+    {cocPlacedOpen && (
+      <Dialog open onOpenChange={(o) => { if (!o) setCocPlacedOpen(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>COC Placed — Agency Details</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Enter the agency name and phone number for <strong>{candidate.full_name}</strong>.
+          </p>
+          <div className="space-y-3 py-2">
+            <Input
+              placeholder="Agency Name"
+              value={cocPlacedName}
+              onChange={(e) => setCocPlacedName(e.target.value)}
+              className="rounded-none h-9"
+            />
+            <Input
+              placeholder="Phone Number"
+              value={cocPlacedPhone}
+              onChange={(e) => setCocPlacedPhone(e.target.value)}
+              className="rounded-none h-9"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCocPlacedOpen(false)}>Cancel</Button>
+            <Button
+              disabled={!cocPlacedName.trim()}
+              onClick={() => {
+                onUpdateField("coc_status", "Placed");
+                onUpdateField("coc_agency_name", cocPlacedName.trim());
+                if (cocPlacedPhone.trim()) onUpdateField("coc_agency_phone", cocPlacedPhone.trim());
+                setCocPlacedOpen(false);
               }}
             >
               Confirm
@@ -3200,8 +3318,8 @@ function CandidateDetailDialog({ candidate, onClose, agencyPhones = {} }: { cand
                     <div><InfoRow label="COC Status" value={candidate.coc_status} /></div>
                   </TooltipTrigger>
                   <TooltipContent className="rounded-none text-xs p-2 space-y-0.5">
-                    <div className="font-semibold">{candidate.selected_by || "—"}</div>
-                    <div>{(candidate.selected_by && agencyPhones[candidate.selected_by]) || "No phone"}</div>
+                    <div className="font-semibold">{(candidate as any).coc_agency_name || "—"}</div>
+                    <div>{(candidate as any).coc_agency_phone || "No phone"}</div>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
