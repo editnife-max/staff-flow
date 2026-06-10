@@ -2360,7 +2360,7 @@ function ProcessingCard({
   agencyPhones: Record<string, string>;
 }) {
   const [requireDate, setRequireDate] = useState<{
-    field: "ticket_date" | "tasheer_date" | "medical_date";
+    field: "ticket_date" | "tasheer_date" | "medical_date" | "insurance_date";
     label: string;
     pendingStatus: string;
     statusField: string;

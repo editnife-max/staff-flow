@@ -25,6 +25,7 @@ import {
   acceptCandidatesNotification,
   declineCandidatesNotification,
 } from "@/lib/notifications.functions";
+import { updateCandidateField } from "@/lib/candidates.functions";
 
 export const Route = createFileRoute("/_authenticated/staff")({
   component: StaffLayout,
@@ -73,10 +74,46 @@ function StaffLayout() {
   const doAccept  = useServerFn(acceptCandidatesNotification);
   const doDecline = useServerFn(declineCandidatesNotification);
 
+  const updateFieldFn = useServerFn(updateCandidateField);
+
   const [notifOpen, setNotifOpen]         = useState(false);
   const [activeNotif, setActiveNotif]     = useState<Notification | null>(null);
   const [declineMode, setDeclineMode]     = useState(false);
   const [declineReason, setDeclineReason] = useState("");
+  const [activeTasheerCandidateId, setActiveTasheerCandidateId] = useState<string | null>(null);
+
+  // ── Tasheer overdue candidates (computed client-side) ─────────────────────
+  const { data: tasheerOverdue = [] } = useQuery<{ id: string; full_name: string; tasheer_date: string | null }[]>({
+    queryKey: ["staff-tasheer-overdue"],
+    queryFn: async () => {
+      const today = new Date().toISOString().split("T")[0];
+      const { data, error } = await supabase
+        .from("candidates")
+        .select("id,full_name,tasheer_date")
+        .eq("tasheer_status", "Booked")
+        .lt("tasheer_date", today)
+        .not("tasheer_date", "is", null);
+      if (error) throw error;
+      return data as { id: string; full_name: string; tasheer_date: string | null }[];
+    },
+    enabled: !!user,
+    refetchInterval: 60_000,
+  });
+
+  const activeTasheerCandidate = tasheerOverdue.find((x) => x.id === activeTasheerCandidateId) ?? null;
+
+  const tasheerMut = useMutation({
+    mutationFn: (id: string) =>
+      updateFieldFn({ data: { id, field: "tasheer_status", value: "Done" } }),
+    onSuccess: () => {
+      toast.success("Tasheer marked as Done");
+      setActiveTasheerCandidateId(null);
+      qc.invalidateQueries({ queryKey: ["staff-tasheer-overdue"] });
+      qc.invalidateQueries({ queryKey: ["candidates"] });
+      qc.invalidateQueries({ queryKey: ["staff-dashboard-candidates"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   // ── Notifications list ────────────────────────────────────────────────────
   const { data: notifications = [] } = useQuery<Notification[]>({
@@ -94,7 +131,7 @@ function StaffLayout() {
     refetchInterval: 30_000,
   });
 
-  const unread = notifications.filter((n) => !n.read).length;
+  const unread = notifications.filter((n) => !n.read).length + tasheerOverdue.length;
 
   // ── Candidate previews for active notification ────────────────────────────
   const { data: candidatePreviews = [] } = useQuery<CandidatePreview[]>({
@@ -217,7 +254,36 @@ function StaffLayout() {
                 <span className="text-sm font-semibold">Notifications</span>
               </div>
               <div className="max-h-[360px] overflow-y-auto divide-y">
-                {notifications.length === 0 ? (
+                {tasheerOverdue.length > 0 && (
+                  <>
+                    <div className="px-4 py-1.5 bg-amber-50 dark:bg-amber-950/30">
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">Tasheer Overdue</span>
+                    </div>
+                    {tasheerOverdue.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => { setNotifOpen(false); setActiveTasheerCandidateId(c.id); }}
+                        className="w-full text-left px-4 py-3 text-sm hover:bg-muted/60 transition-colors bg-amber-50/40 dark:bg-amber-950/10"
+                      >
+                        <div className="flex items-start gap-2">
+                          <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                          <div className="flex-1">
+                            <p className="font-medium leading-snug">{c.full_name}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Tasheer booked{" "}
+                              {c.tasheer_date
+                                ? new Date(c.tasheer_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })
+                                : ""}
+                              {" "}— date has passed
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </>
+                )}
+                {notifications.length === 0 && tasheerOverdue.length === 0 ? (
                   <p className="px-4 py-8 text-center text-sm text-muted-foreground">No notifications yet.</p>
                 ) : notifications.map((n) => (
                   <button
@@ -285,6 +351,34 @@ function StaffLayout() {
           </div>
         </div>
       </footer>
+
+      {/* Tasheer overdue dialog */}
+      <Dialog open={!!activeTasheerCandidateId} onOpenChange={(o) => { if (!o) setActiveTasheerCandidateId(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Tasheer Overdue</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            <span className="font-semibold text-foreground">{activeTasheerCandidate?.full_name}</span>'s Tasheer was booked for{" "}
+            <span className="font-medium text-foreground">
+              {activeTasheerCandidate?.tasheer_date
+                ? new Date(activeTasheerCandidate.tasheer_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+                : "unknown date"}
+            </span>{" "}
+            and the date has passed. Was the Tasheer completed?
+          </p>
+          <DialogFooter className="gap-2 pt-2">
+            <Button variant="ghost" onClick={() => setActiveTasheerCandidateId(null)}>No</Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => activeTasheerCandidateId && tasheerMut.mutate(activeTasheerCandidateId)}
+              disabled={tasheerMut.isPending}
+            >
+              {tasheerMut.isPending ? "Saving…" : "Yes — Mark Done"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Notification detail dialog */}
       <Dialog open={!!activeNotif} onOpenChange={(o) => { if (!o) closeDetail(); }}>

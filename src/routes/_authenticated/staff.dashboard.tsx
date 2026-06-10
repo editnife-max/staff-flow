@@ -513,6 +513,10 @@ function StaffDashboard() {
   const tasheerDoneWokalaUnpaid = candidates.filter(
     (c) => c.status === "processing" && c.tasheer_status === "Done" && c.wokala_status === "Unpaid",
   );
+  const tasheerOverdue = candidates.filter((c) => {
+    if (c.tasheer_status !== "Booked" || !c.tasheer_date) return false;
+    return new Date(c.tasheer_date + "T00:00:00") < today;
+  });
   const passportNotAccepted = candidates.filter(
     (c) => c.status === "processing" && c.tasheer_status === "Ready",
   );
@@ -558,7 +562,7 @@ function StaffDashboard() {
       </div>
 
       {/* Alert sections */}
-      {(cocNotDone.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || cvOverdue.length > 0) && (
+      {(cocNotDone.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || cvOverdue.length > 0 || tasheerOverdue.length > 0) && (
         <div className="space-y-2">
           <AlertSection icon={FileCheck}    title="COC — Not Done"               iconColor="text-orange-600 dark:text-orange-400" pillKey="coc"     candidates={cocNotDone}    onUpdateField={handleUpdateField} countryOptions={countryOptions} />
           <AlertSection icon={Stethoscope}  title="Medical — Not Fit"            iconColor="text-red-600 dark:text-red-400"       pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
@@ -579,6 +583,17 @@ function StaffDashboard() {
             getNote={(c) => c.visa_status === "Ready for embassy" ? "Manual" : null} />
           <AlertSection icon={RotateCcw}     title="Visa Returned"               iconColor="text-rose-600 dark:text-rose-400"       pillKey="visareturn" candidates={visaReturned}  onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => c.remark ?? null} />
+          <AlertSection icon={AlertTriangle} title="Tasheer Overdue — Booked Date Passed" iconColor="text-amber-600 dark:text-amber-400" pillKey="tasheer" candidates={tasheerOverdue} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            getNote={(c) => c.tasheer_date ? `${daysSince(c.tasheer_date)}d overdue` : null}
+            renderCardAction={(c) => (
+              <Button
+                size="sm"
+                className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => handleUpdateField(c.id, "tasheer_status", "Done")}
+              >
+                Done
+              </Button>
+            )} />
           <AlertSection icon={AlertTriangle} title="Tasheer Done — Wokala Unpaid" iconColor="text-violet-600 dark:text-violet-400"   pillKey="tasheer"   candidates={tasheerDoneWokalaUnpaid} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
           <AlertSection icon={XCircle}      title="Tasheer — Ready"               iconColor="text-red-600 dark:text-red-400"          pillKey="tasheer"   candidates={passportNotAccepted}    onUpdateField={handleUpdateField} countryOptions={countryOptions}
             renderCardAction={(c) => (
