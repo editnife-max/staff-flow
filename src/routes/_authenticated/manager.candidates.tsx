@@ -1528,7 +1528,7 @@ type EditableField =
   | "visa_status" | "insurance_status" | "unfilled_lmis" | "lmis_status"
   | "ticket_status" | "ticket_date" | "arrival_city" | "emergency_contact"
   | "processing_notes" | "remark" | "destination_country" | "cv_sent_to" | "passport_accepted"
-  | "availability_type";
+  | "availability_type" | "coc_agency_name" | "coc_agency_phone";
 
 function CandidateCardList({
   candidates, selected, onToggleSelect, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn,

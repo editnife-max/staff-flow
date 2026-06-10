@@ -66,6 +66,7 @@ const InlineFieldSchema = z.object({
     "processing_notes", "remark",
     "destination_country", "cv_sent_to",
     "passport_accepted",
+    "coc_agency_name", "coc_agency_phone",
   ]),
   value: z.string().nullable(),
 });
