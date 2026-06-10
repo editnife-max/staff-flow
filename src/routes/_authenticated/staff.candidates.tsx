@@ -959,6 +959,9 @@ function StaffCandidatesPage() {
             <MultiFilterSelect placeholder="Country" values={filters.musaned} icon={Globe}
               onChange={(v) => setFilters({ ...filters, musaned: v })}
               options={assignCountries.map((c) => ({ value: c.name, label: c.name }))} />
+            <FilterSelect placeholder="Selected By" value={filters.selected_by} icon={ClipboardPaste}
+              onChange={(v) => setFilters({ ...filters, selected_by: v })}
+              options={[{ value: "all", label: "-----" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />
             <FilterSelect placeholder="CV Sent To" value={filters.cv_sent_to} icon={Send}
               onChange={(v) => setFilters({ ...filters, cv_sent_to: v })}
               options={[{ value: "all", label: "-----" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />

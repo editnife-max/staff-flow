@@ -55,6 +55,7 @@ function ManagerBell() {
   const [open, setOpen]               = useState(false);
   const [activeNotif, setActiveNotif] = useState<InvoiceNotif | null>(null);
   const [activeTasheerCandidateId, setActiveTasheerCandidateId] = useState<string | null>(null);
+  const [tasheerStep, setTasheerStep] = useState<"overdue" | "passport">("overdue");
 
   // ── Tasheer overdue candidates ────────────────────────────────────────────
   const { data: tasheerOverdue = [] } = useQuery<{ id: string; full_name: string; tasheer_date: string | null }[]>({
@@ -77,13 +78,22 @@ function ManagerBell() {
   const activeTasheerCandidate = tasheerOverdue.find((x) => x.id === activeTasheerCandidateId) ?? null;
 
   const tasheerMut = useMutation({
-    mutationFn: async (id: string) => {
-      await updateFieldFn({ data: { id, field: "tasheer_status", value: "Done" } });
-      await updateFieldFn({ data: { id, field: "wokala_status", value: "Unpaid" } });
+    mutationFn: async ({ id, passportAccepted }: { id: string; passportAccepted: boolean }) => {
+      if (passportAccepted) {
+        await updateFieldFn({ data: { id, field: "tasheer_status", value: "Done" } });
+        await updateFieldFn({ data: { id, field: "passport_accepted", value: "true" } });
+        await updateFieldFn({ data: { id, field: "wokala_status", value: "Unpaid" } });
+        await updateFieldFn({ data: { id, field: "visa_status", value: "Ready for embassy" } });
+      } else {
+        await updateFieldFn({ data: { id, field: "tasheer_status", value: "Ready" } });
+        await updateFieldFn({ data: { id, field: "passport_accepted", value: "false" } });
+        await updateFieldFn({ data: { id, field: "wokala_status", value: "Unpaid" } });
+      }
     },
     onSuccess: () => {
-      toast.success("Tasheer marked as Done");
+      toast.success("Tasheer updated");
       setActiveTasheerCandidateId(null);
+      setTasheerStep("overdue");
       qc.invalidateQueries({ queryKey: ["manager-tasheer-overdue"] });
       qc.invalidateQueries({ queryKey: ["candidates"] });
       qc.invalidateQueries({ queryKey: ["dashboard-candidates"] });
@@ -237,30 +247,57 @@ function ManagerBell() {
       </Dialog>
 
       {/* Tasheer overdue dialog */}
-      <Dialog open={!!activeTasheerCandidateId} onOpenChange={(o) => { if (!o) setActiveTasheerCandidateId(null); }}>
+      <Dialog open={!!activeTasheerCandidateId} onOpenChange={(o) => { if (!o) { setActiveTasheerCandidateId(null); setTasheerStep("overdue"); } }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Tasheer Overdue</DialogTitle>
+            <DialogTitle>
+              {tasheerStep === "overdue" ? "Tasheer Overdue" : "Passport Accepted?"}
+            </DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            <span className="font-semibold text-foreground">{activeTasheerCandidate?.full_name}</span>'s Tasheer was booked for{" "}
-            <span className="font-medium text-foreground">
-              {activeTasheerCandidate?.tasheer_date
-                ? new Date(activeTasheerCandidate.tasheer_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
-                : "unknown date"}
-            </span>{" "}
-            and the date has passed. Was the Tasheer completed?
-          </p>
-          <DialogFooter className="gap-2 pt-2">
-            <Button variant="ghost" onClick={() => setActiveTasheerCandidateId(null)}>No</Button>
-            <Button
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              onClick={() => activeTasheerCandidateId && tasheerMut.mutate(activeTasheerCandidateId)}
-              disabled={tasheerMut.isPending}
-            >
-              {tasheerMut.isPending ? "Saving…" : "Yes — Mark Done"}
-            </Button>
-          </DialogFooter>
+          {tasheerStep === "overdue" ? (
+            <>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                <span className="font-semibold text-foreground">{activeTasheerCandidate?.full_name}</span>'s Tasheer was booked for{" "}
+                <span className="font-medium text-foreground">
+                  {activeTasheerCandidate?.tasheer_date
+                    ? new Date(activeTasheerCandidate.tasheer_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+                    : "unknown date"}
+                </span>{" "}
+                and the date has passed. Was the Tasheer completed?
+              </p>
+              <DialogFooter className="gap-2 pt-2">
+                <Button variant="ghost" onClick={() => { setActiveTasheerCandidateId(null); setTasheerStep("overdue"); }}>No</Button>
+                <Button
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={() => setTasheerStep("passport")}
+                >
+                  Yes
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Tasheer is Done for <span className="font-semibold text-foreground">{activeTasheerCandidate?.full_name}</span>. Is the passport accepted?
+              </p>
+              <DialogFooter className="gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => activeTasheerCandidateId && tasheerMut.mutate({ id: activeTasheerCandidateId, passportAccepted: false })}
+                  disabled={tasheerMut.isPending}
+                >
+                  {tasheerMut.isPending ? "Saving…" : "No — Not Accepted"}
+                </Button>
+                <Button
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={() => activeTasheerCandidateId && tasheerMut.mutate({ id: activeTasheerCandidateId, passportAccepted: true })}
+                  disabled={tasheerMut.isPending}
+                >
+                  {tasheerMut.isPending ? "Saving…" : "Yes — Accepted"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </>
