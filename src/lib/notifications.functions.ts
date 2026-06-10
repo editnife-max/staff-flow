@@ -63,10 +63,10 @@ export const acceptCandidatesNotification = createServerFn({ method: "POST" })
       .in("id", data.candidateIds);
     if (candErr) throw new Error(candErr.message);
 
-    // Mark notification accepted
+    // Delete notification so it disappears from staff's list
     const { error: notifErr } = await supabaseAdmin
       .from("notifications" as any)
-      .update({ status: "accepted", read: true })
+      .delete()
       .eq("id", data.notificationId)
       .eq("recipient_id", context.userId);
     if (notifErr) throw new Error(notifErr.message);

@@ -390,17 +390,10 @@ function StaffLayout() {
             )}
           </DialogHeader>
 
-          {/* Already actioned */}
+          {/* Already declined */}
           {activeNotif?.status !== "pending" ? (
-            <div className={cn(
-              "rounded-md px-4 py-3 text-sm font-medium text-center",
-              activeNotif?.status === "accepted"
-                ? "bg-emerald-500/10 text-emerald-700"
-                : "bg-destructive/10 text-destructive",
-            )}>
-              {activeNotif?.status === "accepted"
-                ? "✓ You accepted these candidates — they are now in processing."
-                : "✗ You declined these candidates."}
+            <div className="rounded-md px-4 py-3 text-sm font-medium text-center bg-destructive/10 text-destructive">
+              ✗ You declined these candidates.
             </div>
           ) : (
             <>

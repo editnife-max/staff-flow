@@ -105,6 +105,8 @@ function ManagerDashboard() {
   const [readyForEmbassyDismissed, setReadyForEmbassyDismissed] = useState(false);
   const [tasheerReadyOpen, setTasheerReadyOpen] = useState(false);
   const [tasheerReadyDismissed, setTasheerReadyDismissed] = useState(false);
+  const [tasheerOverdueOpen, setTasheerOverdueOpen] = useState(false);
+  const [tasheerOverdueDismissed, setTasheerOverdueDismissed] = useState(false);
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["dashboard-candidates", user?.id],
@@ -164,6 +166,10 @@ function ManagerDashboard() {
   const visaReturned = candidates.filter((c) => c.visa_status === "Returned");
   const readyForEmbassy = candidates.filter((c) => c.status === "processing" && c.visa_status === "Ready for embassy");
   const tasheerReady = candidates.filter((c) => c.status === "processing" && c.tasheer_status === "Ready");
+  const tasheerOverdue = candidates.filter((c) => {
+    if (c.tasheer_status !== "Booked" || !c.tasheer_date) return false;
+    return new Date(c.tasheer_date + "T00:00:00") < today;
+  });
   const recent = candidates.slice(0, 12);
 
   const today = new Date();
