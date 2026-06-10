@@ -77,8 +77,10 @@ function ManagerBell() {
   const activeTasheerCandidate = tasheerOverdue.find((x) => x.id === activeTasheerCandidateId) ?? null;
 
   const tasheerMut = useMutation({
-    mutationFn: (id: string) =>
-      updateFieldFn({ data: { id, field: "tasheer_status", value: "Done" } }),
+    mutationFn: async (id: string) => {
+      await updateFieldFn({ data: { id, field: "tasheer_status", value: "Done" } });
+      await updateFieldFn({ data: { id, field: "wokala_status", value: "Unpaid" } });
+    },
     onSuccess: () => {
       toast.success("Tasheer marked as Done");
       setActiveTasheerCandidateId(null);
