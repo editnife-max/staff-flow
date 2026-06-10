@@ -166,14 +166,14 @@ function ManagerDashboard() {
   const visaReturned = candidates.filter((c) => c.visa_status === "Returned");
   const readyForEmbassy = candidates.filter((c) => c.status === "processing" && c.visa_status === "Ready for embassy");
   const tasheerReady = candidates.filter((c) => c.status === "processing" && c.tasheer_status === "Ready");
-  const tasheerOverdue = candidates.filter((c) => {
-    if (c.tasheer_status !== "Booked" || !c.tasheer_date) return false;
-    return new Date(c.tasheer_date + "T00:00:00") < today;
-  });
   const recent = candidates.slice(0, 12);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const tasheerOverdue = candidates.filter((c) => {
+    if (c.tasheer_status !== "Booked" || !c.tasheer_date) return false;
+    return new Date(c.tasheer_date + "T00:00:00") < today;
+  });
   const cvOverdue = candidates.filter((c) => {
     if (!c.cv_sent_to || c.selected_by || !c.cv_sent_date) return false;
     const days = Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000);
@@ -430,6 +430,37 @@ function ManagerDashboard() {
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setTasheerReadyDismissed(true); }}
+              className="p-1 rounded-none text-amber-400 hover:text-amber-700 hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Tasheer Overdue Banner */}
+      {tasheerOverdue.length > 0 && !tasheerOverdueDismissed && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-none border border-amber-300 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-700 px-4 py-3 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
+          onClick={() => setTasheerOverdueOpen(true)}
+        >
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+                Tasheer Overdue — {tasheerOverdue.length} candidate{tasheerOverdue.length > 1 ? "s" : ""}
+              </p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                Tasheer was Booked but the date has passed
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <ChevronRight className="h-4 w-4 text-amber-500" />
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setTasheerOverdueDismissed(true); }}
               className="p-1 rounded-none text-amber-400 hover:text-amber-700 hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors"
               aria-label="Dismiss"
             >
@@ -882,6 +913,55 @@ function ManagerDashboard() {
           <div className="pt-2 flex justify-end">
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
               <Link to="/manager/candidates" onClick={() => setTasheerReadyOpen(false)}>
+                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tasheer Overdue Dialog */}
+      <Dialog open={tasheerOverdueOpen} onOpenChange={setTasheerOverdueOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
+              <AlertTriangle className="h-5 w-5" />
+              Tasheer Overdue ({tasheerOverdue.length})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto space-y-0 divide-y divide-border">
+            {tasheerOverdue.map((c) => {
+              const days = c.tasheer_date
+                ? Math.floor((today.getTime() - new Date(c.tasheer_date + "T00:00:00").getTime()) / 86_400_000)
+                : null;
+              return (
+                <div key={c.id} className="flex items-center gap-3 py-3">
+                  <Avatar className="h-9 w-9 shrink-0">
+                    {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                    <AvatarFallback className="text-[11px] rounded-none">
+                      {c.full_name.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      Booked: {c.tasheer_date ? new Date(c.tasheer_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) : "—"}
+                      {days !== null ? ` · ${days}d overdue` : ""}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+                      Overdue
+                    </span>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="pt-2 flex justify-end">
+            <Button asChild size="sm" className="rounded-none text-xs gap-1">
+              <Link to="/manager/candidates" onClick={() => setTasheerOverdueOpen(false)}>
                 Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
               </Link>
             </Button>
