@@ -1008,9 +1008,6 @@ function ManagerCandidatesPage() {
                   <MultiFilterSelect placeholder="Country" values={filters.musaned} icon={Globe}
                     onChange={(v) => setFilters({ ...filters, musaned: v })}
                     options={assignCountries.map((c) => ({ value: c.name, label: c.name }))} />
-                  <FilterSelect placeholder="Selected By" value={filters.selected_by} icon={ClipboardPaste}
-                    onChange={(v) => setFilters({ ...filters, selected_by: v })}
-                    options={[{ value: "all", label: "-----" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />
                   <FilterSelect placeholder="CV Sent To" value={filters.cv_sent_to} icon={Send}
                     onChange={(v) => setFilters({ ...filters, cv_sent_to: v })}
                     options={[{ value: "all", label: "-----" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />
@@ -1237,6 +1234,7 @@ function ManagerCandidatesPage() {
           countryMeta={countryMeta}
           officesByCountry={officesByCountry}
           agencyPhones={agencyPhones}
+          agencyOptions={agencyOptions}
         />
       ) : (
         <CandidateCardList
@@ -1962,12 +1960,12 @@ const INITIAL_PROC_FILTERS = {
   medical_status: [] as string[], coc_status: [] as string[], tasheer_status: "all",
   wokala_status: "all", visa_status: "all", insurance_status: "all",
   unfilled_lmis: "all", lmis_status: "all", ticket_status: "all",
-  arrival_city: "all",
+  arrival_city: "all", selected_by: "all",
 };
 
 function ProcessingTable({
   candidates, selected, onToggleSelect, onAction, onUpdateField, onEdit, onDelete, cancelMode,
-  countryMeta, officesByCountry, agencyPhones,
+  countryMeta, officesByCountry, agencyPhones, agencyOptions,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -1980,6 +1978,7 @@ function ProcessingTable({
   countryMeta: Array<{ name: string; flag: string }>;
   officesByCountry: Record<string, string[]>;
   agencyPhones: Record<string, string>;
+  agencyOptions: string[];
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set(["destination_country", "office"]));
@@ -2045,10 +2044,11 @@ function ProcessingTable({
     if (f.lmis_status    !== "all")   list = list.filter((c) => c.lmis_status      === f.lmis_status);
     if (f.ticket_status  !== "all")   list = list.filter((c) => c.ticket_status    === f.ticket_status);
     if (f.arrival_city   !== "all")   list = list.filter((c) => c.arrival_city     === f.arrival_city);
+    if (f.selected_by    !== "all")   list = list.filter((c) => c.selected_by      === f.selected_by);
     return list;
   }, [candidates, activeCountryTab, activeOfficeTab, search, f.narrative, f.medical_status, f.coc_status, f.tasheer_status, f.wokala_status,
       f.visa_status, f.insurance_status, f.unfilled_lmis, f.lmis_status,
-      f.ticket_status, f.arrival_city]);
+      f.ticket_status, f.arrival_city, f.selected_by]);
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
@@ -2170,6 +2170,7 @@ function ProcessingTable({
               <FilterSelect placeholder="LMIS" value={f.lmis_status} onChange={set("lmis_status")} options={[{ value: "all", label: "-----" }, ...LMIS_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <FilterSelect placeholder="Ticket" value={f.ticket_status} onChange={set("ticket_status")} options={[{ value: "all", label: "-----" }, ...TICKET_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <FilterSelect placeholder="Arrival City" value={f.arrival_city} onChange={set("arrival_city")} options={[{ value: "all", label: "-----" }, ...ARRIVAL_CITY_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              <FilterSelect placeholder="Selected By" value={f.selected_by} onChange={set("selected_by")} options={[{ value: "all", label: "-----" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />
             </div>
           )}
         </CardContent>
