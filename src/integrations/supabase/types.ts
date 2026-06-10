@@ -106,6 +106,7 @@ export type Database = {
           height: number | null
           id: string
           availability_type: string
+          insurance_date: string | null
           insurance_status: string | null
           labour_id: string | null
           last_name: string | null
@@ -183,6 +184,7 @@ export type Database = {
           height?: number | null
           id?: string
           availability_type?: string
+          insurance_date?: string | null
           insurance_status?: string | null
           labour_id?: string | null
           last_name?: string | null
@@ -260,6 +262,7 @@ export type Database = {
           height?: number | null
           id?: string
           availability_type?: string
+          insurance_date?: string | null
           insurance_status?: string | null
           labour_id?: string | null
           last_name?: string | null

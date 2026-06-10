@@ -65,7 +65,7 @@ const VISA_OPTIONS = [
   "Ready for embassy", "Sent to Embassy", "Privately Sent", "Issued",
   "Visa canceled", "Arrived KSA", "Returned", "Waiting Replacement",
 ];
-const INSURANCE_OPTIONS = ["Done", "Pending", "No", "Expired"];
+const INSURANCE_OPTIONS = ["No", "Done"];
 const LMIS_OPTIONS = [
   "No COC", "Not tested", "Placed", "Imported", "Checked",
   "Verified", "Draft", "Pending", "Issued", "Rejected",
@@ -1477,7 +1477,7 @@ type EditableField =
   | "tasheer_status" | "tasheer_date" | "wokala_status" | "embassy_date"
   | "visa_status" | "insurance_status" | "unfilled_lmis" | "lmis_status"
   | "ticket_status" | "ticket_date" | "arrival_city" | "emergency_contact"
-  | "processing_notes" | "remark" | "cv_sent_to" | "coc_agency_name" | "coc_agency_phone";
+  | "processing_notes" | "remark" | "cv_sent_to" | "coc_agency_name" | "coc_agency_phone" | "insurance_date";
 
 function CandidateCardList({
   candidates, selected, onToggleSelect, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn,
@@ -2381,6 +2381,11 @@ function ProcessingCard({
       setCocPlacedOpen(true); setCocPlacedName(""); setCocPlacedPhone("");
       return;
     }
+    if (colKey === "insurance_status" && value === "Done") {
+      setRequireDate({ field: "insurance_date", label: "Insurance Date", pendingStatus: "Done", statusField: "insurance_status" });
+      setPendingDate((candidate as any).insurance_date ?? "");
+      return;
+    }
     if (colKey === "visa_status" && (value === "Ready for embassy" || value === "Returned")) {
       const tasheerDone = candidate.tasheer_status === "Done";
       const passportOk = candidate.passport_accepted === true;
@@ -2465,6 +2470,21 @@ function ProcessingCard({
                             <TooltipContent className="rounded-none text-xs p-2 space-y-0.5">
                               <div className="font-semibold">{(candidate as any).coc_agency_name || "—"}</div>
                               <div>{(candidate as any).coc_agency_phone || "No phone"}</div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : col.key === "insurance_status" && strVal === "Done" ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div>
+                                <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="rounded-none text-xs p-2">
+                              {(candidate as any).insurance_date
+                                ? new Date((candidate as any).insurance_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+                                : "No date"}
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
