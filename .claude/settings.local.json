@@ -74,7 +74,9 @@
       "PowerShell(Receive-Job *)",
       "Bash(supabase db *)",
       "Bash(bunx supabase *)",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "PowerShell(supabase gen *)",
+      "Bash(curl *)"
     ]
   },
   "enableAllProjectMcpServers": true,
