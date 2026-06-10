@@ -274,6 +274,7 @@ const initialForm = {
   // Notes
   remark: "",
   notes: "",
+  availability_type: "available",
 };
 
 const initialFilters = {
@@ -291,6 +292,7 @@ const initialFilters = {
   cv_sent_to: "all",
   selected_by: "all",
   availability: "all",
+  private_filter: "all",
 };
 
 function parsePasteData(text: string): Partial<typeof initialForm> {
@@ -612,6 +614,9 @@ function StaffCandidatesPage() {
     if (filters.cv_sent_to !== "all") list = list.filter((c) => c.cv_sent_to === filters.cv_sent_to);
     if (filters.selected_by !== "all") list = list.filter((c) => c.selected_by === filters.selected_by);
     if (filters.availability !== "all") list = list.filter((c) => c.status === filters.availability);
+    if (tab === "available" && filters.private_filter !== "all") {
+      list = list.filter((c) => (c.availability_type ?? "available") === filters.private_filter);
+    }
     if (filters.age !== "all") {
       const [min, max] = filters.age.split("-").map(Number);
       list = list.filter((c) => {
@@ -848,6 +853,7 @@ function StaffCandidatesPage() {
       coc_agency_phone: (c as any).coc_agency_phone ?? "",
       musaned_status: c.musaned_status ?? "",
       status: (c.status as Status) ?? "available",
+      availability_type: c.availability_type ?? "available",
       office: c.office ?? "",
       selected_by: c.selected_by ?? "",
       narrative: c.narrative ?? "",
@@ -967,6 +973,16 @@ function StaffCandidatesPage() {
                   .filter((s) => opts.availability.includes(s))
                   .map((o) => ({ value: o, label: o.charAt(0).toUpperCase() + o.slice(1) })),
               ]} />
+            {tab === "available" && (
+              <FilterSelect placeholder="Availability Type" value={filters.private_filter} icon={Activity}
+                onChange={(v) => setFilters({ ...filters, private_filter: v })}
+                options={[
+                  { value: "all", label: "-----" },
+                  { value: "available", label: "Available" },
+                  { value: "private", label: "Private" },
+                  { value: "unavailable", label: "Unavailable" },
+                ]} />
+            )}
           </div>
           <div className="mt-3 flex flex-wrap gap-3">
             <div className="relative w-60">
@@ -1392,6 +1408,7 @@ function StaffCandidatesPage() {
                   )}
                 </div>
                 <FormSelect label="Country" value={form.musaned_status} onChange={(v) => setForm({ ...form, musaned_status: v })} options={assignCountries.map((c) => c.name)} />
+                <FormSelect label="Availability" value={form.availability_type} onChange={(v) => setForm({ ...form, availability_type: v })} options={["available", "private", "unavailable"]} />
               </div>
             </FormSection>
 
@@ -1477,7 +1494,8 @@ type EditableField =
   | "tasheer_status" | "tasheer_date" | "wokala_status" | "embassy_date"
   | "visa_status" | "insurance_status" | "unfilled_lmis" | "lmis_status"
   | "ticket_status" | "ticket_date" | "arrival_city" | "emergency_contact"
-  | "processing_notes" | "remark" | "cv_sent_to" | "coc_agency_name" | "coc_agency_phone" | "insurance_date";
+  | "processing_notes" | "remark" | "cv_sent_to" | "coc_agency_name" | "coc_agency_phone" | "insurance_date"
+  | "availability_type";
 
 function CandidateCardList({
   candidates, selected, onToggleSelect, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn,
@@ -1782,6 +1800,7 @@ function CandidateCard({
     { label: "MEDICAL STATUS", value: candidate.medical_status ?? "", edit: "select", field: "medical_status", options: MEDICAL_OPTIONS },
     { label: "MEDICAL DATE", value: candidate.medical_date ? new Date(candidate.medical_date).toLocaleDateString() : "—" },
     { label: "AVAILABILITY", value: statusKey, edit: "select", field: "status", options: AVAILABILITY_OPTIONS },
+    { label: "AVAILABILITY TYPE", value: candidate.availability_type ?? "available", edit: "select", field: "availability_type", options: ["available", "private", "unavailable"] },
     { label: "SELECTED BY", value: candidate.selected_by ?? "", edit: "select", field: "selected_by", options: agencyOptions },
     { label: "CONTRACT DATE", value: candidate.contract_date ?? "", edit: "date", field: "contract_date" },
     { label: "CV SENT TO", value: candidate.cv_sent_to ?? "", edit: "select", field: "cv_sent_to", options: agencyOptions },
@@ -1801,6 +1820,16 @@ function CandidateCard({
         <div className="sticky left-0 z-10 w-fit flex items-center gap-2 px-4 pt-2.5 pb-1" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status={candidate.status ?? "available"} />
+          {candidate.availability_type === "private" && (
+            <span className="inline-flex items-center rounded-sm bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 text-[10px] font-semibold px-1.5 py-0.5 leading-none">
+              Private
+            </span>
+          )}
+          {candidate.availability_type === "unavailable" && (
+            <span className="inline-flex items-center rounded-sm bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 text-[10px] font-semibold px-1.5 py-0.5 leading-none">
+              Unavailable
+            </span>
+          )}
         </div>
         {/* Main content row */}
         <div className="flex items-center pb-3 pt-1">

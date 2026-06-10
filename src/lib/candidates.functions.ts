@@ -46,6 +46,7 @@ const CandidateInput = z.object({
   skills: z.string().max(500).optional().nullable(),
   remark: z.string().max(500).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
+  availability_type: z.string().max(40).optional().nullable(),
   status: StatusEnum.default("available"),
   photo_url: z.preprocess((v) => (v === "" ? null : v), z.string().url().optional().nullable()),
   full_photo_url: z.preprocess((v) => (v === "" ? null : v), z.string().url().optional().nullable()),
@@ -68,6 +69,7 @@ const InlineFieldSchema = z.object({
     "passport_accepted",
     "coc_agency_name", "coc_agency_phone",
     "insurance_date",
+    "availability_type",
   ]),
   value: z.string().nullable(),
 });
