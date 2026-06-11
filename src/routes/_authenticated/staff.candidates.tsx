@@ -288,20 +288,20 @@ const initialForm = {
 
 const initialFilters = {
   sort: "newest",
-  education: "all",
-  age: "all",
-  marital: "all",
-  gender: "all",
-  religion: "all",
+  education: [] as string[],
+  age: [] as string[],
+  marital: [] as string[],
+  gender: [] as string[],
+  religion: [] as string[],
   medical: [] as string[],
-  narrative: "all",
-  experience: "all",
+  narrative: [] as string[],
+  experience: [] as string[],
   coc: [] as string[],
   musaned: [] as string[],
-  cv_sent_to: "all",
-  selected_by: "all",
-  availability: "all",
-  private_filter: "all",
+  cv_sent_to: [] as string[],
+  selected_by: [] as string[],
+  availability: [] as string[],
+  private_filter: [] as string[],
 };
 
 function parsePasteData(text: string): Partial<typeof initialForm> {
@@ -611,26 +611,29 @@ function StaffCandidatesPage() {
     // Processing tab handles its own filtering inside ProcessingTable
     if (tab === "processing") return list;
     if (passport) list = list.filter((c) => (c.passport_number ?? "").toLowerCase().includes(passport.toLowerCase()));
-    if (filters.education !== "all") list = list.filter((c) => c.education === filters.education);
-    if (filters.marital !== "all") list = list.filter((c) => c.marital_status === filters.marital);
-    if (filters.gender !== "all") list = list.filter((c) => c.gender === filters.gender);
-    if (filters.religion !== "all") list = list.filter((c) => c.religion === filters.religion);
+    if (filters.education.length > 0) list = list.filter((c) => filters.education.includes(c.education ?? ""));
+    if (filters.marital.length > 0) list = list.filter((c) => filters.marital.includes(c.marital_status ?? ""));
+    if (filters.gender.length > 0) list = list.filter((c) => filters.gender.includes(c.gender ?? ""));
+    if (filters.religion.length > 0) list = list.filter((c) => filters.religion.includes(c.religion ?? ""));
     if (filters.medical.length > 0) list = list.filter((c) => filters.medical.includes(c.medical_status ?? ""));
-    if (filters.narrative !== "all") list = list.filter((c) => c.narrative === filters.narrative);
-    if (filters.experience !== "all") list = list.filter((c) => c.experience === filters.experience);
+    if (filters.narrative.length > 0) list = list.filter((c) => filters.narrative.includes(c.narrative ?? ""));
+    if (filters.experience.length > 0) list = list.filter((c) => filters.experience.includes(c.experience ?? ""));
     if (filters.coc.length > 0) list = list.filter((c) => filters.coc.includes(c.coc_status ?? ""));
     if (filters.musaned.length > 0) list = list.filter((c) => filters.musaned.includes(c.musaned_status ?? ""));
-    if (filters.cv_sent_to !== "all") list = list.filter((c) => c.cv_sent_to === filters.cv_sent_to);
-    if (filters.selected_by !== "all") list = list.filter((c) => c.selected_by === filters.selected_by);
-    if (filters.availability !== "all") list = list.filter((c) => c.status === filters.availability);
-    if (tab === "available" && filters.private_filter !== "all") {
-      list = list.filter((c) => (c.availability_type ?? "available").toLowerCase() === filters.private_filter.toLowerCase());
+    if (filters.cv_sent_to.length > 0) list = list.filter((c) => filters.cv_sent_to.includes(c.cv_sent_to ?? ""));
+    if (filters.selected_by.length > 0) list = list.filter((c) => filters.selected_by.includes(c.selected_by ?? ""));
+    if (filters.availability.length > 0) list = list.filter((c) => filters.availability.includes(c.status ?? ""));
+    if (tab === "available" && filters.private_filter.length > 0) {
+      list = list.filter((c) => filters.private_filter.includes((c.availability_type ?? "available").toLowerCase()));
     }
-    if (filters.age !== "all") {
-      const [min, max] = filters.age.split("-").map(Number);
+    if (filters.age.length > 0) {
       list = list.filter((c) => {
         const age = calcAge(c.dob) ?? c.age;
-        return age != null && age >= min && age <= max;
+        if (age == null) return false;
+        return filters.age.some((range) => {
+          const [min, max] = range.split("-").map(Number);
+          return age >= min && age <= max;
+        });
       });
     }
     list = [...list].sort((a, b) =>
@@ -940,55 +943,47 @@ function StaffCandidatesPage() {
             <FilterSelect value={filters.sort} onChange={(v) => setFilters({ ...filters, sort: v })}
               icon={ArrowUpDown}
               options={[{ value: "newest", label: "Date (Newest)" }, { value: "oldest", label: "Date (Oldest)" }]} />
-            <FilterSelect placeholder="Age" value={filters.age} icon={Users}
+            <MultiFilterSelect placeholder="Age" values={filters.age} icon={Users}
               onChange={(v) => setFilters({ ...filters, age: v })}
-              options={[
-                { value: "all", label: "-----" },
-                { value: "18-25", label: "18-25" }, { value: "26-35", label: "26-35" },
-                { value: "36-45", label: "36-45" }, { value: "46-99", label: "46+" },
-              ]} />
-            <FilterSelect placeholder="Gender" value={filters.gender} icon={User}
+              options={[{ value: "18-25", label: "18-25" }, { value: "26-35", label: "26-35" }, { value: "36-45", label: "36-45" }, { value: "46-99", label: "46+" }]} />
+            <MultiFilterSelect placeholder="Gender" values={filters.gender} icon={User}
               onChange={(v) => setFilters({ ...filters, gender: v })}
-              options={[{ value: "all", label: "-----" }, { value: "Male", label: "Male" }, { value: "Female", label: "Female" }]} />
-            <FilterSelect placeholder="Religion" value={filters.religion} icon={BookOpen}
+              options={[{ value: "Male", label: "Male" }, { value: "Female", label: "Female" }]} />
+            <MultiFilterSelect placeholder="Religion" values={filters.religion} icon={BookOpen}
               onChange={(v) => setFilters({ ...filters, religion: v })}
-              options={[{ value: "all", label: "-----" }, { value: "Muslim", label: "Muslim" }, { value: "Non-muslim", label: "Non-muslim" }]} />
+              options={[{ value: "Muslim", label: "Muslim" }, { value: "Non-muslim", label: "Non-muslim" }]} />
             <MultiFilterSelect placeholder="Medical" values={filters.medical} icon={Stethoscope}
               onChange={(v) => setFilters({ ...filters, medical: v })}
               options={MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))} />
-            <FilterSelect placeholder="Narrative" value={filters.narrative} icon={FileText}
+            <MultiFilterSelect placeholder="Narrative" values={filters.narrative} icon={FileText}
               onChange={(v) => setFilters({ ...filters, narrative: v })}
-              options={[{ value: "all", label: "-----" }, ...opts.narrative.map((o) => ({ value: o, label: o }))]} />
-            <FilterSelect placeholder="Experience" value={filters.experience} icon={Briefcase}
+              options={opts.narrative.map((o) => ({ value: o, label: o }))} />
+            <MultiFilterSelect placeholder="Experience" values={filters.experience} icon={Briefcase}
               onChange={(v) => setFilters({ ...filters, experience: v })}
-              options={[{ value: "all", label: "-----" }, { value: "Yes", label: "Yes" }, { value: "No", label: "No" }, { value: "None", label: "None" }]} />
+              options={[{ value: "Yes", label: "Yes" }, { value: "No", label: "No" }, { value: "None", label: "None" }]} />
             <MultiFilterSelect placeholder="COC" values={filters.coc} icon={FileCheck}
               onChange={(v) => setFilters({ ...filters, coc: v })}
               options={["Done","No","Booked","Placed","Yitazez","Pending Release"].map((o) => ({ value: o, label: o }))} />
             <MultiFilterSelect placeholder="Country" values={filters.musaned} icon={Globe}
               onChange={(v) => setFilters({ ...filters, musaned: v })}
               options={assignCountries.map((c) => ({ value: c.name, label: c.name }))} />
-            <FilterSelect placeholder="CV Sent To" value={filters.cv_sent_to} icon={Send}
+            <MultiFilterSelect placeholder="CV Sent To" values={filters.cv_sent_to} icon={Send}
               onChange={(v) => setFilters({ ...filters, cv_sent_to: v })}
-              options={[{ value: "all", label: "-----" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />
+              options={agencyOptions.map((o) => ({ value: o, label: o }))} />
             {tab === "available" ? (
-              <FilterSelect placeholder="Availability" value={filters.private_filter} icon={Activity}
+              <MultiFilterSelect placeholder="Availability" values={filters.private_filter} icon={Activity}
                 onChange={(v) => setFilters({ ...filters, private_filter: v })}
                 options={[
-                  { value: "all", label: "-----" },
                   { value: "available", label: "Available" },
                   { value: "private", label: "Private" },
                   { value: "unavailable", label: "Unavailable" },
                 ]} />
             ) : (
-              <FilterSelect placeholder="Availability" value={filters.availability} icon={Activity}
+              <MultiFilterSelect placeholder="Availability" values={filters.availability} icon={Activity}
                 onChange={(v) => setFilters({ ...filters, availability: v })}
-                options={[
-                  { value: "all", label: "-----" },
-                  ...(["available", "processing", "arrived", "returned", "canceled"] as const)
-                    .filter((s) => opts.availability.includes(s))
-                    .map((o) => ({ value: o, label: o.charAt(0).toUpperCase() + o.slice(1) })),
-                ]} />
+                options={(["available", "processing", "arrived", "returned", "canceled"] as const)
+                  .filter((s) => opts.availability.includes(s))
+                  .map((o) => ({ value: o, label: o.charAt(0).toUpperCase() + o.slice(1) }))} />
             )}
           </div>
           <div className="mt-3 flex flex-wrap gap-3">
