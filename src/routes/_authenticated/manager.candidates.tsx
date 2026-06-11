@@ -1837,7 +1837,7 @@ function CandidateCard({
     { label: "COC STATUS", value: candidate.coc_status ?? "", edit: "select", field: "coc_status", options: COC_OPTIONS },
     { label: "COUNTRY", value: candidate.musaned_status ?? "", edit: "select", field: "musaned_status", options: countryOptions },
     { label: "MEDICAL STATUS", value: candidate.medical_status ?? "", edit: "select", field: "medical_status", options: MEDICAL_OPTIONS },
-    { label: "MEDICAL DATE", value: candidate.medical_date ? new Date(candidate.medical_date).toLocaleDateString() : "—" },
+    { label: "MEDICAL DATE", value: (() => { if (!candidate.medical_date) return "—"; const days = Math.floor((Date.now() - new Date(candidate.medical_date).getTime()) / 86400000); return candidate.medical_status === "Fit" ? `${days} days ago` : new Date(candidate.medical_date).toLocaleDateString(); })() },
     { label: "AVAILABILITY", value: (() => { const v = candidate.availability_type ?? "available"; return v.charAt(0).toUpperCase() + v.slice(1); })(), edit: "select", field: "availability_type", options: ["Available", "Private", "Unavailable"] },
 
     { label: "SELECTED BY", value: candidate.selected_by ?? "", edit: "select", field: "selected_by", options: agencyOptions },
@@ -2501,7 +2501,11 @@ function ProcessingCard({
                     {col.type === "text" ? (
                       <InlineText value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
                     ) : col.type === "date" ? (
-                      <InlineDate value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
+                      col.key === "medical_date" && candidate.medical_status === "Fit" && strVal ? (
+                        <span className="line-clamp-2 break-words">{Math.floor((Date.now() - new Date(strVal).getTime()) / 86400000)} days ago</span>
+                      ) : (
+                        <InlineDate value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
+                      )
                     ) : col.type === "select" ? (
                       col.key === "coc_status" && strVal === "Placed" ? (
                         <TooltipProvider>
