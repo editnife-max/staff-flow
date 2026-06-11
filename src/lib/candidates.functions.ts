@@ -60,6 +60,7 @@ const InlineFieldSchema = z.object({
     "medical_status", "status", "office", "passport_status",
     "musaned_status", "coc_status",
     // Processing module
+    "passport_number", "labour_id",
     "narrative_phone", "contract_date", "medical_date", "medical_days",
     "tasheer_status", "tasheer_date", "wokala_status", "embassy_date",
     "visa_status", "insurance_status", "unfilled_lmis", "lmis_status",
