@@ -154,6 +154,9 @@ const OPTION_COLORS: Record<string, string> = {
   "returned":          "bg-orange-100/50 text-[#181A27] dark:bg-orange-900/40 dark:text-orange-300",
   "private":           "bg-purple-100/50 text-[#181A27] dark:bg-purple-900/40 dark:text-purple-300",
   "unavailable":       "bg-red-100/50 text-[#181A27] dark:bg-red-900/40 dark:text-red-300",
+  "Available":         "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
+  "Private":           "bg-purple-100/50 text-[#181A27] dark:bg-purple-900/40 dark:text-purple-300",
+  "Unavailable":       "bg-red-100/50 text-[#181A27] dark:bg-red-900/40 dark:text-red-300",
   "Riyadh":            "bg-violet-100/50 text-[#181A27] dark:bg-violet-900/40 dark:text-violet-300",
   "Jeddah":            "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
   "Dammam":            "bg-cyan-100/50 text-[#181A27] dark:bg-cyan-900/40 dark:text-cyan-300",
@@ -211,7 +214,7 @@ const CANDIDATE_CARD_COLS = [
   "FULL NAME", "ADDED BY", "CANDIDATE CODE", "GENDER", "AGE", "RELIGION", "MARITAL STATUS",
   "BIRTH PLACE", "LIVING TOWN", "PASSPORT NUMBER", "LABOUR ID",
   "OFFICE", "PASSPORT STATUS", "COC STATUS", "COUNTRY", "MEDICAL STATUS",
-  "MEDICAL DATE", "AVAILABILITY", "AVAILABILITY TYPE", "SELECTED BY", "CONTRACT DATE", "CV SENT TO", "CV SENT DATE",
+  "MEDICAL DATE", "AVAILABILITY", "SELECTED BY", "CONTRACT DATE", "CV SENT TO", "CV SENT DATE",
   "NARRATIVE", "NARRATIVE PHONE", "NOTES",
 ] as const;
 
@@ -259,7 +262,7 @@ const initialForm = {
   skills: "",
   remark: "",
   notes: "",
-  availability_type: "available",
+  availability_type: "Available",
 };
 
 const initialFilters = {
@@ -520,7 +523,7 @@ function ManagerCandidatesPage() {
       if (filters.availability !== "all") list = list.filter((c) => c.status === filters.availability);
       if (filters.added_by !== "all") list = list.filter((c) => firstName(c.created_by_name) === filters.added_by);
       if (status === "available" && filters.private_filter !== "all") {
-        list = list.filter((c) => (c.availability_type ?? "available") === filters.private_filter);
+        list = list.filter((c) => (c.availability_type ?? "available").toLowerCase() === filters.private_filter.toLowerCase());
       }
       if (filters.age !== "all") {
         const [min, max] = filters.age.split("-").map(Number);
@@ -670,7 +673,7 @@ function ManagerCandidatesPage() {
     if (filters.availability !== "all") list = list.filter((c) => c.status === filters.availability);
     if (filters.added_by !== "all") list = list.filter((c) => firstName(c.created_by_name) === filters.added_by);
     if (tab === "available" && filters.private_filter !== "all") {
-      list = list.filter((c) => (c.availability_type ?? "available") === filters.private_filter);
+      list = list.filter((c) => (c.availability_type ?? "available").toLowerCase() === filters.private_filter.toLowerCase());
     }
     if (filters.age !== "all") {
       const [min, max] = filters.age.split("-").map(Number);
@@ -918,7 +921,7 @@ function ManagerCandidatesPage() {
       skills: c.skills ?? "",
       remark: c.remark ?? "",
       notes: c.notes ?? "",
-      availability_type: c.availability_type ?? "available",
+      availability_type: (() => { const v = c.availability_type ?? "Available"; return v.charAt(0).toUpperCase() + v.slice(1); })(),
     });
     setOpen(true);
   };
@@ -1455,7 +1458,7 @@ function ManagerCandidatesPage() {
             <FormSection title="Notes">
               <div className="space-y-3">
                 <FormSelect label="Availability" value={form.availability_type} onChange={(v) => setForm({ ...form, availability_type: v })}
-                  options={["available", "private", "unavailable"]} />
+                  options={["Available", "Private", "Unavailable"]} />
                 <div className="space-y-1.5">
                   <Label className="text-xs">Remark</Label>
                   <Textarea rows={2} value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} className="rounded-none text-sm" />
@@ -1835,8 +1838,8 @@ function CandidateCard({
     { label: "COUNTRY", value: candidate.musaned_status ?? "", edit: "select", field: "musaned_status", options: countryOptions },
     { label: "MEDICAL STATUS", value: candidate.medical_status ?? "", edit: "select", field: "medical_status", options: MEDICAL_OPTIONS },
     { label: "MEDICAL DATE", value: candidate.medical_date ? new Date(candidate.medical_date).toLocaleDateString() : "—" },
-    { label: "AVAILABILITY", value: statusKey, edit: "select", field: "status", options: AVAILABILITY_OPTIONS },
-    { label: "AVAILABILITY TYPE", value: candidate.availability_type ?? "available", edit: "select", field: "availability_type", options: ["available", "private", "unavailable"] },
+    { label: "AVAILABILITY", value: (() => { const v = candidate.availability_type ?? "available"; return v.charAt(0).toUpperCase() + v.slice(1); })(), edit: "select", field: "availability_type", options: ["Available", "Private", "Unavailable"] },
+
     { label: "SELECTED BY", value: candidate.selected_by ?? "", edit: "select", field: "selected_by", options: agencyOptions },
     { label: "CONTRACT DATE", value: candidate.contract_date ?? "", edit: "date", field: "contract_date" },
     { label: "CV SENT TO", value: candidate.cv_sent_to ?? "", edit: "select", field: "cv_sent_to", options: agencyOptions },
@@ -1856,12 +1859,12 @@ function CandidateCard({
         <div className="sticky left-0 z-10 w-fit flex items-center gap-2 px-4 pt-2.5 pb-1" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
           <StatusBadge status={candidate.status ?? "available"} />
-          {candidate.availability_type === "private" && (
+          {candidate.availability_type?.toLowerCase() === "private" && (
             <span className="inline-flex items-center rounded-sm bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 text-[10px] font-semibold px-1.5 py-0.5 leading-none">
               Private
             </span>
           )}
-          {candidate.availability_type === "unavailable" && (
+          {candidate.availability_type?.toLowerCase() === "unavailable" && (
             <span className="inline-flex items-center rounded-sm bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 text-[10px] font-semibold px-1.5 py-0.5 leading-none">
               Unavailable
             </span>
