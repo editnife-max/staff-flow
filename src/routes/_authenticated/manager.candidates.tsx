@@ -1830,7 +1830,7 @@ function CandidateCard({
   type FieldDef =
     | { label: string; value: string; bold?: boolean; copy?: boolean }
     | { label: string; value: string; edit: "text"; field: EditableField; long?: boolean }
-    | { label: string; value: string; edit: "date"; field: EditableField }
+    | { label: string; value: string; edit: "date"; field: EditableField; display?: string }
     | { label: string; value: string; edit: "select"; field: EditableField; options: string[] };
 
   const allFields: FieldDef[] = [
@@ -1850,7 +1850,7 @@ function CandidateCard({
     { label: "COC STATUS", value: candidate.coc_status ?? "", edit: "select", field: "coc_status", options: COC_OPTIONS },
     { label: "COUNTRY", value: candidate.musaned_status ?? "", edit: "select", field: "musaned_status", options: countryOptions },
     { label: "MEDICAL STATUS", value: candidate.medical_status ?? "", edit: "select", field: "medical_status", options: MEDICAL_OPTIONS },
-    { label: "MEDICAL DATE", value: (() => { if (!candidate.medical_date) return "—"; const days = Math.floor((Date.now() - new Date(candidate.medical_date).getTime()) / 86400000); return candidate.medical_status === "Fit" ? `${Math.max(1, days)} days ago` : new Date(candidate.medical_date).toLocaleDateString(); })() },
+    { label: "MEDICAL DATE", value: candidate.medical_date ?? "", edit: "date", field: "medical_date", display: candidate.medical_date && candidate.medical_status === "Fit" ? `${Math.max(1, Math.floor((Date.now() - new Date(candidate.medical_date + "T00:00:00").getTime()) / 86400000))} days ago` : undefined },
     { label: "EXPERIENCE", value: candidate.experience ?? "—" },
     { label: "AVAILABILITY", value: (() => { const v = candidate.availability_type ?? "available"; return v.charAt(0).toUpperCase() + v.slice(1); })(), edit: "select", field: "availability_type", options: ["Available", "Private", "Unavailable"] },
 
@@ -1914,7 +1914,7 @@ function CandidateCard({
                     {"edit" in f && f.edit === "text" ? (
                       <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
                     ) : "edit" in f && f.edit === "date" ? (
-                      <InlineDate value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
+                      <InlineDate value={f.value} display={f.display} onSave={(v) => onUpdateField(f.field, v)} />
                     ) : "edit" in f && f.edit === "select" ? (
                       colLabel === "COC STATUS" && f.value === "Placed" ? (
                         <TooltipProvider>
@@ -2730,7 +2730,7 @@ function ProcessingCard({
   );
 }
 
-function InlineDate({ value, onSave }: { value: string; onSave: (v: string | null) => void }) {
+function InlineDate({ value, onSave, display }: { value: string; onSave: (v: string | null) => void; display?: string }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const fmt = (v: string) =>
@@ -2739,7 +2739,7 @@ function InlineDate({ value, onSave }: { value: string; onSave: (v: string | nul
     return (
       <button type="button" onClick={() => { setDraft(value); setEditing(true); }}
         className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block">
-        {value ? fmt(value) : <span className="text-muted-foreground">—</span>}
+        {display ?? (value ? fmt(value) : <span className="text-muted-foreground">—</span>)}
       </button>
     );
   }
