@@ -427,6 +427,7 @@ function StaffCandidatesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Candidate | null>(null);
   const [form, setForm] = useState(initialForm);
+  const [processingEdit, setProcessingEdit] = useState<Candidate | null>(null);
   const [cocPlacedPending, setCocPlacedPending] = useState<{ id: string } | null>(null);
   const [cocPlacedName, setCocPlacedName] = useState("");
   const [cocPlacedPhone, setCocPlacedPhone] = useState("");
@@ -1175,7 +1176,7 @@ function StaffCandidatesPage() {
             if (field === "medical_status" && value === "Fit")
               fieldMut.mutate({ id, field: "lmis_status", value: "Not tested" });
           }}
-          onEdit={openEdit}
+          onEdit={(c) => setProcessingEdit(c)}
           cancelMode
           onDelete={(id) => fieldMut.mutate({ id, field: "status", value: "canceled" })}
           countryMeta={countryMeta}
@@ -1462,6 +1463,16 @@ function StaffCandidatesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {processingEdit && (
+        <ProcessingEditDialog
+          candidate={processingEdit}
+          onClose={() => setProcessingEdit(null)}
+          onUpdateField={(field, value) => fieldMut.mutate({ id: processingEdit.id, field, value })}
+          agencyOptions={agencyOptions}
+          countryOptions={countryMeta.map((c) => c.name)}
+          officesByCountry={officesByCountry}
+        />
+      )}
       {actionCandidates.length > 0 && (
         <ActionDialog candidates={actionCandidates} onClose={() => setActionCandidates([])} />
       )}
@@ -1488,6 +1499,127 @@ function StaffCandidatesPage() {
       </Dialog>
 
     </div>
+  );
+}
+
+function ProcessingEditDialog({
+  candidate, onClose, onUpdateField, agencyOptions, countryOptions, officesByCountry,
+}: {
+  candidate: Candidate;
+  onClose: () => void;
+  onUpdateField: (field: string, value: string | null) => void;
+  agencyOptions: string[];
+  countryOptions: string[];
+  officesByCountry: Record<string, string[]>;
+}) {
+  const init = {
+    passport_number:   candidate.passport_number   ?? "",
+    labour_id:         candidate.labour_id         ?? "",
+    narrative:         candidate.narrative         ?? "",
+    narrative_phone:   candidate.narrative_phone   ?? "",
+    contract_date:     candidate.contract_date     ?? "",
+    medical_status:    candidate.medical_status    ?? "",
+    medical_date:      candidate.medical_date      ?? "",
+    medical_days:      (candidate as any).medical_days      ?? "",
+    coc_status:        candidate.coc_status        ?? "",
+    tasheer_status:    candidate.tasheer_status    ?? "",
+    tasheer_date:      candidate.tasheer_date      ?? "",
+    wokala_status:     candidate.wokala_status     ?? "",
+    embassy_date:      (candidate as any).embassy_date      ?? "",
+    visa_status:       candidate.visa_status       ?? "",
+    insurance_status:  candidate.insurance_status  ?? "",
+    unfilled_lmis:     candidate.unfilled_lmis     ?? "",
+    lmis_status:       candidate.lmis_status       ?? "",
+    ticket_status:     candidate.ticket_status     ?? "",
+    ticket_date:       candidate.ticket_date       ?? "",
+    arrival_city:      candidate.arrival_city      ?? "",
+    processing_notes:  (candidate as any).processing_notes  ?? "",
+    emergency_contact: (candidate as any).emergency_contact ?? "",
+    destination_country: candidate.destination_country ?? "",
+    office:            candidate.office            ?? "",
+  };
+  const [form, setForm] = useState(init);
+  const set = (k: keyof typeof init) => (v: string) => setForm((p) => ({ ...p, [k]: v }));
+
+  function handleSave() {
+    for (const key of Object.keys(init) as (keyof typeof init)[]) {
+      if (form[key] !== init[key]) onUpdateField(key, form[key] || null);
+    }
+    onClose();
+  }
+
+  const ProcSelect = ({ label, k, options }: { label: string; k: keyof typeof init; options: string[] }) => (
+    <div className="space-y-1">
+      <label className="text-xs font-medium text-muted-foreground">{label}</label>
+      <select value={form[k]} onChange={(e) => set(k)(e.target.value)}
+        className="w-full rounded-none border border-input bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+        <option value="">—</option>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+  const ProcInput = ({ label, k, type = "text" }: { label: string; k: keyof typeof init; type?: string }) => (
+    <div className="space-y-1">
+      <label className="text-xs font-medium text-muted-foreground">{label}</label>
+      <Input type={type} value={form[k]} onChange={(e) => set(k)(e.target.value)}
+        className="rounded-none h-8 text-sm" />
+    </div>
+  );
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-2xl" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogHeader>
+          <DialogTitle>Edit Processing — {candidate.full_name}</DialogTitle>
+        </DialogHeader>
+        <div className="max-h-[65vh] overflow-y-auto pr-1 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <ProcInput label="Passport No" k="passport_number" />
+            <ProcInput label="Labour ID" k="labour_id" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <ProcInput label="Narrative" k="narrative" />
+            <ProcInput label="Narrative Phone" k="narrative_phone" />
+            <ProcInput label="Contract Date" k="contract_date" type="date" />
+            <ProcInput label="Emergency Contact" k="emergency_contact" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <ProcSelect label="Medical Status" k="medical_status" options={MEDICAL_OPTIONS} />
+            <ProcInput label="Medical Date" k="medical_date" type="date" />
+            <ProcInput label="Medical Days" k="medical_days" />
+            <ProcSelect label="COC Status" k="coc_status" options={COC_OPTIONS} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <ProcSelect label="Tasheer" k="tasheer_status" options={TASHEER_OPTIONS} />
+            <ProcInput label="Tasheer Date" k="tasheer_date" type="date" />
+            <ProcSelect label="Wokala" k="wokala_status" options={WOKALA_OPTIONS} />
+            <ProcInput label="Embassy Date" k="embassy_date" type="date" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <ProcSelect label="Visa Status" k="visa_status" options={VISA_OPTIONS} />
+            <ProcSelect label="Insurance" k="insurance_status" options={INSURANCE_OPTIONS} />
+            <ProcSelect label="LMIS file" k="unfilled_lmis" options={UNFILLED_LMIS_OPTIONS} />
+            <ProcSelect label="LMIS" k="lmis_status" options={LMIS_OPTIONS} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <ProcSelect label="Ticket" k="ticket_status" options={TICKET_OPTIONS} />
+            <ProcInput label="Ticket Date" k="ticket_date" type="date" />
+            <ProcSelect label="Arrival City" k="arrival_city" options={ARRIVAL_CITY_OPTIONS} />
+            <ProcInput label="Processing Note" k="processing_notes" />
+          </div>
+          {countryOptions.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              <ProcSelect label="Country" k="destination_country" options={countryOptions} />
+              <ProcSelect label="Office" k="office" options={officesByCountry[form.destination_country] ?? []} />
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave}>Save changes</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
