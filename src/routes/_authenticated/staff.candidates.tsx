@@ -1781,7 +1781,7 @@ function CandidateCard({
     ? candidate.status : "available") as Status;
 
   type FieldDef =
-    | { label: string; value: string; bold?: boolean }
+    | { label: string; value: string; bold?: boolean; copy?: boolean }
     | { label: string; value: string; edit: "text"; field: EditableField; long?: boolean }
     | { label: string; value: string; edit: "date"; field: EditableField }
     | { label: string; value: string; edit: "select"; field: EditableField; options: string[] };
@@ -1795,8 +1795,8 @@ function CandidateCard({
     { label: "MARITAL STATUS", value: candidate.marital_status ?? "—" },
     { label: "BIRTH PLACE", value: candidate.birth_place ?? "—" },
     { label: "LIVING TOWN", value: candidate.living_town ?? "", edit: "text", field: "living_town" },
-    { label: "PASSPORT NUMBER", value: candidate.passport_number ?? "—" },
-    { label: "LABOUR ID", value: candidate.labour_id ?? "—" },
+    { label: "PASSPORT NUMBER", value: candidate.passport_number ?? "—", copy: true },
+    { label: "LABOUR ID", value: candidate.labour_id ?? "—", copy: true },
     { label: "OFFICE", value: candidate.office ?? "", edit: "select", field: "office", options: OFFICE_OPTIONS },
     { label: "PASSPORT STATUS", value: candidate.passport_status ?? "", edit: "select", field: "passport_status", options: PASSPORT_OPTIONS },
     { label: "COC STATUS", value: candidate.coc_status ?? "", edit: "select", field: "coc_status", options: COC_OPTIONS },
@@ -1882,6 +1882,15 @@ function CandidateCard({
                       ) : (
                         <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
                       )
+                    ) : "copy" in f && f.copy && f.value && f.value !== "—" ? (
+                      <button
+                        type="button"
+                        title="Click to copy"
+                        onClick={() => { navigator.clipboard.writeText(f.value); toast.success("Copied!"); }}
+                        className="text-left line-clamp-2 break-words hover:text-primary hover:underline cursor-copy transition-colors"
+                      >
+                        {f.value}
+                      </button>
                     ) : (
                       <span className="line-clamp-2 break-words">{f.value || "—"}</span>
                     )}
