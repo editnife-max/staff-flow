@@ -909,8 +909,8 @@ function StaffCandidatesPage() {
         </div>
       </div>
 
-      {/* Filters — hidden on Processing tab and when bulk bar is open */}
-      {tab !== "processing" && selected.size === 0 && <Card className="rounded-none">
+      {/* Filters — hidden on Processing tab */}
+      {tab !== "processing" && <Card className="rounded-none">
         <CardContent className="p-4">
           <div className="flex items-center justify-between gap-2">
             <button
@@ -1955,11 +1955,18 @@ function CandidateCard({
 }
 
 const INITIAL_PROC_FILTERS = {
-  narrative: "all",
-  medical_status: [] as string[], coc_status: [] as string[], tasheer_status: "all",
-  wokala_status: "all", visa_status: "all", insurance_status: "all",
-  unfilled_lmis: "all", lmis_status: "all", ticket_status: "all",
-  arrival_city: "all", selected_by: "all",
+  narrative:        [] as string[],
+  medical_status:   [] as string[],
+  coc_status:       [] as string[],
+  tasheer_status:   [] as string[],
+  wokala_status:    [] as string[],
+  visa_status:      [] as string[],
+  insurance_status: [] as string[],
+  unfilled_lmis:    [] as string[],
+  lmis_status:      [] as string[],
+  ticket_status:    [] as string[],
+  arrival_city:     [] as string[],
+  selected_by:      [] as string[],
 };
 
 function ProcessingTable({
@@ -2032,18 +2039,18 @@ function ProcessingTable({
         (c.serial_number ?? "").toLowerCase().includes(q)
       );
     }
-    if (f.narrative       !== "all")   list = list.filter((c) => c.narrative        === f.narrative);
-    if (f.medical_status.length > 0)  list = list.filter((c) => f.medical_status.includes(c.medical_status ?? ""));
-    if (f.coc_status.length > 0)      list = list.filter((c) => f.coc_status.includes(c.coc_status ?? ""));
-    if (f.tasheer_status !== "all")   list = list.filter((c) => c.tasheer_status   === f.tasheer_status);
-    if (f.wokala_status  !== "all")   list = list.filter((c) => c.wokala_status    === f.wokala_status);
-    if (f.visa_status    !== "all")   list = list.filter((c) => c.visa_status      === f.visa_status);
-    if (f.insurance_status !== "all") list = list.filter((c) => c.insurance_status === f.insurance_status);
-    if (f.unfilled_lmis  !== "all")   list = list.filter((c) => c.unfilled_lmis    === f.unfilled_lmis);
-    if (f.lmis_status    !== "all")   list = list.filter((c) => c.lmis_status      === f.lmis_status);
-    if (f.ticket_status  !== "all")   list = list.filter((c) => c.ticket_status    === f.ticket_status);
-    if (f.arrival_city   !== "all")   list = list.filter((c) => c.arrival_city     === f.arrival_city);
-    if (f.selected_by    !== "all")   list = list.filter((c) => c.selected_by      === f.selected_by);
+    if (f.narrative.length > 0)        list = list.filter((c) => f.narrative.includes(c.narrative ?? ""));
+    if (f.medical_status.length > 0)   list = list.filter((c) => f.medical_status.includes(c.medical_status ?? ""));
+    if (f.coc_status.length > 0)       list = list.filter((c) => f.coc_status.includes(c.coc_status ?? ""));
+    if (f.tasheer_status.length > 0)   list = list.filter((c) => f.tasheer_status.includes(c.tasheer_status ?? ""));
+    if (f.wokala_status.length > 0)    list = list.filter((c) => f.wokala_status.includes(c.wokala_status ?? ""));
+    if (f.visa_status.length > 0)      list = list.filter((c) => f.visa_status.includes(c.visa_status ?? ""));
+    if (f.insurance_status.length > 0) list = list.filter((c) => f.insurance_status.includes(c.insurance_status ?? ""));
+    if (f.unfilled_lmis.length > 0)    list = list.filter((c) => f.unfilled_lmis.includes(c.unfilled_lmis ?? ""));
+    if (f.lmis_status.length > 0)      list = list.filter((c) => f.lmis_status.includes(c.lmis_status ?? ""));
+    if (f.ticket_status.length > 0)    list = list.filter((c) => f.ticket_status.includes(c.ticket_status ?? ""));
+    if (f.arrival_city.length > 0)     list = list.filter((c) => f.arrival_city.includes(c.arrival_city ?? ""));
+    if (f.selected_by.length > 0)      list = list.filter((c) => f.selected_by.includes(c.selected_by ?? ""));
     return list;
   }, [candidates, search, f.narrative, f.medical_status, f.coc_status, f.tasheer_status, f.wokala_status,
       f.visa_status, f.insurance_status, f.unfilled_lmis, f.lmis_status,
@@ -2095,9 +2102,7 @@ function ProcessingTable({
   const allSel = filteredCandidates.length > 0 && filteredCandidates.every((c) => selected.has(c.id));
   const someSel = !allSel && filteredCandidates.some((c) => selected.has(c.id));
 
-  const set = (key: keyof typeof INITIAL_PROC_FILTERS) => (v: string) =>
-    setProcFilters((p) => ({ ...p, [key]: v }));
-  const setMulti = (key: "medical_status" | "coc_status") => (v: string[]) =>
+  const setMulti = (key: keyof typeof INITIAL_PROC_FILTERS) => (v: string[]) =>
     setProcFilters((p) => ({ ...p, [key]: v }));
 
   return (
@@ -2128,30 +2133,30 @@ function ProcessingTable({
           </div>
           {showFilters && (
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
-              <FilterSelect value={f.narrative} onChange={set("narrative")} placeholder="Narrative" icon={FileText}
-                options={[{ value: "all", label: "-----" }, ...narrativeOpts.map((o) => ({ value: o, label: o }))]} />
+              <MultiFilterSelect values={f.narrative} onChange={setMulti("narrative")} placeholder="Narrative" icon={FileText}
+                options={narrativeOpts.map((o) => ({ value: o, label: o }))} />
               <MultiFilterSelect values={f.medical_status} onChange={setMulti("medical_status")} placeholder="Medical" icon={Stethoscope}
                 options={MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))} />
               <MultiFilterSelect values={f.coc_status} onChange={setMulti("coc_status")} placeholder="COC" icon={FileCheck}
                 options={COC_OPTIONS.map((o) => ({ value: o, label: o }))} />
-              <FilterSelect value={f.tasheer_status} onChange={set("tasheer_status")} placeholder="Tasheer"
-                options={[{ value: "all", label: "-----" }, ...TASHEER_OPTIONS.map((o) => ({ value: o, label: o }))]} />
-              <FilterSelect value={f.wokala_status} onChange={set("wokala_status")} placeholder="Wokala"
-                options={[{ value: "all", label: "-----" }, ...WOKALA_OPTIONS.map((o) => ({ value: o, label: o }))]} />
-              <FilterSelect value={f.visa_status} onChange={set("visa_status")} placeholder="Visa"
-                options={[{ value: "all", label: "-----" }, ...VISA_OPTIONS.map((o) => ({ value: o, label: o }))]} />
-              <FilterSelect value={f.insurance_status} onChange={set("insurance_status")} placeholder="Insurance"
-                options={[{ value: "all", label: "-----" }, ...INSURANCE_OPTIONS.map((o) => ({ value: o, label: o }))]} />
-              <FilterSelect value={f.unfilled_lmis} onChange={set("unfilled_lmis")} placeholder="LMIS file"
-                options={[{ value: "all", label: "-----" }, ...UNFILLED_LMIS_OPTIONS.map((o) => ({ value: o, label: o }))]} />
-              <FilterSelect value={f.lmis_status} onChange={set("lmis_status")} placeholder="LMIS"
-                options={[{ value: "all", label: "-----" }, ...LMIS_OPTIONS.map((o) => ({ value: o, label: o }))]} />
-              <FilterSelect value={f.ticket_status} onChange={set("ticket_status")} placeholder="Ticket"
-                options={[{ value: "all", label: "-----" }, ...TICKET_OPTIONS.map((o) => ({ value: o, label: o }))]} />
-              <FilterSelect value={f.arrival_city} onChange={set("arrival_city")} placeholder="Arrival City"
-                options={[{ value: "all", label: "-----" }, ...ARRIVAL_CITY_OPTIONS.map((o) => ({ value: o, label: o }))]} />
-              <FilterSelect value={f.selected_by} onChange={set("selected_by")} placeholder="Selected By"
-                options={[{ value: "all", label: "-----" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />
+              <MultiFilterSelect values={f.tasheer_status} onChange={setMulti("tasheer_status")} placeholder="Tasheer"
+                options={TASHEER_OPTIONS.map((o) => ({ value: o, label: o }))} />
+              <MultiFilterSelect values={f.wokala_status} onChange={setMulti("wokala_status")} placeholder="Wokala"
+                options={WOKALA_OPTIONS.map((o) => ({ value: o, label: o }))} />
+              <MultiFilterSelect values={f.visa_status} onChange={setMulti("visa_status")} placeholder="Visa"
+                options={VISA_OPTIONS.map((o) => ({ value: o, label: o }))} />
+              <MultiFilterSelect values={f.insurance_status} onChange={setMulti("insurance_status")} placeholder="Insurance"
+                options={INSURANCE_OPTIONS.map((o) => ({ value: o, label: o }))} />
+              <MultiFilterSelect values={f.unfilled_lmis} onChange={setMulti("unfilled_lmis")} placeholder="LMIS file"
+                options={UNFILLED_LMIS_OPTIONS.map((o) => ({ value: o, label: o }))} />
+              <MultiFilterSelect values={f.lmis_status} onChange={setMulti("lmis_status")} placeholder="LMIS"
+                options={LMIS_OPTIONS.map((o) => ({ value: o, label: o }))} />
+              <MultiFilterSelect values={f.ticket_status} onChange={setMulti("ticket_status")} placeholder="Ticket"
+                options={TICKET_OPTIONS.map((o) => ({ value: o, label: o }))} />
+              <MultiFilterSelect values={f.arrival_city} onChange={setMulti("arrival_city")} placeholder="Arrival City"
+                options={ARRIVAL_CITY_OPTIONS.map((o) => ({ value: o, label: o }))} />
+              <MultiFilterSelect values={f.selected_by} onChange={setMulti("selected_by")} placeholder="Selected By"
+                options={agencyOptions.map((o) => ({ value: o, label: o }))} />
             </div>
           )}
         </CardContent>
