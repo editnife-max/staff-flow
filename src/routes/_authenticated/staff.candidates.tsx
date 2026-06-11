@@ -54,6 +54,8 @@ const TABS: { key: Status; label: string }[] = [
 ];
 
 const MEDICAL_OPTIONS = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired"];
+const medDaysAgo = (date: string) =>
+  Math.floor((Date.now() - new Date(date + "T00:00:00").getTime()) / 86400000);
 const AVAILABILITY_OPTIONS: Status[] = ["available", "processing", "arrived", "returned", "canceled"];
 const COC_OPTIONS = ["Done", "No", "Booked", "Placed", "Yitazez", "Pending release"];
 const MUSANED_OPTIONS: string[] = [];
@@ -1545,8 +1547,16 @@ function ProcessingEditDialog({
   const set = (k: keyof typeof init) => (v: string) => setForm((p) => ({ ...p, [k]: v }));
 
   function handleSave() {
+    const saved = { ...form };
+    if (saved.medical_status === "Fit") {
+      const dateToCheck = saved.medical_date || init.medical_date;
+      if (dateToCheck && medDaysAgo(dateToCheck) >= 90) {
+        saved.medical_status = "Expired";
+        toast.error("Medical date is over 90 days ago — status set to Expired");
+      }
+    }
     for (const key of Object.keys(init) as (keyof typeof init)[]) {
-      if (form[key] !== init[key]) onUpdateField(key, form[key] || null);
+      if (saved[key] !== init[key]) onUpdateField(key, saved[key] || null);
     }
     onClose();
   }
@@ -1678,17 +1688,10 @@ function CandidateCardList({
   }, []);
   const countryOptions = useMemo(() => countryMeta.map((c) => c.name), [countryMeta]);
 
-  const medExpiryChecked = useRef<Set<string>>(new Set());
   useEffect(() => {
-    const today = new Date();
     for (const c of candidates) {
-      if (medExpiryChecked.current.has(c.id)) continue;
-      if (c.medical_status === "Fit" && c.medical_date) {
-        const diffDays = Math.floor((today.getTime() - new Date(c.medical_date + "T00:00:00").getTime()) / 86400000);
-        if (diffDays >= 90) {
-          medExpiryChecked.current.add(c.id);
-          onUpdateField(c.id, "medical_status", "Expired");
-        }
+      if (c.medical_status === "Fit" && c.medical_date && medDaysAgo(c.medical_date) >= 90) {
+        onUpdateField(c.id, "medical_status", "Expired");
       }
     }
   }, [candidates]);
@@ -2038,6 +2041,9 @@ function CandidateCard({
                         <InlineSelect value={f.value} options={f.options} onSave={(v) => {
                           if (v === "Fit" && !candidate.medical_date) {
                             setPendingMedDate(""); setMedDateOpen(true);
+                          } else if (v === "Fit" && candidate.medical_date && medDaysAgo(candidate.medical_date) >= 90) {
+                            toast.error("Medical date is over 90 days ago — status set to Expired");
+                            onUpdateField(f.field, "Expired");
                           } else {
                             onUpdateField(f.field, v);
                           }
@@ -2110,8 +2116,10 @@ function CandidateCard({
               <Button variant="ghost" onClick={() => setMedDateOpen(false)}>Cancel</Button>
               <Button disabled={!pendingMedDate} onClick={() => {
                 if (!pendingMedDate) return;
+                const status = medDaysAgo(pendingMedDate) >= 90 ? "Expired" : "Fit";
+                if (status === "Expired") toast.error("Medical date is over 90 days ago — status set to Expired");
                 onUpdateField("medical_date", pendingMedDate);
-                onUpdateField("medical_status", "Fit");
+                onUpdateField("medical_status", status);
                 setMedDateOpen(false);
               }}>Confirm</Button>
             </DialogFooter>
@@ -2229,22 +2237,13 @@ function ProcessingTable({
   useEffect(() => { setPage(1); }, [filteredCandidates.length, pageSize]);
   const totalPages = Math.max(1, Math.ceil(filteredCandidates.length / pageSize));
 
-  const medExpiryChecked = useRef<Set<string>>(new Set());
   const arrivedChecked = useRef<Set<string>>(new Set());
   const [arrivedCheckCandidate, setArrivedCheckCandidate] = useState<Candidate | null>(null);
 
-
   useEffect(() => {
-    const today = new Date();
     for (const c of candidates) {
-      if (medExpiryChecked.current.has(c.id)) continue;
-      if (c.medical_status === "Fit" && c.medical_date) {
-        const medDate = new Date(c.medical_date + "T00:00:00");
-        const diffDays = Math.floor((today.getTime() - medDate.getTime()) / (1000 * 60 * 60 * 24));
-        if (diffDays >= 90) {
-          medExpiryChecked.current.add(c.id);
-          onUpdateField(c.id, "medical_status", "Expired");
-        }
+      if (c.medical_status === "Fit" && c.medical_date && medDaysAgo(c.medical_date) >= 90) {
+        onUpdateField(c.id, "medical_status", "Expired");
       }
     }
   }, [candidates]);
@@ -2636,10 +2635,17 @@ function ProcessingCard({
       setEmbassyOpen(true); setEmbassyStep("ask"); setEmbassyReason("");
       return;
     }
-    if (colKey === "medical_status" && value === "Fit" && !candidate.medical_date) {
-      setRequireDate({ field: "medical_date", label: "Medical Date", pendingStatus: "Fit", statusField: "medical_status" });
-      setPendingDate("");
-      return;
+    if (colKey === "medical_status" && value === "Fit") {
+      if (!candidate.medical_date) {
+        setRequireDate({ field: "medical_date", label: "Medical Date", pendingStatus: "Fit", statusField: "medical_status" });
+        setPendingDate("");
+        return;
+      }
+      if (medDaysAgo(candidate.medical_date) >= 90) {
+        toast.error("Medical date is over 90 days ago — status set to Expired");
+        onUpdateField(colKey, "Expired");
+        return;
+      }
     }
     onUpdateField(colKey, value);
     if (colKey === "medical_status" && value === "Fit") onUpdateField("lmis_status", "Not tested");
@@ -2789,9 +2795,14 @@ function ProcessingCard({
               disabled={!pendingDate}
               onClick={() => {
                 if (!pendingDate) return;
+                let finalStatus = requireDate.pendingStatus;
+                if (finalStatus === "Fit" && medDaysAgo(pendingDate) >= 90) {
+                  toast.error("Medical date is over 90 days ago — status set to Expired");
+                  finalStatus = "Expired";
+                }
                 onUpdateField(requireDate.field, pendingDate);
-                onUpdateField(requireDate.statusField, requireDate.pendingStatus);
-                if (requireDate.pendingStatus === "Fit") onUpdateField("lmis_status", "Not tested");
+                onUpdateField(requireDate.statusField, finalStatus);
+                if (finalStatus === "Fit") onUpdateField("lmis_status", "Not tested");
                 setRequireDate(null);
               }}
             >
