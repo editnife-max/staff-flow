@@ -536,7 +536,7 @@ function StaffDashboard() {
   const passportNotAccepted = candidates.filter(
     (c) => c.status === "processing" && c.tasheer_status === "Ready",
   );
-  const fitLmisNotTested = candidates.filter((c) => c.medical_status === "Fit" && (!c.lmis_status || c.lmis_status === "Not tested"));
+  const fitLmisNotTested = candidates.filter((c) => c.medical_status === "Fit" && c.coc_status === "Done" && (!c.lmis_status || c.lmis_status === "Not tested"));
 
   const cvOverdue = candidates.filter((c) => {
     if (!c.cv_sent_to || c.selected_by || !c.cv_sent_date) return false;
