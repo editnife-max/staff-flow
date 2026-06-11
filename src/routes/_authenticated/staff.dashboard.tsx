@@ -276,7 +276,7 @@ function DashboardCandidateCard({
     { label: "COC STATUS",      value: candidate.coc_status ?? "",     edit: "select", field: "coc_status",       options: COC_OPTIONS },
     { label: "COUNTRY",         value: candidate.musaned_status ?? "", edit: "select", field: "musaned_status",   options: countryOptions },
     { label: "MEDICAL STATUS",  value: candidate.medical_status ?? "", edit: "select", field: "medical_status",   options: MEDICAL_OPTIONS },
-    { label: "MEDICAL DATE",    value: candidate.medical_date ? new Date(candidate.medical_date).toLocaleDateString() : "—" },
+    { label: "MEDICAL DATE",    value: (() => { if (!candidate.medical_date) return ""; const days = Math.floor((Date.now() - new Date(candidate.medical_date + "T00:00:00").getTime()) / 86400000); return candidate.medical_status === "Fit" ? `${Math.max(1, days)} days ago` : candidate.medical_date; })(), edit: "date", field: "medical_date" },
     { label: "AVAILABILITY",    value: statusKey,                      edit: "select", field: "status",           options: AVAILABILITY_OPTIONS },
     { label: "SELECTED BY",     value: candidate.selected_by ?? "",    edit: "text",   field: "selected_by" },
     { label: "CONTRACT DATE",   value: candidate.contract_date ?? "",  edit: "date",   field: "contract_date" },
