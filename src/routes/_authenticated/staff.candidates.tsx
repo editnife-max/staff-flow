@@ -189,11 +189,13 @@ const OPTION_COLORS: Record<string, string> = {
 };
 
 type ProcessingColDef =
-  | { key: string; header: string; type: "text" | "date" }
+  | { key: string; header: string; type: "text" | "date" | "copy" }
   | { key: string; header: string; type: "select"; options: string[] }
   | { key: string; header: string; type: "select-dynamic" };
 
 const PROCESSING_COLS: ProcessingColDef[] = [
+  { key: "passport_number",   header: "Passport No",       type: "copy" },
+  { key: "labour_id",         header: "Labour ID",         type: "copy" },
   { key: "narrative",         header: "Narrative",         type: "text" },
   { key: "narrative_phone",   header: "Narrative Phone",   type: "text" },
   { key: "contract_date",     header: "Contract Date",     type: "date" },
@@ -2502,7 +2504,16 @@ function ProcessingCard({
                 <div key={col.key} className="shrink-0 w-[90px]">
                   <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">{col.header}</div>
                   <div className="text-sm text-foreground break-words">
-                    {col.type === "text" ? (
+                    {col.type === "copy" ? (
+                      strVal ? (
+                        <button
+                          type="button"
+                          className="text-left text-sm font-mono text-foreground hover:text-primary transition-colors cursor-pointer"
+                          onClick={() => { navigator.clipboard.writeText(strVal); toast.success("Copied!"); }}
+                          title="Click to copy"
+                        >{strVal}</button>
+                      ) : <span className="text-muted-foreground">—</span>
+                    ) : col.type === "text" ? (
                       <InlineText value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
                     ) : col.type === "date" ? (
                       col.key === "medical_date" && candidate.medical_status === "Fit" && strVal ? (
