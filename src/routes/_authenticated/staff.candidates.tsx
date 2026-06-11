@@ -150,6 +150,8 @@ const OPTION_COLORS: Record<string, string> = {
   "arrived":           "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
   "canceled":          "bg-red-100/50 text-[#181A27] dark:bg-red-900/40 dark:text-red-300",
   "returned":          "bg-orange-100/50 text-[#181A27] dark:bg-orange-900/40 dark:text-orange-300",
+  "private":           "bg-purple-100/50 text-[#181A27] dark:bg-purple-900/40 dark:text-purple-300",
+  "unavailable":       "bg-red-100/50 text-[#181A27] dark:bg-red-900/40 dark:text-red-300",
   // Office
   "Riyadh":            "bg-violet-100/50 text-[#181A27] dark:bg-violet-900/40 dark:text-violet-300",
   "Jeddah":            "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
@@ -215,7 +217,7 @@ const CANDIDATE_CARD_COLS = [
   "FULL NAME", "CANDIDATE CODE", "GENDER", "AGE", "RELIGION", "MARITAL STATUS",
   "BIRTH PLACE", "LIVING TOWN", "PASSPORT NUMBER", "LABOUR ID",
   "OFFICE", "PASSPORT STATUS", "COC STATUS", "COUNTRY", "MEDICAL STATUS",
-  "MEDICAL DATE", "AVAILABILITY", "SELECTED BY", "CV SENT TO", "CV SENT DATE",
+  "MEDICAL DATE", "AVAILABILITY", "AVAILABILITY TYPE", "SELECTED BY", "CV SENT TO", "CV SENT DATE",
   "NARRATIVE", "NARRATIVE PHONE", "NOTES",
 ] as const;
 

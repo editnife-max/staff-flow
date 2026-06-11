@@ -152,6 +152,8 @@ const OPTION_COLORS: Record<string, string> = {
   "arrived":           "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
   "canceled":          "bg-red-100/50 text-[#181A27] dark:bg-red-900/40 dark:text-red-300",
   "returned":          "bg-orange-100/50 text-[#181A27] dark:bg-orange-900/40 dark:text-orange-300",
+  "private":           "bg-purple-100/50 text-[#181A27] dark:bg-purple-900/40 dark:text-purple-300",
+  "unavailable":       "bg-red-100/50 text-[#181A27] dark:bg-red-900/40 dark:text-red-300",
   "Riyadh":            "bg-violet-100/50 text-[#181A27] dark:bg-violet-900/40 dark:text-violet-300",
   "Jeddah":            "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
   "Dammam":            "bg-cyan-100/50 text-[#181A27] dark:bg-cyan-900/40 dark:text-cyan-300",
