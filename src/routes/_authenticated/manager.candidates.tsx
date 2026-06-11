@@ -213,11 +213,13 @@ const PROCESSING_COLS: ProcessingColDef[] = [
 ];
 
 const CANDIDATE_CARD_COLS = [
-  "FULL NAME", "ADDED BY", "CANDIDATE CODE", "GENDER", "AGE", "RELIGION", "MARITAL STATUS",
-  "BIRTH PLACE", "LIVING TOWN", "PASSPORT NUMBER", "LABOUR ID",
-  "OFFICE", "PASSPORT STATUS", "COC STATUS", "COUNTRY", "MEDICAL STATUS",
-  "MEDICAL DATE", "AVAILABILITY", "SELECTED BY", "CONTRACT DATE", "CV SENT TO", "CV SENT DATE",
-  "NARRATIVE", "NARRATIVE PHONE", "NOTES",
+  "FULL NAME", "CANDIDATE CODE", "PASSPORT NUMBER", "LABOUR ID",
+  "AGE", "MARITAL STATUS", "BIRTH PLACE",
+  "NARRATIVE PHONE", "NARRATIVE", "RELIGION",
+  "CV SENT TO", "CV SENT DATE",
+  "PASSPORT STATUS", "COC STATUS", "COUNTRY", "MEDICAL STATUS", "MEDICAL DATE",
+  "EXPERIENCE", "NOTES", "AVAILABILITY", "SELECTED BY",
+  "ADDED BY", "GENDER", "LIVING TOWN", "OFFICE", "CONTRACT DATE",
 ] as const;
 
 const initialForm = {
@@ -1558,7 +1560,7 @@ function CandidateCardList({
   agencyPhones: Record<string, string>;
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
-  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set(["COUNTRY", "OFFICE", "BIRTH PLACE", "LIVING TOWN"]));
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set(["ADDED BY", "GENDER", "LIVING TOWN", "OFFICE", "CONTRACT DATE"]));
   const [showColPicker, setShowColPicker] = useState(false);
   const [activeCountryTab, setActiveCountryTab] = useState("all");
   const [activeOfficeTab, setActiveOfficeTab] = useState("all");
@@ -1857,6 +1859,7 @@ function CandidateCard({
     { label: "COUNTRY", value: candidate.musaned_status ?? "", edit: "select", field: "musaned_status", options: countryOptions },
     { label: "MEDICAL STATUS", value: candidate.medical_status ?? "", edit: "select", field: "medical_status", options: MEDICAL_OPTIONS },
     { label: "MEDICAL DATE", value: (() => { if (!candidate.medical_date) return "—"; const days = Math.floor((Date.now() - new Date(candidate.medical_date).getTime()) / 86400000); return candidate.medical_status === "Fit" ? `${Math.max(1, days)} days ago` : new Date(candidate.medical_date).toLocaleDateString(); })() },
+    { label: "EXPERIENCE", value: candidate.experience ?? "—" },
     { label: "AVAILABILITY", value: (() => { const v = candidate.availability_type ?? "available"; return v.charAt(0).toUpperCase() + v.slice(1); })(), edit: "select", field: "availability_type", options: ["Available", "Private", "Unavailable"] },
 
     { label: "SELECTED BY", value: candidate.selected_by ?? "", edit: "select", field: "selected_by", options: agencyOptions },
