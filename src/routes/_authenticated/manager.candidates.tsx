@@ -1044,14 +1044,11 @@ function ManagerCandidatesPage() {
                 </div>
               </>
             )}
+            <div className="mt-2 text-xs text-muted-foreground">
+              <span className="font-semibold text-foreground">{filtered.length}</span> candidate{filtered.length !== 1 ? "s" : ""} found
+            </div>
           </CardContent>
         </Card>
-      )}
-
-      {isFiltered && (
-        <div className="px-1 py-1.5 text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground">{filteredTotal}</span>{" "}candidates found under filter
-        </div>
       )}
 
       <Card className="rounded-none">
@@ -2372,6 +2369,9 @@ function ProcessingTable({
               <MultiFilterSelect placeholder="Selected By" values={f.selected_by} onChange={setMulti("selected_by")} options={agencyOptions.map((o) => ({ value: o, label: o }))} />
             </div>
           )}
+          <div className="mt-2 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">{filteredCandidates.length}</span> candidate{filteredCandidates.length !== 1 ? "s" : ""} found
+          </div>
         </CardContent>
       </Card>}
 

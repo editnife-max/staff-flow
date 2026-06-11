@@ -995,6 +995,9 @@ function StaffCandidatesPage() {
           </div>
           </>
           )}
+          <div className="mt-2 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">{filtered.length}</span> candidate{filtered.length !== 1 ? "s" : ""} found
+          </div>
         </CardContent>
       </Card>}
 
@@ -2324,6 +2327,9 @@ function ProcessingTable({
                 options={agencyOptions.map((o) => ({ value: o, label: o }))} />
             </div>
           )}
+          <div className="mt-2 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">{filteredCandidates.length}</span> candidate{filteredCandidates.length !== 1 ? "s" : ""} found
+          </div>
         </CardContent>
       </Card>}
 
