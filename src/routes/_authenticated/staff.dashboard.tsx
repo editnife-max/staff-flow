@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Users, Clock, CheckCircle2, XCircle, RotateCcw,
   ChevronDown, ChevronUp, Stethoscope, FileCheck, ClipboardList, Ticket, FileText, CalendarX, Landmark, BadgeCheck, AlertTriangle, Send,
@@ -109,6 +109,7 @@ const ALERT_PILL: Record<string, string> = {
   visareturn: "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300",
   tasheer:    "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
   cvoverdue:  "bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300",
+  fitlmis:    "bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300",
 };
 
 // ─── Inline components ───────────────────────────────────────────────────────
@@ -465,6 +466,21 @@ function StaffDashboard() {
   const handleUpdateField = (id: string, field: EditableField, value: string | null) =>
     fieldMut.mutate({ id, field, value });
 
+  const medExpiryChecked = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const today = new Date();
+    for (const c of candidates) {
+      if (medExpiryChecked.current.has(c.id)) continue;
+      if (c.medical_status === "Fit" && c.medical_date) {
+        const diffDays = Math.floor((today.getTime() - new Date(c.medical_date + "T00:00:00").getTime()) / 86400000);
+        if (diffDays >= 90) {
+          medExpiryChecked.current.add(c.id);
+          fieldMut.mutate({ id: c.id, field: "medical_status", value: "Expired" });
+        }
+      }
+    }
+  }, [candidates]);
+
   const total = candidates.length;
   const counts = {
     available: candidates.filter((c) => c.status === "available").length,
@@ -520,6 +536,8 @@ function StaffDashboard() {
   const passportNotAccepted = candidates.filter(
     (c) => c.status === "processing" && c.tasheer_status === "Ready",
   );
+  const fitLmisNotTested = candidates.filter((c) => c.medical_status === "Fit" && (!c.lmis_status || c.lmis_status === "Not tested"));
+
   const cvOverdue = candidates.filter((c) => {
     if (!c.cv_sent_to || c.selected_by || !c.cv_sent_date) return false;
     const days = Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000);
@@ -562,7 +580,7 @@ function StaffDashboard() {
       </div>
 
       {/* Alert sections */}
-      {(cocNotDone.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || cvOverdue.length > 0 || tasheerOverdue.length > 0) && (
+      {(cocNotDone.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || cvOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0) && (
         <div className="space-y-2">
           <AlertSection icon={FileCheck}    title="COC — Not Done"               iconColor="text-orange-600 dark:text-orange-400" pillKey="coc"     candidates={cocNotDone}    onUpdateField={handleUpdateField} countryOptions={countryOptions} />
           <AlertSection icon={Stethoscope}  title="Medical — Not Fit"            iconColor="text-red-600 dark:text-red-400"       pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
@@ -611,6 +629,7 @@ function StaffDashboard() {
             )} />
           <AlertSection icon={Send}          title="CV Sent — No Selection"        iconColor="text-teal-600 dark:text-teal-400"        pillKey="cvoverdue" candidates={cvOverdue}               onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => c.cv_sent_date ? `${Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000)}d ago` : null} />
+          <AlertSection icon={Stethoscope}  title="Medical Fit — LMIS Not Tested" iconColor="text-teal-600 dark:text-teal-400"        pillKey="fitlmis"   candidates={fitLmisNotTested}        onUpdateField={handleUpdateField} countryOptions={countryOptions} />
         </div>
       )}
     </div>
