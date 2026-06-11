@@ -2941,6 +2941,7 @@ function FormInput({ label, value, onChange, placeholder, type = "text" }: { lab
 function PhotoUpload({ label, value, onChange, accept = "image/*" }: { label: string; value: string; onChange: (url: string) => void; accept?: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
   const handleFile = async (file: File) => {
     setUploading(true);
@@ -2963,11 +2964,23 @@ function PhotoUpload({ label, value, onChange, accept = "image/*" }: { label: st
   return (
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
-      <div role="button" tabIndex={0} onClick={() => inputRef.current?.click()}
+      <div
+        role="button" tabIndex={0}
+        onClick={() => inputRef.current?.click()}
         onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
-        className="border-2 border-dashed border-border rounded-none cursor-pointer hover:border-primary/60 transition-colors flex flex-col items-center justify-center gap-1.5 min-h-[88px] p-2 bg-muted/20 select-none">
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragEnter={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); }}
+        className={`border-2 border-dashed rounded-none cursor-pointer transition-colors flex flex-col items-center justify-center gap-1.5 min-h-[88px] p-2 bg-muted/20 select-none ${dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/60"}`}
+      >
         {uploading ? (
           <span className="text-xs text-muted-foreground animate-pulse">Uploading…</span>
+        ) : dragOver ? (
+          <>
+            <Upload className="h-5 w-5 text-primary" />
+            <span className="text-xs text-primary">Drop to upload</span>
+          </>
         ) : value ? (
           <>
             {isImage ? (
@@ -2978,12 +2991,12 @@ function PhotoUpload({ label, value, onChange, accept = "image/*" }: { label: st
                 <span className="text-[10px] text-muted-foreground truncate max-w-[140px]">{value.split("/").pop()}</span>
               </div>
             )}
-            <span className="text-[10px] text-primary">Click to replace</span>
+            <span className="text-[10px] text-primary">Click or drop to replace</span>
           </>
         ) : (
           <>
             <Upload className="h-5 w-5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Click to upload</span>
+            <span className="text-xs text-muted-foreground">Click or drag &amp; drop</span>
           </>
         )}
       </div>
