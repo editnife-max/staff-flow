@@ -2102,8 +2102,8 @@ function ProcessingTable({
 
   return (
     <div className="space-y-2">
-      {/* Filter bar — hidden when bulk bar is open */}
-      {selected.size === 0 && <Card className="rounded-none">
+      {/* Filter bar */}
+      {<Card className="rounded-none">
         <CardContent className="p-3">
           <div className="flex items-center justify-between gap-2">
             <button type="button" onClick={() => setShowFilters((s) => !s)}

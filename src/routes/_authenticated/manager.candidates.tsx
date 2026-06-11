@@ -2135,7 +2135,7 @@ function ProcessingTable({
 
   return (
     <div className="space-y-2">
-      {selected.size === 0 && <Card className="rounded-none">
+      {<Card className="rounded-none">
         <CardContent className="p-3">
           <div className="flex items-center gap-2 flex-wrap">
             <button type="button" onClick={() => setShowFilters((s) => !s)}
