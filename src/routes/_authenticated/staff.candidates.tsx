@@ -1239,7 +1239,7 @@ function StaffCandidatesPage() {
 
       {/* Add / Edit dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <div className="flex items-center justify-between pr-6">
               <DialogTitle>{editing ? "Edit candidate" : "Add new candidate"}</DialogTitle>
