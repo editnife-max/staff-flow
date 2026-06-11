@@ -1957,6 +1957,8 @@ function CandidateCard({
 }) {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
+  const [medDateOpen, setMedDateOpen] = useState(false);
+  const [pendingMedDate, setPendingMedDate] = useState("");
   const statusKey = (["available","processing","arrived","canceled","returned"].includes(candidate.status ?? "")
     ? candidate.status : "available") as Status;
 
@@ -2063,6 +2065,14 @@ function CandidateCard({
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
+                      ) : colLabel === "MEDICAL STATUS" ? (
+                        <InlineSelect value={f.value} options={f.options} onSave={(v) => {
+                          if (v === "Fit" && !candidate.medical_date) {
+                            setPendingMedDate(""); setMedDateOpen(true);
+                          } else {
+                            onUpdateField(f.field, v);
+                          }
+                        }} />
                       ) : (
                         <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
                       )
@@ -2112,6 +2122,28 @@ function CandidateCard({
           onConfirm={(reason) => { onUpdateField("notes", reason); onReturn(); setReturnOpen(false); }}
           onClose={() => setReturnOpen(false)}
         />
+      )}
+      {medDateOpen && (
+        <Dialog open onOpenChange={(o) => { if (!o) setMedDateOpen(false); }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>Medical Date Required</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Please enter the <strong>Medical Date</strong> before setting Medical Status to <strong>"Fit"</strong>.
+            </p>
+            <div className="py-2">
+              <Input type="date" value={pendingMedDate} onChange={(e) => setPendingMedDate(e.target.value)} className="rounded-none h-9" />
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setMedDateOpen(false)}>Cancel</Button>
+              <Button disabled={!pendingMedDate} onClick={() => {
+                if (!pendingMedDate) return;
+                onUpdateField("medical_date", pendingMedDate);
+                onUpdateField("medical_status", "Fit");
+                setMedDateOpen(false);
+              }}>Confirm</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </>
   );
