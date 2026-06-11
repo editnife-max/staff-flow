@@ -1233,6 +1233,8 @@ function ManagerCandidatesPage() {
             handleUpdateField(id, field, value);
             if (field === "coc_status" && value === "Done")
               fieldMut.mutate({ id, field: "lmis_status", value: "Placed" });
+            if (field === "medical_status" && value === "Fit")
+              fieldMut.mutate({ id, field: "lmis_status", value: "Not tested" });
           }}
           onEdit={openEdit}
           cancelMode
@@ -2478,6 +2480,7 @@ function ProcessingCard({
       return;
     }
     onUpdateField(colKey, value);
+    if (colKey === "medical_status" && value === "Fit") onUpdateField("lmis_status", "Not tested");
   }
 
   return (
@@ -2612,6 +2615,7 @@ function ProcessingCard({
                 if (!pendingDate) return;
                 onUpdateField(requireDate.field, pendingDate);
                 onUpdateField(requireDate.statusField, requireDate.pendingStatus);
+                if (requireDate.pendingStatus === "Fit") onUpdateField("lmis_status", "Not tested");
                 setRequireDate(null);
               }}
             >

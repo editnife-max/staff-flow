@@ -107,6 +107,8 @@ function ManagerDashboard() {
   const [tasheerReadyDismissed, setTasheerReadyDismissed] = useState(false);
   const [tasheerOverdueOpen, setTasheerOverdueOpen] = useState(false);
   const [tasheerOverdueDismissed, setTasheerOverdueDismissed] = useState(false);
+  const [fitLmisNotTestedOpen, setFitLmisNotTestedOpen] = useState(false);
+  const [fitLmisNotTestedDismissed, setFitLmisNotTestedDismissed] = useState(false);
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["dashboard-candidates", user?.id],
@@ -174,6 +176,8 @@ function ManagerDashboard() {
     if (c.tasheer_status !== "Booked" || !c.tasheer_date) return false;
     return new Date(c.tasheer_date + "T00:00:00") < today;
   });
+  const fitLmisNotTested = candidates.filter((c) => c.medical_status === "Fit" && (!c.lmis_status || c.lmis_status === "Not tested"));
+
   const cvOverdue = candidates.filter((c) => {
     if (!c.cv_sent_to || c.selected_by || !c.cv_sent_date) return false;
     const days = Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000);
@@ -338,6 +342,37 @@ function ManagerDashboard() {
               type="button"
               onClick={(e) => { e.stopPropagation(); setCocDoneMedNotFitDismissed(true); }}
               className="p-1 rounded-none text-rose-400 hover:text-rose-700 hover:bg-rose-200 dark:hover:bg-rose-800 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Medical Fit — LMIS Not Tested Banner */}
+      {fitLmisNotTested.length > 0 && !fitLmisNotTestedDismissed && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-none border border-teal-300 bg-teal-50 dark:bg-teal-950/40 dark:border-teal-700 px-4 py-3 cursor-pointer hover:bg-teal-100 dark:hover:bg-teal-900/40 transition-colors"
+          onClick={() => setFitLmisNotTestedOpen(true)}
+        >
+          <div className="flex items-center gap-3">
+            <Stethoscope className="h-5 w-5 text-teal-600 dark:text-teal-400 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-teal-800 dark:text-teal-200">
+                Medical Fit — LMIS Not Tested — {fitLmisNotTested.length} candidate{fitLmisNotTested.length > 1 ? "s" : ""}
+              </p>
+              <p className="text-xs text-teal-600 dark:text-teal-400">
+                Click to view candidates with Medical Fit and LMIS Not Tested
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <ChevronRight className="h-4 w-4 text-teal-500" />
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setFitLmisNotTestedDismissed(true); }}
+              className="p-1 rounded-none text-teal-400 hover:text-teal-700 hover:bg-teal-200 dark:hover:bg-teal-800 transition-colors"
               aria-label="Dismiss"
             >
               <X className="h-4 w-4" />
@@ -962,6 +997,49 @@ function ManagerDashboard() {
           <div className="pt-2 flex justify-end">
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
               <Link to="/manager/candidates" onClick={() => setTasheerOverdueOpen(false)}>
+                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Medical Fit — LMIS Not Tested Dialog */}
+      <Dialog open={fitLmisNotTestedOpen} onOpenChange={setFitLmisNotTestedOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-teal-700 dark:text-teal-300">
+              <Stethoscope className="h-5 w-5" />
+              Medical Fit — LMIS Not Tested ({fitLmisNotTested.length})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto space-y-0 divide-y divide-border">
+            {fitLmisNotTested.map((c) => (
+              <div key={c.id} className="flex items-center gap-3 py-3">
+                <Avatar className="h-9 w-9 shrink-0">
+                  {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                  <AvatarFallback className="text-[11px] rounded-none">
+                    {c.full_name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">
+                    Not Tested
+                  </span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="pt-2 flex justify-end">
+            <Button asChild size="sm" className="rounded-none text-xs gap-1">
+              <Link to="/manager/candidates" onClick={() => setFitLmisNotTestedOpen(false)}>
                 Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
               </Link>
             </Button>
