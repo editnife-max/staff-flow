@@ -953,13 +953,14 @@ function ManagerCandidatesPage() {
             <FileSignature className="h-4 w-4" />
             Action{selected.size > 0 ? ` (${selected.size})` : ""}
           </Button>
+          <ImportExcelButton
+            onImported={() => qc.invalidateQueries({ queryKey: ["manager-candidates"] })}
+            status={tab}
+          />
           {tab === "available" && (
-            <>
-              <ImportExcelButton onImported={() => qc.invalidateQueries({ queryKey: ["manager-candidates"] })} />
-              <Button size="sm" className="gap-2 text-xs h-8 rounded-none" onClick={openCreate}>
-                <FilePlus className="h-4 w-4" /> ADD NEW CANDIDATE
-              </Button>
-            </>
+            <Button size="sm" className="gap-2 text-xs h-8 rounded-none" onClick={openCreate}>
+              <FilePlus className="h-4 w-4" /> ADD NEW CANDIDATE
+            </Button>
           )}
         </div>
       </div>
@@ -3638,6 +3639,21 @@ const EXCEL_COLUMNS = [
   // NOTES
   { key: "remark",               label: "Remark",                        required: false },
   { key: "notes",                label: "Notes",                         required: false },
+  // PROCESSING
+  { key: "contract_date",        label: "Contract Date (YYYY-MM-DD)",    required: false },
+  { key: "medical_date",         label: "Medical Date (YYYY-MM-DD)",     required: false },
+  { key: "tasheer_status",       label: "Tasheer Status",                required: false },
+  { key: "tasheer_date",         label: "Tasheer Date (YYYY-MM-DD)",     required: false },
+  { key: "wokala_status",        label: "Wokala Status",                 required: false },
+  { key: "embassy_date",         label: "Embassy Date (YYYY-MM-DD)",     required: false },
+  { key: "visa_status",          label: "Visa Status",                   required: false },
+  { key: "insurance_status",     label: "Insurance Status",              required: false },
+  { key: "lmis_status",          label: "LMIS Status",                   required: false },
+  { key: "ticket_status",        label: "Ticket Status",                 required: false },
+  { key: "ticket_date",          label: "Ticket Date (YYYY-MM-DD)",      required: false },
+  { key: "arrival_city",         label: "Arrival City",                  required: false },
+  { key: "processing_notes",     label: "Processing Notes",              required: false },
+  { key: "emergency_contact",    label: "Emergency Contact",             required: false },
 ] as const;
 
 type ExcelKey = (typeof EXCEL_COLUMNS)[number]["key"];
@@ -3679,6 +3695,20 @@ const HEADER_ALIASES: Record<string, ExcelKey> = {
   weightkg: "weight",
   heightcm: "height",
   narrativephone: "narrative_phone", phone: "narrative_phone",
+  contractdate: "contract_date",
+  medicaldate: "medical_date",
+  tasheer: "tasheer_status", tasheerStatus: "tasheer_status",
+  tasheerdate: "tasheer_date",
+  wokala: "wokala_status", wokalastatus: "wokala_status",
+  embassydate: "embassy_date",
+  visa: "visa_status", visastatus: "visa_status",
+  insurance: "insurance_status", insurancestatus: "insurance_status",
+  lmis: "lmis_status", lmisstatus: "lmis_status",
+  ticket: "ticket_status", ticketstatus: "ticket_status",
+  ticketdate: "ticket_date",
+  arrivalcity: "arrival_city",
+  processingnotes: "processing_notes", note: "processing_notes",
+  emergencycontact: "emergency_contact",
 };
 
 function resolveHeader(header: string): ExcelKey | undefined {
@@ -3688,7 +3718,10 @@ function resolveHeader(header: string): ExcelKey | undefined {
 }
 
 const REQUIRED_KEYS = EXCEL_COLUMNS.filter((c) => c.required).map((c) => c.key as ExcelKey);
-const DATE_KEYS = new Set<ExcelKey>(["dob", "passport_issue_date", "passport_expiry_date"]);
+const DATE_KEYS = new Set<ExcelKey>([
+  "dob", "passport_issue_date", "passport_expiry_date",
+  "contract_date", "medical_date", "tasheer_date", "embassy_date", "ticket_date",
+]);
 const NUMBER_KEYS = new Set<ExcelKey>(["children", "weight", "height"]);
 
 interface ParsedRow {
@@ -3758,48 +3791,139 @@ function parseExcelFile(file: File): Promise<ParseResult> {
   });
 }
 
-function downloadSampleExcel() {
-  const sampleRows: Record<string, unknown>[] = [
-    { "First Name": "Abebe",    "Last Name": "Kebede",    "Gender": "Female", "Date of Birth (YYYY-MM-DD)": "1995-06-15", "Religion": "Muslim",     "Birth Place": "Addis Ababa",  "Living Town": "Addis Ababa",  "Marital Status": "Single",   "Children": 0, "Education": "High School",  "Passport Number": "EP1234567", "Labour ID": "L-001", "Issue Date (YYYY-MM-DD)": "2022-01-10", "Expiry Date (YYYY-MM-DD)": "2027-01-09", "Place of Issue": "Addis Ababa",  "Spoken Languages": "Good",  "English Level": "Good",   "Arabic Level": "Basic", "Work Experience": "Yes", "Experience Country": "Saudi Arabia", "Years of Experience": "2", "Weight (kg)": 58, "Height (cm)": 162, "Passport Status": "Original", "Medical Status": "Fit",   "COC Status": "Done",    "Country": "",          "Narrative": "", "Narrative Phone": "", "Remark": "", "Notes": "" },
-    { "First Name": "Tigist",   "Last Name": "Haile",     "Gender": "Female", "Date of Birth (YYYY-MM-DD)": "1997-03-22", "Religion": "Christian",  "Birth Place": "Bahir Dar",    "Living Town": "Bahir Dar",    "Marital Status": "Single",   "Children": 0, "Education": "Diploma",      "Passport Number": "EP2345678", "Labour ID": "L-002", "Issue Date (YYYY-MM-DD)": "2021-07-15", "Expiry Date (YYYY-MM-DD)": "2026-07-14", "Place of Issue": "Bahir Dar",    "Spoken Languages": "Fair",  "English Level": "Fair",   "Arabic Level": "Poor",  "Work Experience": "No",  "Experience Country": "",             "Years of Experience": "",  "Weight (kg)": 55, "Height (cm)": 158, "Passport Status": "Original", "Medical Status": "Fit",   "COC Status": "No",      "Country": "",          "Narrative": "", "Narrative Phone": "", "Remark": "", "Notes": "" },
-    { "First Name": "Mekdes",   "Last Name": "Tadesse",   "Gender": "Female", "Date of Birth (YYYY-MM-DD)": "1993-11-08", "Religion": "Muslim",     "Birth Place": "Dire Dawa",    "Living Town": "Dire Dawa",    "Marital Status": "Married",  "Children": 1, "Education": "Secondary",    "Passport Number": "EP3456789", "Labour ID": "L-003", "Issue Date (YYYY-MM-DD)": "2023-02-20", "Expiry Date (YYYY-MM-DD)": "2028-02-19", "Place of Issue": "Dire Dawa",    "Spoken Languages": "Good",  "English Level": "Good",   "Arabic Level": "Fair",  "Work Experience": "Yes", "Experience Country": "Saudi Arabia", "Years of Experience": "3", "Weight (kg)": 60, "Height (cm)": 160, "Passport Status": "Original", "Medical Status": "Fit",   "COC Status": "Done",    "Country": "",          "Narrative": "", "Narrative Phone": "", "Remark": "", "Notes": "" },
-    { "First Name": "Selam",    "Last Name": "Girma",     "Gender": "Female", "Date of Birth (YYYY-MM-DD)": "1999-05-30", "Religion": "Christian",  "Birth Place": "Hawassa",      "Living Town": "Hawassa",      "Marital Status": "Single",   "Children": 0, "Education": "High School",  "Passport Number": "EP4567890", "Labour ID": "L-004", "Issue Date (YYYY-MM-DD)": "2022-09-01", "Expiry Date (YYYY-MM-DD)": "2027-08-31", "Place of Issue": "Hawassa",      "Spoken Languages": "Fair",  "English Level": "Fair",   "Arabic Level": "Poor",  "Work Experience": "No",  "Experience Country": "",             "Years of Experience": "",  "Weight (kg)": 52, "Height (cm)": 155, "Passport Status": "Original", "Medical Status": "Booked", "COC Status": "No",      "Country": "",          "Narrative": "", "Narrative Phone": "", "Remark": "", "Notes": "" },
-    { "First Name": "Hiwot",    "Last Name": "Mulugeta",  "Gender": "Female", "Date of Birth (YYYY-MM-DD)": "1991-08-14", "Religion": "Muslim",     "Birth Place": "Jimma",        "Living Town": "Addis Ababa",  "Marital Status": "Divorced", "Children": 2, "Education": "Degree",       "Passport Number": "EP5678901", "Labour ID": "L-005", "Issue Date (YYYY-MM-DD)": "2020-04-18", "Expiry Date (YYYY-MM-DD)": "2025-04-17", "Place of Issue": "Addis Ababa",  "Spoken Languages": "Good",  "English Level": "Good",   "Arabic Level": "Good",  "Work Experience": "Yes", "Experience Country": "Kuwait",       "Years of Experience": "5", "Weight (kg)": 63, "Height (cm)": 164, "Passport Status": "Scan",     "Medical Status": "Fit",   "COC Status": "Done",    "Country": "Kuwait",    "Narrative": "", "Narrative Phone": "", "Remark": "", "Notes": "" },
-    { "First Name": "Birtukan", "Last Name": "Worku",     "Gender": "Female", "Date of Birth (YYYY-MM-DD)": "1996-01-25", "Religion": "Christian",  "Birth Place": "Gondar",       "Living Town": "Gondar",       "Marital Status": "Single",   "Children": 0, "Education": "High School",  "Passport Number": "EP6789012", "Labour ID": "L-006", "Issue Date (YYYY-MM-DD)": "2023-06-05", "Expiry Date (YYYY-MM-DD)": "2028-06-04", "Place of Issue": "Gondar",       "Spoken Languages": "Poor",  "English Level": "Poor",   "Arabic Level": "Poor",  "Work Experience": "No",  "Experience Country": "",             "Years of Experience": "",  "Weight (kg)": 57, "Height (cm)": 159, "Passport Status": "Original", "Medical Status": "Fit",   "COC Status": "Booked",  "Country": "",          "Narrative": "", "Narrative Phone": "", "Remark": "", "Notes": "" },
-    { "First Name": "Almaz",    "Last Name": "Bekele",    "Gender": "Female", "Date of Birth (YYYY-MM-DD)": "1994-09-19", "Religion": "Muslim",     "Birth Place": "Mekelle",      "Living Town": "Mekelle",      "Marital Status": "Married",  "Children": 1, "Education": "Secondary",    "Passport Number": "EP7890123", "Labour ID": "L-007", "Issue Date (YYYY-MM-DD)": "2021-11-30", "Expiry Date (YYYY-MM-DD)": "2026-11-29", "Place of Issue": "Mekelle",      "Spoken Languages": "Fair",  "English Level": "Little", "Arabic Level": "Poor",  "Work Experience": "Yes", "Experience Country": "UAE",          "Years of Experience": "1", "Weight (kg)": 61, "Height (cm)": 163, "Passport Status": "Original", "Medical Status": "Fit",   "COC Status": "No",      "Country": "UAE",       "Narrative": "", "Narrative Phone": "", "Remark": "", "Notes": "" },
-    { "First Name": "Selamawit","Last Name": "Tesfaye",   "Gender": "Female", "Date of Birth (YYYY-MM-DD)": "1998-04-07", "Religion": "Christian",  "Birth Place": "Addis Ababa",  "Living Town": "Addis Ababa",  "Marital Status": "Single",   "Children": 0, "Education": "Diploma",      "Passport Number": "EP8901234", "Labour ID": "L-008", "Issue Date (YYYY-MM-DD)": "2022-12-12", "Expiry Date (YYYY-MM-DD)": "2027-12-11", "Place of Issue": "Addis Ababa",  "Spoken Languages": "Good",  "English Level": "Good",   "Arabic Level": "Basic", "Work Experience": "No",  "Experience Country": "",             "Years of Experience": "",  "Weight (kg)": 54, "Height (cm)": 157, "Passport Status": "Original", "Medical Status": "Fit",   "COC Status": "Done",    "Country": "",          "Narrative": "", "Narrative Phone": "", "Remark": "", "Notes": "" },
-    { "First Name": "Yeshi",    "Last Name": "Alemu",     "Gender": "Female", "Date of Birth (YYYY-MM-DD)": "1992-07-03", "Religion": "Muslim",     "Birth Place": "Dessie",       "Living Town": "Dessie",       "Marital Status": "Widowed",  "Children": 3, "Education": "Primary",      "Passport Number": "EP9012345", "Labour ID": "L-009", "Issue Date (YYYY-MM-DD)": "2021-03-25", "Expiry Date (YYYY-MM-DD)": "2026-03-24", "Place of Issue": "Dessie",       "Spoken Languages": "Poor",  "English Level": "Poor",   "Arabic Level": "Poor",  "Work Experience": "Yes", "Experience Country": "Saudi Arabia", "Years of Experience": "4", "Weight (kg)": 59, "Height (cm)": 161, "Passport Status": "Scan",     "Medical Status": "Fit",   "COC Status": "Placed",  "Country": "",          "Narrative": "", "Narrative Phone": "", "Remark": "", "Notes": "" },
-    { "First Name": "Fikirte",  "Last Name": "Assefa",    "Gender": "Female", "Date of Birth (YYYY-MM-DD)": "2000-12-18", "Religion": "Christian",  "Birth Place": "Adama",        "Living Town": "Adama",        "Marital Status": "Single",   "Children": 0, "Education": "High School",  "Passport Number": "EP0123456", "Labour ID": "L-010", "Issue Date (YYYY-MM-DD)": "2023-08-22", "Expiry Date (YYYY-MM-DD)": "2028-08-21", "Place of Issue": "Adama",        "Spoken Languages": "Fair",  "English Level": "Fair",   "Arabic Level": "Poor",  "Work Experience": "No",  "Experience Country": "",             "Years of Experience": "",  "Weight (kg)": 50, "Height (cm)": 153, "Passport Status": "Original", "Medical Status": "Booked", "COC Status": "No",      "Country": "",          "Narrative": "", "Narrative Phone": "", "Remark": "", "Notes": "" },
+const AVAILABLE_SAMPLE_KEYS = [
+  "First Name", "Last Name", "Gender", "Date of Birth (YYYY-MM-DD)", "Religion", "Birth Place",
+  "Living Town", "Marital Status", "Children", "Education", "Passport Number", "Labour ID",
+  "Issue Date (YYYY-MM-DD)", "Expiry Date (YYYY-MM-DD)", "Place of Issue",
+  "Spoken Languages", "English Level", "Arabic Level", "Work Experience", "Experience Country",
+  "Years of Experience", "Weight (kg)", "Height (cm)", "Passport Status", "Medical Status",
+  "COC Status", "Country", "Narrative", "Narrative Phone", "Remark", "Notes",
+] as const;
+
+const PROCESSING_SAMPLE_KEYS = [
+  "First Name", "Last Name", "Gender", "Date of Birth (YYYY-MM-DD)", "Passport Number", "Labour ID",
+  "Place of Issue", "Passport Status", "Medical Status", "Medical Date (YYYY-MM-DD)",
+  "COC Status", "Country", "Narrative", "Narrative Phone",
+  "Contract Date (YYYY-MM-DD)", "Tasheer Status", "Tasheer Date (YYYY-MM-DD)",
+  "Wokala Status", "Embassy Date (YYYY-MM-DD)", "Visa Status",
+  "Insurance Status", "LMIS Status", "Ticket Status", "Ticket Date (YYYY-MM-DD)",
+  "Arrival City", "Processing Notes", "Emergency Contact", "Remark",
+] as const;
+
+const ARRIVED_SAMPLE_KEYS = [
+  "First Name", "Last Name", "Gender", "Date of Birth (YYYY-MM-DD)", "Passport Number", "Labour ID",
+  "Medical Status", "Country", "Contract Date (YYYY-MM-DD)", "Visa Status",
+  "Ticket Date (YYYY-MM-DD)", "Arrival City", "Processing Notes", "Remark", "Notes",
+] as const;
+
+const RETURNED_SAMPLE_KEYS = [
+  "First Name", "Last Name", "Gender", "Date of Birth (YYYY-MM-DD)", "Passport Number", "Labour ID",
+  "Medical Status", "COC Status", "Country", "Remark", "Notes",
+] as const;
+
+const CANCELED_SAMPLE_KEYS = [
+  "First Name", "Last Name", "Gender", "Date of Birth (YYYY-MM-DD)", "Passport Number", "Labour ID",
+  "Medical Status", "COC Status", "Country", "Remark", "Notes",
+] as const;
+
+const STATUS_SAMPLE_KEYS: Record<Status, readonly string[]> = {
+  available: AVAILABLE_SAMPLE_KEYS,
+  processing: PROCESSING_SAMPLE_KEYS,
+  arrived: ARRIVED_SAMPLE_KEYS,
+  returned: RETURNED_SAMPLE_KEYS,
+  canceled: CANCELED_SAMPLE_KEYS,
+};
+
+function makeSampleRow(keys: readonly string[], overrides: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(keys.map((k) => [k, overrides[k] ?? ""]));
+}
+
+function downloadSampleExcel(status: Status) {
+  const keys = STATUS_SAMPLE_KEYS[status];
+
+  type SampleBase = { "First Name": string; "Last Name": string; "Gender": string; "Date of Birth (YYYY-MM-DD)": string; "Passport Number": string; "Labour ID": string };
+  const bases: SampleBase[] = [
+    { "First Name": "Abebe",    "Last Name": "Kebede",   "Gender": "Female", "Date of Birth (YYYY-MM-DD)": "1995-06-15", "Passport Number": "EP1234567", "Labour ID": "L-001" },
+    { "First Name": "Tigist",   "Last Name": "Haile",    "Gender": "Female", "Date of Birth (YYYY-MM-DD)": "1997-03-22", "Passport Number": "EP2345678", "Labour ID": "L-002" },
+    { "First Name": "Mekdes",   "Last Name": "Tadesse",  "Gender": "Female", "Date of Birth (YYYY-MM-DD)": "1993-11-08", "Passport Number": "EP3456789", "Labour ID": "L-003" },
+    { "First Name": "Selam",    "Last Name": "Girma",    "Gender": "Female", "Date of Birth (YYYY-MM-DD)": "1999-05-30", "Passport Number": "EP4567890", "Labour ID": "L-004" },
+    { "First Name": "Hiwot",    "Last Name": "Mulugeta", "Gender": "Female", "Date of Birth (YYYY-MM-DD)": "1991-08-14", "Passport Number": "EP5678901", "Labour ID": "L-005" },
   ];
 
-  const instructionsData = EXCEL_COLUMNS.map(({ label, required }) => ({
+  const statusExtra: Record<string, Record<string, unknown>[]> = {
+    available: [
+      { "Religion": "Muslim",    "Birth Place": "Addis Ababa", "Living Town": "Addis Ababa", "Marital Status": "Single",   "Children": 0, "Education": "High School", "Issue Date (YYYY-MM-DD)": "2022-01-10", "Expiry Date (YYYY-MM-DD)": "2027-01-09", "Place of Issue": "Addis Ababa", "Spoken Languages": "Good", "English Level": "Good",   "Arabic Level": "Basic", "Work Experience": "Yes", "Experience Country": "Saudi Arabia", "Years of Experience": "2", "Weight (kg)": 58, "Height (cm)": 162, "Passport Status": "Original", "Medical Status": "Fit",    "COC Status": "Done",   "Country": "",       "Narrative": "", "Narrative Phone": "", "Remark": "", "Notes": "" },
+      { "Religion": "Christian", "Birth Place": "Bahir Dar",   "Living Town": "Bahir Dar",   "Marital Status": "Single",   "Children": 0, "Education": "Diploma",     "Issue Date (YYYY-MM-DD)": "2021-07-15", "Expiry Date (YYYY-MM-DD)": "2026-07-14", "Place of Issue": "Bahir Dar",   "Spoken Languages": "Fair", "English Level": "Fair",   "Arabic Level": "Poor",  "Work Experience": "No",  "Experience Country": "",             "Years of Experience": "",  "Weight (kg)": 55, "Height (cm)": 158, "Passport Status": "Original", "Medical Status": "Fit",    "COC Status": "No",     "Country": "",       "Narrative": "", "Narrative Phone": "", "Remark": "", "Notes": "" },
+      { "Religion": "Muslim",    "Birth Place": "Dire Dawa",   "Living Town": "Dire Dawa",   "Marital Status": "Married",  "Children": 1, "Education": "Secondary",   "Issue Date (YYYY-MM-DD)": "2023-02-20", "Expiry Date (YYYY-MM-DD)": "2028-02-19", "Place of Issue": "Dire Dawa",   "Spoken Languages": "Good", "English Level": "Good",   "Arabic Level": "Fair",  "Work Experience": "Yes", "Experience Country": "Saudi Arabia", "Years of Experience": "3", "Weight (kg)": 60, "Height (cm)": 160, "Passport Status": "Original", "Medical Status": "Fit",    "COC Status": "Done",   "Country": "",       "Narrative": "", "Narrative Phone": "", "Remark": "", "Notes": "" },
+      { "Religion": "Christian", "Birth Place": "Hawassa",     "Living Town": "Hawassa",     "Marital Status": "Single",   "Children": 0, "Education": "High School", "Issue Date (YYYY-MM-DD)": "2022-09-01", "Expiry Date (YYYY-MM-DD)": "2027-08-31", "Place of Issue": "Hawassa",     "Spoken Languages": "Fair", "English Level": "Fair",   "Arabic Level": "Poor",  "Work Experience": "No",  "Experience Country": "",             "Years of Experience": "",  "Weight (kg)": 52, "Height (cm)": 155, "Passport Status": "Original", "Medical Status": "Booked", "COC Status": "No",     "Country": "",       "Narrative": "", "Narrative Phone": "", "Remark": "", "Notes": "" },
+      { "Religion": "Muslim",    "Birth Place": "Jimma",       "Living Town": "Addis Ababa", "Marital Status": "Divorced", "Children": 2, "Education": "Degree",      "Issue Date (YYYY-MM-DD)": "2020-04-18", "Expiry Date (YYYY-MM-DD)": "2025-04-17", "Place of Issue": "Addis Ababa", "Spoken Languages": "Good", "English Level": "Good",   "Arabic Level": "Good",  "Work Experience": "Yes", "Experience Country": "Kuwait",       "Years of Experience": "5", "Weight (kg)": 63, "Height (cm)": 164, "Passport Status": "Scan",     "Medical Status": "Fit",    "COC Status": "Done",   "Country": "Kuwait", "Narrative": "", "Narrative Phone": "", "Remark": "", "Notes": "" },
+    ],
+    processing: [
+      { "Place of Issue": "Addis Ababa", "Passport Status": "Original", "Medical Status": "Fit",    "Medical Date (YYYY-MM-DD)": "2026-04-10", "COC Status": "Done",   "Country": "Saudi Arabia", "Narrative": "House maid", "Narrative Phone": "0911000001", "Contract Date (YYYY-MM-DD)": "2026-03-01", "Tasheer Status": "Done",    "Tasheer Date (YYYY-MM-DD)": "2026-03-15", "Wokala Status": "Paid",   "Embassy Date (YYYY-MM-DD)": "2026-04-01", "Visa Status": "Issued",            "Insurance Status": "Done", "LMIS Status": "Issued",  "Ticket Status": "Booked",  "Ticket Date (YYYY-MM-DD)": "2026-06-20", "Arrival City": "RIYADH",  "Processing Notes": "", "Emergency Contact": "0911000099", "Remark": "" },
+      { "Place of Issue": "Bahir Dar",   "Passport Status": "Original", "Medical Status": "Fit",    "Medical Date (YYYY-MM-DD)": "2026-04-12", "COC Status": "Done",   "Country": "Kuwait",       "Narrative": "House maid", "Narrative Phone": "0911000002", "Contract Date (YYYY-MM-DD)": "2026-03-05", "Tasheer Status": "Done",    "Tasheer Date (YYYY-MM-DD)": "2026-03-20", "Wokala Status": "Paid",   "Embassy Date (YYYY-MM-DD)": "2026-04-05", "Visa Status": "Sent to Embassy",   "Insurance Status": "No",   "LMIS Status": "Pending", "Ticket Status": "No",      "Ticket Date (YYYY-MM-DD)": "",           "Arrival City": "",        "Processing Notes": "", "Emergency Contact": "0911000098", "Remark": "" },
+      { "Place of Issue": "Dire Dawa",   "Passport Status": "Scan",     "Medical Status": "Booked", "Medical Date (YYYY-MM-DD)": "",           "COC Status": "Booked", "Country": "Saudi Arabia", "Narrative": "House maid", "Narrative Phone": "0911000003", "Contract Date (YYYY-MM-DD)": "2026-03-10", "Tasheer Status": "Booked",  "Tasheer Date (YYYY-MM-DD)": "",           "Wokala Status": "Unpaid", "Embassy Date (YYYY-MM-DD)": "",           "Visa Status": "Ready for embassy", "Insurance Status": "No",   "LMIS Status": "Draft",   "Ticket Status": "No",      "Ticket Date (YYYY-MM-DD)": "",           "Arrival City": "",        "Processing Notes": "", "Emergency Contact": "0911000097", "Remark": "" },
+      { "Place of Issue": "Hawassa",     "Passport Status": "Original", "Medical Status": "Fit",    "Medical Date (YYYY-MM-DD)": "2026-05-01", "COC Status": "Done",   "Country": "UAE",          "Narrative": "House maid", "Narrative Phone": "0911000004", "Contract Date (YYYY-MM-DD)": "2026-02-20", "Tasheer Status": "No",      "Tasheer Date (YYYY-MM-DD)": "",           "Wokala Status": "Unpaid", "Embassy Date (YYYY-MM-DD)": "",           "Visa Status": "",                  "Insurance Status": "No",   "LMIS Status": "No COC",  "Ticket Status": "No",      "Ticket Date (YYYY-MM-DD)": "",           "Arrival City": "",        "Processing Notes": "", "Emergency Contact": "0911000096", "Remark": "" },
+      { "Place of Issue": "Addis Ababa", "Passport Status": "Original", "Medical Status": "Fit",    "Medical Date (YYYY-MM-DD)": "2026-03-25", "COC Status": "Done",   "Country": "Saudi Arabia", "Narrative": "House maid", "Narrative Phone": "0911000005", "Contract Date (YYYY-MM-DD)": "2026-01-15", "Tasheer Status": "Ready",   "Tasheer Date (YYYY-MM-DD)": "2026-02-10", "Wokala Status": "Paid",   "Embassy Date (YYYY-MM-DD)": "2026-03-01", "Visa Status": "Issued",            "Insurance Status": "Done", "LMIS Status": "Issued",  "Ticket Status": "Ready",   "Ticket Date (YYYY-MM-DD)": "2026-06-15", "Arrival City": "JEDDAH",  "Processing Notes": "", "Emergency Contact": "0911000095", "Remark": "" },
+    ],
+    arrived: [
+      { "Medical Status": "Fit",  "Country": "Saudi Arabia", "Contract Date (YYYY-MM-DD)": "2026-03-01", "Visa Status": "Arrived KSA", "Ticket Date (YYYY-MM-DD)": "2026-06-10", "Arrival City": "RIYADH",  "Processing Notes": "", "Remark": "", "Notes": "" },
+      { "Medical Status": "Fit",  "Country": "Kuwait",       "Contract Date (YYYY-MM-DD)": "2026-03-05", "Visa Status": "Arrived KSA", "Ticket Date (YYYY-MM-DD)": "2026-06-12", "Arrival City": "JEDDAH",  "Processing Notes": "", "Remark": "", "Notes": "" },
+      { "Medical Status": "Fit",  "Country": "UAE",          "Contract Date (YYYY-MM-DD)": "2026-02-20", "Visa Status": "Arrived KSA", "Ticket Date (YYYY-MM-DD)": "2026-05-30", "Arrival City": "DAMMAM",  "Processing Notes": "", "Remark": "", "Notes": "" },
+      { "Medical Status": "Fit",  "Country": "Saudi Arabia", "Contract Date (YYYY-MM-DD)": "2026-01-10", "Visa Status": "Arrived KSA", "Ticket Date (YYYY-MM-DD)": "2026-04-20", "Arrival City": "RIYADH",  "Processing Notes": "", "Remark": "", "Notes": "" },
+      { "Medical Status": "Fit",  "Country": "Saudi Arabia", "Contract Date (YYYY-MM-DD)": "2025-12-01", "Visa Status": "Arrived KSA", "Ticket Date (YYYY-MM-DD)": "2026-03-15", "Arrival City": "JEDDAH",  "Processing Notes": "", "Remark": "", "Notes": "" },
+    ],
+    returned: [
+      { "Medical Status": "Fit",  "COC Status": "Done", "Country": "Saudi Arabia", "Remark": "Employer complaint", "Notes": "" },
+      { "Medical Status": "Fit",  "COC Status": "Done", "Country": "Kuwait",       "Remark": "Personal reasons",   "Notes": "" },
+      { "Medical Status": "Fit",  "COC Status": "No",   "Country": "UAE",          "Remark": "Contract ended",     "Notes": "" },
+      { "Medical Status": "Unfit","COC Status": "No",   "Country": "Saudi Arabia", "Remark": "Health issue",       "Notes": "" },
+      { "Medical Status": "Fit",  "COC Status": "Done", "Country": "Saudi Arabia", "Remark": "Runaway",            "Notes": "" },
+    ],
+    canceled: [
+      { "Medical Status": "Unfit",   "COC Status": "No",   "Country": "",             "Remark": "Failed medical",      "Notes": "" },
+      { "Medical Status": "Fit",     "COC Status": "No",   "Country": "Saudi Arabia", "Remark": "Withdrew application","Notes": "" },
+      { "Medical Status": "Booked",  "COC Status": "No",   "Country": "",             "Remark": "Not reachable",       "Notes": "" },
+      { "Medical Status": "Fit",     "COC Status": "Done", "Country": "Kuwait",       "Remark": "Visa canceled",       "Notes": "" },
+      { "Medical Status": "Fit",     "COC Status": "No",   "Country": "",             "Remark": "Duplicate entry",     "Notes": "" },
+    ],
+  };
+
+  const extras = statusExtra[status] ?? [];
+  const sampleRows = bases.slice(0, extras.length).map((base, i) =>
+    makeSampleRow(keys, { ...base, ...(extras[i] ?? {}) })
+  );
+
+  const usedCols = EXCEL_COLUMNS.filter((c) => keys.includes(c.label));
+  const instructionsData = usedCols.map(({ label, required }) => ({
     "Column Header": label,
     "Required": required ? "YES ★" : "No",
   }));
 
   const ws1 = XLSX.utils.json_to_sheet(sampleRows);
-  ws1["!cols"] = Object.keys(sampleRows[0]).map(() => ({ wch: 28 }));
+  ws1["!cols"] = keys.map(() => ({ wch: 28 }));
   const ws2 = XLSX.utils.json_to_sheet(instructionsData);
   ws2["!cols"] = [{ wch: 36 }, { wch: 12 }];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws1, "Candidates");
   XLSX.utils.book_append_sheet(wb, ws2, "Instructions");
-  XLSX.writeFile(wb, "candidates_sample.xlsx");
+  XLSX.writeFile(wb, `candidates_${status}_sample.xlsx`);
 }
 
-function ImportExcelButton({ onImported }: { onImported: () => void }) {
+function ImportExcelButton({ onImported, status }: { onImported: () => void; status: Status }) {
   const [revealed, setRevealed] = useState(false);
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [importStatus, setImportStatus] = useState<string>("available");
+  const [importStatus, setImportStatus] = useState<string>(status);
   const fileRef = useRef<HTMLInputElement>(null);
   const importFn = useServerFn(bulkImportCandidates);
 
-  const reset = () => { setRows([]); setParseError(null); setValidationErrors([]); setImportStatus("available"); };
+  useEffect(() => { setImportStatus(status); }, [status]);
+
+  const reset = () => { setRows([]); setParseError(null); setValidationErrors([]); setImportStatus(status); };
 
   const handleFile = async (file: File) => {
     reset();
@@ -3976,7 +4100,7 @@ function ImportExcelButton({ onImported }: { onImported: () => void }) {
               variant="outline"
               size="sm"
               className="rounded-none gap-2 text-xs"
-              onClick={downloadSampleExcel}
+              onClick={() => downloadSampleExcel(importStatus as Status)}
               type="button"
             >
               <FileText className="h-4 w-4" /> Download Sample Excel
