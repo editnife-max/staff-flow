@@ -1322,11 +1322,11 @@ function StaffCandidatesPage() {
                 <FormSelect label="Gender *" value={form.gender} onChange={(v) => setForm({ ...form, gender: v })} options={["Male", "Female"]} />
                 <Field label="Date of Birth *" type="date" value={form.dob} onChange={(v) => setForm({ ...form, dob: v })} />
                 <FormSelect label="Religion *" value={form.religion} onChange={(v) => setForm({ ...form, religion: v })} options={["Muslim", "Non-muslim"]} />
-                <Field label="Birth Place" value={form.birth_place} onChange={(v) => setForm({ ...form, birth_place: v })} />
-                <Field label="Living Town" value={form.living_town} onChange={(v) => setForm({ ...form, living_town: v })} />
-                <FormSelect label="Marital Status" value={form.marital_status} onChange={(v) => setForm({ ...form, marital_status: v })} options={["Single", "Married", "Divorced", "Widowed"]} />
+                <Field label="Birth Place *" value={form.birth_place} onChange={(v) => setForm({ ...form, birth_place: v })} />
+                <Field label="Living Town *" value={form.living_town} onChange={(v) => setForm({ ...form, living_town: v })} />
+                <FormSelect label="Marital Status *" value={form.marital_status} onChange={(v) => setForm({ ...form, marital_status: v })} options={["Single", "Married", "Divorced", "Widowed"]} />
                 <Field label="Children" type="number" value={String(form.children)} onChange={(v) => setForm({ ...form, children: v })} />
-                <FormSelect label="Education" value={form.education} onChange={(v) => setForm({ ...form, education: v })} options={["Illiterate", "Primary", "Secondary", "High School", "Diploma", "Degree", "Master's", "PhD"]} />
+                <FormSelect label="Education *" value={form.education} onChange={(v) => setForm({ ...form, education: v })} options={["Illiterate", "Primary", "Secondary", "High School", "Diploma", "Degree", "Master's", "PhD"]} />
               </div>
             </FormSection>
 
@@ -1334,8 +1334,8 @@ function StaffCandidatesPage() {
             <FormSection title="Passport" required>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Passport Number *" value={form.passport_number} onChange={(v) => setForm({ ...form, passport_number: v })} />
-                <Field label="Labour ID" value={form.labour_id} onChange={(v) => setForm({ ...form, labour_id: v })} />
-                <Field label="Issue Date" type="date" value={form.passport_issue_date} onChange={(v) => setForm({ ...form, passport_issue_date: v })} />
+                <Field label="Labour ID *" value={form.labour_id} onChange={(v) => setForm({ ...form, labour_id: v })} />
+                <Field label="Issue Date *" type="date" value={form.passport_issue_date} onChange={(v) => setForm({ ...form, passport_issue_date: v })} />
                 <Field label="Expiry Date *" type="date" value={form.passport_expiry_date} onChange={(v) => setForm({ ...form, passport_expiry_date: v })} />
                 <div className="col-span-2">
                   <Field label="Place of Issue" value={form.place_of_issue} onChange={(v) => setForm({ ...form, place_of_issue: v })} />
@@ -1349,7 +1349,7 @@ function StaffCandidatesPage() {
                 <FormSelect label="Spoken Languages" value={form.spoken_languages} onChange={(v) => setForm({ ...form, spoken_languages: v })} options={["Poor", "Little", "Fair", "Good"]} />
                 <FormSelect label="English Level" value={form.english_level} onChange={(v) => setForm({ ...form, english_level: v })} options={["Poor", "Little", "Fair", "Good"]} />
                 <FormSelect label="Arabic Level" value={form.arabic_level} onChange={(v) => setForm({ ...form, arabic_level: v })} options={["Poor", "Little", "Fair", "Good"]} />
-                <FormSelect label="Work Experience" value={form.experience} onChange={(v) => setForm({ ...form, experience: v, experience_country: v !== "Yes" ? "" : form.experience_country, experience_years: v !== "Yes" ? "" : form.experience_years })} options={["Yes", "No", "None"]} />
+                <FormSelect label="Work Experience *" value={form.experience} onChange={(v) => setForm({ ...form, experience: v, experience_country: v !== "Yes" ? "" : form.experience_country, experience_years: v !== "Yes" ? "" : form.experience_years })} options={["Yes", "No", "None"]} />
               </div>
               {form.experience === "Yes" && (
                 <div className="grid grid-cols-2 gap-3 mt-3">
@@ -1403,10 +1403,10 @@ function StaffCandidatesPage() {
             {/* Status */}
             <FormSection title="Status">
               <div className="grid grid-cols-2 gap-3">
-                <FormSelect label="Passport Status" value={form.passport_status} onChange={(v) => setForm({ ...form, passport_status: v })} options={PASSPORT_OPTIONS} />
-                <FormSelect label="Medical Status" value={form.medical_status} onChange={(v) => setForm({ ...form, medical_status: v })} options={MEDICAL_OPTIONS} />
+                <FormSelect label="Passport Status *" value={form.passport_status} onChange={(v) => setForm({ ...form, passport_status: v })} options={PASSPORT_OPTIONS} />
+                <FormSelect label="Medical Status *" value={form.medical_status} onChange={(v) => setForm({ ...form, medical_status: v })} options={MEDICAL_OPTIONS} />
                 <div>
-                  <FormSelect label="COC Status" value={form.coc_status} onChange={(v) => setForm({ ...form, coc_status: v })} options={COC_OPTIONS} />
+                  <FormSelect label="COC Status *" value={form.coc_status} onChange={(v) => setForm({ ...form, coc_status: v })} options={COC_OPTIONS} />
                   {form.coc_status === "Placed" && (
                     <div className="mt-2 space-y-1.5">
                       <Input
@@ -1424,7 +1424,7 @@ function StaffCandidatesPage() {
                     </div>
                   )}
                 </div>
-                <FormSelect label="Country" value={form.musaned_status} onChange={(v) => setForm({ ...form, musaned_status: v })} options={assignCountries.map((c) => c.name)} />
+                <FormSelect label="Country *" value={form.musaned_status} onChange={(v) => setForm({ ...form, musaned_status: v })} options={assignCountries.map((c) => c.name)} />
                 <FormSelect label="Availability" value={form.availability_type} onChange={(v) => setForm({ ...form, availability_type: v })} options={["Available", "Private", "Unavailable"]} />
               </div>
             </FormSection>
@@ -1462,8 +1462,23 @@ function StaffCandidatesPage() {
                 if (!form.gender || !form.dob || !form.religion) {
                   toast.error("Gender, Date of Birth and Religion are required"); return;
                 }
+                if (!form.birth_place?.trim() || !form.living_town?.trim()) {
+                  toast.error("Birth Place and Living Town are required"); return;
+                }
+                if (!form.marital_status || !form.education) {
+                  toast.error("Marital Status and Education are required"); return;
+                }
                 if (!form.passport_number?.trim() || !form.passport_expiry_date) {
                   toast.error("Passport Number and Expiry Date are required"); return;
+                }
+                if (!form.labour_id?.trim() || !form.passport_issue_date) {
+                  toast.error("Labour ID and Issue Date are required"); return;
+                }
+                if (!form.experience) {
+                  toast.error("Work Experience is required"); return;
+                }
+                if (!form.passport_status || !form.medical_status || !form.coc_status || !form.musaned_status) {
+                  toast.error("Passport Status, Medical Status, COC Status and Country are required"); return;
                 }
                 saveMut.mutate();
               }}
