@@ -1212,8 +1212,8 @@ function StaffCandidatesPage() {
           }
           onUpdateField={handleCocAwareUpdate}
           onReturn={tab === "arrived" ? (id) => fieldMut.mutate({ id, field: "status", value: "returned" }) : undefined}
-          countryMeta={tab === "available" ? [] : countryMeta}
-          officesByCountry={tab === "available" ? {} : officesByCountry}
+          countryMeta={countryMeta}
+          officesByCountry={officesByCountry}
           agencyOptions={agencyOptions}
           agencyPhones={agencyPhones}
         />
