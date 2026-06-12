@@ -397,6 +397,11 @@ function parsePasteData(text: string): Partial<typeof initialForm> {
     }
   }
 
+  if (result.religion) {
+    const r = result.religion.toLowerCase().trim();
+    result.religion = (r === "muslim" || r === "islam" || r === "moslem") ? "Muslim" : "Non-muslim";
+  }
+
   return result as Partial<typeof initialForm>;
 }
 
