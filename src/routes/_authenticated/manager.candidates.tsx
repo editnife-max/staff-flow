@@ -1178,7 +1178,8 @@ function ManagerCandidatesPage() {
               </Select>
 
               {BULK_FIELD_DEFS.filter((fd) => fd.processingOnly === (tab === "processing")).map((fd) => {
-                const staticOpts = BULK_FIELD_OPTIONS[fd.key];
+                const staticOpts = BULK_FIELD_OPTIONS[fd.key]
+                  ?? (fd.key === "musaned_status" ? countryMeta.map((c) => c.name) : undefined);
                 const opts = staticOpts ?? Array.from(new Set(
                   filtered.map((c) => (c[fd.key as keyof Candidate] as string | null) ?? "").filter(Boolean)
                 )).sort();

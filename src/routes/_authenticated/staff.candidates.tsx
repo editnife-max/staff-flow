@@ -1121,7 +1121,8 @@ function StaffCandidatesPage() {
               </Select>
 
               {BULK_FIELD_DEFS.filter((fd) => fd.processingOnly === (tab === "processing")).map((fd) => {
-                const opts = Array.from(new Set(
+                const staticOpts = fd.key === "musaned_status" ? countryMeta.map((c) => c.name) : undefined;
+                const opts = staticOpts ?? Array.from(new Set(
                   filtered.map((c) => (c[fd.key as keyof Candidate] as string | null) ?? "").filter(Boolean)
                 )).sort();
                 if (opts.length === 0) return null;
