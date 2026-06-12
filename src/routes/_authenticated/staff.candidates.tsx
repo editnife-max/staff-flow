@@ -3229,41 +3229,53 @@ function PhotoUpload({
   return (
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => inputRef.current?.click()}
-        onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-        onDragEnter={(e) => { e.preventDefault(); setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); }}
-        className={`border-2 border-dashed rounded-none cursor-pointer transition-colors flex flex-col items-center justify-center gap-1.5 min-h-[88px] p-2 bg-muted/20 select-none ${dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/60"}`}
-      >
-        {uploading ? (
-          <span className="text-xs text-muted-foreground animate-pulse">Uploading…</span>
-        ) : dragOver ? (
-          <>
-            <Upload className="h-5 w-5 text-primary" />
-            <span className="text-xs text-primary">Drop to upload</span>
-          </>
-        ) : value ? (
-          <>
-            {isImage ? (
-              <img src={value} alt={label} className="max-h-[60px] max-w-full object-contain rounded-none" />
-            ) : (
-              <div className="flex flex-col items-center gap-1">
-                <ImageIcon className="h-8 w-8 text-muted-foreground" />
-                <span className="text-[10px] text-muted-foreground truncate max-w-[140px]">{value.split("/").pop()}</span>
-              </div>
-            )}
-            <span className="text-[10px] text-primary">Click or drop to replace</span>
-          </>
-        ) : (
-          <>
-            <Upload className="h-5 w-5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Click or drag &amp; drop</span>
-          </>
+      <div className="relative">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => inputRef.current?.click()}
+          onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragEnter={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); }}
+          className={`border-2 border-dashed rounded-none cursor-pointer transition-colors flex flex-col items-center justify-center gap-1.5 min-h-[88px] p-2 bg-muted/20 select-none ${dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/60"}`}
+        >
+          {uploading ? (
+            <span className="text-xs text-muted-foreground animate-pulse">Uploading…</span>
+          ) : dragOver ? (
+            <>
+              <Upload className="h-5 w-5 text-primary" />
+              <span className="text-xs text-primary">Drop to upload</span>
+            </>
+          ) : value ? (
+            <>
+              {isImage ? (
+                <img src={value} alt={label} className="max-h-[60px] max-w-full object-contain rounded-none" />
+              ) : (
+                <div className="flex flex-col items-center gap-1">
+                  <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                  <span className="text-[10px] text-muted-foreground truncate max-w-[140px]">{value.split("/").pop()}</span>
+                </div>
+              )}
+              <span className="text-[10px] text-primary">Click or drop to replace</span>
+            </>
+          ) : (
+            <>
+              <Upload className="h-5 w-5 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Click or drag &amp; drop</span>
+            </>
+          )}
+        </div>
+        {value && !uploading && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onChange(""); }}
+            className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center rounded-none bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors"
+            title="Remove"
+          >
+            <X className="h-3 w-3" />
+          </button>
         )}
       </div>
       <input
