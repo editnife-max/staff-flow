@@ -909,6 +909,7 @@ function StaffCandidatesPage() {
           <ImportExcelButton
             onImported={() => qc.invalidateQueries({ queryKey: ["staff-candidates"] })}
             status={tab}
+            countryOptions={countryMeta.map((c) => c.name)}
           />
           {tab === "available" && (
             <Button size="sm" className="gap-2 text-xs h-8 rounded-none" onClick={openCreate}>
@@ -3829,7 +3830,7 @@ function downloadSampleExcel(status: Status) {
   XLSX.writeFile(wb, `candidates_${status}_sample.xlsx`);
 }
 
-function ImportExcelButton({ onImported, status }: { onImported: () => void; status: Status }) {
+function ImportExcelButton({ onImported, status, countryOptions }: { onImported: () => void; status: Status; countryOptions: string[] }) {
   const [revealed, setRevealed] = useState(false);
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<ParsedRow[]>([]);
@@ -3837,12 +3838,13 @@ function ImportExcelButton({ onImported, status }: { onImported: () => void; sta
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [importStatus, setImportStatus] = useState<string>(status);
+  const [importCountry, setImportCountry] = useState<string>("");
   const fileRef = useRef<HTMLInputElement>(null);
   const importFn = useServerFn(bulkImportCandidates);
 
   useEffect(() => { setImportStatus(status); }, [status]);
 
-  const reset = () => { setRows([]); setParseError(null); setValidationErrors([]); setImportStatus(status); };
+  const reset = () => { setRows([]); setParseError(null); setValidationErrors([]); setImportStatus(status); setImportCountry(""); };
 
   const handleFile = async (file: File) => {
     reset();
@@ -3863,7 +3865,7 @@ function ImportExcelButton({ onImported, status }: { onImported: () => void; sta
     if (rows.length === 0 || validationErrors.length > 0) return;
     setLoading(true);
     try {
-      const result = await importFn({ data: { rows: rows.map((r) => ({ ...r, status: importStatus as never })) as never[] } });
+      const result = await importFn({ data: { rows: rows.map((r) => ({ ...r, status: importStatus as never, ...(importCountry ? { musaned_status: importCountry } : {}) })) as never[] } });
       toast.success(`Imported ${result.count} candidate${result.count !== 1 ? "s" : ""} successfully`);
       onImported();
       setOpen(false);
@@ -3935,20 +3937,34 @@ function ImportExcelButton({ onImported, status }: { onImported: () => void; sta
               />
             </div>
 
-            <div className="flex items-center gap-3">
-              <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Import as status:</label>
-              <Select value={importStatus} onValueChange={setImportStatus}>
-                <SelectTrigger className="h-8 text-xs rounded-none w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="processing">Processing</SelectItem>
-                  <SelectItem value="arrived">Arrived</SelectItem>
-                  <SelectItem value="canceled">Canceled</SelectItem>
-                  <SelectItem value="returned">Returned</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Import as status:</label>
+                <Select value={importStatus} onValueChange={setImportStatus}>
+                  <SelectTrigger className="h-8 text-xs rounded-none w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="available">Available</SelectItem>
+                    <SelectItem value="processing">Processing</SelectItem>
+                    <SelectItem value="arrived">Arrived</SelectItem>
+                    <SelectItem value="canceled">Canceled</SelectItem>
+                    <SelectItem value="returned">Returned</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Country:</label>
+                <Select value={importCountry || "__none__"} onValueChange={(v) => setImportCountry(v === "__none__" ? "" : v)}>
+                  <SelectTrigger className="h-8 text-xs rounded-none w-40">
+                    <SelectValue placeholder="— none —" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— none —</SelectItem>
+                    {countryOptions.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {parseError && (
