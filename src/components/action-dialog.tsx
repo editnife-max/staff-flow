@@ -917,10 +917,9 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
                   <FileText className="h-4 w-4 text-primary shrink-0" />
                   <div>
                     <p className="text-sm font-semibold text-foreground">{matchedTemplate.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx") ? "DOCX" : "PDF"} template
-                      {isBulk ? ` · ${candidates.length} candidates` : ""}
-                    </p>
+                    {isBulk && (
+                      <p className="text-xs text-muted-foreground">{candidates.length} candidates</p>
+                    )}
                   </div>
                 </div>
                 <div className="border bg-white divide-y text-xs">
