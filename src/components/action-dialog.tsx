@@ -58,32 +58,78 @@ function getCandidateFieldValue(c: Candidate, field: string): string {
     WEIGHT:               c.weight   != null ? `${c.weight} kg`   : "",
     HEIGHT:               c.height   != null ? `${c.height} cm`   : "",
     REMARK:               c.notes ?? c.remark                    ?? "",
+    LABOUR_ID:            c.labour_id                             ?? "",
+    NARRATIVE:            c.narrative                             ?? "",
+    MEDICAL_STATUS:       c.medical_status                        ?? "",
+    TASHEER_DATE:         c.tasheer_date                          ?? "",
+    TASHEER_STATUS:       c.tasheer_status                        ?? "",
+    NARRATIVE_PHONE:      c.narrative_phone                       ?? "",
+    COC_STATUS:           c.coc_status                            ?? "",
+    TICKET_STATUS:        c.ticket_status                         ?? "",
+    TICKET_DATE:          c.ticket_date                           ?? "",
+    LMIS_STATUS:          c.lmis_status                           ?? "",
+    WOKALA_STATUS:        c.wokala_status                         ?? "",
+    COC_PHONE:            c.coc_agency_phone                      ?? "",
+    CV_SENT_TO:           c.cv_sent_to                            ?? "",
+    CV_SENT_DATE:         c.cv_sent_date                          ?? "",
+    MEDICAL_DAYS:         c.medical_days                          ?? "",
+    EXPERIENCE_COUNTRY:   c.experience_country                    ?? "",
+    VISA_STATUS:          c.visa_status                           ?? "",
+    SELECTED_BY:          c.selected_by                           ?? "",
+    OFFICE:               c.office                                ?? "",
+    EMBASSY_DATE:         c.embassy_date                          ?? "",
+    ARRIVAL_CITY:         c.arrival_city                          ?? "",
+    INSURANCE_STATUS:     c.insurance_status                      ?? "",
   };
   return m[field] ?? "";
 }
 
 // Field label → candidate value accessor, used both for filling and for the preview field-map
 export const CV_FIELD_MAP = (c: Candidate): [string, string][] => [
-  ["FULL NAME",      c.full_name                                        ?? ""],
-  ["POSITION",       c.occupation                                       ?? ""],
-  ["NUMBER",         c.passport_number                                  ?? ""],
-  ["DATE OF ISSUE",  c.passport_issue_date                              ?? ""],
-  ["DATE OF EXPIRY", c.passport_expiry_date                             ?? ""],
-  ["PLACE OF ISSUE", c.place_of_issue ?? c.country                     ?? ""],
-  ["ENGLISH",        c.english_level                                    ?? ""],
-  ["ARABIC",         c.arabic_level                                     ?? ""],
-  ["EXPERIENCE",     c.experience                                       ?? ""],
-  ["NATIONALITY",    c.country                                          ?? ""],
-  ["RELIGION",       c.religion                                         ?? ""],
-  ["DATE OF BIRTH",  c.dob                                             ?? ""],
-  ["PLACE OF BIRTH", c.birth_place                                      ?? ""],
-  ["LIVING TOWN",    c.living_town                                      ?? ""],
-  ["AGE",            c.age      != null ? String(c.age)                 : ""],
-  ["MARITAL STATUS", c.marital_status                                   ?? ""],
-  ["CHILDREN",       c.children != null ? String(c.children)            : ""],
-  ["WEIGHT",         c.weight   != null ? `${c.weight} kg`              : ""],
-  ["HEIGHT",         c.height   != null ? `${c.height} cm`              : ""],
-  ["REMARK",         c.notes ?? c.remark                               ?? ""],
+  ["FULL NAME",          c.full_name                                        ?? ""],
+  ["POSITION",           c.occupation                                       ?? ""],
+  ["NUMBER",             c.passport_number                                  ?? ""],
+  ["DATE OF ISSUE",      c.passport_issue_date                              ?? ""],
+  ["DATE OF EXPIRY",     c.passport_expiry_date                             ?? ""],
+  ["PLACE OF ISSUE",     c.place_of_issue ?? c.country                     ?? ""],
+  ["ENGLISH",            c.english_level                                    ?? ""],
+  ["ARABIC",             c.arabic_level                                     ?? ""],
+  ["EXPERIENCE",         c.experience                                       ?? ""],
+  ["NATIONALITY",        c.country                                          ?? ""],
+  ["RELIGION",           c.religion                                         ?? ""],
+  ["DATE OF BIRTH",      c.dob                                             ?? ""],
+  ["PLACE OF BIRTH",     c.birth_place                                      ?? ""],
+  ["LIVING TOWN",        c.living_town                                      ?? ""],
+  ["AGE",                c.age      != null ? String(c.age)                 : ""],
+  ["MARITAL STATUS",     c.marital_status                                   ?? ""],
+  ["CHILDREN",           c.children != null ? String(c.children)            : ""],
+  ["WEIGHT",             c.weight   != null ? `${c.weight} kg`              : ""],
+  ["HEIGHT",             c.height   != null ? `${c.height} cm`              : ""],
+  ["REMARK",             c.notes ?? c.remark                               ?? ""],
+  ["LABOUR ID",          c.labour_id                                        ?? ""],
+  ["NARRATIVE",          c.narrative                                        ?? ""],
+  ["MEDICAL STATUS",     c.medical_status                                   ?? ""],
+  ["TASHEER DATE",       c.tasheer_date                                     ?? ""],
+  ["TASHEER",            c.tasheer_status                                   ?? ""],
+  ["NARRATIVE PHONE",    c.narrative_phone                                  ?? ""],
+  ["COC STATUS",         c.coc_status                                       ?? ""],
+  ["TICKET",             c.ticket_status                                    ?? ""],
+  ["TICKET DATE",        c.ticket_date                                      ?? ""],
+  ["KUWAIT TICKET DATE", c.ticket_date                                      ?? ""],
+  ["SAUDI TICKET DATE",  c.ticket_date                                      ?? ""],
+  ["LMIS",               c.lmis_status                                      ?? ""],
+  ["WOKALA",             c.wokala_status                                    ?? ""],
+  ["COC PHONE",          c.coc_agency_phone                                 ?? ""],
+  ["CV SENT TO",         c.cv_sent_to                                       ?? ""],
+  ["CV SENT DATE",       c.cv_sent_date                                     ?? ""],
+  ["MEDICAL DAYS",       c.medical_days                                     ?? ""],
+  ["EXPERIENCE OUTSIDE", c.experience_country                               ?? ""],
+  ["VISA STATUS",        c.visa_status                                      ?? ""],
+  ["SELECTED BY",        c.selected_by                                      ?? ""],
+  ["INSIDE OFFICE",      c.office                                           ?? ""],
+  ["EMBASSY DATE",       c.embassy_date                                     ?? ""],
+  ["ARRIVAL CITY",       c.arrival_city                                     ?? ""],
+  ["INSURANCE",          c.insurance_status                                 ?? ""],
 ];
 
 function xmlEsc(s: string) {
@@ -573,41 +619,44 @@ export const DOWNLOAD_TYPES = [
 ];
 
 export const EXPORT_COLUMNS: { key: keyof Candidate; label: string }[] = [
-  { key: "full_name",            label: "Full Name" },
-  { key: "passport_number",      label: "Passport No." },
-  { key: "labour_id",            label: "Labour ID" },
-  { key: "narrative",            label: "Narrative" },
-  { key: "candidate_code",       label: "Candidate Code" },
-  { key: "gender",               label: "Gender" },
-  { key: "religion",             label: "Religion" },
-  { key: "marital_status",       label: "Marital Status" },
-  { key: "birth_place",          label: "Birth Place" },
-  { key: "living_town",          label: "Living Town" },
-  { key: "occupation",           label: "Occupation" },
-  { key: "country",              label: "Nationality" },
-  { key: "passport_issue_date",  label: "Issue Date" },
-  { key: "passport_expiry_date", label: "Expiry Date" },
-  { key: "place_of_issue",       label: "Place of Issue" },
-  { key: "dob",                  label: "Date of Birth" },
-  { key: "age",                  label: "Age" },
-  { key: "english_level",        label: "English" },
-  { key: "arabic_level",         label: "Arabic" },
-  { key: "education",            label: "Education" },
-  { key: "experience",           label: "Experience" },
-  { key: "skills",               label: "Skills" },
-  { key: "weight",               label: "Weight" },
-  { key: "height",               label: "Height" },
-  { key: "medical_status",       label: "Medical" },
-  { key: "medical_date",         label: "Medical Date" },
-  { key: "coc_status",           label: "COC Status" },
-  { key: "office",               label: "Office" },
-  { key: "selected_by",          label: "Selected By" },
-  { key: "cv_sent_to",           label: "CV Sent To" },
-  { key: "destination_country",  label: "Destination" },
-  { key: "notes",                label: "Notes" },
+  { key: "full_name",          label: "Full Name" },
+  { key: "passport_number",    label: "Passport No." },
+  { key: "labour_id",          label: "Labour ID" },
+  { key: "narrative",          label: "Narrative" },
+  { key: "medical_status",     label: "Medical Status" },
+  { key: "tasheer_date",       label: "Tasheer Date" },
+  { key: "tasheer_status",     label: "Tasheer" },
+  { key: "narrative_phone",    label: "Narrative Phone No." },
+  { key: "coc_status",         label: "COC Status" },
+  { key: "ticket_status",      label: "Ticket" },
+  { key: "ticket_date",        label: "Kuwait Ticket Date" },
+  { key: "ticket_date",        label: "Saudi Ticket Date" },
+  { key: "lmis_status",        label: "LMIS" },
+  { key: "age",                label: "Age" },
+  { key: "wokala_status",      label: "Wokala" },
+  { key: "religion",           label: "Religion" },
+  { key: "coc_agency_phone",   label: "COC Phone" },
+  { key: "cv_sent_to",         label: "CV Sent To" },
+  { key: "cv_sent_date",       label: "CV Sent Date" },
+  { key: "medical_days",       label: "Medical Days" },
+  { key: "experience_country", label: "Experience Outside" },
+  { key: "visa_status",        label: "Visa Status" },
+  { key: "selected_by",        label: "Selected By" },
+  { key: "office",             label: "Inside Office" },
+  { key: "embassy_date",       label: "Embassy Date" },
+  { key: "arrival_city",       label: "Arrival City" },
+  { key: "insurance_status",   label: "Insurance" },
 ];
 
-export const DEFAULT_EXPORT_COLS = new Set<string>(["full_name", "passport_number", "labour_id", "narrative"]);
+export const DEFAULT_EXPORT_COLS = new Set<string>([
+  "full_name", "passport_number", "labour_id", "narrative",
+  "medical_status", "tasheer_date", "tasheer_status", "narrative_phone",
+  "coc_status", "ticket_status", "ticket_date", "lmis_status",
+  "age", "wokala_status", "religion", "coc_agency_phone",
+  "cv_sent_to", "cv_sent_date", "medical_days", "experience_country",
+  "visa_status", "selected_by", "office", "embassy_date",
+  "arrival_city", "insurance_status",
+]);
 
 export const TICKET_DEFAULT_COLS: (keyof Candidate)[] = [
   "full_name", "passport_number", "passport_expiry_date",
@@ -897,7 +946,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
                   </div>
                   <div className="grid grid-cols-4 gap-x-2 gap-y-2.5">
                     {EXPORT_COLUMNS.map((col) => (
-                      <label key={col.key as string} className="flex items-center gap-1.5 cursor-pointer min-w-0">
+                      <label key={col.label} className="flex items-center gap-1.5 cursor-pointer min-w-0">
                         <Checkbox checked={selectedCols.has(col.key as string)} onCheckedChange={() => toggleCol(col.key as string)} className="rounded-none h-4 w-4 shrink-0" />
                         <span className="text-xs leading-tight text-foreground truncate">{col.label}</span>
                       </label>
@@ -970,7 +1019,6 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
               <p className="text-xs text-muted-foreground">
                 No template for &ldquo;{currentType.label}&rdquo; — will download as Normal CV format.
               </p>
-            )}
             )}
           </div>
           <Button onClick={handleDownload} disabled={downloading} className="rounded-none shrink-0">
