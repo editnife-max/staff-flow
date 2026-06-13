@@ -1,0 +1,12 @@
+- generic [ref=e3]:
+  - generic [ref=e4]: "An error occurred while server rendering /: (intermediate value).default.fetch is not a function"
+  - generic [ref=e6]: "TypeError: (intermediate value).default.fetch is not a function at file:///C:/Project/flowpath-suite/node_modules/@tanstack/start-plugin-core/dist/esm/vite/dev-server-plugin/plugin.js:71:106"
+  - generic [ref=e7]:
+    - text: Click outside, press Esc key, or fix the code to dismiss.
+    - text: You can also disable this overlay by setting
+    - code [ref=e8]: server.hmr.overlay
+    - text: to
+    - code [ref=e9]: "false"
+    - text: in
+    - code [ref=e10]: vite.config.ts
+    - text: .

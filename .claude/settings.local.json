@@ -78,7 +78,12 @@
       "PowerShell(supabase gen *)",
       "Bash(curl *)",
       "Bash(xargs grep -l \"notification\\\\|Notification\\\\|bell\\\\|Bell\")",
-      "Bash(winget upgrade *)"
+      "Bash(winget upgrade *)",
+      "Bash(git reset *)",
+      "Bash(git rm *)",
+      "Bash(git ls-tree *)",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_snapshot"
     ]
   },
   "enableAllProjectMcpServers": true,

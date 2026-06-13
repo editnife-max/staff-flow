@@ -97,36 +97,11 @@ function applyFixes(xml: string, mapping: Record<string, string>): string {
   return result;
 }
 
-let _cachedApiKey: string | undefined;
-
-async function getAnthropicKey(): Promise<string> {
-  if (_cachedApiKey) return _cachedApiKey;
-
-  // 1. process.env — available when the key was in .env at server startup
-  let key = process.env.ANTHROPIC_API_KEY;
-
-  // 2. Read env files directly — works even if the server started before the key was added
-  if (!key) {
-    try {
-      const { readFileSync } = await import("node:fs");
-      const { resolve }      = await import("node:path");
-      for (const file of [".dev.vars", ".env"]) {
-        try {
-          const content = readFileSync(resolve(process.cwd(), file), "utf-8");
-          const m = content.match(/ANTHROPIC_API_KEY\s*=\s*"?([^"\n\r]+)"?/);
-          if (m?.[1]) { key = m[1].trim(); break; }
-        } catch { /* file not present — try next */ }
-      }
-    } catch { /* node:fs unavailable in this runtime — skip */ }
-  }
-
-  if (!key) throw new Error("ANTHROPIC_API_KEY not found — add it to .env or .dev.vars");
-  _cachedApiKey = key;
-  return key;
-}
-
 async function claudeLabelMapping(labels: string[]): Promise<Record<string, string>> {
-  const apiKey = await getAnthropicKey();
+  // process.env.ANTHROPIC_API_KEY is replaced at transform time by vite.config.ts define
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY not set — add it to .env and restart the dev server");
+
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
