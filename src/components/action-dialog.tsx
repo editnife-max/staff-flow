@@ -201,9 +201,9 @@ export async function buildFilledDocx(url: string, c: Candidate): Promise<Uint8A
     ? new TextDecoder().decode(relsEntry.asUint8Array())
     : `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`;
 
-  // Remove existing image relationships
+  // Remove existing image relationships ([^>]* so it matches Target="media/x.jpg" which contains /)
   relsXml = relsXml.replace(
-    /<Relationship[^/]*Type="[^"]*\/relationships\/image"[^/]*\/>/g, "",
+    /<Relationship\b[^>]*Type="[^"]*\/relationships\/image"[^>]*\/>/g, "",
   );
 
   // Remove any <w:drawing> elements already in the XML (leftover from template)
@@ -235,6 +235,20 @@ export async function buildFilledDocx(url: string, c: Candidate): Promise<Uint8A
       );
     }
     zip.file(relsPath, new TextEncoder().encode(relsXml));
+
+    // Ensure [Content_Types].xml declares the image extensions we added
+    const ctPath = "[Content_Types].xml";
+    const ctEntry = zip.file(ctPath);
+    if (ctEntry) {
+      let ctXml = new TextDecoder().decode(ctEntry.asUint8Array());
+      for (const ext of [...new Set(embedded.map((s) => s.ext))]) {
+        if (!ctXml.includes(`Extension="${ext}"`)) {
+          const mime = ext === "png" ? "image/png" : "image/jpeg";
+          ctXml = ctXml.replace("</Types>", `<Default Extension="${ext}" ContentType="${mime}"/></Types>`);
+        }
+      }
+      zip.file(ctPath, new TextEncoder().encode(ctXml));
+    }
 
     const drawings = embedded.map((src, i) =>
       labelParaXml(src.label) +

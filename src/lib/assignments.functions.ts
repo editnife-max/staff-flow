@@ -140,11 +140,13 @@ export const optimizeCvTemplate = createServerFn({ method: "POST" })
     const buffer = Buffer.from(data.fileBase64, "base64");
     const zip = new PizZip(buffer);
     if (!zip.file("word/document.xml")) throw new Error("Invalid DOCX: word/document.xml not found");
+    // Repack via PizZip so client-side PizZip (buildFilledDocx) can process it reliably
+    const repackedBytes = zip.generate({ type: "uint8array" });
 
     const path = `cv-templates/${Date.now()}_${Math.random().toString(36).slice(2)}.docx`;
     const { error: upErr } = await supabaseAdmin.storage
       .from("candidate-files")
-      .upload(path, buffer, {
+      .upload(path, repackedBytes, {
         upsert: true,
         contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       });
