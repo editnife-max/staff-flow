@@ -77,7 +77,8 @@
       "Bash(git checkout *)",
       "PowerShell(supabase gen *)",
       "Bash(curl *)",
-      "Bash(xargs grep -l \"notification\\\\|Notification\\\\|bell\\\\|Bell\")"
+      "Bash(xargs grep -l \"notification\\\\|Notification\\\\|bell\\\\|Bell\")",
+      "Bash(winget upgrade *)"
     ]
   },
   "enableAllProjectMcpServers": true,
