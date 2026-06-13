@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { renderAsync as docxRenderAsync } from "docx-preview";
 import PizZip from "pizzip";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
@@ -441,12 +442,11 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promi
 }
 
 async function docxBytesToPdf(bytes: Uint8Array, filename: string) {
-  const { renderAsync } = await import("docx-preview");
   const container = document.createElement("div");
   container.style.cssText = "position:fixed;top:0;left:-9999px;width:794px;background:#fff;";
   document.body.appendChild(container);
   try {
-    await renderAsync(bytes.buffer as ArrayBuffer, container, undefined, {
+    await docxRenderAsync(bytes.buffer as ArrayBuffer, container, undefined, {
       className: "docx-pdf-render",
       inWrapper: false,
       ignoreWidth: false,
