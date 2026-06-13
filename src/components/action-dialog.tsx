@@ -187,50 +187,62 @@ export async function buildFilledDocx(url: string, c: Candidate): Promise<Uint8A
     xml = fillField(xml, label, value);
   }
 
-  // Append photo + passport scan images at the end
-  const imgSources: { key: string; src: string; rId: string; label: string; cxEmu: number; cyEmu: number }[] = [];
-  const photoSrc = c.full_photo_url ?? c.photo_url;
-  if (photoSrc)            imgSources.push({ key: "photo",    src: photoSrc,          rId: "rIdCvPhoto",    label: "PHOTO",         cxEmu: 1260000, cyEmu: 1620000 });
-  if (c.passport_scan_url) imgSources.push({ key: "passport", src: c.passport_scan_url, rId: "rIdCvPassport", label: "PASSPORT SCAN", cxEmu: 5040000, cyEmu: 3240000 });
+  // ── Strip ALL existing images from the template ───────────────────────────
+  // Templates may have been created from a real CV and still contain that
+  // person's photos. Remove every image file and wipe image relationships so
+  // only the correct candidate's images appear in the output.
+  const imgExts = /\.(jpg|jpeg|png|gif|bmp|webp|tiff|emf|wmf)$/i;
+  const mediaFiles = zip.filter((path) => path.startsWith("word/media/") && imgExts.test(path));
+  for (const f of mediaFiles) zip.remove(f.name);
 
-  const embedded: typeof imgSources = [];
+  const relsPath  = "word/_rels/document.xml.rels";
+  const relsEntry = zip.file(relsPath);
+  let relsXml = relsEntry
+    ? new TextDecoder().decode(relsEntry.asUint8Array())
+    : `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`;
+
+  // Remove existing image relationships
+  relsXml = relsXml.replace(
+    /<Relationship[^/]*Type="[^"]*\/relationships\/image"[^/]*\/>/g, "",
+  );
+
+  // Remove any <w:drawing> elements already in the XML (leftover from template)
+  xml = xml.replace(/<w:drawing>[\s\S]*?<\/w:drawing>/g, "");
+
+  // ── Add candidate photo + passport scan ───────────────────────────────────
+  const imgSources = [
+    ...(c.full_photo_url ?? c.photo_url
+      ? [{ key: "photo",    src: (c.full_photo_url ?? c.photo_url)!, rId: "rIdCvPhoto",    label: "PHOTO",         cxEmu: 1260000, cyEmu: 1620000 }]
+      : []),
+    ...(c.passport_scan_url
+      ? [{ key: "passport", src: c.passport_scan_url,                rId: "rIdCvPassport", label: "PASSPORT SCAN", cxEmu: 5040000, cyEmu: 3240000 }]
+      : []),
+  ];
+
+  const embedded: (typeof imgSources[number] & { ext: string })[] = [];
   for (const src of imgSources) {
     const img = await fetchImgBytes(src.src);
     if (!img) continue;
     zip.file(`word/media/cv_${src.key}.${img.ext}`, img.bytes);
-    // track for relationships + drawing XML
-    (src as any)._ext = img.ext;
-    embedded.push(src);
+    embedded.push({ ...src, ext: img.ext });
   }
 
   if (embedded.length > 0) {
-    // Update word/_rels/document.xml.rels
-    const relsPath = "word/_rels/document.xml.rels";
-    const relsEntry = zip.file(relsPath);
-    let relsXml = relsEntry
-      ? new TextDecoder().decode(relsEntry.asUint8Array())
-      : `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`;
-
     for (const src of embedded) {
-      if (!relsXml.includes(src.rId)) {
-        const ext = (src as any)._ext as string;
-        const mime = ext === "png"
-          ? "image/png"
-          : "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image";
-        const rel = `<Relationship Id="${src.rId}" `
-          + `Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" `
-          + `Target="media/cv_${src.key}.${ext}"/>`;
-        relsXml = relsXml.replace("</Relationships>", rel + "</Relationships>");
-      }
+      relsXml = relsXml.replace(
+        "</Relationships>",
+        `<Relationship Id="${src.rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/cv_${src.key}.${src.ext}"/></Relationships>`,
+      );
     }
     zip.file(relsPath, new TextEncoder().encode(relsXml));
 
-    // Inject drawing paragraphs before </w:body>
     const drawings = embedded.map((src, i) =>
       labelParaXml(src.label) +
       inlineDrawingXml(src.rId, src.label, i + 20, src.cxEmu, src.cyEmu),
     ).join("");
     xml = xml.replace("</w:body>", `<w:p/>` + drawings + "</w:body>");
+  } else {
+    zip.file(relsPath, new TextEncoder().encode(relsXml));
   }
 
   zip.file("word/document.xml", new TextEncoder().encode(xml));
