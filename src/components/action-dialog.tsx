@@ -652,7 +652,6 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
   const [sortOpen,    setSortOpen]    = useState(false);
   const [typeOpen,    setTypeOpen]    = useState(true);
   const [colsOpen,    setColsOpen]    = useState(true);
-  const [docxFormat,  setDocxFormat]  = useState<"docx" | "pdf">("docx");
 
   const isBulk = candidates.length > 1;
   const preview = candidates[0] ?? null;
@@ -695,47 +694,35 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
       if (isCV) {
         if (isBulk) {
           const isDocxTemplate = !!matchedTemplate && matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
-          if (isDocxTemplate) {
-            // Bulk DOCX template → one filled DOCX per candidate
-            toast.info(`Generating ${candidates.length} DOCX files — please wait…`);
-            for (const c of sortedCandidates) {
+          toast.info(`Generating ${candidates.length} PDFs — please wait…`);
+          for (const c of sortedCandidates) {
+            if (isDocxTemplate) {
               const bytes = await buildFilledDocx(matchedTemplate!, c);
-              downloadDocx(bytes, `${c.full_name} — ${currentType.label}.docx`);
-            }
-            toast.success(`${candidates.length} DOCX files downloaded`);
-          } else {
-            // Normal CV or PDF template → one PDF per candidate
-            toast.info(`Generating ${candidates.length} CVs — please wait…`);
-            for (const c of sortedCandidates) {
+              await docxBytesToPdf(bytes, `${c.full_name} — ${currentType.label}.pdf`);
+            } else {
               const canvas = await candidateToCanvas(c, matchedTemplate);
               const w = canvas.width / 2, h = canvas.height / 2;
               const pdf = new jsPDF({ unit: "px", format: [w, h] });
               pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, w, h);
               pdf.save(`${c.full_name} — ${currentType.label}.pdf`);
             }
-            toast.success(`${candidates.length} CVs downloaded`);
           }
+          toast.success(`${candidates.length} PDFs downloaded`);
         } else {
           // Single CV
           if (matchedTemplate) {
             const isDocx = matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
-            if (isDocx && docxFormat === "pdf") {
+            if (isDocx) {
               const bytes = await buildFilledDocx(matchedTemplate, preview!);
               await docxBytesToPdf(bytes, `${preview!.full_name} — ${currentType.label}.pdf`);
-              toast.success(`${currentType.label} downloaded as PDF`);
-            } else if (isDocx) {
-              const bytes = await buildFilledDocx(matchedTemplate, preview!);
-              downloadDocx(bytes, `${preview!.full_name} — ${currentType.label}.docx`);
-              toast.success(`${currentType.label} downloaded`);
             } else {
-              // PDF template — render candidate data via HTML renderer so no old CV info leaks
               const canvas = await candidateToCanvas(preview!, matchedTemplate);
               const w = canvas.width / 2, h = canvas.height / 2;
               const pdf = new jsPDF({ unit: "px", format: [w, h] });
               pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, w, h);
               pdf.save(`${preview!.full_name} — ${currentType.label}.pdf`);
-              toast.success(`${currentType.label} downloaded`);
             }
+            toast.success(`${currentType.label} downloaded`);
           } else {
             if (downloadType !== "normal-cv")
               toast.info(`No template for "${currentType.label}" — using Normal CV format.`);
@@ -985,33 +972,6 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
                 No template for &ldquo;{currentType.label}&rdquo; — will download as Normal CV format.
               </p>
             )}
-            {isCV && !isBulk && matchedTemplate && matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx") && (
-              <div className="flex items-center border rounded-none overflow-hidden text-xs">
-                <button
-                  type="button"
-                  onClick={() => setDocxFormat("docx")}
-                  className={cn(
-                    "px-3 py-1.5 font-medium transition-colors",
-                    docxFormat === "docx"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-background text-muted-foreground hover:bg-muted",
-                  )}
-                >
-                  DOCX
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDocxFormat("pdf")}
-                  className={cn(
-                    "px-3 py-1.5 font-medium transition-colors border-l",
-                    docxFormat === "pdf"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-background text-muted-foreground hover:bg-muted",
-                  )}
-                >
-                  PDF
-                </button>
-              </div>
             )}
           </div>
           <Button onClick={handleDownload} disabled={downloading} className="rounded-none shrink-0">
