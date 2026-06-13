@@ -446,7 +446,7 @@ async function docxBytesToPdf(bytes: Uint8Array, filename: string) {
   container.style.cssText = "position:fixed;top:0;left:-9999px;width:794px;background:#fff;";
   document.body.appendChild(container);
   try {
-    await docxRenderAsync(bytes.buffer as ArrayBuffer, container, undefined, {
+    await docxRenderAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), container, undefined, {
       className: "docx-pdf-render",
       inWrapper: false,
       ignoreWidth: false,
@@ -467,7 +467,7 @@ async function docxBytesToPdf(bytes: Uint8Array, filename: string) {
     });
     const w = canvas.width / 2, h = canvas.height / 2;
     const pdf = new jsPDF({ unit: "px", format: [w, h] });
-    pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, w, h);
+    pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, w, h);
     pdf.save(filename);
   } finally {
     document.body.removeChild(container);
@@ -761,7 +761,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
               const canvas = await candidateToCanvas(c, matchedTemplate);
               const w = canvas.width / 2, h = canvas.height / 2;
               const pdf = new jsPDF({ unit: "px", format: [w, h] });
-              pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, w, h);
+              pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, w, h);
               pdf.save(`${c.full_name} — ${currentType.label}.pdf`);
             }
           }
@@ -777,7 +777,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
               const canvas = await candidateToCanvas(preview!, matchedTemplate);
               const w = canvas.width / 2, h = canvas.height / 2;
               const pdf = new jsPDF({ unit: "px", format: [w, h] });
-              pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, w, h);
+              pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, w, h);
               pdf.save(`${preview!.full_name} — ${currentType.label}.pdf`);
             }
             toast.success(`${currentType.label} downloaded`);
@@ -787,7 +787,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
             const canvas = await candidateToCanvas(preview!, null);
             const pxW = canvas.width / 2, pxH = canvas.height / 2;
             const pdf = new jsPDF({ unit: "px", format: [pxW, pxH] });
-            pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pxW, pxH);
+            pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pxW, pxH);
             pdf.save(`${preview!.full_name} — ${currentType.label}.pdf`);
             toast.success(`${currentType.label} downloaded`);
           }
@@ -820,7 +820,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
         document.body.removeChild(tableEl);
         const pxW = canvas.width / 2, pxH = canvas.height / 2;
         const pdf = new jsPDF({ unit: "px", format: [pxW, pxH] });
-        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pxW, pxH);
+        pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pxW, pxH);
         const fileName = isBulk ? `${candidates.length} Candidates — Summary.pdf` : `${preview!.full_name} — Summary.pdf`;
         pdf.save(fileName);
         toast.success("Summary PDF downloaded");
