@@ -822,7 +822,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
 
         <div className="flex flex-1 min-h-0 overflow-hidden">
           {/* Left panel */}
-          <div className="w-[360px] shrink-0 border-r flex flex-col overflow-y-auto">
+          <div className="w-[480px] shrink-0 border-r flex flex-col overflow-y-auto">
 
             {/* Sort Options */}
             <div className="border-b">
@@ -895,11 +895,11 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
                     <button type="button" onClick={() => setSelectedCols(new Set())}
                       className="text-xs text-muted-foreground hover:underline">None</button>
                   </div>
-                  <div className="grid grid-cols-4 gap-x-1 gap-y-2">
+                  <div className="grid grid-cols-4 gap-x-2 gap-y-2.5">
                     {EXPORT_COLUMNS.map((col) => (
-                      <label key={col.key as string} className="flex items-center gap-1 cursor-pointer min-w-0">
-                        <Checkbox checked={selectedCols.has(col.key as string)} onCheckedChange={() => toggleCol(col.key as string)} className="rounded-none h-3 w-3 shrink-0" />
-                        <span className="text-[10px] leading-tight text-foreground truncate">{col.label}</span>
+                      <label key={col.key as string} className="flex items-center gap-1.5 cursor-pointer min-w-0">
+                        <Checkbox checked={selectedCols.has(col.key as string)} onCheckedChange={() => toggleCol(col.key as string)} className="rounded-none h-4 w-4 shrink-0" />
+                        <span className="text-xs leading-tight text-foreground truncate">{col.label}</span>
                       </label>
                     ))}
                   </div>
