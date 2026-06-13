@@ -574,6 +574,9 @@ export const DOWNLOAD_TYPES = [
 
 export const EXPORT_COLUMNS: { key: keyof Candidate; label: string }[] = [
   { key: "full_name",            label: "Full Name" },
+  { key: "passport_number",      label: "Passport No." },
+  { key: "labour_id",            label: "Labour ID" },
+  { key: "narrative",            label: "Narrative" },
   { key: "candidate_code",       label: "Candidate Code" },
   { key: "gender",               label: "Gender" },
   { key: "religion",             label: "Religion" },
@@ -582,28 +585,29 @@ export const EXPORT_COLUMNS: { key: keyof Candidate; label: string }[] = [
   { key: "living_town",          label: "Living Town" },
   { key: "occupation",           label: "Occupation" },
   { key: "country",              label: "Nationality" },
-  { key: "passport_number",      label: "Passport Number" },
-  { key: "passport_issue_date",  label: "Passport Issue Date" },
-  { key: "passport_expiry_date", label: "Passport Expiry Date" },
+  { key: "passport_issue_date",  label: "Issue Date" },
+  { key: "passport_expiry_date", label: "Expiry Date" },
   { key: "place_of_issue",       label: "Place of Issue" },
   { key: "dob",                  label: "Date of Birth" },
   { key: "age",                  label: "Age" },
-  { key: "english_level",        label: "English Level" },
-  { key: "arabic_level",         label: "Arabic Level" },
+  { key: "english_level",        label: "English" },
+  { key: "arabic_level",         label: "Arabic" },
   { key: "education",            label: "Education" },
   { key: "experience",           label: "Experience" },
   { key: "skills",               label: "Skills" },
   { key: "weight",               label: "Weight" },
   { key: "height",               label: "Height" },
-  { key: "medical_status",       label: "Medical Status" },
+  { key: "medical_status",       label: "Medical" },
   { key: "medical_date",         label: "Medical Date" },
   { key: "coc_status",           label: "COC Status" },
   { key: "office",               label: "Office" },
   { key: "selected_by",          label: "Selected By" },
   { key: "cv_sent_to",           label: "CV Sent To" },
-  { key: "destination_country",  label: "Destination Country" },
+  { key: "destination_country",  label: "Destination" },
   { key: "notes",                label: "Notes" },
 ];
+
+export const DEFAULT_EXPORT_COLS = new Set<string>(["full_name", "passport_number", "labour_id", "narrative"]);
 
 export const TICKET_DEFAULT_COLS: (keyof Candidate)[] = [
   "full_name", "passport_number", "passport_expiry_date",
@@ -643,9 +647,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
   const [downloadType, setDownloadType] = useState("normal-cv");
   const [sortBy,       setSortBy]       = useState("full_name");
   const [sortDir,      setSortDir]      = useState<"asc" | "desc">("asc");
-  const [selectedCols, setSelectedCols] = useState<Set<string>>(
-    new Set(EXPORT_COLUMNS.map((c) => c.key as string)),
-  );
+  const [selectedCols, setSelectedCols] = useState<Set<string>>(new Set(DEFAULT_EXPORT_COLS));
   const [downloading, setDownloading] = useState(false);
   const [sortOpen,    setSortOpen]    = useState(false);
   const [typeOpen,    setTypeOpen]    = useState(true);
@@ -901,14 +903,16 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
                   <div className="flex gap-3 mb-3">
                     <button type="button" onClick={() => setSelectedCols(new Set(EXPORT_COLUMNS.map((c) => c.key as string)))}
                       className="text-xs text-primary hover:underline font-medium">All</button>
+                    <button type="button" onClick={() => setSelectedCols(new Set(DEFAULT_EXPORT_COLS))}
+                      className="text-xs text-muted-foreground hover:underline">Default</button>
                     <button type="button" onClick={() => setSelectedCols(new Set())}
                       className="text-xs text-muted-foreground hover:underline">None</button>
                   </div>
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-4 gap-x-1 gap-y-2">
                     {EXPORT_COLUMNS.map((col) => (
-                      <label key={col.key as string} className="flex items-center gap-2 cursor-pointer">
-                        <Checkbox checked={selectedCols.has(col.key as string)} onCheckedChange={() => toggleCol(col.key as string)} className="rounded-none h-3.5 w-3.5" />
-                        <span className="text-xs text-foreground">{col.label}</span>
+                      <label key={col.key as string} className="flex items-center gap-1 cursor-pointer min-w-0">
+                        <Checkbox checked={selectedCols.has(col.key as string)} onCheckedChange={() => toggleCol(col.key as string)} className="rounded-none h-3 w-3 shrink-0" />
+                        <span className="text-[10px] leading-tight text-foreground truncate">{col.label}</span>
                       </label>
                     ))}
                   </div>
