@@ -455,6 +455,15 @@ async function docxBytesToPdf(bytes: Uint8Array, filename: string) {
     const el = (container.firstElementChild as HTMLElement) ?? container;
     const canvas = await html2canvas(el, {
       scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: false,
+      onclone: (doc) => {
+        // html2canvas 1.x can't parse oklch() (Tailwind CSS 4) — neutralize it before rendering
+        doc.querySelectorAll<HTMLLinkElement>("link[rel='stylesheet']").forEach((l) => { l.disabled = true; });
+        doc.querySelectorAll("style").forEach((s) => {
+          if (s.textContent?.includes("oklch")) {
+            s.textContent = s.textContent.replace(/oklch\([^)]*\)/gi, "#000000");
+          }
+        });
+      },
     });
     const w = canvas.width / 2, h = canvas.height / 2;
     const pdf = new jsPDF({ unit: "px", format: [w, h] });
