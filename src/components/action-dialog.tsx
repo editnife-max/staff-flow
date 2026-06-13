@@ -443,31 +443,36 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promi
 
 async function docxBytesToPdf(bytes: Uint8Array, filename: string) {
   const container = document.createElement("div");
-  container.style.cssText = "position:fixed;top:0;left:-9999px;width:794px;background:#fff;";
+  // position:absolute far off-screen — html2canvas needs the element in the normal layout flow
+  container.style.cssText = "position:absolute;top:-19999px;left:0;width:794px;background:#fff;overflow:visible;";
   document.body.appendChild(container);
   try {
-    await docxRenderAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), container, undefined, {
+    const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    await docxRenderAsync(buf, container, undefined, {
       className: "docx-pdf-render",
-      inWrapper: false,
-      ignoreWidth: false,
-      ignoreHeight: false,
+      inWrapper: true,    // ensures a block-level article wrapper with measurable dimensions
+      ignoreWidth: true,  // use container width (794 px), not the DOCX page width
+      ignoreHeight: true, // let content expand naturally so the canvas gets the full height
     });
+    // Brief pause so any async images inside docx-preview settle
+    await new Promise<void>((r) => setTimeout(r, 200));
     const el = (container.firstElementChild as HTMLElement) ?? container;
     const canvas = await html2canvas(el, {
-      scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: false,
-      onclone: (doc) => {
-        // html2canvas 1.x can't parse oklch() (Tailwind CSS 4) — neutralize it before rendering
-        doc.querySelectorAll<HTMLLinkElement>("link[rel='stylesheet']").forEach((l) => { l.disabled = true; });
-        doc.querySelectorAll("style").forEach((s) => {
+      scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: false, logging: false,
+      onclone: (_doc) => {
+        // Only patch oklch in <style> tags — do NOT disable link stylesheets (breaks layout)
+        _doc.querySelectorAll("style").forEach((s) => {
           if (s.textContent?.includes("oklch")) {
             s.textContent = s.textContent.replace(/oklch\([^)]*\)/gi, "#000000");
           }
         });
       },
     });
-    const w = canvas.width / 2, h = canvas.height / 2;
-    const pdf = new jsPDF({ unit: "px", format: [w, h] });
-    pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, w, h);
+    const pw = Math.round(canvas.width / 2);
+    const ph = Math.round(canvas.height / 2);
+    if (!pw || !ph) throw new Error("CV template rendered to a blank page — nothing to export");
+    const pdf = new jsPDF({ unit: "px", format: [pw, ph] });
+    pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pw, ph);
     pdf.save(filename);
   } finally {
     document.body.removeChild(container);
@@ -759,7 +764,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
               await docxBytesToPdf(bytes, `${c.full_name} — ${currentType.label}.pdf`);
             } else {
               const canvas = await candidateToCanvas(c, matchedTemplate);
-              const w = canvas.width / 2, h = canvas.height / 2;
+              const w = Math.round(canvas.width / 2), h = Math.round(canvas.height / 2);
               const pdf = new jsPDF({ unit: "px", format: [w, h] });
               pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, w, h);
               pdf.save(`${c.full_name} — ${currentType.label}.pdf`);
@@ -775,7 +780,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
               await docxBytesToPdf(bytes, `${preview!.full_name} — ${currentType.label}.pdf`);
             } else {
               const canvas = await candidateToCanvas(preview!, matchedTemplate);
-              const w = canvas.width / 2, h = canvas.height / 2;
+              const w = Math.round(canvas.width / 2), h = Math.round(canvas.height / 2);
               const pdf = new jsPDF({ unit: "px", format: [w, h] });
               pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, w, h);
               pdf.save(`${preview!.full_name} — ${currentType.label}.pdf`);
@@ -785,7 +790,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
             if (downloadType !== "normal-cv")
               toast.info(`No template for "${currentType.label}" — using Normal CV format.`);
             const canvas = await candidateToCanvas(preview!, null);
-            const pxW = canvas.width / 2, pxH = canvas.height / 2;
+            const pxW = Math.round(canvas.width / 2), pxH = Math.round(canvas.height / 2);
             const pdf = new jsPDF({ unit: "px", format: [pxW, pxH] });
             pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pxW, pxH);
             pdf.save(`${preview!.full_name} — ${currentType.label}.pdf`);
@@ -818,7 +823,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
         document.body.appendChild(tableEl);
         const canvas = await html2canvas(tableEl, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
         document.body.removeChild(tableEl);
-        const pxW = canvas.width / 2, pxH = canvas.height / 2;
+        const pxW = Math.round(canvas.width / 2), pxH = Math.round(canvas.height / 2);
         const pdf = new jsPDF({ unit: "px", format: [pxW, pxH] });
         pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pxW, pxH);
         const fileName = isBulk ? `${candidates.length} Candidates — Summary.pdf` : `${preview!.full_name} — Summary.pdf`;
