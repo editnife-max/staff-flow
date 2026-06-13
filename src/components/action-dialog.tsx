@@ -263,6 +263,31 @@ export async function buildFilledDocx(url: string, c: Candidate): Promise<Uint8A
   return zip.generate({ type: "uint8array" });
 }
 
+async function docxBytesToPdf(bytes: Uint8Array, filename: string) {
+  const { renderAsync } = await import("docx-preview");
+  const container = document.createElement("div");
+  container.style.cssText = "position:fixed;top:0;left:-9999px;width:794px;background:#fff;";
+  document.body.appendChild(container);
+  try {
+    await renderAsync(bytes.buffer as ArrayBuffer, container, undefined, {
+      className: "docx-pdf-render",
+      inWrapper: false,
+      ignoreWidth: false,
+      ignoreHeight: false,
+    });
+    const el = (container.firstElementChild as HTMLElement) ?? container;
+    const canvas = await html2canvas(el, {
+      scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: false,
+    });
+    const w = canvas.width / 2, h = canvas.height / 2;
+    const pdf = new jsPDF({ unit: "px", format: [w, h] });
+    pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, w, h);
+    pdf.save(filename);
+  } finally {
+    document.body.removeChild(container);
+  }
+}
+
 function downloadDocx(bytes: Uint8Array, filename: string) {
   const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
   const url = URL.createObjectURL(blob);
@@ -562,12 +587,8 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
           if (matchedTemplate) {
             const isDocx = matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
             if (isDocx && docxFormat === "pdf") {
-              // User chose PDF output from a DOCX template — render HTML preview as PDF
-              const canvas = await candidateToCanvas(preview!, matchedTemplate);
-              const w = canvas.width / 2, h = canvas.height / 2;
-              const pdf = new jsPDF({ unit: "px", format: [w, h] });
-              pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, w, h);
-              pdf.save(`${preview!.full_name} — ${currentType.label}.pdf`);
+              const bytes = await buildFilledDocx(matchedTemplate.file_url, preview!);
+              await docxBytesToPdf(bytes, `${preview!.full_name} — ${currentType.label}.pdf`);
               toast.success(`${currentType.label} downloaded as PDF`);
             } else if (isDocx) {
               const bytes = await buildFilledDocx(matchedTemplate.file_url, preview!);
