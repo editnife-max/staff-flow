@@ -206,7 +206,20 @@ export async function buildFilledDocx(url: string, c: Candidate): Promise<Uint8A
     /<Relationship\b[^>]*Type="[^"]*\/relationships\/image"[^>]*\/>/g, "",
   );
 
-  // Remove any <w:drawing> elements already in the XML (leftover from template)
+  // Remove existing drawings from the template in three passes so no orphaned
+  // tags remain. Modern Word wraps images in mc:AlternateContent; older ones
+  // use a bare <w:r><w:drawing>…</w:drawing></w:r>.
+  // Pass 1 – remove AlternateContent blocks that embed an image
+  xml = xml.replace(
+    /<mc:AlternateContent\b[^>]*>[\s\S]*?<\/mc:AlternateContent>/g,
+    (m) => (/<a:blip\b/.test(m) || /r:embed=/.test(m) ? "" : m),
+  );
+  // Pass 2 – remove runs whose only payload is a drawing
+  xml = xml.replace(
+    /<w:r(?:\s[^>]*)?>(?:<w:rPr>[\s\S]*?<\/w:rPr>)?<w:drawing>[\s\S]*?<\/w:drawing><\/w:r>/g,
+    "",
+  );
+  // Pass 3 – remove any remaining standalone drawings
   xml = xml.replace(/<w:drawing>[\s\S]*?<\/w:drawing>/g, "");
 
   // ── Add candidate photo + passport scan ───────────────────────────────────
