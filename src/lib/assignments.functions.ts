@@ -98,8 +98,11 @@ function applyFixes(xml: string, mapping: Record<string, string>): string {
 }
 
 async function claudeLabelMapping(labels: string[]): Promise<Record<string, string>> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set — add it to your .env file");
+  // Workers runtime: vars come from .dev.vars / wrangler secrets (via globalThis or process.env)
+  const apiKey =
+    process.env.ANTHROPIC_API_KEY ??
+    (typeof globalThis !== "undefined" && (globalThis as Record<string, unknown>).ANTHROPIC_API_KEY as string | undefined);
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set — add it to .dev.vars (dev) or as a Wrangler secret (prod)");
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
