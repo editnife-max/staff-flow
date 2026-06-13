@@ -121,7 +121,7 @@ function AssignmentsPage() {
   const [newTemplateName, setNewTemplateName] = useState("");
   const [templateFile, setTemplateFile] = useState<File | null>(null);
   const [templateUploading, setTemplateUploading] = useState(false);
-  const [templateUploadStep, setTemplateUploadStep] = useState<"optimizing" | null>(null);
+  const [templateUploadStep, setTemplateUploadStep] = useState<"uploading" | null>(null);
 
   // ── queries ─────────────────────────────────────────────────────────────────
   const { data: countries = [] } = useQuery({
@@ -241,7 +241,7 @@ function AssignmentsPage() {
   async function handleTemplateUpload() {
     if (!newTemplateName.trim() || !templateFile) return;
     setTemplateUploading(true);
-    setTemplateUploadStep("optimizing");
+    setTemplateUploadStep("uploading");
     try {
       const buf = await templateFile.arrayBuffer();
       const u8  = new Uint8Array(buf);
@@ -249,15 +249,10 @@ function AssignmentsPage() {
       for (let i = 0; i < u8.length; i++) binary += String.fromCharCode(u8[i]);
       const fileBase64 = btoa(binary);
 
-      const result = await optimizeTemplateFn({
+      await optimizeTemplateFn({
         data: { name: newTemplateName.trim(), fileBase64, fileName: templateFile.name },
       });
-      const n = result.corrections;
-      toast.success(
-        n > 0
-          ? `Template optimized — ${n} field label${n === 1 ? "" : "s"} corrected by AI`
-          : "Template saved — all field labels were already correct",
-      );
+      toast.success(`Template "${newTemplateName.trim()}" uploaded`);
       qc.invalidateQueries({ queryKey: ["cv-templates"] });
       setNewTemplateName("");
       setTemplateFile(null);
@@ -440,7 +435,7 @@ function AssignmentsPage() {
               <Button size="sm" className="h-8 rounded-none px-3 text-sm"
                 disabled={!newTemplateName.trim() || !templateFile || templateUploading}
                 onClick={handleTemplateUpload}>
-                {templateUploadStep === "optimizing" ? "AI…" : "Upload"}
+                {templateUploadStep === "uploading" ? "Uploading…" : "Upload"}
               </Button>
             </div>
             {templateFile && (
