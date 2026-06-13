@@ -97,6 +97,74 @@ function applyFixes(xml: string, mapping: Record<string, string>): string {
   return result;
 }
 
+// ── DOCX skeleton (used when building a fresh DOCX from a PDF) ───────────────
+
+const DOCX_CONTENT_TYPES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`;
+
+const DOCX_RELS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`;
+
+const DOCX_DOC_RELS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+</Relationships>`;
+
+async function claudePdfToDocx(pdfBase64: string): Promise<string> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY not set — add it to .env and restart the dev server");
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 8192,
+      messages: [{
+        role: "user",
+        content: [
+          {
+            type: "document",
+            source: { type: "base64", media_type: "application/pdf", data: pdfBase64 },
+          },
+          {
+            type: "text",
+            text: `Convert this PDF CV template into a Word XML document (word/document.xml content only).
+
+Rules:
+- Replicate the exact table structure and layout from the PDF
+- Keep all label cell text exactly as shown (e.g. "FULL NAME", "NATIONALITY", "DATE OF BIRTH")
+- For value cells (cells that hold candidate data), leave them EMPTY — output <w:t></w:t>
+- Use standard OOXML namespaces: xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+- Include a proper <w:body> wrapping all <w:tbl> elements
+- Output ONLY the raw XML — no markdown fences, no explanation text
+
+Begin your output with: <?xml version="1.0" encoding="UTF-8" standalone="yes"?>`,
+          },
+        ],
+      }],
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Claude API ${res.status}: ${await res.text()}`);
+  const json = await res.json() as { content: { type: string; text: string }[] };
+  let xml = json.content[0]?.text?.trim() ?? "";
+  xml = xml.replace(/^```(?:xml)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+  if (!xml.startsWith("<?xml") && !xml.startsWith("<w:")) {
+    throw new Error("Claude did not return valid Word XML from the PDF");
+  }
+  return xml;
+}
+
 async function claudeLabelMapping(labels: string[]): Promise<Record<string, string>> {
   // process.env.ANTHROPIC_API_KEY is replaced at transform time by vite.config.ts define
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -280,12 +348,25 @@ export const optimizeCvTemplate = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const managerId = await resolveManagerId(context.userId);
 
-    // Decode base64 → Buffer, unpack DOCX
-    const buffer = Buffer.from(data.fileBase64, "base64");
-    const zip    = new PizZip(buffer);
-    const entry  = zip.file("word/document.xml");
-    if (!entry) throw new Error("Invalid DOCX: word/document.xml not found");
-    let xml = new TextDecoder("utf-8").decode(entry.asUint8Array());
+    const isPdf = data.fileName.toLowerCase().endsWith(".pdf");
+    let xml: string;
+    let zip: PizZip;
+
+    if (isPdf) {
+      // PDF: ask Claude to generate Word XML replicating the layout, build fresh DOCX
+      xml = await claudePdfToDocx(data.fileBase64);
+      zip = new PizZip();
+      zip.file("[Content_Types].xml", DOCX_CONTENT_TYPES);
+      zip.file("_rels/.rels", DOCX_RELS);
+      zip.file("word/_rels/document.xml.rels", DOCX_DOC_RELS);
+    } else {
+      // DOCX: decode base64 and unpack
+      const buffer = Buffer.from(data.fileBase64, "base64");
+      zip = new PizZip(buffer);
+      const entry = zip.file("word/document.xml");
+      if (!entry) throw new Error("Invalid DOCX: word/document.xml not found");
+      xml = new TextDecoder("utf-8").decode(entry.asUint8Array());
+    }
 
     // Ask Claude to map any non-standard label → correct CV field name
     const rawLabels = extractLabels(xml);
@@ -295,14 +376,12 @@ export const optimizeCvTemplate = createServerFn({ method: "POST" })
     const mapping: Record<string, string> = {};
     for (const [k, v] of Object.entries(rawMapping)) mapping[normL(k)] = v;
 
-    // Apply corrections and repack
+    // Apply corrections and repack — always save as .docx
     xml = applyFixes(xml, mapping);
     zip.file("word/document.xml", new TextEncoder().encode(xml));
     const optimizedBytes = zip.generate({ type: "uint8array" });
 
-    // Upload optimized DOCX to storage
-    const ext  = (data.fileName.split(".").pop() ?? "docx").toLowerCase();
-    const path = `cv-templates/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+    const path = `cv-templates/${Date.now()}_${Math.random().toString(36).slice(2)}.docx`;
     const { error: upErr } = await supabaseAdmin.storage
       .from("candidate-files")
       .upload(path, optimizedBytes, {

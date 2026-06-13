@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
-import { addCountry, deleteCountry, addOffice, deleteOffice, addCvTemplate, deleteCvTemplate, optimizeCvTemplate } from "@/lib/assignments.functions";
+import { addCountry, deleteCountry, addOffice, deleteOffice, deleteCvTemplate, optimizeCvTemplate } from "@/lib/assignments.functions";
 
 type AssignCountry  = Database["public"]["Tables"]["assignment_countries"]["Row"];
 type AssignOffice   = Database["public"]["Tables"]["assignment_offices"]["Row"];
@@ -48,7 +48,6 @@ function AssignmentsPage() {
   const delCountryFn   = useServerFn(deleteCountry);
   const addOfficeFn    = useServerFn(addOffice);
   const delOfficeFn    = useServerFn(deleteOffice);
-  const addTemplateFn      = useServerFn(addCvTemplate);
   const delTemplateFn      = useServerFn(deleteCvTemplate);
   const optimizeTemplateFn = useServerFn(optimizeCvTemplate);
 
@@ -122,7 +121,7 @@ function AssignmentsPage() {
   const [newTemplateName, setNewTemplateName] = useState("");
   const [templateFile, setTemplateFile] = useState<File | null>(null);
   const [templateUploading, setTemplateUploading] = useState(false);
-  const [templateUploadStep, setTemplateUploadStep] = useState<"uploading" | "optimizing" | null>(null);
+  const [templateUploadStep, setTemplateUploadStep] = useState<"uploading" | "optimizing" | "converting" | null>(null);
 
   // ── queries ─────────────────────────────────────────────────────────────────
   const { data: countries = [] } = useQuery({
@@ -242,39 +241,26 @@ function AssignmentsPage() {
   async function handleTemplateUpload() {
     if (!newTemplateName.trim() || !templateFile) return;
     setTemplateUploading(true);
-    const isDocx = templateFile.name.toLowerCase().endsWith(".docx");
+    const isPdf = templateFile.name.toLowerCase().endsWith(".pdf");
     try {
-      if (isDocx) {
-        // DOCX: send to server for one-time Claude AI optimization before saving
-        setTemplateUploadStep("optimizing");
-        const buf = await templateFile.arrayBuffer();
-        const u8  = new Uint8Array(buf);
-        let binary = "";
-        for (let i = 0; i < u8.length; i++) binary += String.fromCharCode(u8[i]);
-        const fileBase64 = btoa(binary);
+      setTemplateUploadStep(isPdf ? "converting" : "optimizing");
+      const buf = await templateFile.arrayBuffer();
+      const u8  = new Uint8Array(buf);
+      let binary = "";
+      for (let i = 0; i < u8.length; i++) binary += String.fromCharCode(u8[i]);
+      const fileBase64 = btoa(binary);
 
-        const result = await optimizeTemplateFn({
-          data: { name: newTemplateName.trim(), fileBase64, fileName: templateFile.name },
-        });
-        const n = result.corrections;
-        toast.success(
-          n > 0
+      const result = await optimizeTemplateFn({
+        data: { name: newTemplateName.trim(), fileBase64, fileName: templateFile.name },
+      });
+      const n = result.corrections;
+      toast.success(
+        isPdf
+          ? `PDF converted to DOCX${n > 0 ? ` — ${n} field label${n === 1 ? "" : "s"} corrected` : ""}`
+          : n > 0
             ? `Template optimized — ${n} field label${n === 1 ? "" : "s"} corrected by AI`
             : "Template saved — all field labels were already correct",
-        );
-      } else {
-        // PDF: upload directly, no AI optimization needed
-        setTemplateUploadStep("uploading");
-        const ext  = (templateFile.name.split(".").pop() ?? "pdf").toLowerCase();
-        const path = `cv-templates/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from("candidate-files")
-          .upload(path, templateFile, { upsert: true });
-        if (upErr) throw new Error(upErr.message);
-        const { data: urlData } = supabase.storage.from("candidate-files").getPublicUrl(path);
-        await addTemplateFn({ data: { name: newTemplateName.trim(), file_url: urlData.publicUrl } });
-        toast.success(`Template "${newTemplateName.trim()}" uploaded`);
-      }
+      );
       qc.invalidateQueries({ queryKey: ["cv-templates"] });
       setNewTemplateName("");
       setTemplateFile(null);
@@ -457,7 +443,7 @@ function AssignmentsPage() {
               <Button size="sm" className="h-8 rounded-none px-3 text-sm"
                 disabled={!newTemplateName.trim() || !templateFile || templateUploading}
                 onClick={handleTemplateUpload}>
-                {templateUploadStep === "optimizing" ? "AI…" : templateUploadStep === "uploading" ? "…" : "Upload"}
+                {templateUploadStep === "converting" ? "Converting…" : templateUploadStep === "optimizing" ? "AI…" : "Upload"}
               </Button>
             </div>
             {templateFile && (
