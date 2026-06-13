@@ -121,7 +121,7 @@ function AssignmentsPage() {
   const [newTemplateName, setNewTemplateName] = useState("");
   const [templateFile, setTemplateFile] = useState<File | null>(null);
   const [templateUploading, setTemplateUploading] = useState(false);
-  const [templateUploadStep, setTemplateUploadStep] = useState<"uploading" | "optimizing" | "converting" | null>(null);
+  const [templateUploadStep, setTemplateUploadStep] = useState<"optimizing" | null>(null);
 
   // ── queries ─────────────────────────────────────────────────────────────────
   const { data: countries = [] } = useQuery({
@@ -241,9 +241,8 @@ function AssignmentsPage() {
   async function handleTemplateUpload() {
     if (!newTemplateName.trim() || !templateFile) return;
     setTemplateUploading(true);
-    const isPdf = templateFile.name.toLowerCase().endsWith(".pdf");
+    setTemplateUploadStep("optimizing");
     try {
-      setTemplateUploadStep(isPdf ? "converting" : "optimizing");
       const buf = await templateFile.arrayBuffer();
       const u8  = new Uint8Array(buf);
       let binary = "";
@@ -255,11 +254,9 @@ function AssignmentsPage() {
       });
       const n = result.corrections;
       toast.success(
-        isPdf
-          ? `PDF converted to DOCX${n > 0 ? ` — ${n} field label${n === 1 ? "" : "s"} corrected` : ""}`
-          : n > 0
-            ? `Template optimized — ${n} field label${n === 1 ? "" : "s"} corrected by AI`
-            : "Template saved — all field labels were already correct",
+        n > 0
+          ? `Template optimized — ${n} field label${n === 1 ? "" : "s"} corrected by AI`
+          : "Template saved — all field labels were already correct",
       );
       qc.invalidateQueries({ queryKey: ["cv-templates"] });
       setNewTemplateName("");
@@ -430,7 +427,7 @@ function AssignmentsPage() {
               )}>
                 <Upload className="h-3.5 w-3.5" />
                 {templateFile ? (templateFile.name.length > 10 ? templateFile.name.slice(0, 9) + "…" : templateFile.name) : "File"}
-                <input type="file" accept=".pdf,.docx" className="hidden"
+                <input type="file" accept=".docx" className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0] ?? null;
                     setTemplateFile(file);
@@ -443,7 +440,7 @@ function AssignmentsPage() {
               <Button size="sm" className="h-8 rounded-none px-3 text-sm"
                 disabled={!newTemplateName.trim() || !templateFile || templateUploading}
                 onClick={handleTemplateUpload}>
-                {templateUploadStep === "converting" ? "Converting…" : templateUploadStep === "optimizing" ? "AI…" : "Upload"}
+                {templateUploadStep === "optimizing" ? "AI…" : "Upload"}
               </Button>
             </div>
             {templateFile && (
