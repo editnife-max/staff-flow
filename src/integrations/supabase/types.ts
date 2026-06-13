@@ -70,12 +70,67 @@ export type Database = {
           },
         ]
       }
+      candidate_code_sequences: {
+        Row: {
+          last_number: number
+          manager_id: string
+        }
+        Insert: {
+          last_number?: number
+          manager_id: string
+        }
+        Update: {
+          last_number?: number
+          manager_id?: string
+        }
+        Relationships: []
+      }
+      candidate_field_log: {
+        Row: {
+          candidate_id: string
+          changed_at: string
+          changed_by_name: string
+          changed_by_user_id: string | null
+          field: string
+          id: string
+          new_value: string | null
+        }
+        Insert: {
+          candidate_id: string
+          changed_at?: string
+          changed_by_name?: string
+          changed_by_user_id?: string | null
+          field: string
+          id?: string
+          new_value?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          changed_at?: string
+          changed_by_name?: string
+          changed_by_user_id?: string | null
+          field?: string
+          id?: string
+          new_value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_field_log_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidates: {
         Row: {
           age: number | null
           arabic_level: string | null
           arrival_city: string | null
+          arrival_city_updated_at: string | null
           assigned_staff_id: string | null
+          availability_type: string
           birth_place: string | null
           candidate_code: string | null
           children: number | null
@@ -105,7 +160,6 @@ export type Database = {
           gender: string | null
           height: number | null
           id: string
-          availability_type: string
           insurance_date: string | null
           insurance_status: string | null
           labour_id: string | null
@@ -142,10 +196,13 @@ export type Database = {
           tasheer_date: string | null
           tasheer_status: string | null
           ticket_date: string | null
+          ticket_date_updated_at: string | null
           ticket_status: string | null
+          ticket_updated_at: string | null
           unfilled_lmis: string | null
           updated_at: string
           visa_status: string | null
+          visa_updated_at: string | null
           weight: number | null
           wokala_status: string | null
         }
@@ -153,7 +210,9 @@ export type Database = {
           age?: number | null
           arabic_level?: string | null
           arrival_city?: string | null
+          arrival_city_updated_at?: string | null
           assigned_staff_id?: string | null
+          availability_type?: string
           birth_place?: string | null
           candidate_code?: string | null
           children?: number | null
@@ -183,7 +242,6 @@ export type Database = {
           gender?: string | null
           height?: number | null
           id?: string
-          availability_type?: string
           insurance_date?: string | null
           insurance_status?: string | null
           labour_id?: string | null
@@ -220,10 +278,13 @@ export type Database = {
           tasheer_date?: string | null
           tasheer_status?: string | null
           ticket_date?: string | null
+          ticket_date_updated_at?: string | null
           ticket_status?: string | null
+          ticket_updated_at?: string | null
           unfilled_lmis?: string | null
           updated_at?: string
           visa_status?: string | null
+          visa_updated_at?: string | null
           weight?: number | null
           wokala_status?: string | null
         }
@@ -231,7 +292,9 @@ export type Database = {
           age?: number | null
           arabic_level?: string | null
           arrival_city?: string | null
+          arrival_city_updated_at?: string | null
           assigned_staff_id?: string | null
+          availability_type?: string
           birth_place?: string | null
           candidate_code?: string | null
           children?: number | null
@@ -261,7 +324,6 @@ export type Database = {
           gender?: string | null
           height?: number | null
           id?: string
-          availability_type?: string
           insurance_date?: string | null
           insurance_status?: string | null
           labour_id?: string | null
@@ -298,10 +360,13 @@ export type Database = {
           tasheer_date?: string | null
           tasheer_status?: string | null
           ticket_date?: string | null
+          ticket_date_updated_at?: string | null
           ticket_status?: string | null
+          ticket_updated_at?: string | null
           unfilled_lmis?: string | null
           updated_at?: string
           visa_status?: string | null
+          visa_updated_at?: string | null
           weight?: number | null
           wokala_status?: string | null
         }
@@ -321,6 +386,7 @@ export type Database = {
           file_url: string
           id: string
           manager_id: string
+          metadata: Json | null
           name: string
         }
         Insert: {
@@ -328,6 +394,7 @@ export type Database = {
           file_url: string
           id?: string
           manager_id: string
+          metadata?: Json | null
           name: string
         }
         Update: {
@@ -335,6 +402,7 @@ export type Database = {
           file_url?: string
           id?: string
           manager_id?: string
+          metadata?: Json | null
           name?: string
         }
         Relationships: []

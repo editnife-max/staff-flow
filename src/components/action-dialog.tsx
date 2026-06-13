@@ -22,6 +22,46 @@ export type Candidate  = Database["public"]["Tables"]["candidates"]["Row"];
 
 // ── DOCX fill ─────────────────────────────────────────────────────────────────
 
+// Metadata stored by optimizeCvTemplate: Claude's field mapping + image slot positions
+interface TemplateMetadata {
+  fieldMap?: Record<string, string>;
+  imageSlots?: Array<{
+    rId: string;
+    target: string;
+    cx: number;
+    cy: number;
+    anchorType: string;
+    purpose: "photo" | "passport" | "unknown";
+  }>;
+}
+
+// Map a standard field name (returned by Claude) to the candidate's value.
+function getCandidateFieldValue(c: Candidate, field: string): string {
+  const m: Record<string, string> = {
+    FULL_NAME:            c.full_name                              ?? "",
+    POSITION:             c.occupation                            ?? "",
+    PASSPORT_NUMBER:      c.passport_number                       ?? "",
+    PASSPORT_ISSUE_DATE:  c.passport_issue_date                   ?? "",
+    PASSPORT_EXPIRY_DATE: c.passport_expiry_date                  ?? "",
+    PLACE_OF_ISSUE:       c.place_of_issue ?? c.country           ?? "",
+    ENGLISH_LEVEL:        c.english_level                         ?? "",
+    ARABIC_LEVEL:         c.arabic_level                          ?? "",
+    EXPERIENCE:           c.experience                            ?? "",
+    NATIONALITY:          c.country                               ?? "",
+    RELIGION:             c.religion                              ?? "",
+    DATE_OF_BIRTH:        c.dob                                   ?? "",
+    PLACE_OF_BIRTH:       c.birth_place                           ?? "",
+    LIVING_TOWN:          c.living_town                           ?? "",
+    AGE:                  c.age      != null ? String(c.age)      : "",
+    MARITAL_STATUS:       c.marital_status                        ?? "",
+    CHILDREN:             c.children != null ? String(c.children) : "",
+    WEIGHT:               c.weight   != null ? `${c.weight} kg`   : "",
+    HEIGHT:               c.height   != null ? `${c.height} cm`   : "",
+    REMARK:               c.notes ?? c.remark                    ?? "",
+  };
+  return m[field] ?? "";
+}
+
 // Field label → candidate value accessor, used both for filling and for the preview field-map
 export const CV_FIELD_MAP = (c: Candidate): [string, string][] => [
   ["FULL NAME",      c.full_name                                        ?? ""],
@@ -222,8 +262,8 @@ function labelParaXml(text: string): string {
   return `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>${text}</w:t></w:r></w:p>`;
 }
 
-export async function buildFilledDocx(url: string, c: Candidate): Promise<Uint8Array> {
-  const res = await fetch(url, { mode: "cors" });
+export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promise<Uint8Array> {
+  const res = await fetch(template.file_url, { mode: "cors" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const buf = await res.arrayBuffer();
   if (buf.byteLength < 100) throw new Error("Template file is empty");
@@ -232,19 +272,17 @@ export async function buildFilledDocx(url: string, c: Candidate): Promise<Uint8A
   if (!entry) throw new Error("word/document.xml missing");
   let xml = new TextDecoder("utf-8").decode(entry.asUint8Array());
 
-  // Fill text fields
-  for (const [label, value] of CV_FIELD_MAP(c)) {
+  // Use Claude's label mapping if the template has metadata; otherwise fall back to standard labels
+  const meta = (template.metadata as TemplateMetadata | null | undefined);
+  const fieldPairs: [string, string][] =
+    meta?.fieldMap && Object.keys(meta.fieldMap).length > 0
+      ? Object.entries(meta.fieldMap).map(([lbl, std]) => [lbl, getCandidateFieldValue(c, std)])
+      : CV_FIELD_MAP(c);
+
+  for (const [label, value] of fieldPairs) {
     if (!value) continue;
     xml = fillField(xml, label, value);
   }
-
-  // ── Strip ALL existing images from the template ───────────────────────────
-  // Templates may have been created from a real CV and still contain that
-  // person's photos. Remove every image file and wipe image relationships so
-  // only the correct candidate's images appear in the output.
-  const imgExts = /\.(jpg|jpeg|png|gif|bmp|webp|tiff|emf|wmf)$/i;
-  const mediaFiles = zip.filter((path) => path.startsWith("word/media/") && imgExts.test(path));
-  for (const f of mediaFiles) zip.remove(f.name);
 
   const relsPath  = "word/_rels/document.xml.rels";
   const relsEntry = zip.file(relsPath);
@@ -252,63 +290,103 @@ export async function buildFilledDocx(url: string, c: Candidate): Promise<Uint8A
     ? new TextDecoder().decode(relsEntry.asUint8Array())
     : `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`;
 
-  // Remove existing image relationships ([^>]* so it matches Target="media/x.jpg" which contains /)
-  relsXml = relsXml.replace(
-    /<Relationship\b[^>]*Type="[^"]*\/relationships\/image"[^>]*\/>/g, "",
-  );
+  const ctPath  = "[Content_Types].xml";
+  const ctEntry = zip.file(ctPath);
+  let ctXml = ctEntry ? new TextDecoder().decode(ctEntry.asUint8Array()) : "";
 
-  // Remove drawings using depth-counting (regex with lazy [\s\S]*? breaks on nested
-  // mc:AlternateContent — the innermost close tag is matched first, leaving orphaned
-  // closing tags that corrupt the ZIP and cause Word to reject the file entirely).
-  xml = removeImageDrawings(xml);
+  const imageSlots = meta?.imageSlots ?? [];
+  const photoSlot    = imageSlots.find((s) => s.purpose === "photo");
+  const passportSlot = imageSlots.find((s) => s.purpose === "passport");
 
-  // ── Add candidate photo + passport scan ───────────────────────────────────
-  const imgSources = [
-    ...(c.full_photo_url ?? c.photo_url
-      ? [{ key: "photo",    src: (c.full_photo_url ?? c.photo_url)!, rId: "rIdCvPhoto",    label: "PHOTO",         cxEmu: 1260000, cyEmu: 1620000 }]
-      : []),
-    ...(c.passport_scan_url
-      ? [{ key: "passport", src: c.passport_scan_url,                rId: "rIdCvPassport", label: "PASSPORT SCAN", cxEmu: 5040000, cyEmu: 3240000 }]
-      : []),
-  ];
+  if (imageSlots.length > 0) {
+    // ── In-place replacement: swap image files, keep all drawing XML intact ──
+    // This preserves the exact position, size, and layout from the template.
+    const replaceSlot = async (
+      slot: NonNullable<TemplateMetadata["imageSlots"]>[number],
+      src: string,
+    ) => {
+      const img = await fetchImgBytes(src);
+      if (!img) return;
+      const base        = slot.target.replace(/[^/]*$/, "");          // "media/"
+      const newFileName = `${base}cv_${slot.purpose}.${img.ext}`;    // "media/cv_photo.jpg"
+      const oldPath     = `word/${slot.target}`;
+      const newPath     = `word/${newFileName}`;
 
-  const embedded: (typeof imgSources[number] & { ext: string })[] = [];
-  for (const src of imgSources) {
-    const img = await fetchImgBytes(src.src);
-    if (!img) continue;
-    zip.file(`word/media/cv_${src.key}.${img.ext}`, img.bytes);
-    embedded.push({ ...src, ext: img.ext });
-  }
+      if (zip.file(oldPath)) zip.remove(oldPath);
+      zip.file(newPath, img.bytes);
 
-  if (embedded.length > 0) {
-    for (const src of embedded) {
+      // Update the relationship's Target to the new filename
+      const esc = slot.rId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       relsXml = relsXml.replace(
-        "</Relationships>",
-        `<Relationship Id="${src.rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/cv_${src.key}.${src.ext}"/></Relationships>`,
+        new RegExp(`<Relationship\\b[^>]*\\bId="${esc}"[^>]*/>`),
+        (el) => el.replace(/\bTarget="[^"]*"/, `Target="${newFileName}"`),
       );
-    }
-    zip.file(relsPath, new TextEncoder().encode(relsXml));
 
-    // Ensure [Content_Types].xml declares the image extensions we added
-    const ctPath = "[Content_Types].xml";
-    const ctEntry = zip.file(ctPath);
-    if (ctEntry) {
-      let ctXml = new TextDecoder().decode(ctEntry.asUint8Array());
-      for (const ext of [...new Set(embedded.map((s) => s.ext))]) {
-        if (!ctXml.includes(`Extension="${ext}"`)) {
-          const mime = ext === "png" ? "image/png" : "image/jpeg";
-          ctXml = ctXml.replace("</Types>", `<Default Extension="${ext}" ContentType="${mime}"/></Types>`);
-        }
+      // Register the new extension in [Content_Types].xml if needed
+      if (ctXml && !ctXml.includes(`Extension="${img.ext}"`)) {
+        const mime = img.ext === "png" ? "image/png" : "image/jpeg";
+        ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
       }
-      zip.file(ctPath, new TextEncoder().encode(ctXml));
+    };
+
+    if (photoSlot && (c.full_photo_url || c.photo_url))
+      await replaceSlot(photoSlot, (c.full_photo_url ?? c.photo_url)!);
+    if (passportSlot && c.passport_scan_url)
+      await replaceSlot(passportSlot, c.passport_scan_url);
+
+    zip.file(relsPath, new TextEncoder().encode(relsXml));
+    if (ctEntry && ctXml) zip.file(ctPath, new TextEncoder().encode(ctXml));
+
+  } else {
+    // ── Fallback for templates without metadata: strip old images, append new ─
+    const imgExts = /\.(jpg|jpeg|png|gif|bmp|webp|tiff|emf|wmf)$/i;
+    const mediaFiles = zip.filter((p) => p.startsWith("word/media/") && imgExts.test(p));
+    for (const f of mediaFiles) zip.remove(f.name);
+
+    relsXml = relsXml.replace(
+      /<Relationship\b[^>]*Type="[^"]*\/relationships\/image"[^>]*\/>/g, "",
+    );
+    xml = removeImageDrawings(xml);
+
+    const imgSrcs = [
+      ...(c.full_photo_url ?? c.photo_url
+        ? [{ key: "photo",    src: (c.full_photo_url ?? c.photo_url)!, rId: "rIdCvPhoto",    label: "PHOTO",         cxEmu: 1260000, cyEmu: 3240000 }]
+        : []),
+      ...(c.passport_scan_url
+        ? [{ key: "passport", src: c.passport_scan_url,                rId: "rIdCvPassport", label: "PASSPORT SCAN", cxEmu: 5040000, cyEmu: 3240000 }]
+        : []),
+    ];
+
+    const embedded: (typeof imgSrcs[number] & { ext: string })[] = [];
+    for (const src of imgSrcs) {
+      const img = await fetchImgBytes(src.src);
+      if (!img) continue;
+      zip.file(`word/media/cv_${src.key}.${img.ext}`, img.bytes);
+      embedded.push({ ...src, ext: img.ext });
     }
 
-    const drawings = embedded.map((src, i) =>
-      labelParaXml(src.label) +
-      inlineDrawingXml(src.rId, src.label, i + 20, src.cxEmu, src.cyEmu),
-    ).join("");
-    xml = xml.replace("</w:body>", `<w:p/>` + drawings + "</w:body>");
-  } else {
+    if (embedded.length > 0) {
+      for (const src of embedded) {
+        relsXml = relsXml.replace(
+          "</Relationships>",
+          `<Relationship Id="${src.rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/cv_${src.key}.${src.ext}"/></Relationships>`,
+        );
+      }
+      if (ctXml) {
+        for (const ext of [...new Set(embedded.map((s) => s.ext))]) {
+          if (!ctXml.includes(`Extension="${ext}"`)) {
+            const mime = ext === "png" ? "image/png" : "image/jpeg";
+            ctXml = ctXml.replace("</Types>", `<Default Extension="${ext}" ContentType="${mime}"/></Types>`);
+          }
+        }
+        zip.file(ctPath, new TextEncoder().encode(ctXml));
+      }
+      const drawings = embedded.map((src, i) =>
+        labelParaXml(src.label) + inlineDrawingXml(src.rId, src.label, i + 20, src.cxEmu, src.cyEmu),
+      ).join("");
+      xml = xml.replace("</w:body>", `<w:p/>${drawings}</w:body>`);
+    }
+
     zip.file(relsPath, new TextEncoder().encode(relsXml));
   }
 
@@ -342,7 +420,7 @@ async function docxBytesToPdf(bytes: Uint8Array, filename: string) {
 }
 
 function downloadDocx(bytes: Uint8Array, filename: string) {
-  const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+  const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url; a.download = filename;
@@ -619,7 +697,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
             // Bulk DOCX template → one filled DOCX per candidate
             toast.info(`Generating ${candidates.length} DOCX files — please wait…`);
             for (const c of sortedCandidates) {
-              const bytes = await buildFilledDocx(matchedTemplate!.file_url, c);
+              const bytes = await buildFilledDocx(matchedTemplate!, c);
               downloadDocx(bytes, `${c.full_name} — ${currentType.label}.docx`);
             }
             toast.success(`${candidates.length} DOCX files downloaded`);
@@ -640,11 +718,11 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
           if (matchedTemplate) {
             const isDocx = matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
             if (isDocx && docxFormat === "pdf") {
-              const bytes = await buildFilledDocx(matchedTemplate.file_url, preview!);
+              const bytes = await buildFilledDocx(matchedTemplate, preview!);
               await docxBytesToPdf(bytes, `${preview!.full_name} — ${currentType.label}.pdf`);
               toast.success(`${currentType.label} downloaded as PDF`);
             } else if (isDocx) {
-              const bytes = await buildFilledDocx(matchedTemplate.file_url, preview!);
+              const bytes = await buildFilledDocx(matchedTemplate, preview!);
               downloadDocx(bytes, `${preview!.full_name} — ${currentType.label}.docx`);
               toast.success(`${currentType.label} downloaded`);
             } else {
