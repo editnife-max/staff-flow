@@ -97,10 +97,20 @@ function fillField(xml: string, label: string, value: string): string {
     if (cellEnd === -1) break;
 
     if (normLabel(cellText(xml, cellStart, cellEnd)) === normTarget) {
-      const nStart = nextCell(xml, cellEnd + 7);
+      let nStart = nextCell(xml, cellEnd + 7);
       if (nStart === -1) { pos = cellEnd + 7; continue; }
-      const nEnd = xml.indexOf("</w:tc>", nStart);
+      let nEnd = xml.indexOf("</w:tc>", nStart);
       if (nEnd === -1) { pos = cellEnd + 7; continue; }
+
+      // If the next cell is an Arabic label cell, skip it and use the one after.
+      // Handles templates with [English Label] | [Arabic Label] | [Value].
+      if (/[؀-ۿ]/.test(cellText(xml, nStart, nEnd))) {
+        const s2 = nextCell(xml, nEnd + 7);
+        if (s2 !== -1) {
+          const e2 = xml.indexOf("</w:tc>", s2);
+          if (e2 !== -1) { nStart = s2; nEnd = e2; }
+        }
+      }
 
       const spaceAttr = value.includes(" ") ? ' xml:space="preserve"' : "";
       let first = true;
