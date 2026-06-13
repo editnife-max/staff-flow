@@ -131,6 +131,46 @@ function fillField(xml: string, label: string, value: string): string {
   return xml;
 }
 
+async function fetchImgBytes(src: string): Promise<{ bytes: Uint8Array; ext: string } | null> {
+  try {
+    const r = await fetch(src, { mode: "cors" });
+    if (!r.ok) return null;
+    const mime = r.headers.get("content-type") ?? "";
+    const ext  = mime.includes("png") ? "png" : "jpg";
+    return { bytes: new Uint8Array(await r.arrayBuffer()), ext };
+  } catch { return null; }
+}
+
+function inlineDrawingXml(rId: string, name: string, picId: number, cxEmu: number, cyEmu: number): string {
+  return [
+    `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:drawing>`,
+    `<wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"`,
+    ` distT="0" distB="0" distL="0" distR="0">`,
+    `<wp:extent cx="${cxEmu}" cy="${cyEmu}"/>`,
+    `<wp:effectExtent l="0" t="0" r="0" b="0"/>`,
+    `<wp:docPr id="${picId}" name="${name}"/>`,
+    `<wp:cNvGraphicFramePr>`,
+    `<a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/>`,
+    `</wp:cNvGraphicFramePr>`,
+    `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">`,
+    `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">`,
+    `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">`,
+    `<pic:nvPicPr><pic:cNvPr id="${picId}" name="${name}"/><pic:cNvPicPr/></pic:nvPicPr>`,
+    `<pic:blipFill>`,
+    `<a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>`,
+    `<a:stretch><a:fillRect/></a:stretch>`,
+    `</pic:blipFill>`,
+    `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cxEmu}" cy="${cyEmu}"/></a:xfrm>`,
+    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>`,
+    `</pic:pic></a:graphicData></a:graphic></wp:inline>`,
+    `</w:drawing></w:r></w:p>`,
+  ].join("");
+}
+
+function labelParaXml(text: string): string {
+  return `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>${text}</w:t></w:r></w:p>`;
+}
+
 export async function buildFilledDocx(url: string, c: Candidate): Promise<Uint8Array> {
   const res = await fetch(url, { mode: "cors" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -140,10 +180,59 @@ export async function buildFilledDocx(url: string, c: Candidate): Promise<Uint8A
   const entry = zip.file("word/document.xml");
   if (!entry) throw new Error("word/document.xml missing");
   let xml = new TextDecoder("utf-8").decode(entry.asUint8Array());
+
+  // Fill text fields
   for (const [label, value] of CV_FIELD_MAP(c)) {
     if (!value) continue;
     xml = fillField(xml, label, value);
   }
+
+  // Append photo + passport scan images at the end
+  const imgSources: { key: string; src: string; rId: string; label: string; cxEmu: number; cyEmu: number }[] = [];
+  const photoSrc = c.full_photo_url ?? c.photo_url;
+  if (photoSrc)            imgSources.push({ key: "photo",    src: photoSrc,          rId: "rIdCvPhoto",    label: "PHOTO",         cxEmu: 1260000, cyEmu: 1620000 });
+  if (c.passport_scan_url) imgSources.push({ key: "passport", src: c.passport_scan_url, rId: "rIdCvPassport", label: "PASSPORT SCAN", cxEmu: 5040000, cyEmu: 3240000 });
+
+  const embedded: typeof imgSources = [];
+  for (const src of imgSources) {
+    const img = await fetchImgBytes(src.src);
+    if (!img) continue;
+    zip.file(`word/media/cv_${src.key}.${img.ext}`, img.bytes);
+    // track for relationships + drawing XML
+    (src as any)._ext = img.ext;
+    embedded.push(src);
+  }
+
+  if (embedded.length > 0) {
+    // Update word/_rels/document.xml.rels
+    const relsPath = "word/_rels/document.xml.rels";
+    const relsEntry = zip.file(relsPath);
+    let relsXml = relsEntry
+      ? new TextDecoder().decode(relsEntry.asUint8Array())
+      : `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`;
+
+    for (const src of embedded) {
+      if (!relsXml.includes(src.rId)) {
+        const ext = (src as any)._ext as string;
+        const mime = ext === "png"
+          ? "image/png"
+          : "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image";
+        const rel = `<Relationship Id="${src.rId}" `
+          + `Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" `
+          + `Target="media/cv_${src.key}.${ext}"/>`;
+        relsXml = relsXml.replace("</Relationships>", rel + "</Relationships>");
+      }
+    }
+    zip.file(relsPath, new TextEncoder().encode(relsXml));
+
+    // Inject drawing paragraphs before </w:body>
+    const drawings = embedded.map((src, i) =>
+      labelParaXml(src.label) +
+      inlineDrawingXml(src.rId, src.label, i + 20, src.cxEmu, src.cyEmu),
+    ).join("");
+    xml = xml.replace("</w:body>", `<w:p/>` + drawings + "</w:body>");
+  }
+
   zip.file("word/document.xml", new TextEncoder().encode(xml));
   return zip.generate({ type: "uint8array" });
 }
@@ -459,14 +548,12 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
               downloadDocx(bytes, `${preview!.full_name} — ${currentType.label}.docx`);
               toast.success(`${currentType.label} downloaded`);
             } else {
-              const res = await fetch(matchedTemplate.file_url);
-              if (!res.ok) throw new Error(`HTTP ${res.status}`);
-              const blob = new Blob([await res.arrayBuffer()], { type: "application/octet-stream" });
-              const url  = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url; a.download = `${preview!.full_name} — ${currentType.label}.pdf`;
-              document.body.appendChild(a); a.click(); document.body.removeChild(a);
-              setTimeout(() => URL.revokeObjectURL(url), 30_000);
+              // PDF template — render candidate data via HTML renderer so no old CV info leaks
+              const canvas = await candidateToCanvas(preview!, matchedTemplate);
+              const w = canvas.width / 2, h = canvas.height / 2;
+              const pdf = new jsPDF({ unit: "px", format: [w, h] });
+              pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, w, h);
+              pdf.save(`${preview!.full_name} — ${currentType.label}.pdf`);
               toast.success(`${currentType.label} downloaded`);
             }
           } else {
