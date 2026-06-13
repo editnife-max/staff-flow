@@ -131,6 +131,47 @@ function fillField(xml: string, label: string, value: string): string {
   return xml;
 }
 
+// Remove mc:AlternateContent blocks that reference images and any remaining
+// bare w:drawing elements. Uses depth-counting for mc:AlternateContent so
+// nested elements don't produce orphaned closing tags (which makes Word refuse
+// to open the file at all with "Word experienced an error trying to open the file").
+function removeImageDrawings(xml: string): string {
+  const MC_OPEN  = "<mc:AlternateContent";
+  const MC_CLOSE = "</mc:AlternateContent>";
+  let out = "";
+  let pos = 0;
+
+  while (pos < xml.length) {
+    const start = xml.indexOf(MC_OPEN, pos);
+    if (start === -1) { out += xml.slice(pos); break; }
+    out += xml.slice(pos, start);
+
+    // Walk forward counting open/close tags to find the matching close
+    let depth = 1;
+    let scan  = start + MC_OPEN.length;
+    while (depth > 0 && scan < xml.length) {
+      const nextOpen  = xml.indexOf(MC_OPEN,  scan);
+      const nextClose = xml.indexOf(MC_CLOSE, scan);
+      if (nextClose === -1) { scan = xml.length; break; }
+      if (nextOpen !== -1 && nextOpen < nextClose) {
+        depth++;
+        scan = nextOpen + MC_OPEN.length;
+      } else {
+        depth--;
+        scan = nextClose + MC_CLOSE.length;
+      }
+    }
+
+    const block = xml.slice(start, scan);
+    // Only discard blocks that actually embed an image
+    if (!/<a:blip\b/.test(block) && !/\br:embed=/.test(block)) out += block;
+    pos = scan;
+  }
+
+  // Remove any remaining bare w:drawing elements (not inside mc:AlternateContent)
+  return out.replace(/<w:drawing>[\s\S]*?<\/w:drawing>/g, "");
+}
+
 async function fetchImgBytes(src: string): Promise<{ bytes: Uint8Array; ext: string } | null> {
   try {
     const r = await fetch(src, { mode: "cors" });
@@ -206,21 +247,10 @@ export async function buildFilledDocx(url: string, c: Candidate): Promise<Uint8A
     /<Relationship\b[^>]*Type="[^"]*\/relationships\/image"[^>]*\/>/g, "",
   );
 
-  // Remove existing drawings from the template in three passes so no orphaned
-  // tags remain. Modern Word wraps images in mc:AlternateContent; older ones
-  // use a bare <w:r><w:drawing>…</w:drawing></w:r>.
-  // Pass 1 – remove AlternateContent blocks that embed an image
-  xml = xml.replace(
-    /<mc:AlternateContent\b[^>]*>[\s\S]*?<\/mc:AlternateContent>/g,
-    (m) => (/<a:blip\b/.test(m) || /r:embed=/.test(m) ? "" : m),
-  );
-  // Pass 2 – remove runs whose only payload is a drawing
-  xml = xml.replace(
-    /<w:r(?:\s[^>]*)?>(?:<w:rPr>[\s\S]*?<\/w:rPr>)?<w:drawing>[\s\S]*?<\/w:drawing><\/w:r>/g,
-    "",
-  );
-  // Pass 3 – remove any remaining standalone drawings
-  xml = xml.replace(/<w:drawing>[\s\S]*?<\/w:drawing>/g, "");
+  // Remove drawings using depth-counting (regex with lazy [\s\S]*? breaks on nested
+  // mc:AlternateContent — the innermost close tag is matched first, leaving orphaned
+  // closing tags that corrupt the ZIP and cause Word to reject the file entirely).
+  xml = removeImageDrawings(xml);
 
   // ── Add candidate photo + passport scan ───────────────────────────────────
   const imgSources = [
@@ -302,7 +332,7 @@ async function docxBytesToPdf(bytes: Uint8Array, filename: string) {
 }
 
 function downloadDocx(bytes: Uint8Array, filename: string) {
-  const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+  const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url; a.download = filename;
