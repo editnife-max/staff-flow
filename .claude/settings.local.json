@@ -83,7 +83,12 @@
       "Bash(git rm *)",
       "Bash(git ls-tree *)",
       "mcp__plugin_playwright_playwright__browser_navigate",
-      "mcp__plugin_playwright_playwright__browser_snapshot"
+      "mcp__plugin_playwright_playwright__browser_snapshot",
+      "Bash(node -e \"const m = require\\('cloudflare:workers'\\); console.log\\(Object.keys\\(m\\)\\)\")",
+      "Bash(bun add *)",
+      "Bash(node_modules\\\\.bin\\\\tsc --noEmit)",
+      "PowerShell(bunx tsc --noEmit 2>&1 | Select-Object -First 40)",
+      "PowerShell(bunx tsc --noEmit 2>&1 | Select-Object -First 30)"
     ]
   },
   "enableAllProjectMcpServers": true,
