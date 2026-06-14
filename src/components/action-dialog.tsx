@@ -460,7 +460,10 @@ async function docxBytesToPdf(bytes: Uint8Array, filename: string) {
     const canvas = await html2canvas(el, {
       scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: false, logging: false,
       onclone: (_doc) => {
-        // Only patch oklch in <style> tags — do NOT disable link stylesheets (breaks layout)
+        // Remove app link stylesheets — they contain Tailwind oklch tokens that html2canvas can't parse.
+        // docx-preview injects its own <style> tags so layout is preserved.
+        _doc.querySelectorAll("link[rel='stylesheet']").forEach((s) => s.remove());
+        // Patch any remaining oklch in injected <style> tags
         _doc.querySelectorAll("style").forEach((s) => {
           if (s.textContent?.includes("oklch")) {
             s.textContent = s.textContent.replace(/oklch\([^)]*\)/gi, "#000000");
@@ -735,6 +738,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
   const matchedTemplate = isCV && downloadType !== "normal-cv"
     ? templates.find((t) => t.id === downloadType) ?? null
     : null;
+  const isDocxTemplate  = !!matchedTemplate && matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
 
   const toggleCol = (key: string) =>
     setSelectedCols((prev) => {
@@ -750,13 +754,35 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
     return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
   });
 
+  const handleDocxDownload = async () => {
+    if (!matchedTemplate || !preview) return;
+    setDownloading(true);
+    try {
+      if (isBulk) {
+        toast.info(`Generating ${candidates.length} DOCX files — please wait…`);
+        for (const c of sortedCandidates) {
+          const bytes = await buildFilledDocx(matchedTemplate, c);
+          downloadDocx(bytes, `${c.full_name} — ${currentType.label}.docx`);
+        }
+        toast.success(`${candidates.length} DOCX files downloaded`);
+      } else {
+        const bytes = await buildFilledDocx(matchedTemplate, preview);
+        downloadDocx(bytes, `${preview.full_name} — ${currentType.label}.docx`);
+        toast.success(`${currentType.label} DOCX downloaded`);
+      }
+    } catch (e: any) {
+      toast.error(e.message ?? "DOCX download failed");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const handleDownload = async () => {
     if (candidates.length === 0) return;
     setDownloading(true);
     try {
       if (isCV) {
         if (isBulk) {
-          const isDocxTemplate = !!matchedTemplate && matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
           toast.info(`Generating ${candidates.length} PDFs — please wait…`);
           for (const c of sortedCandidates) {
             if (isDocxTemplate) {
@@ -1035,14 +1061,26 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
               </p>
             )}
           </div>
-          <Button onClick={handleDownload} disabled={downloading} className="rounded-none shrink-0">
-            <Download className="h-4 w-4 mr-2" />
-            {downloading
-              ? "Downloading…"
-              : isBulk
-                ? `Download ${candidates.length} × ${currentType.label}`
-                : `Download — ${currentType.label}`}
-          </Button>
+          <div className="flex items-center gap-2">
+            {isDocxTemplate && (
+              <Button variant="outline" onClick={handleDocxDownload} disabled={downloading} className="rounded-none shrink-0">
+                <FileText className="h-4 w-4 mr-2" />
+                {downloading
+                  ? "Downloading…"
+                  : isBulk
+                    ? `Download ${candidates.length} × DOCX`
+                    : "Download DOCX"}
+              </Button>
+            )}
+            <Button onClick={handleDownload} disabled={downloading} className="rounded-none shrink-0">
+              <Download className="h-4 w-4 mr-2" />
+              {downloading
+                ? "Downloading…"
+                : isBulk
+                  ? `Download ${candidates.length} × ${currentType.label}`
+                  : `Download — ${currentType.label}`}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
