@@ -470,7 +470,6 @@ async function docxBytesToPdf(bytes: Uint8Array, filename: string) {
 
     const canvas = await html2canvas(el, {
       scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: false, logging: false,
-      windowWidth: 794, scrollX: 9999, scrollY: 0,
       onclone: (_doc) => {
         // Remove app link stylesheets — they contain Tailwind oklch tokens that html2canvas can't parse.
         // docx-preview injects its own <style> tags so layout is preserved.
