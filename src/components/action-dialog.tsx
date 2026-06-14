@@ -724,24 +724,13 @@ async function addPassportScanPage(pdf: jsPDF, url: string): Promise<void> {
   const iW = img.naturalWidth  || 800;
   const iH = img.naturalHeight || 600;
 
-  // A4-ish page in px at 96 dpi with 40 px margins; image is scaled to fit and centered
-  const pageW = 794;
-  const pageH = 1123;
-  const margin = 40;
-  const maxW = pageW - margin * 2;
-  const maxH = pageH - margin * 2;
-  const scale = Math.min(maxW / iW, maxH / iH);
-  const drawW = Math.round(iW * scale);
-  const drawH = Math.round(iH * scale);
-  const x = Math.round((pageW - drawW) / 2);
-  const y = Math.round((pageH - drawH) / 2);
-
+  // Page 2 is exactly the size of the passport scan — no scaling, no cropping.
   const cvs = document.createElement("canvas");
   cvs.width = iW; cvs.height = iH;
   cvs.getContext("2d")!.drawImage(img, 0, 0);
 
-  pdf.addPage([pageW, pageH]);
-  pdf.addImage(cvs.toDataURL("image/jpeg", 0.95), "JPEG", x, y, drawW, drawH);
+  pdf.addPage([iW, iH]);
+  pdf.addImage(cvs.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, iW, iH);
 }
 
 function downloadDocx(bytes: Uint8Array, filename: string) {
