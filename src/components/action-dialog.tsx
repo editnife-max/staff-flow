@@ -290,6 +290,43 @@ function fillImageField(
   return xml;
 }
 
+// Replaces the cell whose text IS `label` with the inline image.
+// Used when the label cell itself is the image placeholder, not an adjacent value cell.
+function replaceImageCell(
+  xml: string,
+  label: string,
+  rId: string,
+  naturalW: number,
+  naturalH: number,
+  picId: number,
+): string {
+  const normTarget = normLabel(label);
+  let pos = 0;
+  while (pos < xml.length) {
+    const cellStart = nextCell(xml, pos);
+    if (cellStart === -1) break;
+    const cellEnd = xml.indexOf("</w:tc>", cellStart);
+    if (cellEnd === -1) break;
+    if (normLabel(cellText(xml, cellStart, cellEnd)) === normTarget) {
+      const cellSlice = xml.slice(cellStart, cellEnd + 7);
+      const tcWMatch = cellSlice.match(/<w:tcW\b[^>]*\bw:w="(\d+)"[^>]*\bw:type="([^"]+)"/);
+      let cxEmu = 1371600;
+      if (tcWMatch) {
+        const twips = parseInt(tcWMatch[1]);
+        if (tcWMatch[2] === "dxa" && twips > 0)
+          cxEmu = Math.round((twips / 1440) * 914400);
+      }
+      const cyEmu = naturalW > 0 ? Math.round(cxEmu * (naturalH / naturalW)) : cxEmu;
+      const tcPrMatch = cellSlice.match(/<w:tcPr[\s\S]*?<\/w:tcPr>/);
+      const tcPr = tcPrMatch ? tcPrMatch[0] : "";
+      const newCell = `<w:tc>${tcPr}${inlineDrawingXml(rId, label, picId, cxEmu, cyEmu)}</w:tc>`;
+      return xml.slice(0, cellStart) + newCell + xml.slice(cellEnd + 7);
+    }
+    pos = cellEnd + 7;
+  }
+  return xml;
+}
+
 // Remove mc:AlternateContent blocks that reference images and any remaining
 // bare w:drawing elements. Uses depth-counting for mc:AlternateContent so
 // nested elements don't produce orphaned closing tags (which makes Word refuse
@@ -515,7 +552,8 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promi
   const metaImageCells = meta?.imageCells ?? [];
 
   if (metaImageCells.length > 0) {
-    // Metadata path: Claude identified the exact label cells at upload time
+    // Metadata path: Claude identified the exact placeholder cells at upload time.
+    // Each cell.label IS the cell to replace (not adjacent), so use replaceImageCell.
     let picId = 50;
     for (const cell of metaImageCells) {
       const src =
@@ -536,11 +574,12 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promi
         ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
       }
       const dims = await bytesToDims(img.bytes);
-      xml = fillImageField(xml, cell.label, rId, dims.w, dims.h, picId++);
+      xml = replaceImageCell(xml, cell.label, rId, dims.w, dims.h, picId++);
     }
   } else {
-    // Fallback: no imageCells metadata — search by common hardcoded labels
-    const photoSrc = c.full_photo_url ?? c.photo_url;
+    // Fallback: no imageCells metadata — target common hardcoded placeholder labels.
+    // "PHOTO" cell → candidate's passport-size photo
+    const photoSrc = c.photo_url ?? c.full_photo_url;
     if (photoSrc) {
       const img = await fetchImgBytes(photoSrc);
       if (img) {
@@ -554,10 +593,29 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promi
           ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
         }
         const d = await bytesToDims(img.bytes);
-        xml = fillImageField(xml, "PHOTO",      rId, d.w, d.h, 50);
-        xml = fillImageField(xml, "FULL PHOTO", rId, d.w, d.h, 51);
+        xml = replaceImageCell(xml, "PHOTO", rId, d.w, d.h, 50);
       }
     }
+    // "FULL PHOTO" / "FULL SIZE PHOTO" cell → candidate's full-body photo
+    const fullPhotoSrc = c.full_photo_url ?? c.photo_url;
+    if (fullPhotoSrc) {
+      const img = await fetchImgBytes(fullPhotoSrc);
+      if (img) {
+        const rId   = "rIdCvFullPhotoCell";
+        const fname = `media/cv_fullphoto_cell.${img.ext}`;
+        zip.file(`word/${fname}`, img.bytes);
+        if (!relsXml.includes(`Id="${rId}"`))
+          relsXml = relsXml.replace("</Relationships>", `<Relationship Id="${rId}" Type="${IMG_REL}" Target="${fname}"/></Relationships>`);
+        if (ctXml && !ctXml.includes(`Extension="${img.ext}"`)) {
+          const mime = img.ext === "png" ? "image/png" : "image/jpeg";
+          ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
+        }
+        const d = await bytesToDims(img.bytes);
+        xml = replaceImageCell(xml, "FULL PHOTO",      rId, d.w, d.h, 51);
+        xml = replaceImageCell(xml, "FULL SIZE PHOTO", rId, d.w, d.h, 52);
+      }
+    }
+    // "PASSPORT SCAN" / "PASSPORT" cell → candidate's passport scan (aspect ratio preserved)
     if (c.passport_scan_url) {
       const img = await fetchImgBytes(c.passport_scan_url);
       if (img) {
@@ -571,8 +629,8 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promi
           ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
         }
         const d = await bytesToDims(img.bytes);
-        xml = fillImageField(xml, "PASSPORT SCAN", rId, d.w, d.h, 52);
-        xml = fillImageField(xml, "PASSPORT",      rId, d.w, d.h, 53);
+        xml = replaceImageCell(xml, "PASSPORT SCAN", rId, d.w, d.h, 53);
+        xml = replaceImageCell(xml, "PASSPORT",      rId, d.w, d.h, 54);
       }
     }
   }
