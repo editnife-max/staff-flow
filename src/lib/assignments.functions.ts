@@ -134,9 +134,15 @@ interface ImageSlot {
   purpose: "photo" | "passport" | "unknown";
 }
 
+interface ImageCellDef {
+  label: string;
+  purpose: "photo" | "fullphoto" | "passport";
+}
+
 interface TemplateMetadata {
   fieldMap: Record<string, string>;
   imageSlots: ImageSlot[];
+  imageCells: ImageCellDef[];
 }
 
 // Extract all unique cell texts from document.xml for Claude to analyze.
@@ -197,11 +203,12 @@ function classifySlot(s: { cx: number; cy: number }): ImageSlot["purpose"] {
   return "unknown";
 }
 
-// Call Claude Haiku to map template labels → standard field names.
+// Call Claude Haiku to map template labels → standard field names AND identify image cells.
 async function analyzeFieldsWithClaude(
   cellTexts: string[],
   apiKey: string,
-): Promise<Record<string, string>> {
+): Promise<{ fieldMap: Record<string, string>; imageCells: ImageCellDef[] }> {
+  const EMPTY = { fieldMap: {}, imageCells: [] };
   const STANDARD = [
     "FULL_NAME", "POSITION", "PASSPORT_NUMBER", "PASSPORT_ISSUE_DATE",
     "PASSPORT_EXPIRY_DATE", "PLACE_OF_ISSUE", "ENGLISH_LEVEL", "ARABIC_LEVEL",
@@ -214,16 +221,24 @@ async function analyzeFieldsWithClaude(
     "ARRIVAL_CITY", "INSURANCE_STATUS",
   ];
 
-  const prompt =
-    `You are analyzing a CV template for a recruitment system.\n\n` +
-    `These are the unique label texts found in the template's table cells:\n` +
-    `${cellTexts.map((t) => `"${t}"`).join(", ")}\n\n` +
-    `Map ONLY the relevant labels to their closest standard field from this list:\n` +
-    `${STANDARD.join(", ")}\n\n` +
-    `Rules:\n` +
-    `- Skip Arabic-only text, section headers, decorative text, and anything without a clear match\n` +
-    `- Return ONLY valid JSON, no explanation\n\n` +
-    `Example: {"Full Name": "FULL_NAME", "Passport No.": "PASSPORT_NUMBER"}`;
+  const systemPrompt =
+    `You are analyzing a CV/recruitment DOCX template.\n\n` +
+    `Complete TWO tasks:\n\n` +
+    `TASK 1 — Field mapping:\n` +
+    `Map ONLY labels that match a standard candidate field to one of these names:\n` +
+    `${STANDARD.join(", ")}\n` +
+    `Skip Arabic-only text, section headers, and decorative text.\n\n` +
+    `TASK 2 — Image cell identification:\n` +
+    `Identify labels that are image/photo placeholders. Classify each as:\n` +
+    `- "photo"     → small passport-size photo (e.g. "PHOTO", "صورة", "Picture", "4x4")\n` +
+    `- "fullphoto" → large or full-body photo (e.g. "FULL PHOTO", "Full Size Photo", "صورة كاملة")\n` +
+    `- "passport"  → passport bio-page scan (e.g. "PASSPORT SCAN", "PASSPORT COPY", "صورة الجواز")\n\n` +
+    `Return ONLY valid JSON, no explanation:\n` +
+    `{"fieldMap":{"Label":"STANDARD_FIELD"},"imageCells":[{"label":"PHOTO","purpose":"photo"}]}`;
+
+  const userPrompt =
+    `These are the unique text labels found in the template's table cells:\n` +
+    `${cellTexts.map((t) => `"${t}"`).join(", ")}`;
 
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -232,21 +247,32 @@ async function analyzeFieldsWithClaude(
         "Content-Type": "application/json",
         "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
+        "anthropic-beta": "prompt-caching-2024-07-31",
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 512,
-        messages: [{ role: "user", content: prompt }],
+        max_tokens: 1024,
+        system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
+        messages: [{ role: "user", content: userPrompt }],
       }),
     });
-    if (!res.ok) return {};
+    if (!res.ok) return EMPTY;
     const result = await res.json() as { content: Array<{ type: string; text: string }> };
     const text = result.content.find((c) => c.type === "text")?.text ?? "";
     const match = /\{[\s\S]*\}/.exec(text);
-    if (!match) return {};
-    return JSON.parse(match[0]) as Record<string, string>;
+    if (!match) return EMPTY;
+    const parsed = JSON.parse(match[0]) as { fieldMap?: unknown; imageCells?: unknown };
+    const fieldMap = (parsed.fieldMap && typeof parsed.fieldMap === "object" && !Array.isArray(parsed.fieldMap))
+      ? parsed.fieldMap as Record<string, string>
+      : {};
+    const imageCells = Array.isArray(parsed.imageCells)
+      ? (parsed.imageCells as ImageCellDef[]).filter(
+          (x) => typeof x.label === "string" && ["photo", "fullphoto", "passport"].includes(x.purpose),
+        )
+      : [];
+    return { fieldMap, imageCells };
   } catch {
-    return {};
+    return EMPTY;
   }
 }
 
@@ -279,12 +305,13 @@ export const optimizeCvTemplate = createServerFn({ method: "POST" })
     // Ask Claude to map this template's label text to standard field names
     const cellTexts = extractCellTexts(docXml);
     let fieldMap: Record<string, string> = {};
+    let imageCells: ImageCellDef[] = [];
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (apiKey && cellTexts.length > 0) {
-      fieldMap = await analyzeFieldsWithClaude(cellTexts, apiKey);
+      ({ fieldMap, imageCells } = await analyzeFieldsWithClaude(cellTexts, apiKey));
     }
 
-    const metadata: TemplateMetadata = { fieldMap, imageSlots };
+    const metadata: TemplateMetadata = { fieldMap, imageSlots, imageCells };
 
     // Repack via PizZip so client-side PizZip can process it reliably
     const repackedBytes = zip.generate({ type: "uint8array" });

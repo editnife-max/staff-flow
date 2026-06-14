@@ -34,6 +34,7 @@ interface TemplateMetadata {
     anchorType: string;
     purpose: "photo" | "passport" | "unknown";
   }>;
+  imageCells?: Array<{ label: string; purpose: "photo" | "fullphoto" | "passport" }>;
 }
 
 // Map a standard field name (returned by Claude) to the candidate's value.
@@ -510,44 +511,69 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promi
   }
 
   // ── Cell-based image fill ───────────────────────────────────────────────────
-  // Finds cells whose label text is "PHOTO" / "PASSPORT SCAN" / "PASSPORT" and
-  // replaces the adjacent value cell with an embedded inline drawing.
-  // Works on any template without needing pre-analysed imageSlots metadata.
   const IMG_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image";
+  const metaImageCells = meta?.imageCells ?? [];
 
-  const photoSrc = c.full_photo_url ?? c.photo_url;
-  if (photoSrc) {
-    const img = await fetchImgBytes(photoSrc);
-    if (img) {
-      const rId   = "rIdCvPhotoCell";
-      const fname = `media/cv_photo_cell.${img.ext}`;
+  if (metaImageCells.length > 0) {
+    // Metadata path: Claude identified the exact label cells at upload time
+    let picId = 50;
+    for (const cell of metaImageCells) {
+      const src =
+        cell.purpose === "fullphoto" ? (c.full_photo_url ?? c.photo_url) :
+        cell.purpose === "passport"  ? c.passport_scan_url :
+        /* photo */                    (c.photo_url ?? c.full_photo_url);
+      if (!src) continue;
+      const img = await fetchImgBytes(src);
+      if (!img) continue;
+      const rId   = `rIdCell_${cell.purpose}_${picId}`;
+      const fname = `media/cv_cell_${cell.purpose}_${picId}.${img.ext}`;
       zip.file(`word/${fname}`, img.bytes);
       if (!relsXml.includes(`Id="${rId}"`))
-        relsXml = relsXml.replace("</Relationships>", `<Relationship Id="${rId}" Type="${IMG_REL}" Target="${fname}"/></Relationships>`);
+        relsXml = relsXml.replace("</Relationships>",
+          `<Relationship Id="${rId}" Type="${IMG_REL}" Target="${fname}"/></Relationships>`);
       if (ctXml && !ctXml.includes(`Extension="${img.ext}"`)) {
         const mime = img.ext === "png" ? "image/png" : "image/jpeg";
         ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
       }
-      const photoDims = await bytesToDims(img.bytes);
-      xml = fillImageField(xml, "PHOTO", rId, photoDims.w, photoDims.h, 50);
+      const dims = await bytesToDims(img.bytes);
+      xml = fillImageField(xml, cell.label, rId, dims.w, dims.h, picId++);
     }
-  }
-
-  if (c.passport_scan_url) {
-    const img = await fetchImgBytes(c.passport_scan_url);
-    if (img) {
-      const rId   = "rIdCvPassportCell";
-      const fname = `media/cv_passport_cell.${img.ext}`;
-      zip.file(`word/${fname}`, img.bytes);
-      if (!relsXml.includes(`Id="${rId}"`))
-        relsXml = relsXml.replace("</Relationships>", `<Relationship Id="${rId}" Type="${IMG_REL}" Target="${fname}"/></Relationships>`);
-      if (ctXml && !ctXml.includes(`Extension="${img.ext}"`)) {
-        const mime = img.ext === "png" ? "image/png" : "image/jpeg";
-        ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
+  } else {
+    // Fallback: no imageCells metadata — search by common hardcoded labels
+    const photoSrc = c.full_photo_url ?? c.photo_url;
+    if (photoSrc) {
+      const img = await fetchImgBytes(photoSrc);
+      if (img) {
+        const rId   = "rIdCvPhotoCell";
+        const fname = `media/cv_photo_cell.${img.ext}`;
+        zip.file(`word/${fname}`, img.bytes);
+        if (!relsXml.includes(`Id="${rId}"`))
+          relsXml = relsXml.replace("</Relationships>", `<Relationship Id="${rId}" Type="${IMG_REL}" Target="${fname}"/></Relationships>`);
+        if (ctXml && !ctXml.includes(`Extension="${img.ext}"`)) {
+          const mime = img.ext === "png" ? "image/png" : "image/jpeg";
+          ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
+        }
+        const d = await bytesToDims(img.bytes);
+        xml = fillImageField(xml, "PHOTO",      rId, d.w, d.h, 50);
+        xml = fillImageField(xml, "FULL PHOTO", rId, d.w, d.h, 51);
       }
-      const passDims = await bytesToDims(img.bytes);
-      xml = fillImageField(xml, "PASSPORT SCAN", rId, passDims.w, passDims.h, 51);
-      xml = fillImageField(xml, "PASSPORT",      rId, passDims.w, passDims.h, 52);
+    }
+    if (c.passport_scan_url) {
+      const img = await fetchImgBytes(c.passport_scan_url);
+      if (img) {
+        const rId   = "rIdCvPassportCell";
+        const fname = `media/cv_passport_cell.${img.ext}`;
+        zip.file(`word/${fname}`, img.bytes);
+        if (!relsXml.includes(`Id="${rId}"`))
+          relsXml = relsXml.replace("</Relationships>", `<Relationship Id="${rId}" Type="${IMG_REL}" Target="${fname}"/></Relationships>`);
+        if (ctXml && !ctXml.includes(`Extension="${img.ext}"`)) {
+          const mime = img.ext === "png" ? "image/png" : "image/jpeg";
+          ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
+        }
+        const d = await bytesToDims(img.bytes);
+        xml = fillImageField(xml, "PASSPORT SCAN", rId, d.w, d.h, 52);
+        xml = fillImageField(xml, "PASSPORT",      rId, d.w, d.h, 53);
+      }
     }
   }
 
