@@ -228,6 +228,53 @@ function fillField(xml: string, label: string, value: string): string {
   return xml;
 }
 
+// Finds the value cell adjacent to a label cell and replaces its content with an
+// inline image drawing — mirrors the logic of fillField but for images.
+function fillImageField(
+  xml: string,
+  label: string,
+  rId: string,
+  cxEmu: number,
+  cyEmu: number,
+  picId: number,
+): string {
+  const normTarget = normLabel(label);
+  let pos = 0;
+  while (pos < xml.length) {
+    const cellStart = nextCell(xml, pos);
+    if (cellStart === -1) break;
+    const cellEnd = xml.indexOf("</w:tc>", cellStart);
+    if (cellEnd === -1) break;
+
+    if (normLabel(cellText(xml, cellStart, cellEnd)) === normTarget) {
+      let nStart = nextCell(xml, cellEnd + 7);
+      if (nStart === -1) { pos = cellEnd + 7; continue; }
+      let nEnd = xml.indexOf("</w:tc>", nStart);
+      if (nEnd === -1) { pos = cellEnd + 7; continue; }
+
+      // Skip Arabic label cell (same logic as fillField)
+      if (/[؀-ۿ]/.test(cellText(xml, nStart, nEnd))) {
+        const s2 = nextCell(xml, nEnd + 7);
+        if (s2 !== -1) {
+          const e2 = xml.indexOf("</w:tc>", s2);
+          if (e2 !== -1) { nStart = s2; nEnd = e2; }
+        }
+      }
+
+      // Preserve <w:tcPr> (borders/width/shading) but replace all paragraph content
+      const cellSlice = xml.slice(nStart, nEnd + 7);
+      const tcPrMatch = cellSlice.match(/<w:tcPr[\s\S]*?<\/w:tcPr>/);
+      const tcPr = tcPrMatch ? tcPrMatch[0] : "";
+      const newCell = `<w:tc>${tcPr}${inlineDrawingXml(rId, label, picId, cxEmu, cyEmu)}</w:tc>`;
+
+      return xml.slice(0, nStart) + newCell + xml.slice(nEnd + 7);
+    }
+
+    pos = cellEnd + 7;
+  }
+  return xml;
+}
+
 // Remove mc:AlternateContent blocks that reference images and any remaining
 // bare w:drawing elements. Uses depth-counting for mc:AlternateContent so
 // nested elements don't produce orphaned closing tags (which makes Word refuse
@@ -437,11 +484,55 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promi
     zip.file(relsPath, new TextEncoder().encode(relsXml));
   }
 
+  // ── Cell-based image fill ───────────────────────────────────────────────────
+  // Finds cells whose label text is "PHOTO" / "PASSPORT SCAN" / "PASSPORT" and
+  // replaces the adjacent value cell with an embedded inline drawing.
+  // Works on any template without needing pre-analysed imageSlots metadata.
+  const IMG_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image";
+
+  const photoSrc = c.full_photo_url ?? c.photo_url;
+  if (photoSrc) {
+    const img = await fetchImgBytes(photoSrc);
+    if (img) {
+      const rId   = "rIdCvPhotoCell";
+      const fname = `media/cv_photo_cell.${img.ext}`;
+      zip.file(`word/${fname}`, img.bytes);
+      if (!relsXml.includes(`Id="${rId}"`))
+        relsXml = relsXml.replace("</Relationships>", `<Relationship Id="${rId}" Type="${IMG_REL}" Target="${fname}"/></Relationships>`);
+      if (ctXml && !ctXml.includes(`Extension="${img.ext}"`)) {
+        const mime = img.ext === "png" ? "image/png" : "image/jpeg";
+        ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
+      }
+      xml = fillImageField(xml, "PHOTO", rId, 914400, 1219200, 50);
+    }
+  }
+
+  if (c.passport_scan_url) {
+    const img = await fetchImgBytes(c.passport_scan_url);
+    if (img) {
+      const rId   = "rIdCvPassportCell";
+      const fname = `media/cv_passport_cell.${img.ext}`;
+      zip.file(`word/${fname}`, img.bytes);
+      if (!relsXml.includes(`Id="${rId}"`))
+        relsXml = relsXml.replace("</Relationships>", `<Relationship Id="${rId}" Type="${IMG_REL}" Target="${fname}"/></Relationships>`);
+      if (ctXml && !ctXml.includes(`Extension="${img.ext}"`)) {
+        const mime = img.ext === "png" ? "image/png" : "image/jpeg";
+        ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
+      }
+      xml = fillImageField(xml, "PASSPORT SCAN", rId, 4572000, 2743200, 51);
+      xml = fillImageField(xml, "PASSPORT",      rId, 4572000, 2743200, 52);
+    }
+  }
+
+  // Final authoritative write of rels + content types (overwrites earlier in-branch writes)
+  zip.file(relsPath, new TextEncoder().encode(relsXml));
+  if (ctXml) zip.file(ctPath, new TextEncoder().encode(ctXml));
+
   zip.file("word/document.xml", new TextEncoder().encode(xml));
   return zip.generate({ type: "uint8array" });
 }
 
-async function docxBytesToPdf(bytes: Uint8Array, filename: string) {
+async function docxBytesToPdf(bytes: Uint8Array, filename: string, passportUrl?: string) {
   const container = document.createElement("div");
   // Offset LEFT (not above) so html2canvas can measure element height from top:0
   container.style.cssText = "position:absolute;top:0;left:-9999px;width:794px;background:#fff;overflow:visible;";
@@ -487,10 +578,24 @@ async function docxBytesToPdf(bytes: Uint8Array, filename: string) {
     if (!pw || !ph) throw new Error("CV template rendered to a blank page — nothing to export");
     const pdf = new jsPDF({ unit: "px", format: [pw, ph] });
     pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pw, ph);
+    if (passportUrl) await addPassportScanPage(pdf, passportUrl);
     pdf.save(filename);
   } finally {
     document.body.removeChild(container);
   }
+}
+
+async function addPassportScanPage(pdf: jsPDF, url: string): Promise<void> {
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = rej; img.src = url; });
+  const w = img.naturalWidth  || 800;
+  const h = img.naturalHeight || 600;
+  const cvs = document.createElement("canvas");
+  cvs.width = w; cvs.height = h;
+  cvs.getContext("2d")!.drawImage(img, 0, 0);
+  pdf.addPage([w, h]);
+  pdf.addImage(cvs.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, w, h);
 }
 
 function downloadDocx(bytes: Uint8Array, filename: string) {
@@ -798,12 +903,13 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
           for (const c of sortedCandidates) {
             if (isDocxTemplate) {
               const bytes = await buildFilledDocx(matchedTemplate!, c);
-              await docxBytesToPdf(bytes, `${c.full_name} — ${currentType.label}.pdf`);
+              await docxBytesToPdf(bytes, `${c.full_name} — ${currentType.label}.pdf`, c.passport_scan_url ?? undefined);
             } else {
               const canvas = await candidateToCanvas(c, matchedTemplate);
               const w = Math.round(canvas.width / 2), h = Math.round(canvas.height / 2);
               const pdf = new jsPDF({ unit: "px", format: [w, h] });
               pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, w, h);
+              if (c.passport_scan_url) await addPassportScanPage(pdf, c.passport_scan_url);
               pdf.save(`${c.full_name} — ${currentType.label}.pdf`);
             }
           }
@@ -814,12 +920,13 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
             const isDocx = matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
             if (isDocx) {
               const bytes = await buildFilledDocx(matchedTemplate, preview!);
-              await docxBytesToPdf(bytes, `${preview!.full_name} — ${currentType.label}.pdf`);
+              await docxBytesToPdf(bytes, `${preview!.full_name} — ${currentType.label}.pdf`, preview!.passport_scan_url ?? undefined);
             } else {
               const canvas = await candidateToCanvas(preview!, matchedTemplate);
               const w = Math.round(canvas.width / 2), h = Math.round(canvas.height / 2);
               const pdf = new jsPDF({ unit: "px", format: [w, h] });
               pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, w, h);
+              if (preview!.passport_scan_url) await addPassportScanPage(pdf, preview!.passport_scan_url);
               pdf.save(`${preview!.full_name} — ${currentType.label}.pdf`);
             }
             toast.success(`${currentType.label} downloaded`);
@@ -830,6 +937,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
             const pxW = Math.round(canvas.width / 2), pxH = Math.round(canvas.height / 2);
             const pdf = new jsPDF({ unit: "px", format: [pxW, pxH] });
             pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pxW, pxH);
+            if (preview!.passport_scan_url) await addPassportScanPage(pdf, preview!.passport_scan_url);
             pdf.save(`${preview!.full_name} — ${currentType.label}.pdf`);
             toast.success(`${currentType.label} downloaded`);
           }
