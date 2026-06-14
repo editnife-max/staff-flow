@@ -443,22 +443,34 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promi
 
 async function docxBytesToPdf(bytes: Uint8Array, filename: string) {
   const container = document.createElement("div");
-  // position:absolute far off-screen — html2canvas needs the element in the normal layout flow
-  container.style.cssText = "position:absolute;top:-19999px;left:0;width:794px;background:#fff;overflow:visible;";
+  // Offset LEFT (not above) so html2canvas can measure element height from top:0
+  container.style.cssText = "position:absolute;top:0;left:-9999px;width:794px;background:#fff;overflow:visible;";
   document.body.appendChild(container);
   try {
     const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
     await docxRenderAsync(buf, container, undefined, {
       className: "docx-pdf-render",
-      inWrapper: true,    // ensures a block-level article wrapper with measurable dimensions
-      ignoreWidth: true,  // use container width (794 px), not the DOCX page width
-      ignoreHeight: true, // let content expand naturally so the canvas gets the full height
+      inWrapper: true,
+      ignoreWidth: true,
+      ignoreHeight: true,
     });
-    // Brief pause so any async images inside docx-preview settle
-    await new Promise<void>((r) => setTimeout(r, 200));
-    const el = (container.firstElementChild as HTMLElement) ?? container;
+    // Wait for async images inside docx-preview to settle
+    await new Promise<void>((r) => setTimeout(r, 500));
+
+    // docx-preview with inWrapper:true creates an <article> child
+    const el = (container.querySelector("article") as HTMLElement)
+      ?? (container.firstElementChild as HTMLElement)
+      ?? container;
+
+    const elH = el.scrollHeight || el.offsetHeight;
+    if (!elH) throw new Error("CV template rendered to a blank page — nothing to export");
+
+    // Pin explicit height so html2canvas captures the full content height
+    el.style.height = `${elH}px`;
+
     const canvas = await html2canvas(el, {
       scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: false, logging: false,
+      windowWidth: 794, scrollX: 9999, scrollY: 0,
       onclone: (_doc) => {
         // Remove app link stylesheets — they contain Tailwind oklch tokens that html2canvas can't parse.
         // docx-preview injects its own <style> tags so layout is preserved.
