@@ -348,6 +348,57 @@ function replaceImageCell(
   return xml;
 }
 
+// Like replaceImageCell but matches any cell whose normalized text CONTAINS `substring`.
+// Used in the fallback path where exact label wording is unknown.
+// Because a replaced cell loses its text, calling this multiple times on the same xml
+// is safe — already-replaced cells won't re-match.
+function replaceImageCellContaining(
+  xml: string,
+  substring: string,
+  rId: string,
+  naturalW: number,
+  naturalH: number,
+  picId: number,
+): string {
+  const normSub = normLabel(substring);
+  let pos = 0;
+  while (pos < xml.length) {
+    const cellStart = nextCell(xml, pos);
+    if (cellStart === -1) break;
+    const cellEnd = xml.indexOf("</w:tc>", cellStart);
+    if (cellEnd === -1) break;
+    if (normLabel(cellText(xml, cellStart, cellEnd)).includes(normSub)) {
+      const cellSlice = xml.slice(cellStart, cellEnd + 7);
+      const tcWAttrs = /<w:tcW\b([^/]*)\/?>/.exec(cellSlice)?.[1] ?? "";
+      const twips    = parseInt(/\bw:w="(\d+)"/.exec(tcWAttrs)?.[1] ?? "0");
+      const twType   = /\bw:type="([^"]+)"/.exec(tcWAttrs)?.[1]    ?? "";
+      let cxEmu = twType === "dxa" && twips > 0
+        ? Math.round((twips / 1440) * 914400)
+        : 1371600;
+      let cyEmu = naturalW > 0 ? Math.round(cxEmu * (naturalH / naturalW)) : cxEmu;
+      const trStart = xml.lastIndexOf("<w:tr", cellStart);
+      if (trStart !== -1) {
+        const trPrSlice = xml.slice(trStart, cellStart);
+        const trHAttrs  = /<w:trHeight\b([^/]*)\/?>/.exec(trPrSlice)?.[1] ?? "";
+        const hTwips    = parseInt(/\bw:val="(\d+)"/.exec(trHAttrs)?.[1]   ?? "0");
+        if (hTwips > 0) {
+          const maxCy = Math.round((hTwips / 1440) * 914400);
+          if (cyEmu > maxCy) {
+            cyEmu = maxCy;
+            cxEmu = naturalH > 0 ? Math.round(cyEmu * (naturalW / naturalH)) : cxEmu;
+          }
+        }
+      }
+      const tcPrMatch = cellSlice.match(/<w:tcPr[\s\S]*?<\/w:tcPr>/);
+      const tcPr = tcPrMatch ? tcPrMatch[0] : "";
+      const newCell = `<w:tc>${tcPr}${inlineDrawingXml(rId, substring, picId, cxEmu, cyEmu)}</w:tc>`;
+      return xml.slice(0, cellStart) + newCell + xml.slice(cellEnd + 7);
+    }
+    pos = cellEnd + 7;
+  }
+  return xml;
+}
+
 // Remove mc:AlternateContent blocks that reference images and any remaining
 // bare w:drawing elements. Uses depth-counting for mc:AlternateContent so
 // nested elements don't produce orphaned closing tags (which makes Word refuse
@@ -595,29 +646,19 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promi
         ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
       }
       const dims = await bytesToDims(img.bytes);
-      xml = replaceImageCell(xml, cell.label, rId, dims.w, dims.h, picId++);
+      // Exact match first; fall back to contains for Arabic/English mixed cells
+      const before = xml;
+      xml = replaceImageCell(xml, cell.label, rId, dims.w, dims.h, picId);
+      if (xml === before)
+        xml = replaceImageCellContaining(xml, cell.label, rId, dims.w, dims.h, picId);
+      picId++;
     }
   } else {
-    // Fallback: no imageCells metadata — target common hardcoded placeholder labels.
-    // "PHOTO" cell → candidate's passport-size photo
-    const photoSrc = c.photo_url ?? c.full_photo_url;
-    if (photoSrc) {
-      const img = await fetchImgBytes(photoSrc);
-      if (img) {
-        const rId   = "rIdCvPhotoCell";
-        const fname = `media/cv_photo_cell.${img.ext}`;
-        zip.file(`word/${fname}`, img.bytes);
-        if (!relsXml.includes(`Id="${rId}"`))
-          relsXml = relsXml.replace("</Relationships>", `<Relationship Id="${rId}" Type="${IMG_REL}" Target="${fname}"/></Relationships>`);
-        if (ctXml && !ctXml.includes(`Extension="${img.ext}"`)) {
-          const mime = img.ext === "png" ? "image/png" : "image/jpeg";
-          ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
-        }
-        const d = await bytesToDims(img.bytes);
-        xml = replaceImageCell(xml, "PHOTO", rId, d.w, d.h, 50);
-      }
-    }
-    // "FULL PHOTO" / "FULL SIZE PHOTO" cell → candidate's full-body photo
+    // Fallback: no imageCells metadata — use contains matching so label variants like
+    // "4x4 PHOTO", "Full Size Photo", "Passport Scan" all work.
+    // Most-specific substrings run first so "PHOTO" doesn't steal "FULL SIZE PHOTO" cells.
+
+    // Full-body photo
     const fullPhotoSrc = c.full_photo_url ?? c.photo_url;
     if (fullPhotoSrc) {
       const img = await fetchImgBytes(fullPhotoSrc);
@@ -632,11 +673,30 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promi
           ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
         }
         const d = await bytesToDims(img.bytes);
-        xml = replaceImageCell(xml, "FULL PHOTO",      rId, d.w, d.h, 51);
-        xml = replaceImageCell(xml, "FULL SIZE PHOTO", rId, d.w, d.h, 52);
+        xml = replaceImageCellContaining(xml, "FULL SIZE PHOTO", rId, d.w, d.h, 51);
+        xml = replaceImageCellContaining(xml, "FULL BODY PHOTO", rId, d.w, d.h, 52);
+        xml = replaceImageCellContaining(xml, "FULL PHOTO",      rId, d.w, d.h, 53);
       }
     }
-    // "PASSPORT SCAN" / "PASSPORT" cell → candidate's passport scan (aspect ratio preserved)
+    // Passport-size photo — runs after full variants so "PHOTO" doesn't steal those cells
+    const photoSrc = c.photo_url ?? c.full_photo_url;
+    if (photoSrc) {
+      const img = await fetchImgBytes(photoSrc);
+      if (img) {
+        const rId   = "rIdCvPhotoCell";
+        const fname = `media/cv_photo_cell.${img.ext}`;
+        zip.file(`word/${fname}`, img.bytes);
+        if (!relsXml.includes(`Id="${rId}"`))
+          relsXml = relsXml.replace("</Relationships>", `<Relationship Id="${rId}" Type="${IMG_REL}" Target="${fname}"/></Relationships>`);
+        if (ctXml && !ctXml.includes(`Extension="${img.ext}"`)) {
+          const mime = img.ext === "png" ? "image/png" : "image/jpeg";
+          ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
+        }
+        const d = await bytesToDims(img.bytes);
+        xml = replaceImageCellContaining(xml, "PHOTO", rId, d.w, d.h, 50);
+      }
+    }
+    // Passport scan
     if (c.passport_scan_url) {
       const img = await fetchImgBytes(c.passport_scan_url);
       if (img) {
@@ -650,8 +710,9 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promi
           ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
         }
         const d = await bytesToDims(img.bytes);
-        xml = replaceImageCell(xml, "PASSPORT SCAN", rId, d.w, d.h, 53);
-        xml = replaceImageCell(xml, "PASSPORT",      rId, d.w, d.h, 54);
+        xml = replaceImageCellContaining(xml, "PASSPORT SCAN", rId, d.w, d.h, 60);
+        xml = replaceImageCellContaining(xml, "PASSPORT COPY", rId, d.w, d.h, 61);
+        xml = replaceImageCellContaining(xml, "PASSPORT",      rId, d.w, d.h, 62);
       }
     }
   }
