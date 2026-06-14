@@ -267,13 +267,12 @@ function fillImageField(
       const cellSlice = xml.slice(nStart, nEnd + 7);
 
       // Read the cell's declared width (dxa = twips, 1440 twips = 1 inch = 914400 EMU)
-      const tcWMatch = cellSlice.match(/<w:tcW\b[^>]*\bw:w="(\d+)"[^>]*\bw:type="([^"]+)"/);
-      let cxEmu = 1371600; // fallback ~1.5 inch
-      if (tcWMatch) {
-        const twips = parseInt(tcWMatch[1]);
-        if (tcWMatch[2] === "dxa" && twips > 0)
-          cxEmu = Math.round((twips / 1440) * 914400);
-      }
+      const tcWAttrs = /<w:tcW\b([^/]*)\/?>/.exec(cellSlice)?.[1] ?? "";
+      const fTwips   = parseInt(/\bw:w="(\d+)"/.exec(tcWAttrs)?.[1]    ?? "0");
+      const fTwType  = /\bw:type="([^"]+)"/.exec(tcWAttrs)?.[1]        ?? "";
+      let cxEmu = fTwType === "dxa" && fTwips > 0
+        ? Math.round((fTwips / 1440) * 914400)
+        : 1371600; // fallback ~1.5 inch
       // Proportional height based on image's natural aspect ratio
       const cyEmu = naturalW > 0 ? Math.round(cxEmu * (naturalH / naturalW)) : cxEmu;
 
@@ -291,7 +290,8 @@ function fillImageField(
 }
 
 // Replaces the cell whose text IS `label` with the inline image.
-// Used when the label cell itself is the image placeholder, not an adjacent value cell.
+// Reads cell width and row height from the OOXML so the image fills the cell
+// without overflowing (aspect ratio is always preserved).
 function replaceImageCell(
   xml: string,
   label: string,
@@ -307,21 +307,42 @@ function replaceImageCell(
     if (cellStart === -1) break;
     const cellEnd = xml.indexOf("</w:tc>", cellStart);
     if (cellEnd === -1) break;
+
     if (normLabel(cellText(xml, cellStart, cellEnd)) === normTarget) {
       const cellSlice = xml.slice(cellStart, cellEnd + 7);
-      const tcWMatch = cellSlice.match(/<w:tcW\b[^>]*\bw:w="(\d+)"[^>]*\bw:type="([^"]+)"/);
-      let cxEmu = 1371600;
-      if (tcWMatch) {
-        const twips = parseInt(tcWMatch[1]);
-        if (tcWMatch[2] === "dxa" && twips > 0)
-          cxEmu = Math.round((twips / 1440) * 914400);
+
+      // Parse <w:tcW> width — extract attrs independently so order doesn't matter
+      const tcWAttrs = /<w:tcW\b([^/]*)\/?>/.exec(cellSlice)?.[1] ?? "";
+      const twips    = parseInt(/\bw:w="(\d+)"/.exec(tcWAttrs)?.[1]    ?? "0");
+      const twType   = /\bw:type="([^"]+)"/.exec(tcWAttrs)?.[1]        ?? "";
+      let cxEmu = twType === "dxa" && twips > 0
+        ? Math.round((twips / 1440) * 914400)
+        : 1371600; // ~1.5 inch fallback
+
+      // Height from natural aspect ratio
+      let cyEmu = naturalW > 0 ? Math.round(cxEmu * (naturalH / naturalW)) : cxEmu;
+
+      // Cap to the row's declared height so the image stays inside the cell
+      const trStart   = xml.lastIndexOf("<w:tr", cellStart);
+      if (trStart !== -1) {
+        const trPrSlice = xml.slice(trStart, cellStart);
+        const trHAttrs  = /<w:trHeight\b([^/]*)\/?>/.exec(trPrSlice)?.[1] ?? "";
+        const hTwips    = parseInt(/\bw:val="(\d+)"/.exec(trHAttrs)?.[1]   ?? "0");
+        if (hTwips > 0) {
+          const maxCy = Math.round((hTwips / 1440) * 914400);
+          if (cyEmu > maxCy) {
+            cyEmu = maxCy;
+            cxEmu = naturalH > 0 ? Math.round(cyEmu * (naturalW / naturalH)) : cxEmu;
+          }
+        }
       }
-      const cyEmu = naturalW > 0 ? Math.round(cxEmu * (naturalH / naturalW)) : cxEmu;
+
       const tcPrMatch = cellSlice.match(/<w:tcPr[\s\S]*?<\/w:tcPr>/);
       const tcPr = tcPrMatch ? tcPrMatch[0] : "";
       const newCell = `<w:tc>${tcPr}${inlineDrawingXml(rId, label, picId, cxEmu, cyEmu)}</w:tc>`;
       return xml.slice(0, cellStart) + newCell + xml.slice(cellEnd + 7);
     }
+
     pos = cellEnd + 7;
   }
   return xml;
