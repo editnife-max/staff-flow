@@ -984,13 +984,22 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
                     <button type="button" onClick={() => setSelectedCols(new Set())}
                       className="text-xs text-muted-foreground hover:underline">None</button>
                   </div>
-                  <div className="grid grid-cols-4 gap-x-2 gap-y-2.5">
-                    {EXPORT_COLUMNS.map((col) => (
-                      <label key={col.label} className="flex items-center gap-1.5 cursor-pointer min-w-0">
-                        <Checkbox checked={selectedCols.has(col.key as string)} onCheckedChange={() => toggleCol(col.key as string)} className="rounded-none h-4 w-4 shrink-0" />
-                        <span className="text-xs leading-tight text-foreground truncate">{col.label}</span>
-                      </label>
-                    ))}
+                  <div className="grid grid-cols-4 gap-x-2 gap-y-1.5">
+                    {EXPORT_COLUMNS.map((col) => {
+                      const checked = selectedCols.has(col.key as string);
+                      return (
+                        <label key={col.label}
+                          className={cn(
+                            "flex items-center gap-1.5 cursor-pointer min-w-0 px-2 py-1.5 border transition-colors",
+                            checked
+                              ? "border-primary/30 bg-primary/5"
+                              : "border-transparent bg-transparent opacity-40 hover:opacity-70",
+                          )}>
+                          <Checkbox checked={checked} onCheckedChange={() => toggleCol(col.key as string)} className="rounded-none h-4 w-4 shrink-0" />
+                          <span className={cn("text-xs leading-tight truncate", checked ? "text-foreground font-medium" : "text-muted-foreground")}>{col.label}</span>
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
               )}
