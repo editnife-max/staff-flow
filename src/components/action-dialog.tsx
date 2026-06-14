@@ -230,12 +230,14 @@ function fillField(xml: string, label: string, value: string): string {
 
 // Finds the value cell adjacent to a label cell and replaces its content with an
 // inline image drawing — mirrors the logic of fillField but for images.
+// naturalW/naturalH are the image's pixel dimensions used to preserve aspect ratio.
+// The cell's actual width is read from <w:tcW> so the image fills the cell.
 function fillImageField(
   xml: string,
   label: string,
   rId: string,
-  cxEmu: number,
-  cyEmu: number,
+  naturalW: number,
+  naturalH: number,
   picId: number,
 ): string {
   const normTarget = normLabel(label);
@@ -261,8 +263,20 @@ function fillImageField(
         }
       }
 
-      // Preserve <w:tcPr> (borders/width/shading) but replace all paragraph content
       const cellSlice = xml.slice(nStart, nEnd + 7);
+
+      // Read the cell's declared width (dxa = twips, 1440 twips = 1 inch = 914400 EMU)
+      const tcWMatch = cellSlice.match(/<w:tcW\b[^>]*\bw:w="(\d+)"[^>]*\bw:type="([^"]+)"/);
+      let cxEmu = 1371600; // fallback ~1.5 inch
+      if (tcWMatch) {
+        const twips = parseInt(tcWMatch[1]);
+        if (tcWMatch[2] === "dxa" && twips > 0)
+          cxEmu = Math.round((twips / 1440) * 914400);
+      }
+      // Proportional height based on image's natural aspect ratio
+      const cyEmu = naturalW > 0 ? Math.round(cxEmu * (naturalH / naturalW)) : cxEmu;
+
+      // Preserve <w:tcPr> (borders/width/shading) but replace all paragraph content
       const tcPrMatch = cellSlice.match(/<w:tcPr[\s\S]*?<\/w:tcPr>/);
       const tcPr = tcPrMatch ? tcPrMatch[0] : "";
       const newCell = `<w:tc>${tcPr}${inlineDrawingXml(rId, label, picId, cxEmu, cyEmu)}</w:tc>`;
@@ -324,6 +338,17 @@ async function fetchImgBytes(src: string): Promise<{ bytes: Uint8Array; ext: str
     const ext  = mime.includes("png") ? "png" : "jpg";
     return { bytes: new Uint8Array(await r.arrayBuffer()), ext };
   } catch { return null; }
+}
+
+async function bytesToDims(bytes: Uint8Array): Promise<{ w: number; h: number }> {
+  const url = URL.createObjectURL(new Blob([bytes as BlobPart]));
+  try {
+    const img = new Image();
+    await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = rej; img.src = url; });
+    return { w: img.naturalWidth || 300, h: img.naturalHeight || 400 };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 function inlineDrawingXml(rId: string, name: string, picId: number, cxEmu: number, cyEmu: number): string {
@@ -503,7 +528,8 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promi
         const mime = img.ext === "png" ? "image/png" : "image/jpeg";
         ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
       }
-      xml = fillImageField(xml, "PHOTO", rId, 914400, 1219200, 50);
+      const photoDims = await bytesToDims(img.bytes);
+      xml = fillImageField(xml, "PHOTO", rId, photoDims.w, photoDims.h, 50);
     }
   }
 
@@ -519,8 +545,9 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promi
         const mime = img.ext === "png" ? "image/png" : "image/jpeg";
         ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
       }
-      xml = fillImageField(xml, "PASSPORT SCAN", rId, 4572000, 2743200, 51);
-      xml = fillImageField(xml, "PASSPORT",      rId, 4572000, 2743200, 52);
+      const passDims = await bytesToDims(img.bytes);
+      xml = fillImageField(xml, "PASSPORT SCAN", rId, passDims.w, passDims.h, 51);
+      xml = fillImageField(xml, "PASSPORT",      rId, passDims.w, passDims.h, 52);
     }
   }
 
@@ -589,13 +616,27 @@ async function addPassportScanPage(pdf: jsPDF, url: string): Promise<void> {
   const img = new Image();
   img.crossOrigin = "anonymous";
   await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = rej; img.src = url; });
-  const w = img.naturalWidth  || 800;
-  const h = img.naturalHeight || 600;
+  const iW = img.naturalWidth  || 800;
+  const iH = img.naturalHeight || 600;
+
+  // A4-ish page in px at 96 dpi with 40 px margins; image is scaled to fit and centered
+  const pageW = 794;
+  const pageH = 1123;
+  const margin = 40;
+  const maxW = pageW - margin * 2;
+  const maxH = pageH - margin * 2;
+  const scale = Math.min(maxW / iW, maxH / iH);
+  const drawW = Math.round(iW * scale);
+  const drawH = Math.round(iH * scale);
+  const x = Math.round((pageW - drawW) / 2);
+  const y = Math.round((pageH - drawH) / 2);
+
   const cvs = document.createElement("canvas");
-  cvs.width = w; cvs.height = h;
+  cvs.width = iW; cvs.height = iH;
   cvs.getContext("2d")!.drawImage(img, 0, 0);
-  pdf.addPage([w, h]);
-  pdf.addImage(cvs.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, w, h);
+
+  pdf.addPage([pageW, pageH]);
+  pdf.addImage(cvs.toDataURL("image/jpeg", 0.95), "JPEG", x, y, drawW, drawH);
 }
 
 function downloadDocx(bytes: Uint8Array, filename: string) {
