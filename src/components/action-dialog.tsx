@@ -725,9 +725,19 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promi
   return zip.generate({ type: "uint8array" });
 }
 
-async function docxBytesToPdf(bytes: Uint8Array, filename: string, passportUrl?: string) {
+// Returns true if the template's metadata declares a passport image slot or cell.
+// When true, the DOCX already contains the passport scan on its own page (rendered
+// by docx-preview below), so we must NOT append a second raw passport page.
+function templateHasPassport(template: CvTemplate): boolean {
+  const meta = template.metadata as TemplateMetadata | null | undefined;
+  return !!(
+    meta?.imageSlots?.some((s) => s.purpose === "passport") ||
+    meta?.imageCells?.some((c) => c.purpose === "passport")
+  );
+}
+
+async function docxBytesToPdf(bytes: Uint8Array, filename: string, passportUrl?: string, skipPassportPage = false) {
   const container = document.createElement("div");
-  // Offset LEFT (not above) so html2canvas can measure element height from top:0
   container.style.cssText = "position:absolute;top:0;left:-9999px;width:794px;background:#fff;overflow:visible;";
   document.body.appendChild(container);
   try {
@@ -741,37 +751,52 @@ async function docxBytesToPdf(bytes: Uint8Array, filename: string, passportUrl?:
     // Wait for async images inside docx-preview to settle
     await new Promise<void>((r) => setTimeout(r, 500));
 
-    // docx-preview with inWrapper:true creates an <article> child
-    const el = (container.querySelector("article") as HTMLElement)
-      ?? (container.firstElementChild as HTMLElement)
-      ?? container;
+    const patchOnclone = (_doc: Document) => {
+      // Remove app link stylesheets — they contain Tailwind oklch tokens that html2canvas can't parse.
+      _doc.querySelectorAll("link[rel='stylesheet']").forEach((s) => s.remove());
+      _doc.querySelectorAll("style").forEach((s) => {
+        if (s.textContent?.includes("oklch")) {
+          s.textContent = s.textContent.replace(/oklch\([^)]*\)/gi, "#000000");
+        }
+      });
+    };
 
-    const elH = el.scrollHeight || el.offsetHeight;
-    if (!elH) throw new Error("CV template rendered to a blank page — nothing to export");
+    // docx-preview with inWrapper:true renders one <article> per document page.
+    // We render each article separately so multi-page templates (e.g. passport page 2
+    // with company header/footer) become individual PDF pages — not a single squished canvas.
+    const articles = Array.from(container.querySelectorAll("article")) as HTMLElement[];
+    const pages: HTMLElement[] = articles.length > 0
+      ? articles
+      : [(container.querySelector(".docx") as HTMLElement) ?? (container.firstElementChild as HTMLElement) ?? container];
 
-    // Pin explicit height so html2canvas captures the full content height
-    el.style.height = `${elH}px`;
+    let pdf: jsPDF | null = null;
 
-    const canvas = await html2canvas(el, {
-      scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: false, logging: false,
-      onclone: (_doc) => {
-        // Remove app link stylesheets — they contain Tailwind oklch tokens that html2canvas can't parse.
-        // docx-preview injects its own <style> tags so layout is preserved.
-        _doc.querySelectorAll("link[rel='stylesheet']").forEach((s) => s.remove());
-        // Patch any remaining oklch in injected <style> tags
-        _doc.querySelectorAll("style").forEach((s) => {
-          if (s.textContent?.includes("oklch")) {
-            s.textContent = s.textContent.replace(/oklch\([^)]*\)/gi, "#000000");
-          }
-        });
-      },
-    });
-    const pw = Math.round(canvas.width / 2);
-    const ph = Math.round(canvas.height / 2);
-    if (!pw || !ph) throw new Error("CV template rendered to a blank page — nothing to export");
-    const pdf = new jsPDF({ unit: "px", format: [pw, ph] });
-    pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pw, ph);
-    if (passportUrl) await addPassportScanPage(pdf, passportUrl);
+    for (const el of pages) {
+      const elH = el.scrollHeight || el.offsetHeight;
+      if (!elH) continue;
+      el.style.height = `${elH}px`;
+
+      const canvas = await html2canvas(el, {
+        scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: false, logging: false,
+        onclone: patchOnclone,
+      });
+      const pw = Math.round(canvas.width / 2);
+      const ph = Math.round(canvas.height / 2);
+      if (!pw || !ph) continue;
+
+      if (!pdf) {
+        pdf = new jsPDF({ unit: "px", format: [pw, ph] });
+      } else {
+        pdf.addPage([pw, ph]);
+      }
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, pw, ph);
+    }
+
+    if (!pdf) throw new Error("CV template rendered to a blank page — nothing to export");
+
+    // Only append a raw passport page when the DOCX template did not already include one.
+    if (!skipPassportPage && passportUrl) await addPassportScanPage(pdf, passportUrl);
+
     pdf.save(filename);
   } finally {
     document.body.removeChild(container);
@@ -1099,7 +1124,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
           for (const c of sortedCandidates) {
             if (isDocxTemplate) {
               const bytes = await buildFilledDocx(matchedTemplate!, c);
-              await docxBytesToPdf(bytes, `${c.full_name} — ${currentType.label}.pdf`, c.passport_scan_url ?? undefined);
+              await docxBytesToPdf(bytes, `${c.full_name} — ${currentType.label}.pdf`, c.passport_scan_url ?? undefined, templateHasPassport(matchedTemplate!));
             } else {
               const canvas = await candidateToCanvas(c, matchedTemplate);
               const w = Math.round(canvas.width / 2), h = Math.round(canvas.height / 2);
@@ -1116,7 +1141,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
             const isDocx = matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
             if (isDocx) {
               const bytes = await buildFilledDocx(matchedTemplate, preview!);
-              await docxBytesToPdf(bytes, `${preview!.full_name} — ${currentType.label}.pdf`, preview!.passport_scan_url ?? undefined);
+              await docxBytesToPdf(bytes, `${preview!.full_name} — ${currentType.label}.pdf`, preview!.passport_scan_url ?? undefined, templateHasPassport(matchedTemplate));
             } else {
               const canvas = await candidateToCanvas(preview!, matchedTemplate);
               const w = Math.round(canvas.width / 2), h = Math.round(canvas.height / 2);

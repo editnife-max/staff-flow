@@ -88,7 +88,11 @@
       "Bash(bun add *)",
       "Bash(node_modules\\\\.bin\\\\tsc --noEmit)",
       "PowerShell(bunx tsc --noEmit 2>&1 | Select-Object -First 40)",
-      "PowerShell(bunx tsc --noEmit 2>&1 | Select-Object -First 30)"
+      "PowerShell(bunx tsc --noEmit 2>&1 | Select-Object -First 30)",
+      "Bash(Select-Object -First 40)",
+      "PowerShell(bunx tsc --noEmit 2>&1 | Where-Object { $_ -match \"action-dialog\" })",
+      "Bash(git fetch *)",
+      "Bash(gh pr *)"
     ]
   },
   "enableAllProjectMcpServers": true,
