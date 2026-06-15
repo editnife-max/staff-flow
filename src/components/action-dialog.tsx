@@ -892,9 +892,13 @@ async function docxBytesToPdf(bytes: Uint8Array, filename: string, passportUrl?:
     // We render each article separately so multi-page templates (e.g. passport page 2
     // with company header/footer) become individual PDF pages — not a single squished canvas.
     const articles = Array.from(container.querySelectorAll("article")) as HTMLElement[];
-    const pages: HTMLElement[] = articles.length > 0
+    const allPages: HTMLElement[] = articles.length > 0
       ? articles
       : [(container.querySelector(".docx") as HTMLElement) ?? (container.firstElementChild as HTMLElement) ?? container];
+    // When passport is added separately, only render page 1 from docx-preview.
+    // DOCX templates have a built-in blank page-2 slot; using all articles would include
+    // that blank page and push the passport to page 3.
+    const pages = passportUrl ? allPages.slice(0, 1) : allPages;
 
     let pdf: jsPDF | null = null;
 
@@ -1273,8 +1277,8 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
           toast.info(`Generating ${candidates.length} PDFs — please wait…`);
           for (const c of sortedCandidates) {
             if (isDocxTemplate) {
-              const bytes = await buildFilledDocx(matchedTemplate!, c, true);
-              await docxBytesToPdf(bytes, `${c.full_name} — ${currentType.label}.pdf`);
+              const bytes = await buildFilledDocx(matchedTemplate!, c, false);
+              await docxBytesToPdf(bytes, `${c.full_name} — ${currentType.label}.pdf`, c.passport_scan_url ?? undefined);
             } else {
               const canvas = await candidateToCanvas(c, matchedTemplate);
               const w = Math.round(canvas.width / 2), h = Math.round(canvas.height / 2);
@@ -1290,8 +1294,8 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
           if (matchedTemplate) {
             const isDocx = matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
             if (isDocx) {
-              const bytes = await buildFilledDocx(matchedTemplate, preview!, true);
-              await docxBytesToPdf(bytes, `${preview!.full_name} — ${currentType.label}.pdf`);
+              const bytes = await buildFilledDocx(matchedTemplate, preview!, false);
+              await docxBytesToPdf(bytes, `${preview!.full_name} — ${currentType.label}.pdf`, preview!.passport_scan_url ?? undefined);
             } else {
               const canvas = await candidateToCanvas(preview!, matchedTemplate);
               const w = Math.round(canvas.width / 2), h = Math.round(canvas.height / 2);
