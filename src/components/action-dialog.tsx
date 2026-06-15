@@ -631,8 +631,8 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promi
 
     if (photoSlot && (c.full_photo_url || c.photo_url))
       await replaceSlot(photoSlot, (c.full_photo_url ?? c.photo_url)!);
-    if (passportSlot && c.passport_scan_url)
-      await replaceSlot(passportSlot, c.passport_scan_url);
+    // Passport slot in imageSlots is intentionally skipped — it lives in a DOCX header/anchor
+    // which repeats on every page. The scan is always added as a dedicated second page instead.
 
     zip.file(relsPath, new TextEncoder().encode(relsXml));
     if (ctEntry && ctXml) zip.file(ctPath, new TextEncoder().encode(ctXml));
@@ -801,10 +801,8 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promi
 // by docx-preview below), so we must NOT append a second raw passport page.
 function templateHasPassport(template: CvTemplate): boolean {
   const meta = template.metadata as TemplateMetadata | null | undefined;
-  return !!(
-    meta?.imageSlots?.some((s) => s.purpose === "passport") ||
-    meta?.imageCells?.some((c) => c.purpose === "passport")
-  );
+  // Only imageCells (body cells) count — imageSlots can be in a DOCX header and would repeat.
+  return !!(meta?.imageCells?.some((c) => c.purpose === "passport"));
 }
 
 async function docxBytesToPdf(bytes: Uint8Array, filename: string, passportUrl?: string, skipPassportPage = false) {
@@ -881,13 +879,23 @@ async function addPassportScanPage(pdf: jsPDF, url: string): Promise<void> {
   const iW = img.naturalWidth  || 800;
   const iH = img.naturalHeight || 600;
 
-  // Page 2 is exactly the size of the passport scan — no scaling, no cropping.
   const cvs = document.createElement("canvas");
   cvs.width = iW; cvs.height = iH;
   cvs.getContext("2d")!.drawImage(img, 0, 0);
 
-  pdf.addPage([iW, iH]);
-  pdf.addImage(cvs.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, iW, iH);
+  // A4 page auto-oriented to best fit the scan, with a small margin so it nearly fills the page.
+  const isLandscape = iW > iH;
+  const pageW = isLandscape ? 1123 : 794;
+  const pageH = isLandscape ? 794 : 1123;
+  const margin = 20;
+  const scale = Math.min((pageW - margin * 2) / iW, (pageH - margin * 2) / iH);
+  const drawW = Math.round(iW * scale);
+  const drawH = Math.round(iH * scale);
+  const x = Math.round((pageW - drawW) / 2);
+  const y = Math.round((pageH - drawH) / 2);
+
+  pdf.addPage([pageW, pageH]);
+  pdf.addImage(cvs.toDataURL("image/jpeg", 0.95), "JPEG", x, y, drawW, drawH);
 }
 
 function downloadDocx(bytes: Uint8Array, filename: string) {
