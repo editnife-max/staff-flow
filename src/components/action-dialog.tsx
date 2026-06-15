@@ -817,16 +817,28 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
         `</pic:pic></a:graphicData></a:graphic></wp:inline>`,
         `</w:drawing></w:r></w:p>`,
       ].join("");
-      // Insert before the body-level <w:sectPr>: find the last </w:sectPr> close tag,
-      // then walk back to its matching open tag. This avoids placing content after the
-      // section boundary (which is what caused the blank page).
+      // Find insertion point: just before the body-level <w:sectPr>.
       const bodyPos        = xml.lastIndexOf("</w:body>");
       const sectPrClosePos = xml.lastIndexOf("</w:sectPr>");
       const sectPrOpenPos  = sectPrClosePos !== -1 && sectPrClosePos < bodyPos
         ? xml.lastIndexOf("<w:sectPr", sectPrClosePos)
         : -1;
       const insertAt = sectPrOpenPos !== -1 ? sectPrOpenPos : bodyPos;
-      xml = xml.slice(0, insertAt) + passportContent + xml.slice(insertAt);
+
+      // Strip any trailing empty paragraph (no <w:r> runs) immediately before the
+      // sectPr. Templates almost always end with a bare <w:p/> cursor paragraph that
+      // overflows onto its own blank page and pushes the passport to page 3.
+      let beforeInsert = xml.slice(0, insertAt);
+      let lastParaStart = -1;
+      for (const tag of ["<w:p>", "<w:p/>", "<w:p "]) {
+        const idx = beforeInsert.lastIndexOf(tag);
+        if (idx > lastParaStart) lastParaStart = idx;
+      }
+      if (lastParaStart !== -1 && !/<w:r[\s>]/.test(beforeInsert.slice(lastParaStart))) {
+        beforeInsert = beforeInsert.slice(0, lastParaStart);
+      }
+
+      xml = beforeInsert + passportContent + xml.slice(insertAt);
     }
   }
 
