@@ -562,7 +562,7 @@ function labelParaXml(text: string): string {
   return `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>${text}</w:t></w:r></w:p>`;
 }
 
-export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promise<Uint8Array> {
+export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedPassport = true): Promise<Uint8Array> {
   const res = await fetch(template.file_url, { mode: "cors" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const buf = await res.arrayBuffer();
@@ -652,7 +652,7 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promi
       ...(c.full_photo_url ?? c.photo_url
         ? [{ key: "photo",    src: (c.full_photo_url ?? c.photo_url)!, rId: "rIdCvPhoto",    label: "PHOTO",         cxEmu: 1260000, cyEmu: 3240000 }]
         : []),
-      ...(c.passport_scan_url
+      ...(embedPassport && c.passport_scan_url
         ? [{ key: "passport", src: c.passport_scan_url,                rId: "rIdCvPassport", label: "PASSPORT SCAN", cxEmu: 5040000, cyEmu: 3240000 }]
         : []),
     ];
@@ -699,6 +699,7 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promi
     // Each cell.label IS the cell to replace (not adjacent), so use replaceImageCell.
     let picId = 50;
     for (const cell of metaImageCells) {
+      if (!embedPassport && cell.purpose === "passport") continue;
       const src =
         cell.purpose === "fullphoto" ? (c.full_photo_url ?? c.photo_url) :
         cell.purpose === "passport"  ? c.passport_scan_url :
@@ -768,7 +769,7 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate): Promi
       }
     }
     // Passport scan
-    if (c.passport_scan_url) {
+    if (embedPassport && c.passport_scan_url) {
       const img = await fetchImgBytes(c.passport_scan_url);
       if (img) {
         const rId   = "rIdCvPassportCell";
@@ -1201,8 +1202,8 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
           toast.info(`Generating ${candidates.length} PDFs — please wait…`);
           for (const c of sortedCandidates) {
             if (isDocxTemplate) {
-              const bytes = await buildFilledDocx(matchedTemplate!, c);
-              await docxBytesToPdf(bytes, `${c.full_name} — ${currentType.label}.pdf`, c.passport_scan_url ?? undefined, templateHasPassport(matchedTemplate!));
+              const bytes = await buildFilledDocx(matchedTemplate!, c, false);
+              await docxBytesToPdf(bytes, `${c.full_name} — ${currentType.label}.pdf`, c.passport_scan_url ?? undefined);
             } else {
               const canvas = await candidateToCanvas(c, matchedTemplate);
               const w = Math.round(canvas.width / 2), h = Math.round(canvas.height / 2);
@@ -1218,8 +1219,8 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
           if (matchedTemplate) {
             const isDocx = matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
             if (isDocx) {
-              const bytes = await buildFilledDocx(matchedTemplate, preview!);
-              await docxBytesToPdf(bytes, `${preview!.full_name} — ${currentType.label}.pdf`, preview!.passport_scan_url ?? undefined, templateHasPassport(matchedTemplate));
+              const bytes = await buildFilledDocx(matchedTemplate, preview!, false);
+              await docxBytesToPdf(bytes, `${preview!.full_name} — ${currentType.label}.pdf`, preview!.passport_scan_url ?? undefined);
             } else {
               const canvas = await candidateToCanvas(preview!, matchedTemplate);
               const w = Math.round(canvas.width / 2), h = Math.round(canvas.height / 2);
