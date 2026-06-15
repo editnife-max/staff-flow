@@ -793,9 +793,14 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
       const scale = Math.min(maxW / dims.w, maxH / dims.h);
       const cxEmu = Math.round(dims.w * scale);
       const cyEmu = Math.round(dims.h * scale);
-      const pageBreak = `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`;
-      xml = xml.replace("</w:body>",
-        `${pageBreak}${inlineDrawingXml(rId, "PASSPORT SCAN", 99, cxEmu, cyEmu)}</w:body>`);
+      const passportContent = `<w:p><w:r><w:br w:type="page"/></w:r></w:p>${inlineDrawingXml(rId, "PASSPORT SCAN", 99, cxEmu, cyEmu)}`;
+      // Insert BEFORE the final <w:sectPr> (direct body child), not after </w:body>.
+      // Appending after the sectPr places content past the section boundary, which
+      // makes Word emit a blank page 2 before the passport lands on page 3.
+      const sectPrPos = xml.lastIndexOf("<w:sectPr");
+      const bodyPos   = xml.lastIndexOf("</w:body>");
+      const insertAt  = sectPrPos !== -1 && sectPrPos < bodyPos ? sectPrPos : bodyPos;
+      xml = xml.slice(0, insertAt) + passportContent + xml.slice(insertAt);
     }
   }
 
