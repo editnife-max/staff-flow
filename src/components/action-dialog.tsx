@@ -702,7 +702,6 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
       if (cell.purpose === "passport") continue; // always a dedicated page, never in-cell
       const src =
         cell.purpose === "fullphoto" ? (c.full_photo_url ?? c.photo_url) :
-        cell.purpose === "passport"  ? c.passport_scan_url :
         /* photo */                    (c.photo_url ?? c.full_photo_url);
       if (!src) continue;
       const img = await fetchImgBytes(src);
@@ -825,17 +824,23 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
         : -1;
       const insertAt = sectPrOpenPos !== -1 ? sectPrOpenPos : bodyPos;
 
-      // Strip any trailing empty paragraph (no <w:r> runs) immediately before the
-      // sectPr. Templates almost always end with a bare <w:p/> cursor paragraph that
-      // overflows onto its own blank page and pushes the passport to page 3.
+      // Strip ALL trailing empty paragraphs (no <w:r> runs) before sectPr.
+      // Templates often end with one or more bare cursor <w:p/> elements; each one
+      // that has no run content overflows onto its own blank page and pushes the
+      // passport further down. Loop until we hit a paragraph that has actual content.
       let beforeInsert = xml.slice(0, insertAt);
-      let lastParaStart = -1;
-      for (const tag of ["<w:p>", "<w:p/>", "<w:p "]) {
-        const idx = beforeInsert.lastIndexOf(tag);
-        if (idx > lastParaStart) lastParaStart = idx;
-      }
-      if (lastParaStart !== -1 && !/<w:r[\s>]/.test(beforeInsert.slice(lastParaStart))) {
-        beforeInsert = beforeInsert.slice(0, lastParaStart);
+      let stripping = true;
+      while (stripping) {
+        stripping = false;
+        let lastParaStart = -1;
+        for (const tag of ["<w:p>", "<w:p/>", "<w:p "]) {
+          const idx = beforeInsert.lastIndexOf(tag);
+          if (idx > lastParaStart) lastParaStart = idx;
+        }
+        if (lastParaStart !== -1 && !/<w:r[\s>]/.test(beforeInsert.slice(lastParaStart))) {
+          beforeInsert = beforeInsert.slice(0, lastParaStart);
+          stripping = true;
+        }
       }
 
       xml = beforeInsert + passportContent + xml.slice(insertAt);
