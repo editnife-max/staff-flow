@@ -699,7 +699,7 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
     // Each cell.label IS the cell to replace (not adjacent), so use replaceImageCell.
     let picId = 50;
     for (const cell of metaImageCells) {
-      if (!embedPassport && cell.purpose === "passport") continue;
+      if (cell.purpose === "passport") continue; // always a dedicated page, never in-cell
       const src =
         cell.purpose === "fullphoto" ? (c.full_photo_url ?? c.photo_url) :
         cell.purpose === "passport"  ? c.passport_scan_url :
@@ -768,24 +768,34 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
         xml = replaceImageCellContaining(xml, "PHOTO", rId, d.w, d.h, 50);
       }
     }
-    // Passport scan
-    if (embedPassport && c.passport_scan_url) {
-      const img = await fetchImgBytes(c.passport_scan_url);
-      if (img) {
-        const rId   = "rIdCvPassportCell";
-        const fname = `media/cv_passport_cell.${img.ext}`;
-        zip.file(`word/${fname}`, img.bytes);
-        if (!relsXml.includes(`Id="${rId}"`))
-          relsXml = relsXml.replace("</Relationships>", `<Relationship Id="${rId}" Type="${IMG_REL}" Target="${fname}"/></Relationships>`);
-        if (ctXml && !ctXml.includes(`Extension="${img.ext}"`)) {
-          const mime = img.ext === "png" ? "image/png" : "image/jpeg";
-          ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
-        }
-        const d = await bytesToDims(img.bytes);
-        xml = replaceImageCellContaining(xml, "PASSPORT SCAN", rId, d.w, d.h, 60);
-        xml = replaceImageCellContaining(xml, "PASSPORT COPY", rId, d.w, d.h, 61);
-        xml = replaceImageCellContaining(xml, "PASSPORT",      rId, d.w, d.h, 62);
+    // Passport scan is never placed in a cell — always appended as a dedicated page below.
+  }
+
+  // ── Passport page 2 in DOCX (for DOCX download / manual conversion) ──────────
+  // Only embedded when embedPassport = true (DOCX export). PDF export uses addPassportScanPage instead.
+  if (embedPassport && c.passport_scan_url) {
+    const img = await fetchImgBytes(c.passport_scan_url);
+    if (img) {
+      const rId   = "rIdCvPassportP2";
+      const fname = `media/cv_passport_p2.${img.ext}`;
+      zip.file(`word/${fname}`, img.bytes);
+      if (!relsXml.includes(`Id="${rId}"`))
+        relsXml = relsXml.replace("</Relationships>",
+          `<Relationship Id="${rId}" Type="${IMG_REL}" Target="${fname}"/></Relationships>`);
+      if (ctXml && !ctXml.includes(`Extension="${img.ext}"`)) {
+        const mime = img.ext === "png" ? "image/png" : "image/jpeg";
+        ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
       }
+      const dims  = await bytesToDims(img.bytes);
+      // 60% of A4 printable width/height in EMU
+      const maxW  = Math.round(9360 / 1440 * 914400 * 0.60);
+      const maxH  = Math.round(12240 / 1440 * 914400 * 0.60);
+      const scale = Math.min(maxW / dims.w, maxH / dims.h);
+      const cxEmu = Math.round(dims.w * scale);
+      const cyEmu = Math.round(dims.h * scale);
+      const pageBreak = `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`;
+      xml = xml.replace("</w:body>",
+        `${pageBreak}${inlineDrawingXml(rId, "PASSPORT SCAN", 99, cxEmu, cyEmu)}</w:body>`);
     }
   }
 
@@ -873,29 +883,42 @@ async function docxBytesToPdf(bytes: Uint8Array, filename: string, passportUrl?:
 }
 
 async function addPassportScanPage(pdf: jsPDF, url: string): Promise<void> {
-  const img = new Image();
-  img.crossOrigin = "anonymous";
-  await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = rej; img.src = url; });
-  const iW = img.naturalWidth  || 800;
-  const iH = img.naturalHeight || 600;
+  // Use fetchImgBytes (fetch-based) so cross-origin restrictions never block the load.
+  const fetched = await fetchImgBytes(url);
+  if (!fetched) return;
 
-  const cvs = document.createElement("canvas");
-  cvs.width = iW; cvs.height = iH;
-  cvs.getContext("2d")!.drawImage(img, 0, 0);
+  const dims = await bytesToDims(fetched.bytes);
+  const iW   = dims.w || 800;
+  const iH   = dims.h || 600;
 
-  // A4 page auto-oriented to best fit the scan, with a small margin so it nearly fills the page.
+  // Draw via a local blob URL so the canvas is never tainted by cross-origin restrictions.
+  const blobUrl = URL.createObjectURL(
+    new Blob([fetched.bytes as BlobPart], { type: fetched.ext === "png" ? "image/png" : "image/jpeg" }),
+  );
+  let dataUrl: string;
+  try {
+    const cvs  = document.createElement("canvas");
+    cvs.width  = iW;
+    cvs.height = iH;
+    const imgEl = new Image();
+    await new Promise<void>((res, rej) => { imgEl.onload = () => res(); imgEl.onerror = rej; imgEl.src = blobUrl; });
+    cvs.getContext("2d")!.drawImage(imgEl, 0, 0);
+    dataUrl = cvs.toDataURL("image/jpeg", 0.95);
+  } finally {
+    URL.revokeObjectURL(blobUrl);
+  }
+
   const isLandscape = iW > iH;
   const pageW = isLandscape ? 1123 : 794;
   const pageH = isLandscape ? 794 : 1123;
-  // Scale image to ~55% of the page (centered), preserving aspect ratio
   const scale = Math.min((pageW * 0.55) / iW, (pageH * 0.55) / iH);
   const drawW = Math.round(iW * scale);
   const drawH = Math.round(iH * scale);
-  const x = Math.round((pageW - drawW) / 2);
-  const y = Math.round((pageH - drawH) / 2);
+  const x     = Math.round((pageW - drawW) / 2);
+  const y     = Math.round((pageH - drawH) / 2);
 
   pdf.addPage([pageW, pageH]);
-  pdf.addImage(cvs.toDataURL("image/jpeg", 0.95), "JPEG", x, y, drawW, drawH);
+  pdf.addImage(dataUrl, "JPEG", x, y, drawW, drawH);
 }
 
 function downloadDocx(bytes: Uint8Array, filename: string) {
