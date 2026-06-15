@@ -266,19 +266,16 @@ function fillImageField(
 
       const cellSlice = xml.slice(nStart, nEnd + 7);
 
-      // Read the cell's declared width (dxa = twips, 1440 twips = 1 inch = 914400 EMU)
-      const tcWAttrs = /<w:tcW\b([^/]*)\/?>/.exec(cellSlice)?.[1] ?? "";
-      const fTwips   = parseInt(/\bw:w="(\d+)"/.exec(tcWAttrs)?.[1]    ?? "0");
-      const fTwType  = /\bw:type="([^"]+)"/.exec(tcWAttrs)?.[1]        ?? "";
-      let cxEmu = fTwType === "dxa" && fTwips > 0
-        ? Math.round((fTwips / 1440) * 914400)
-        : 1371600; // fallback ~1.5 inch
-      // Proportional height based on image's natural aspect ratio
-      const cyEmu = naturalW > 0 ? Math.round(cxEmu * (naturalH / naturalW)) : cxEmu;
+      const tblW   = resolveTableWidth(xml, nStart);
+      let cxEmu    = resolveCellWidth(cellSlice, tblW);
+      const cellH  = resolveCellHeight(xml, nStart, nEnd);
+      const cyEmu  = cellH > 0
+        ? cellH
+        : (naturalW > 0 ? Math.round(cxEmu * (naturalH / naturalW)) : cxEmu);
 
-      // Preserve <w:tcPr> (borders/width/shading) but replace all paragraph content
+      // Preserve <w:tcPr> (borders/width/shading) but zero cell margins and replace paragraph content
       const tcPrMatch = cellSlice.match(/<w:tcPr[\s\S]*?<\/w:tcPr>/);
-      const tcPr = tcPrMatch ? tcPrMatch[0] : "";
+      const tcPr = tcPrWithZeroMargins(tcPrMatch ? tcPrMatch[0] : "");
       const newCell = `<w:tc>${tcPr}${inlineDrawingXml(rId, label, picId, cxEmu, cyEmu)}</w:tc>`;
 
       return xml.slice(0, nStart) + newCell + xml.slice(nEnd + 7);
@@ -289,9 +286,100 @@ function fillImageField(
   return xml;
 }
 
+// ── Cell dimension helpers ────────────────────────────────────────────────────
+
+// Walk up the XML to find the enclosing <w:tbl> and return its declared width
+// in EMU. Needed to resolve cells whose width is expressed as a percentage.
+function resolveTableWidth(xml: string, from: number): number {
+  const start = xml.lastIndexOf("<w:tbl", from);
+  if (start === -1) return Math.round((9360 / 1440) * 914400);
+  const prEnd = xml.indexOf("</w:tblPr>", start);
+  const slice = xml.slice(start, prEnd > -1 ? prEnd + 10 : start + 3000);
+  const attrs = /<w:tblW\b([^/]*)\/?>/.exec(slice)?.[1] ?? "";
+  const w     = parseInt(/\bw:w="(\d+)"/.exec(attrs)?.[1] ?? "0");
+  const t     = /\bw:type="([^"]+)"/.exec(attrs)?.[1] ?? "";
+  return t === "dxa" && w > 0
+    ? Math.round((w / 1440) * 914400)
+    : Math.round((9360 / 1440) * 914400); // A4/Letter printable width fallback
+}
+
+// Resolve the cell's declared width in EMU, handling dxa and pct units.
+function resolveCellWidth(cellSlice: string, tblWidthEmu: number): number {
+  const attrs = /<w:tcW\b([^/]*)\/?>/.exec(cellSlice)?.[1] ?? "";
+  const w     = parseInt(/\bw:w="(\d+)"/.exec(attrs)?.[1] ?? "0");
+  const t     = /\bw:type="([^"]+)"/.exec(attrs)?.[1] ?? "";
+  if (t === "dxa" && w > 0) return Math.round((w / 1440) * 914400);
+  // pct values are in fiftieths of a percent (5000 = 100%)
+  if (t === "pct" && w > 0) return Math.round(tblWidthEmu * (w / 5000));
+  return Math.round(tblWidthEmu * 0.30); // fallback: ~30% of table width
+}
+
+// Return the total declared height in EMU of a (potentially merged) cell by
+// summing <w:trHeight> across all rows it spans. Returns 0 for auto-height rows
+// so the caller can fall back to proportional sizing.
+function resolveCellHeight(xml: string, cellStart: number, cellEnd: number): number {
+  const cellSlice = xml.slice(cellStart, cellEnd + 7);
+  const trStart   = xml.lastIndexOf("<w:tr", cellStart);
+  if (trStart === -1) return 0;
+
+  const firstTrPr  = xml.slice(trStart, cellStart);
+  const firstAttrs = /<w:trHeight\b([^/]*)\/?>/.exec(firstTrPr)?.[1] ?? "";
+  const firstH     = parseInt(/\bw:val="(\d+)"/.exec(firstAttrs)?.[1] ?? "0");
+
+  // Non-merged cell — return just this row's height
+  if (!/<w:vMerge\b/.test(cellSlice)) {
+    return firstH > 0 ? Math.round((firstH / 1440) * 914400) : 0;
+  }
+
+  // Merged cell: determine column index then accumulate continuation rows
+  let colIdx = 0, p = xml.indexOf("<w:tc", trStart);
+  while (p !== -1 && p < cellStart) {
+    const ch = xml[p + 5];
+    if (ch === ">" || ch === " " || ch === "\n" || ch === "\t") colIdx++;
+    p = xml.indexOf("<w:tc", p + 1);
+  }
+
+  let total    = firstH;
+  let curTrEnd = xml.indexOf("</w:tr>", trStart);
+
+  while (curTrEnd !== -1) {
+    const nextTrStart = xml.indexOf("<w:tr", curTrEnd + 7);
+    if (nextTrStart === -1) break;
+    const nextTrEnd   = xml.indexOf("</w:tr>", nextTrStart);
+    const nextTrSlice = xml.slice(nextTrStart, nextTrEnd > -1 ? nextTrEnd + 7 : nextTrStart + 20_000);
+
+    // Find the cell at our column index and check for merge continuation
+    let ci = 0, cp = 0, isContinuation = false;
+    while (true) {
+      const idx = nextTrSlice.indexOf("<w:tc", cp);
+      if (idx === -1) break;
+      const ch2 = nextTrSlice[idx + 5];
+      if (ch2 === ">" || ch2 === " " || ch2 === "\n" || ch2 === "\t") {
+        if (ci === colIdx) {
+          const ce2 = nextTrSlice.indexOf("</w:tc>", idx);
+          const cs2 = nextTrSlice.slice(idx, ce2 > -1 ? ce2 : idx + 3000);
+          // Continuation = has <w:vMerge> but NOT w:val="restart"
+          isContinuation = /<w:vMerge\b/.test(cs2) && !/<w:vMerge\b[^>]*w:val="restart"/.test(cs2);
+          break;
+        }
+        ci++;
+      }
+      cp = idx + 1;
+    }
+    if (!isContinuation) break;
+
+    const hAttrs = /<w:trHeight\b([^/]*)\/?>/.exec(nextTrSlice)?.[1] ?? "";
+    total += parseInt(/\bw:val="(\d+)"/.exec(hAttrs)?.[1] ?? "0");
+    curTrEnd = nextTrEnd;
+  }
+
+  return total > 0 ? Math.round((total / 1440) * 914400) : 0;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Replaces the cell whose text IS `label` with the inline image.
-// Reads cell width and row height from the OOXML so the image fills the cell
-// without overflowing (aspect ratio is always preserved).
+// Reads cell width and row height from the OOXML so the image fills the cell.
 function replaceImageCell(
   xml: string,
   label: string,
@@ -311,34 +399,18 @@ function replaceImageCell(
     if (normLabel(cellText(xml, cellStart, cellEnd)) === normTarget) {
       const cellSlice = xml.slice(cellStart, cellEnd + 7);
 
-      // Parse <w:tcW> width — extract attrs independently so order doesn't matter
-      const tcWAttrs = /<w:tcW\b([^/]*)\/?>/.exec(cellSlice)?.[1] ?? "";
-      const twips    = parseInt(/\bw:w="(\d+)"/.exec(tcWAttrs)?.[1]    ?? "0");
-      const twType   = /\bw:type="([^"]+)"/.exec(tcWAttrs)?.[1]        ?? "";
-      let cxEmu = twType === "dxa" && twips > 0
-        ? Math.round((twips / 1440) * 914400)
-        : 1371600; // ~1.5 inch fallback
+      const tblW  = resolveTableWidth(xml, cellStart);
+      let cxEmu   = resolveCellWidth(cellSlice, tblW);
+      const cellH = resolveCellHeight(xml, cellStart, cellEnd);
 
-      // Height from natural aspect ratio
-      let cyEmu = naturalW > 0 ? Math.round(cxEmu * (naturalH / naturalW)) : cxEmu;
-
-      // Cap to the row's declared height so the image stays inside the cell
-      const trStart   = xml.lastIndexOf("<w:tr", cellStart);
-      if (trStart !== -1) {
-        const trPrSlice = xml.slice(trStart, cellStart);
-        const trHAttrs  = /<w:trHeight\b([^/]*)\/?>/.exec(trPrSlice)?.[1] ?? "";
-        const hTwips    = parseInt(/\bw:val="(\d+)"/.exec(trHAttrs)?.[1]   ?? "0");
-        if (hTwips > 0) {
-          const maxCy = Math.round((hTwips / 1440) * 914400);
-          if (cyEmu > maxCy) {
-            cyEmu = maxCy;
-            cxEmu = naturalH > 0 ? Math.round(cyEmu * (naturalW / naturalH)) : cxEmu;
-          }
-        }
-      }
+      // Stretch image to fill the full declared cell area (cx × cy).
+      // For auto-height rows (cellH = 0) size proportionally — the row expands to fit.
+      let cyEmu = cellH > 0
+        ? cellH
+        : (naturalW > 0 ? Math.round(cxEmu * (naturalH / naturalW)) : cxEmu);
 
       const tcPrMatch = cellSlice.match(/<w:tcPr[\s\S]*?<\/w:tcPr>/);
-      const tcPr = tcPrMatch ? tcPrMatch[0] : "";
+      const tcPr = tcPrWithZeroMargins(tcPrMatch ? tcPrMatch[0] : "");
       const newCell = `<w:tc>${tcPr}${inlineDrawingXml(rId, label, picId, cxEmu, cyEmu)}</w:tc>`;
       return xml.slice(0, cellStart) + newCell + xml.slice(cellEnd + 7);
     }
@@ -369,28 +441,14 @@ function replaceImageCellContaining(
     if (cellEnd === -1) break;
     if (normLabel(cellText(xml, cellStart, cellEnd)).includes(normSub)) {
       const cellSlice = xml.slice(cellStart, cellEnd + 7);
-      const tcWAttrs = /<w:tcW\b([^/]*)\/?>/.exec(cellSlice)?.[1] ?? "";
-      const twips    = parseInt(/\bw:w="(\d+)"/.exec(tcWAttrs)?.[1] ?? "0");
-      const twType   = /\bw:type="([^"]+)"/.exec(tcWAttrs)?.[1]    ?? "";
-      let cxEmu = twType === "dxa" && twips > 0
-        ? Math.round((twips / 1440) * 914400)
-        : 1371600;
-      let cyEmu = naturalW > 0 ? Math.round(cxEmu * (naturalH / naturalW)) : cxEmu;
-      const trStart = xml.lastIndexOf("<w:tr", cellStart);
-      if (trStart !== -1) {
-        const trPrSlice = xml.slice(trStart, cellStart);
-        const trHAttrs  = /<w:trHeight\b([^/]*)\/?>/.exec(trPrSlice)?.[1] ?? "";
-        const hTwips    = parseInt(/\bw:val="(\d+)"/.exec(trHAttrs)?.[1]   ?? "0");
-        if (hTwips > 0) {
-          const maxCy = Math.round((hTwips / 1440) * 914400);
-          if (cyEmu > maxCy) {
-            cyEmu = maxCy;
-            cxEmu = naturalH > 0 ? Math.round(cyEmu * (naturalW / naturalH)) : cxEmu;
-          }
-        }
-      }
+      const tblW  = resolveTableWidth(xml, cellStart);
+      let cxEmu   = resolveCellWidth(cellSlice, tblW);
+      const cellH = resolveCellHeight(xml, cellStart, cellEnd);
+      let cyEmu   = cellH > 0
+        ? cellH
+        : (naturalW > 0 ? Math.round(cxEmu * (naturalH / naturalW)) : cxEmu);
       const tcPrMatch = cellSlice.match(/<w:tcPr[\s\S]*?<\/w:tcPr>/);
-      const tcPr = tcPrMatch ? tcPrMatch[0] : "";
+      const tcPr = tcPrWithZeroMargins(tcPrMatch ? tcPrMatch[0] : "");
       const newCell = `<w:tc>${tcPr}${inlineDrawingXml(rId, substring, picId, cxEmu, cyEmu)}</w:tc>`;
       return xml.slice(0, cellStart) + newCell + xml.slice(cellEnd + 7);
     }
@@ -461,9 +519,22 @@ async function bytesToDims(bytes: Uint8Array): Promise<{ w: number; h: number }>
   }
 }
 
+// Replace existing <w:tcMar> (or add one) with zero values so the image sits
+// flush against all four cell edges with no padding gap.
+function tcPrWithZeroMargins(tcPr: string): string {
+  const zeroMar = `<w:tcMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tcMar>`;
+  if (!tcPr) return `<w:tcPr>${zeroMar}</w:tcPr>`;
+  if (/<w:tcMar\b/.test(tcPr)) return tcPr.replace(/<w:tcMar\b[\s\S]*?<\/w:tcMar>/, zeroMar);
+  return tcPr.replace("</w:tcPr>", `${zeroMar}</w:tcPr>`);
+}
+
 function inlineDrawingXml(rId: string, name: string, picId: number, cxEmu: number, cyEmu: number): string {
   return [
-    `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:drawing>`,
+    `<w:p><w:pPr>`,
+    `<w:jc w:val="left"/>`,
+    `<w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/>`,
+    `<w:ind w:left="0" w:right="0"/>`,
+    `</w:pPr><w:r><w:drawing>`,
     `<wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"`,
     ` distT="0" distB="0" distL="0" distR="0">`,
     `<wp:extent cx="${cxEmu}" cy="${cyEmu}"/>`,
