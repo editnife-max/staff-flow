@@ -959,7 +959,7 @@ async function addPassportScanPage(pdf: jsPDF, url: string): Promise<void> {
   const isLandscape = iW > iH;
   const pageW = isLandscape ? 1123 : 794;
   const pageH = isLandscape ? 794 : 1123;
-  const scale = Math.min((pageW * 0.55) / iW, (pageH * 0.55) / iH);
+  const scale = Math.min((pageW * 0.74) / iW, (pageH * 0.74) / iH);
   const drawW = Math.round(iW * scale);
   const drawH = Math.round(iH * scale);
   const x     = Math.round((pageW - drawW) / 2);
