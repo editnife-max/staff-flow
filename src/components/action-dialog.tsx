@@ -793,13 +793,39 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
       const scale = Math.min(maxW / dims.w, maxH / dims.h);
       const cxEmu = Math.round(dims.w * scale);
       const cyEmu = Math.round(dims.h * scale);
-      const passportContent = `<w:p><w:r><w:br w:type="page"/></w:r></w:p>${inlineDrawingXml(rId, "PASSPORT SCAN", 99, cxEmu, cyEmu)}`;
-      // Insert BEFORE the final <w:sectPr> (direct body child), not after </w:body>.
-      // Appending after the sectPr places content past the section boundary, which
-      // makes Word emit a blank page 2 before the passport lands on page 3.
-      const sectPrPos = xml.lastIndexOf("<w:sectPr");
-      const bodyPos   = xml.lastIndexOf("</w:body>");
-      const insertAt  = sectPrPos !== -1 && sectPrPos < bodyPos ? sectPrPos : bodyPos;
+      // Single paragraph with <w:pageBreakBefore/> — forces this paragraph to start
+      // on a new page without emitting a separate blank page-break paragraph.
+      const passportContent = [
+        `<w:p><w:pPr>`,
+        `<w:pageBreakBefore/>`,
+        `<w:jc w:val="center"/>`,
+        `<w:spacing w:before="0" w:after="0"/>`,
+        `</w:pPr><w:r><w:drawing>`,
+        `<wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" distT="0" distB="0" distL="0" distR="0">`,
+        `<wp:extent cx="${cxEmu}" cy="${cyEmu}"/>`,
+        `<wp:effectExtent l="0" t="0" r="0" b="0"/>`,
+        `<wp:docPr id="99" name="PASSPORT SCAN"/>`,
+        `<wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr>`,
+        `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">`,
+        `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">`,
+        `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">`,
+        `<pic:nvPicPr><pic:cNvPr id="99" name="PASSPORT SCAN"/><pic:cNvPicPr/></pic:nvPicPr>`,
+        `<pic:blipFill><a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>`,
+        `<a:stretch><a:fillRect/></a:stretch></pic:blipFill>`,
+        `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cxEmu}" cy="${cyEmu}"/></a:xfrm>`,
+        `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>`,
+        `</pic:pic></a:graphicData></a:graphic></wp:inline>`,
+        `</w:drawing></w:r></w:p>`,
+      ].join("");
+      // Insert before the body-level <w:sectPr>: find the last </w:sectPr> close tag,
+      // then walk back to its matching open tag. This avoids placing content after the
+      // section boundary (which is what caused the blank page).
+      const bodyPos        = xml.lastIndexOf("</w:body>");
+      const sectPrClosePos = xml.lastIndexOf("</w:sectPr>");
+      const sectPrOpenPos  = sectPrClosePos !== -1 && sectPrClosePos < bodyPos
+        ? xml.lastIndexOf("<w:sectPr", sectPrClosePos)
+        : -1;
+      const insertAt = sectPrOpenPos !== -1 ? sectPrOpenPos : bodyPos;
       xml = xml.slice(0, insertAt) + passportContent + xml.slice(insertAt);
     }
   }
