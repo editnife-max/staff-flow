@@ -1273,8 +1273,8 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
           toast.info(`Generating ${candidates.length} PDFs — please wait…`);
           for (const c of sortedCandidates) {
             if (isDocxTemplate) {
-              const bytes = await buildFilledDocx(matchedTemplate!, c, false);
-              await docxBytesToPdf(bytes, `${c.full_name} — ${currentType.label}.pdf`, c.passport_scan_url ?? undefined);
+              const bytes = await buildFilledDocx(matchedTemplate!, c, true);
+              await docxBytesToPdf(bytes, `${c.full_name} — ${currentType.label}.pdf`);
             } else {
               const canvas = await candidateToCanvas(c, matchedTemplate);
               const w = Math.round(canvas.width / 2), h = Math.round(canvas.height / 2);
@@ -1290,8 +1290,8 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
           if (matchedTemplate) {
             const isDocx = matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
             if (isDocx) {
-              const bytes = await buildFilledDocx(matchedTemplate, preview!, false);
-              await docxBytesToPdf(bytes, `${preview!.full_name} — ${currentType.label}.pdf`, preview!.passport_scan_url ?? undefined);
+              const bytes = await buildFilledDocx(matchedTemplate, preview!, true);
+              await docxBytesToPdf(bytes, `${preview!.full_name} — ${currentType.label}.pdf`);
             } else {
               const canvas = await candidateToCanvas(preview!, matchedTemplate);
               const w = Math.round(canvas.width / 2), h = Math.round(canvas.height / 2);
