@@ -814,11 +814,10 @@ async function docxBytesToPdf(bytes: Uint8Array, filename: string, passportUrl?:
     await docxRenderAsync(buf, container, undefined, {
       className: "docx-pdf-render",
       inWrapper: true,
-      ignoreWidth: true,
       ignoreHeight: true,
     });
-    // Wait for async images inside docx-preview to settle
-    await new Promise<void>((r) => setTimeout(r, 500));
+    // Wait for async images and fonts inside docx-preview to settle
+    await new Promise<void>((r) => setTimeout(r, 900));
 
     const patchOnclone = (_doc: Document) => {
       // Remove app link stylesheets — they contain Tailwind oklch tokens that html2canvas can't parse.
@@ -887,8 +886,8 @@ async function addPassportScanPage(pdf: jsPDF, url: string): Promise<void> {
   const isLandscape = iW > iH;
   const pageW = isLandscape ? 1123 : 794;
   const pageH = isLandscape ? 794 : 1123;
-  const margin = 20;
-  const scale = Math.min((pageW - margin * 2) / iW, (pageH - margin * 2) / iH);
+  // Scale image to ~55% of the page (centered), preserving aspect ratio
+  const scale = Math.min((pageW * 0.55) / iW, (pageH * 0.55) / iH);
   const drawW = Math.round(iW * scale);
   const drawH = Math.round(iH * scale);
   const x = Math.round((pageW - drawW) / 2);
