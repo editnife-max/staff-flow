@@ -288,6 +288,8 @@ const initialFilters = {
   availability: [] as string[],
   added_by: [] as string[],
   private_filter: [] as string[],
+  from: "",
+  to: "",
 };
 
 const firstName = (s: string | null | undefined) =>

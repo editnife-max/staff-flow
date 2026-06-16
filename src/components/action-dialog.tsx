@@ -32,7 +32,7 @@ interface TemplateMetadata {
     cx: number;
     cy: number;
     anchorType: string;
-    purpose: "photo" | "passport" | "unknown";
+    purpose: "photo" | "fullphoto" | "passport" | "unknown";
   }>;
   imageCells?: Array<{ label: string; purpose: "photo" | "fullphoto" | "passport" }>;
 }
@@ -603,6 +603,89 @@ function labelParaXml(text: string): string {
   return `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>${text}</w:t></w:r></w:p>`;
 }
 
+// Replaces <wp:anchor> blocks that contain a wpg:wgp group wrapping rId with a
+// simple <wp:inline> drawing. docx-preview cannot render wpg:wgp anchor groups,
+// so photos embedded inside wps:txbx shapes (e.g. Monaco template) are invisible —
+// unwrapping them to an inline drawing makes them visible without changing image data.
+function simplifyWpgAnchorForRId(xml: string, rId: string, cx: number, cy: number): string {
+  const embedTag = `r:embed="${rId}"`;
+  let pos = 0;
+  while (pos < xml.length) {
+    const anchorStart = xml.indexOf("<wp:anchor", pos);
+    if (anchorStart === -1) break;
+
+    let depth = 1, scan = anchorStart + 10;
+    while (depth > 0 && scan < xml.length) {
+      const nxOpen  = xml.indexOf("<wp:anchor",   scan);
+      const nxClose = xml.indexOf("</wp:anchor>", scan);
+      if (nxClose === -1) { scan = xml.length; break; }
+      if (nxOpen !== -1 && nxOpen < nxClose) { depth++; scan = nxOpen + 10; }
+      else                                    { depth--; scan = nxClose + 12; }
+    }
+    if (depth !== 0) { pos = anchorStart + 1; continue; }
+    const anchorEnd = scan;
+
+    const block = xml.slice(anchorStart, anchorEnd);
+    if (block.includes("wpg:wgp") && block.includes(embedTag)) {
+      const attrStr = /<wp:docPr\b([^>]*)\/?>/.exec(block)?.[1] ?? "";
+      const picId   = parseInt(/\bid="(\d+)"/.exec(attrStr)?.[1] ?? "98");
+      const name    = /\bname="([^"]*)"/.exec(attrStr)?.[1] ?? "Photo";
+      const wpInline = [
+        `<wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"`,
+        ` distT="0" distB="0" distL="0" distR="0">`,
+        `<wp:extent cx="${cx}" cy="${cy}"/>`,
+        `<wp:effectExtent l="0" t="0" r="0" b="0"/>`,
+        `<wp:docPr id="${picId}" name="${name}"/>`,
+        `<wp:cNvGraphicFramePr>`,
+        `<a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/>`,
+        `</wp:cNvGraphicFramePr>`,
+        `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">`,
+        `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">`,
+        `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">`,
+        `<pic:nvPicPr><pic:cNvPr id="${picId}" name="${name}"/><pic:cNvPicPr/></pic:nvPicPr>`,
+        `<pic:blipFill>`,
+        `<a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>`,
+        `<a:stretch><a:fillRect/></a:stretch>`,
+        `</pic:blipFill>`,
+        `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>`,
+        `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>`,
+        `</pic:pic></a:graphicData></a:graphic></wp:inline>`,
+      ].join("");
+      xml = xml.slice(0, anchorStart) + wpInline + xml.slice(anchorEnd);
+      pos = anchorStart + wpInline.length;
+    } else {
+      pos = anchorEnd;
+    }
+  }
+  return xml;
+}
+
+// Rescales all cx/cy attribute pairs inside a <wp:inline> block that embeds rId.
+// Used to cap oversized full-body photos (e.g. 11"×17") to the A4 printable area
+// so they render correctly in docx-preview's 794px container instead of overflowing.
+function fixInlineDrawingSize(xml: string, rId: string, newCx: number, newCy: number): string {
+  const embedTag = `r:embed="${rId}"`;
+  let pos = 0;
+  while (pos < xml.length) {
+    const inlineStart = xml.indexOf("<wp:inline", pos);
+    if (inlineStart === -1) break;
+    const inlineEnd = xml.indexOf("</wp:inline>", inlineStart);
+    if (inlineEnd === -1) break;
+    const inlineEndFull = inlineEnd + 12;
+    const block = xml.slice(inlineStart, inlineEndFull);
+    if (block.includes(embedTag)) {
+      const newBlock = block
+        .replace(/\bcx="(\d+)"/g, `cx="${newCx}"`)
+        .replace(/\bcy="(\d+)"/g, `cy="${newCy}"`);
+      xml = xml.slice(0, inlineStart) + newBlock + xml.slice(inlineEndFull);
+      pos = inlineStart + newBlock.length;
+    } else {
+      pos = inlineEndFull;
+    }
+  }
+  return xml;
+}
+
 export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedPassport = true): Promise<Uint8Array> {
   const res = await fetch(template.file_url, { mode: "cors" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -677,6 +760,20 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
       await replaceSlot(photoSlot, (c.photo_url ?? c.full_photo_url)!);
     // Passport slot in imageSlots is intentionally skipped — it lives in a DOCX header/anchor
     // which repeats on every page. The scan is always added as a dedicated second page instead.
+
+    // Unwrap WPG anchor groups + cap oversized inline drawings for docx-preview compatibility.
+    // docx-preview can't render wpg:wgp anchors (images inside wps:txbx are invisible),
+    // and drawings wider/taller than ~A4 printable area overflow the 794px container.
+    const MAX_CX = 5942700; // ~6.5 inches EMU (A4 printable width)
+    const MAX_CY = 8687100; // ~9.5 inches EMU (A4 printable height)
+    for (const slot of imageSlots) {
+      if (slot.purpose === "passport") continue;
+      xml = simplifyWpgAnchorForRId(xml, slot.rId, slot.cx, slot.cy);
+      if (slot.cx > MAX_CX || slot.cy > MAX_CY) {
+        const scale = Math.min(MAX_CX / slot.cx, MAX_CY / slot.cy);
+        xml = fixInlineDrawingSize(xml, slot.rId, Math.round(slot.cx * scale), Math.round(slot.cy * scale));
+      }
+    }
 
     zip.file(relsPath, new TextEncoder().encode(relsXml));
     if (ctEntry && ctXml) zip.file(ctPath, new TextEncoder().encode(ctXml));

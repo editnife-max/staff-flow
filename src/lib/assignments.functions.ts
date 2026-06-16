@@ -131,7 +131,7 @@ interface ImageSlot {
   cx: number;
   cy: number;
   anchorType: string;
-  purpose: "photo" | "passport" | "unknown";
+  purpose: "photo" | "fullphoto" | "passport" | "unknown";
 }
 
 interface ImageCellDef {
