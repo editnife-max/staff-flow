@@ -196,9 +196,10 @@ function extractImageSlots(docXml: string, relsXml: string): Omit<ImageSlot, "pu
   return slots;
 }
 
-// Portrait → photo, landscape → passport, square → unknown.
+// Portrait → photo or fullphoto (by size), landscape → passport, square → unknown.
+// Threshold: portrait slots wider than 4 500 000 EMU (~5 in) are full-body photos.
 function classifySlot(s: { cx: number; cy: number }): ImageSlot["purpose"] {
-  if (s.cy > s.cx) return "photo";
+  if (s.cy > s.cx) return s.cx > 4_500_000 ? "fullphoto" : "photo";
   if (s.cx > s.cy) return "passport";
   return "unknown";
 }

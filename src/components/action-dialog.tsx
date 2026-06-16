@@ -598,9 +598,10 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
   const ctEntry = zip.file(ctPath);
   let ctXml = ctEntry ? new TextDecoder().decode(ctEntry.asUint8Array()) : "";
 
-  const imageSlots = meta?.imageSlots ?? [];
-  const photoSlot    = imageSlots.find((s) => s.purpose === "photo");
-  const passportSlot = imageSlots.find((s) => s.purpose === "passport");
+  const imageSlots    = meta?.imageSlots ?? [];
+  const photoSlot     = imageSlots.find((s) => s.purpose === "photo");
+  const fullPhotoSlot = imageSlots.find((s) => s.purpose === "fullphoto");
+  const passportSlot  = imageSlots.find((s) => s.purpose === "passport");
 
   if (imageSlots.length > 0) {
     // ── In-place replacement: swap image files, keep all drawing XML intact ──
@@ -611,8 +612,8 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
     ) => {
       const img = await fetchImgBytes(src);
       if (!img) return;
-      const base        = slot.target.replace(/[^/]*$/, "");          // "media/"
-      const newFileName = `${base}cv_${slot.purpose}.${img.ext}`;    // "media/cv_photo.jpg"
+      const base        = slot.target.replace(/[^/]*$/, "");                      // "media/"
+      const newFileName = `${base}cv_${slot.purpose}_${slot.rId}.${img.ext}`;   // "media/cv_photo_rId9.jpg"
       const oldPath     = `word/${slot.target}`;
       const newPath     = `word/${newFileName}`;
 
@@ -633,8 +634,10 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
       }
     };
 
-    if (photoSlot && (c.full_photo_url || c.photo_url))
-      await replaceSlot(photoSlot, (c.full_photo_url ?? c.photo_url)!);
+    if (fullPhotoSlot && (c.full_photo_url || c.photo_url))
+      await replaceSlot(fullPhotoSlot, (c.full_photo_url ?? c.photo_url)!);
+    if (photoSlot && (c.photo_url || c.full_photo_url))
+      await replaceSlot(photoSlot, (c.photo_url ?? c.full_photo_url)!);
     // Passport slot in imageSlots is intentionally skipped — it lives in a DOCX header/anchor
     // which repeats on every page. The scan is always added as a dedicated second page instead.
 
