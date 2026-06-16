@@ -748,12 +748,19 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
           ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
         }
         const d = await bytesToDims(img.bytes);
-        xml = replaceImageCellContaining(xml, "FULL SIZE PHOTO", rId, d.w, d.h, 51);
-        xml = replaceImageCellContaining(xml, "FULL BODY PHOTO", rId, d.w, d.h, 52);
-        xml = replaceImageCellContaining(xml, "FULL PHOTO",      rId, d.w, d.h, 53);
+        // Most-specific full-body variants first
+        xml = replaceImageCellContaining(xml, "FULL SIZE PHOTO",    rId, d.w, d.h, 51);
+        xml = replaceImageCellContaining(xml, "FULL SIZE PICTURE",  rId, d.w, d.h, 52);
+        xml = replaceImageCellContaining(xml, "FULL BODY PHOTO",    rId, d.w, d.h, 53);
+        xml = replaceImageCellContaining(xml, "FULL BODY PICTURE",  rId, d.w, d.h, 54);
+        xml = replaceImageCellContaining(xml, "FULL LENGTH PHOTO",  rId, d.w, d.h, 55);
+        xml = replaceImageCellContaining(xml, "FULL LENGTH",        rId, d.w, d.h, 56);
+        xml = replaceImageCellContaining(xml, "WHOLE BODY",         rId, d.w, d.h, 57);
+        xml = replaceImageCellContaining(xml, "BODY PHOTO",         rId, d.w, d.h, 58);
+        xml = replaceImageCellContaining(xml, "FULL PHOTO",         rId, d.w, d.h, 59);
       }
     }
-    // Passport-size photo — runs after full variants so "PHOTO" doesn't steal those cells
+    // Passport-size photo — runs after full variants so generic "PHOTO" doesn't steal those cells
     const photoSrc = c.photo_url ?? c.full_photo_url;
     if (photoSrc) {
       const img = await fetchImgBytes(photoSrc);
@@ -768,7 +775,10 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
           ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
         }
         const d = await bytesToDims(img.bytes);
-        xml = replaceImageCellContaining(xml, "PHOTO", rId, d.w, d.h, 50);
+        xml = replaceImageCellContaining(xml, "4X4",         rId, d.w, d.h, 60);
+        xml = replaceImageCellContaining(xml, "PHOTOGRAPH",  rId, d.w, d.h, 61);
+        xml = replaceImageCellContaining(xml, "PICTURE",     rId, d.w, d.h, 62);
+        xml = replaceImageCellContaining(xml, "PHOTO",       rId, d.w, d.h, 50);
       }
     }
     // Passport scan is never placed in a cell — always appended as a dedicated page below.

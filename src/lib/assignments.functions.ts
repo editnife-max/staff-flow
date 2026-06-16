@@ -231,9 +231,10 @@ async function analyzeFieldsWithClaude(
     `IMPORTANT: Some templates mistakenly use a religion value (e.g. "Non-muslim", "Muslim", "Christian") as a row label — this always means the row is for HEIGHT, map it to HEIGHT. Do NOT map such value-like strings to RELIGION.\n\n` +
     `TASK 2 — Image cell identification:\n` +
     `Identify labels that are image/photo placeholders. Classify each as:\n` +
-    `- "photo"     → small passport-size photo (e.g. "PHOTO", "صورة", "Picture", "4x4")\n` +
-    `- "fullphoto" → large or full-body photo (e.g. "FULL PHOTO", "Full Size Photo", "صورة كاملة")\n` +
-    `- "passport"  → passport bio-page scan (e.g. "PASSPORT SCAN", "PASSPORT COPY", "صورة الجواز")\n\n` +
+    `- "photo"     → small passport-size photo. Examples: "PHOTO", "Photo", "Photograph", "Picture", "Pic", "4x4", "4X4 PHOTO", "ID Photo", "Passport Size Photo", "Applicant Photo", "صورة", "صورة شخصية"\n` +
+    `- "fullphoto" → large or full-body photo. Examples: "FULL PHOTO", "Full Size Photo", "Full Size Picture", "Full Body Photo", "Full Body Picture", "Full Length Photo", "Full Length", "Whole Body", "Body Photo", "صورة كاملة", "صورة كاملة الجسم"\n` +
+    `- "passport"  → passport bio-page scan. Examples: "PASSPORT SCAN", "PASSPORT COPY", "Passport Image", "Bio Page", "صورة الجواز", "نسخة الجواز"\n` +
+    `Any label that includes the word "photo", "picture", "photograph" or "صورة" without a "full"/"body"/"whole" qualifier should be "photo". Any with "full", "body", "whole", or "length" qualifier should be "fullphoto".\n\n` +
     `Return ONLY valid JSON, no explanation:\n` +
     `{"fieldMap":{"Label":"STANDARD_FIELD"},"imageCells":[{"label":"PHOTO","purpose":"photo"}]}`;
 
