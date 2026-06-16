@@ -84,6 +84,20 @@ function getCandidateFieldValue(c: Candidate, field: string): string {
     EMBASSY_DATE:         c.embassy_date                          ?? "",
     ARRIVAL_CITY:         c.arrival_city                          ?? "",
     INSURANCE_STATUS:     c.insurance_status                      ?? "",
+    INSURANCE_DATE:       c.insurance_date                        ?? "",
+    MEDICAL_DATE:         c.medical_date                          ?? "",
+    CONTRACT_DATE:        c.contract_date                         ?? "",
+    DESTINATION_COUNTRY:  c.destination_country                   ?? "",
+    EXPERIENCE_YEARS:     c.experience_years                      ?? "",
+    GENDER:               c.gender                                ?? "",
+    MUSANED_STATUS:       c.musaned_status                        ?? "",
+    PASSPORT_STATUS:      c.passport_status                       ?? "",
+    SERIAL_NUMBER:        c.serial_number ?? c.candidate_code     ?? "",
+    CANDIDATE_CODE:       c.candidate_code ?? c.serial_number     ?? "",
+    SKILLS:               c.skills                                ?? "",
+    SPOKEN_LANGUAGES:     c.spoken_languages                      ?? "",
+    COC_AGENCY_NAME:      c.coc_agency_name                       ?? "",
+    EMERGENCY_CONTACT:    c.emergency_contact                     ?? "",
   };
   return m[field] ?? "";
 }
@@ -133,9 +147,32 @@ export const CV_FIELD_MAP = (c: Candidate): [string, string][] => [
   ["VISA STATUS",        c.visa_status                                      ?? ""],
   ["SELECTED BY",        c.selected_by                                      ?? ""],
   ["INSIDE OFFICE",      c.office                                           ?? ""],
-  ["EMBASSY DATE",       c.embassy_date                                     ?? ""],
-  ["ARRIVAL CITY",       c.arrival_city                                     ?? ""],
-  ["INSURANCE",          c.insurance_status                                 ?? ""],
+  ["EMBASSY DATE",           c.embassy_date                                 ?? ""],
+  ["ARRIVAL CITY",           c.arrival_city                                 ?? ""],
+  ["INSURANCE",              c.insurance_status                             ?? ""],
+  ["INSURANCE STATUS",       c.insurance_status                             ?? ""],
+  ["INSURANCE DATE",         c.insurance_date                               ?? ""],
+  ["MEDICAL DATE",           c.medical_date                                 ?? ""],
+  ["CONTRACT DATE",          c.contract_date                                ?? ""],
+  ["DESTINATION COUNTRY",    c.destination_country                          ?? ""],
+  ["COUNTRY OF WORK",        c.destination_country                          ?? ""],
+  ["GOING COUNTRY",          c.destination_country                          ?? ""],
+  ["EXPERIENCE YEARS",       c.experience_years                             ?? ""],
+  ["YEARS OF EXPERIENCE",    c.experience_years                             ?? ""],
+  ["GENDER",                 c.gender                                       ?? ""],
+  ["MUSANED",                c.musaned_status                               ?? ""],
+  ["MUSANED STATUS",         c.musaned_status                               ?? ""],
+  ["PASSPORT STATUS",        c.passport_status                              ?? ""],
+  ["SERIAL NUMBER",          c.serial_number ?? c.candidate_code            ?? ""],
+  ["SERIAL NO",              c.serial_number ?? c.candidate_code            ?? ""],
+  ["CANDIDATE CODE",         c.candidate_code ?? c.serial_number            ?? ""],
+  ["CODE",                   c.candidate_code ?? c.serial_number            ?? ""],
+  ["SKILLS",                 c.skills                                       ?? ""],
+  ["SPOKEN LANGUAGES",       c.spoken_languages                             ?? ""],
+  ["LANGUAGES",              c.spoken_languages                             ?? ""],
+  ["COC AGENCY",             c.coc_agency_name                              ?? ""],
+  ["COC AGENCY NAME",        c.coc_agency_name                              ?? ""],
+  ["EMERGENCY CONTACT",      c.emergency_contact                            ?? ""],
 ];
 
 function xmlEsc(s: string) {
@@ -731,12 +768,14 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
         xml = replaceImageCellContaining(xml, cell.label, rId, dims.w, dims.h, picId);
       picId++;
     }
-  } else {
-    // Fallback: no imageCells metadata — use contains matching so label variants like
-    // "4x4 PHOTO", "Full Size Photo", "Passport Scan" all work.
-    // Most-specific substrings run first so "PHOTO" doesn't steal "FULL SIZE PHOTO" cells.
+  }
 
-    // Full-body photo
+  // Keyword scan — always runs after Claude path so cells Claude missed (or templates with no
+  // imageCells metadata) are still filled. Already-replaced cells have no text left, so these
+  // replaceImageCellContaining calls are safely idempotent. picIds 70-82 avoid the 50-N range
+  // used by the Claude path above.
+  {
+    // Full-body photo — most-specific substrings first so "PHOTO" doesn't steal "FULL SIZE PHOTO"
     const fullPhotoSrc = c.full_photo_url ?? c.photo_url;
     if (fullPhotoSrc) {
       const img = await fetchImgBytes(fullPhotoSrc);
@@ -751,16 +790,15 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
           ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
         }
         const d = await bytesToDims(img.bytes);
-        // Most-specific full-body variants first
-        xml = replaceImageCellContaining(xml, "FULL SIZE PHOTO",    rId, d.w, d.h, 51);
-        xml = replaceImageCellContaining(xml, "FULL SIZE PICTURE",  rId, d.w, d.h, 52);
-        xml = replaceImageCellContaining(xml, "FULL BODY PHOTO",    rId, d.w, d.h, 53);
-        xml = replaceImageCellContaining(xml, "FULL BODY PICTURE",  rId, d.w, d.h, 54);
-        xml = replaceImageCellContaining(xml, "FULL LENGTH PHOTO",  rId, d.w, d.h, 55);
-        xml = replaceImageCellContaining(xml, "FULL LENGTH",        rId, d.w, d.h, 56);
-        xml = replaceImageCellContaining(xml, "WHOLE BODY",         rId, d.w, d.h, 57);
-        xml = replaceImageCellContaining(xml, "BODY PHOTO",         rId, d.w, d.h, 58);
-        xml = replaceImageCellContaining(xml, "FULL PHOTO",         rId, d.w, d.h, 59);
+        xml = replaceImageCellContaining(xml, "FULL SIZE PHOTO",    rId, d.w, d.h, 71);
+        xml = replaceImageCellContaining(xml, "FULL SIZE PICTURE",  rId, d.w, d.h, 72);
+        xml = replaceImageCellContaining(xml, "FULL BODY PHOTO",    rId, d.w, d.h, 73);
+        xml = replaceImageCellContaining(xml, "FULL BODY PICTURE",  rId, d.w, d.h, 74);
+        xml = replaceImageCellContaining(xml, "FULL LENGTH PHOTO",  rId, d.w, d.h, 75);
+        xml = replaceImageCellContaining(xml, "FULL LENGTH",        rId, d.w, d.h, 76);
+        xml = replaceImageCellContaining(xml, "WHOLE BODY",         rId, d.w, d.h, 77);
+        xml = replaceImageCellContaining(xml, "BODY PHOTO",         rId, d.w, d.h, 78);
+        xml = replaceImageCellContaining(xml, "FULL PHOTO",         rId, d.w, d.h, 79);
       }
     }
     // Passport-size photo — runs after full variants so generic "PHOTO" doesn't steal those cells
@@ -778,10 +816,10 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
           ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
         }
         const d = await bytesToDims(img.bytes);
-        xml = replaceImageCellContaining(xml, "4X4",         rId, d.w, d.h, 60);
-        xml = replaceImageCellContaining(xml, "PHOTOGRAPH",  rId, d.w, d.h, 61);
-        xml = replaceImageCellContaining(xml, "PICTURE",     rId, d.w, d.h, 62);
-        xml = replaceImageCellContaining(xml, "PHOTO",       rId, d.w, d.h, 50);
+        xml = replaceImageCellContaining(xml, "4X4",         rId, d.w, d.h, 80);
+        xml = replaceImageCellContaining(xml, "PHOTOGRAPH",  rId, d.w, d.h, 81);
+        xml = replaceImageCellContaining(xml, "PICTURE",     rId, d.w, d.h, 82);
+        xml = replaceImageCellContaining(xml, "PHOTO",       rId, d.w, d.h, 70);
       }
     }
     // Passport scan is never placed in a cell — always appended as a dedicated page below.
