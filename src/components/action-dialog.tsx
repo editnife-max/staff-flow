@@ -686,6 +686,93 @@ function fixInlineDrawingSize(xml: string, rId: string, newCx: number, newCy: nu
   return xml;
 }
 
+// ── Live image-slot detection ─────────────────────────────────────────────────
+// Scans ANY DOCX document.xml at export time — no pre-stored metadata needed.
+// Uses depth-counted traversal so nested structures (WPG anchors → wps:txbx →
+// inner <w:drawing>) are walked correctly and not mis-matched by naive regexes.
+// Returns every portrait drawing classified by proportion:
+//   portrait + narrow cx  → "photo"     (face / passport-size)
+//   portrait + wide cx    → "fullphoto" (full-body)
+//   landscape             → "passport"  (company logo, header strip — skipped at inject time)
+interface LiveSlot {
+  rId: string; target: string; cx: number; cy: number;
+  purpose: "photo" | "fullphoto" | "passport" | "unknown";
+  inWpgAnchor: boolean; // true → WPG group anchor; needs unwrapping before docx-preview renders it
+}
+
+function liveExtractImageSlots(docXml: string, relsXml: string): LiveSlot[] {
+  const relMap = new Map<string, string>();
+  const relRe = /<Relationship\b[^>]*\/>/g;
+  let rm: RegExpExecArray | null;
+  while ((rm = relRe.exec(relsXml)) !== null) {
+    const id     = /\bId="([^"]+)"/.exec(rm[0])?.[1];
+    const type   = /\bType="([^"]+)"/.exec(rm[0])?.[1] ?? "";
+    const target = /\bTarget="([^"]+)"/.exec(rm[0])?.[1];
+    if (id && target && type.endsWith("/image")) relMap.set(id, target);
+  }
+  if (relMap.size === 0) return [];
+
+  const slots: LiveSlot[] = [];
+  const seen  = new Set<string>();
+  let pos = 0;
+
+  while (pos < docXml.length) {
+    const drawStart = docXml.indexOf("<w:drawing", pos);
+    if (drawStart === -1) break;
+    // Guard: must be <w:drawing> or <w:drawing<space>, not <w:drawingXyz>
+    const dc = docXml[drawStart + 10];
+    if (dc !== ">" && dc !== " " && dc !== "\n" && dc !== "\t") { pos = drawStart + 1; continue; }
+
+    // Depth-count to find the matching </w:drawing>
+    let depth = 1, scan = drawStart + 10;
+    while (depth > 0 && scan < docXml.length) {
+      const nxOpen  = docXml.indexOf("<w:drawing",   scan);
+      const nxClose = docXml.indexOf("</w:drawing>", scan);
+      if (nxClose === -1) { scan = docXml.length; break; }
+      if (nxOpen !== -1 && nxOpen < nxClose) {
+        const nc = docXml[nxOpen + 10];
+        if (nc === ">" || nc === " " || nc === "\n" || nc === "\t") depth++;
+        scan = nxOpen + 10;
+      } else {
+        depth--;
+        scan = nxClose + 12;
+      }
+    }
+    if (depth !== 0) { pos = drawStart + 1; continue; }
+    const drawEnd = scan;
+
+    const block = docXml.slice(drawStart, drawEnd);
+    const rId   = /\br:embed="([^"]+)"/.exec(block)?.[1];
+    if (!rId || seen.has(rId)) { pos = drawEnd; continue; }
+    const target = relMap.get(rId);
+    if (!target)               { pos = drawEnd; continue; }
+    seen.add(rId);
+
+    const inWpgAnchor = block.includes("<wp:anchor") && block.includes("wpg:wgp");
+
+    // For WPG-wrapped drawings use the outer anchor extent (the designer's intended footprint).
+    // For plain anchors/inlines, the first <wp:extent> is the display size.
+    let cx = 0, cy = 0;
+    const extSrc = inWpgAnchor ? block.slice(block.indexOf("<wp:anchor")) : block;
+    const extAttrs = /<wp:extent\b([^/]*)\/?>/.exec(extSrc)?.[1] ?? "";
+    cx = parseInt(/\bcx="(\d+)"/.exec(extAttrs)?.[1] ?? "0");
+    cy = parseInt(/\bcy="(\d+)"/.exec(extAttrs)?.[1] ?? "0");
+
+    // Skip placeholders too small to be photos (decorative icons, bullets, tiny logos)
+    if (!cx || !cy || cx < 400_000 || cy < 400_000) { pos = drawEnd; continue; }
+
+    // Classify by portrait vs landscape and physical width
+    let purpose: LiveSlot["purpose"];
+    if (cy > cx)          purpose = cx > 4_500_000 ? "fullphoto" : "photo";
+    else if (cx > cy * 1.2) purpose = "passport";
+    else                   purpose = "unknown";
+
+    slots.push({ rId, target, cx, cy, purpose, inWpgAnchor });
+    pos = drawEnd;
+  }
+  return slots;
+}
+
 export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedPassport = true): Promise<Uint8Array> {
   const res = await fetch(template.file_url, { mode: "cors" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -718,118 +805,58 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
   const ctEntry = zip.file(ctPath);
   let ctXml = ctEntry ? new TextDecoder().decode(ctEntry.asUint8Array()) : "";
 
-  const imageSlots    = meta?.imageSlots ?? [];
-  const photoSlot     = imageSlots.find((s) => s.purpose === "photo");
-  const fullPhotoSlot = imageSlots.find((s) => s.purpose === "fullphoto");
-  const passportSlot  = imageSlots.find((s) => s.purpose === "passport");
+  // ── Universal photo injection ─────────────────────────────────────────────────
+  // Live-detect every image drawing in the template (handles WPG groups, nested
+  // text boxes, plain anchors, and inline drawings — any structure any template uses).
+  // Inject the candidate's photo/fullphoto, then auto-normalize the drawing so
+  // docx-preview renders it correctly regardless of the original template structure.
+  const liveSlots    = liveExtractImageSlots(xml, relsXml);
+  const livePhoto     = liveSlots.find(s => s.purpose === "photo");
+  const liveFullPhoto = liveSlots.find(s => s.purpose === "fullphoto");
 
-  if (imageSlots.length > 0) {
-    // ── In-place replacement: swap image files, keep all drawing XML intact ──
-    // This preserves the exact position, size, and layout from the template.
-    const replaceSlot = async (
-      slot: NonNullable<TemplateMetadata["imageSlots"]>[number],
-      src: string,
-    ) => {
-      const img = await fetchImgBytes(src);
-      if (!img) return;
-      const base        = slot.target.replace(/[^/]*$/, "");                      // "media/"
-      const newFileName = `${base}cv_${slot.purpose}_${slot.rId}.${img.ext}`;   // "media/cv_photo_rId9.jpg"
-      const oldPath     = `word/${slot.target}`;
-      const newPath     = `word/${newFileName}`;
+  const injectPhotoSlot = async (slot: LiveSlot, src: string) => {
+    const img = await fetchImgBytes(src);
+    if (!img) return;
 
-      if (zip.file(oldPath)) zip.remove(oldPath);
-      zip.file(newPath, img.bytes);
+    // 1. Swap the image file in the zip
+    const base    = slot.target.replace(/[^/]*$/, "");
+    const newFile = `${base}cv_${slot.purpose}_${slot.rId}.${img.ext}`;
+    if (zip.file(`word/${slot.target}`)) zip.remove(`word/${slot.target}`);
+    zip.file(`word/${newFile}`, img.bytes);
 
-      // Update the relationship's Target to the new filename
-      const esc = slot.rId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      relsXml = relsXml.replace(
-        new RegExp(`<Relationship\\b[^>]*\\bId="${esc}"[^>]*/>`),
-        (el) => el.replace(/\bTarget="[^"]*"/, `Target="${newFileName}"`),
-      );
-
-      // Register the new extension in [Content_Types].xml if needed
-      if (ctXml && !ctXml.includes(`Extension="${img.ext}"`)) {
-        const mime = img.ext === "png" ? "image/png" : "image/jpeg";
-        ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
-      }
-    };
-
-    if (fullPhotoSlot && (c.full_photo_url || c.photo_url))
-      await replaceSlot(fullPhotoSlot, (c.full_photo_url ?? c.photo_url)!);
-    if (photoSlot && (c.photo_url || c.full_photo_url))
-      await replaceSlot(photoSlot, (c.photo_url ?? c.full_photo_url)!);
-    // Passport slot in imageSlots is intentionally skipped — it lives in a DOCX header/anchor
-    // which repeats on every page. The scan is always added as a dedicated second page instead.
-
-    // Unwrap WPG anchor groups + cap oversized inline drawings for docx-preview compatibility.
-    // docx-preview can't render wpg:wgp anchors (images inside wps:txbx are invisible),
-    // and drawings wider/taller than ~A4 printable area overflow the 794px container.
-    const MAX_CX = 5942700; // ~6.5 inches EMU (A4 printable width)
-    const MAX_CY = 8687100; // ~9.5 inches EMU (A4 printable height)
-    for (const slot of imageSlots) {
-      if (slot.purpose === "passport") continue;
-      xml = simplifyWpgAnchorForRId(xml, slot.rId, slot.cx, slot.cy);
-      if (slot.cx > MAX_CX || slot.cy > MAX_CY) {
-        const scale = Math.min(MAX_CX / slot.cx, MAX_CY / slot.cy);
-        xml = fixInlineDrawingSize(xml, slot.rId, Math.round(slot.cx * scale), Math.round(slot.cy * scale));
-      }
-    }
-
-    zip.file(relsPath, new TextEncoder().encode(relsXml));
-    if (ctEntry && ctXml) zip.file(ctPath, new TextEncoder().encode(ctXml));
-
-  } else {
-    // ── Fallback for templates without metadata: strip old images, append new ─
-    const imgExts = /\.(jpg|jpeg|png|gif|bmp|webp|tiff|emf|wmf)$/i;
-    const mediaFiles = zip.filter((p) => p.startsWith("word/media/") && imgExts.test(p));
-    for (const f of mediaFiles) zip.remove(f.name);
-
+    // 2. Point the relationship to the new file
+    const esc = slot.rId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     relsXml = relsXml.replace(
-      /<Relationship\b[^>]*Type="[^"]*\/relationships\/image"[^>]*\/>/g, "",
+      new RegExp(`<Relationship\\b[^>]*\\bId="${esc}"[^>]*/>`),
+      (el) => el.replace(/\bTarget="[^"]*"/, `Target="${newFile}"`),
     );
-    xml = removeImageDrawings(xml);
 
-    const imgSrcs = [
-      ...(c.full_photo_url ?? c.photo_url
-        ? [{ key: "photo",    src: (c.full_photo_url ?? c.photo_url)!, rId: "rIdCvPhoto",    label: "PHOTO",         cxEmu: 1260000, cyEmu: 3240000 }]
-        : []),
-      ...(embedPassport && c.passport_scan_url
-        ? [{ key: "passport", src: c.passport_scan_url,                rId: "rIdCvPassport", label: "PASSPORT SCAN", cxEmu: 5040000, cyEmu: 3240000 }]
-        : []),
-    ];
-
-    const embedded: (typeof imgSrcs[number] & { ext: string })[] = [];
-    for (const src of imgSrcs) {
-      const img = await fetchImgBytes(src.src);
-      if (!img) continue;
-      zip.file(`word/media/cv_${src.key}.${img.ext}`, img.bytes);
-      embedded.push({ ...src, ext: img.ext });
+    // 3. Register new extension in [Content_Types].xml if needed
+    if (ctXml && !ctXml.includes(`Extension="${img.ext}"`)) {
+      const mime = img.ext === "png" ? "image/png" : "image/jpeg";
+      ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
     }
 
-    if (embedded.length > 0) {
-      for (const src of embedded) {
-        relsXml = relsXml.replace(
-          "</Relationships>",
-          `<Relationship Id="${src.rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/cv_${src.key}.${src.ext}"/></Relationships>`,
-        );
-      }
-      if (ctXml) {
-        for (const ext of [...new Set(embedded.map((s) => s.ext))]) {
-          if (!ctXml.includes(`Extension="${ext}"`)) {
-            const mime = ext === "png" ? "image/png" : "image/jpeg";
-            ctXml = ctXml.replace("</Types>", `<Default Extension="${ext}" ContentType="${mime}"/></Types>`);
-          }
-        }
-        zip.file(ctPath, new TextEncoder().encode(ctXml));
-      }
-      const drawings = embedded.map((src, i) =>
-        labelParaXml(src.label) + inlineDrawingXml(src.rId, src.label, i + 20, src.cxEmu, src.cyEmu),
-      ).join("");
-      xml = xml.replace("</w:body>", `<w:p/>${drawings}</w:body>`);
-    }
+    // 4. Unwrap WPG anchor groups → plain <wp:inline> so docx-preview can render them.
+    //    WPG (Word Processing Group) anchors embed images inside wps:txbx text boxes —
+    //    a structure docx-preview doesn't support; converting to inline makes them visible.
+    if (slot.inWpgAnchor)
+      xml = simplifyWpgAnchorForRId(xml, slot.rId, slot.cx, slot.cy);
 
-    zip.file(relsPath, new TextEncoder().encode(relsXml));
-  }
+    // 5. Cap drawings that overflow the A4 printable area (~6.5" × 9.5" in EMU).
+    //    Some templates declare fullphoto slots at 11"×17" — they overflow docx-preview's
+    //    794 px container and vanish. Scaling to A4 makes them visible and fills the page.
+    const MAX_CX = 5_942_700, MAX_CY = 8_687_100;
+    if (slot.cx > MAX_CX || slot.cy > MAX_CY) {
+      const scale = Math.min(MAX_CX / slot.cx, MAX_CY / slot.cy);
+      xml = fixInlineDrawingSize(xml, slot.rId, Math.round(slot.cx * scale), Math.round(slot.cy * scale));
+    }
+  };
+
+  if (liveFullPhoto && (c.full_photo_url || c.photo_url))
+    await injectPhotoSlot(liveFullPhoto, (c.full_photo_url ?? c.photo_url)!);
+  if (livePhoto && (c.photo_url || c.full_photo_url))
+    await injectPhotoSlot(livePhoto, (c.photo_url ?? c.full_photo_url)!);
 
   // ── Cell-based image fill ───────────────────────────────────────────────────
   const IMG_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image";
