@@ -212,7 +212,7 @@ async function analyzeFieldsWithClaude(
   const STANDARD = [
     "FULL_NAME", "POSITION", "PASSPORT_NUMBER", "PASSPORT_ISSUE_DATE",
     "PASSPORT_EXPIRY_DATE", "PLACE_OF_ISSUE", "ENGLISH_LEVEL", "ARABIC_LEVEL",
-    "EXPERIENCE", "NATIONALITY", "RELIGION", "DATE_OF_BIRTH", "PLACE_OF_BIRTH",
+    "EDUCATION", "EXPERIENCE", "NATIONALITY", "RELIGION", "DATE_OF_BIRTH", "PLACE_OF_BIRTH",
     "LIVING_TOWN", "AGE", "MARITAL_STATUS", "CHILDREN", "WEIGHT", "HEIGHT", "REMARK",
     "LABOUR_ID", "NARRATIVE", "MEDICAL_STATUS", "TASHEER_DATE", "TASHEER_STATUS",
     "NARRATIVE_PHONE", "COC_STATUS", "TICKET_STATUS", "TICKET_DATE", "LMIS_STATUS",
@@ -227,7 +227,8 @@ async function analyzeFieldsWithClaude(
     `TASK 1 — Field mapping:\n` +
     `Map ONLY labels that match a standard candidate field to one of these names:\n` +
     `${STANDARD.join(", ")}\n` +
-    `Skip Arabic-only text, section headers, and decorative text.\n\n` +
+    `Skip Arabic-only text, section headers, and decorative text.\n` +
+    `IMPORTANT: Some templates mistakenly use a religion value (e.g. "Non-muslim", "Muslim", "Christian") as a row label — this always means the row is for HEIGHT, map it to HEIGHT. Do NOT map such value-like strings to RELIGION.\n\n` +
     `TASK 2 — Image cell identification:\n` +
     `Identify labels that are image/photo placeholders. Classify each as:\n` +
     `- "photo"     → small passport-size photo (e.g. "PHOTO", "صورة", "Picture", "4x4")\n` +
