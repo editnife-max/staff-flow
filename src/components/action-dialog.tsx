@@ -824,11 +824,19 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
         : -1;
       const insertAt = sectPrOpenPos !== -1 ? sectPrOpenPos : bodyPos;
 
-      // Strip ALL trailing empty paragraphs (no <w:r> runs) before sectPr.
-      // Templates often end with one or more bare cursor <w:p/> elements; each one
-      // that has no run content overflows onto its own blank page and pushes the
-      // passport further down. Loop until we hit a paragraph that has actual content.
       let beforeInsert = xml.slice(0, insertAt);
+
+      // Remove the intermediate section-break paragraph and everything after it.
+      // 2-page templates embed a <w:sectPr> inside a paragraph's <w:pPr> to create
+      // a page boundary — this is what produces the blank page-2 slot. Cutting at
+      // that paragraph removes the blank page and all trailing placeholder content.
+      const innerSectPrPos = beforeInsert.indexOf("<w:sectPr");
+      if (innerSectPrPos !== -1) {
+        const paraStart = beforeInsert.lastIndexOf("<w:p", innerSectPrPos);
+        if (paraStart !== -1) beforeInsert = beforeInsert.slice(0, paraStart);
+      }
+
+      // Strip any remaining trailing empty paragraphs (no <w:r> runs).
       let stripping = true;
       while (stripping) {
         stripping = false;

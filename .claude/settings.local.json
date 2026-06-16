@@ -93,7 +93,8 @@
       "PowerShell(bunx tsc --noEmit 2>&1 | Where-Object { $_ -match \"action-dialog\" })",
       "Bash(git fetch *)",
       "Bash(gh pr *)",
-      "PowerShell(bunx wrangler deploy 2>&1)"
+      "PowerShell(bunx wrangler deploy 2>&1)",
+      "PowerShell(bunx wrangler whoami 2>&1)"
     ]
   },
   "enableAllProjectMcpServers": true,
