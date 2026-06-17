@@ -1345,12 +1345,6 @@ export const EXPORT_COLUMNS: { key: keyof Candidate; label: string }[] = [
 
 export const DEFAULT_EXPORT_COLS = new Set<string>([
   "full_name", "passport_number", "labour_id", "narrative",
-  "medical_status", "tasheer_date", "tasheer_status", "narrative_phone",
-  "coc_status", "ticket_status", "ticket_date", "lmis_status",
-  "age", "wokala_status", "religion", "coc_agency_phone",
-  "cv_sent_to", "cv_sent_date", "medical_days", "experience_country",
-  "visa_status", "selected_by", "office", "embassy_date",
-  "arrival_city", "insurance_status",
 ]);
 
 export const TICKET_DEFAULT_COLS: (keyof Candidate)[] = [
@@ -1592,7 +1586,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
 
         <div className="flex flex-1 min-h-0 overflow-hidden">
           {/* Left panel */}
-          <div className="w-[480px] shrink-0 border-r flex flex-col overflow-y-auto">
+          <div className="flex-1 flex flex-col overflow-y-auto">
 
             {/* Sort Options */}
             <div className="border-b">
@@ -1685,60 +1679,6 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Right panel — preview */}
-          <div className="flex-1 overflow-auto bg-muted/30 p-4">
-            {preview && isCV && matchedTemplate ? (
-              // DOCX template selected — show field map so user can see what will be filled
-              <div className="max-w-lg mx-auto">
-                <div className="mb-4 flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-primary shrink-0" />
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">{matchedTemplate.name}</p>
-                    {isBulk && (
-                      <p className="text-xs text-muted-foreground">{candidates.length} candidates</p>
-                    )}
-                  </div>
-                </div>
-                <div className="border bg-white divide-y text-xs">
-                  {CV_FIELD_MAP(preview).map(([label, value]) => (
-                    <div key={label} className={cn("grid grid-cols-2 gap-2 px-3 py-1.5", !value && "opacity-40")}>
-                      <span className="font-semibold text-muted-foreground uppercase tracking-wide">{label}</span>
-                      <span className={cn("text-foreground", !value && "italic")}>{value || "empty"}</span>
-                    </div>
-                  ))}
-                </div>
-                {isBulk && (
-                  <p className="text-xs text-muted-foreground mt-3 text-center">
-                    Showing data for {preview.full_name} — all {candidates.length} candidates will be downloaded
-                  </p>
-                )}
-              </div>
-            ) : preview && isCV ? (
-              <div>
-                {isBulk && (
-                  <p className="text-xs text-muted-foreground mb-3 text-center">
-                    Previewing 1 of {candidates.length} — all candidates will be downloaded
-                  </p>
-                )}
-                <div className="mx-auto w-fit" style={{ zoom: 0.62 }}>
-                  <div className="shadow-xl">
-                    <CvPreview candidate={preview} template={null} />
-                  </div>
-                </div>
-              </div>
-            ) : preview ? (
-              <div className="h-full flex flex-col items-center justify-center gap-3 text-muted-foreground">
-                <FileText className="h-14 w-14 opacity-15" />
-                <p className="text-sm font-medium">{currentType.label}</p>
-                <p className="text-xs opacity-60 text-center max-w-[260px]">
-                  {downloadType === "summary-pdf"
-                    ? `A PDF table will be generated for ${isBulk ? `all ${candidates.length} candidates` : "this candidate"} with the selected columns.`
-                    : `An Excel (.xlsx) spreadsheet will be generated for ${isBulk ? `all ${candidates.length} candidates` : "this candidate"} with the selected columns.`}
-                </p>
-              </div>
-            ) : null}
           </div>
         </div>
 

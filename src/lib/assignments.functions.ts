@@ -1,4 +1,4 @@
-import { createServerFn } from "@tanstack/react-start";
+﻿import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import PizZip from "pizzip";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -145,20 +145,83 @@ interface TemplateMetadata {
   imageCells: ImageCellDef[];
 }
 
-// Extract all unique cell texts from document.xml for Claude to analyze.
-function extractCellTexts(xml: string): string[] {
-  const texts = new Set<string>();
-  const cellRe = /<w:tc\b[^>]*>([\s\S]*?)<\/w:tc>/g;
-  let cm: RegExpExecArray | null;
-  while ((cm = cellRe.exec(xml)) !== null) {
-    let text = "";
-    const tRe = /<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g;
-    let tm: RegExpExecArray | null;
-    while ((tm = tRe.exec(cm[1])) !== null) text += tm[1];
-    const n = text.replace(/[ ​﻿\s]+/g, " ").trim();
-    if (n.length >= 2 && n.length <= 60) texts.add(n);
+// Extract the full document layout: headings (paragraphs before tables) + table grids.
+// Each table is a 2D array of cell texts; image cells are marked "[IMAGE]".
+interface DocStructure {
+  headings: string[];
+  tables: string[][][];
+}
+
+function extractDocumentStructure(xml: string): DocStructure {
+  // Paragraphs before the first table = document title / section headers
+  const headings: string[] = [];
+  const firstTbl = xml.indexOf("<w:tbl");
+  if (firstTbl > 0) {
+    const before = xml.slice(0, firstTbl);
+    const pRe = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g;
+    let pm: RegExpExecArray | null;
+    while ((pm = pRe.exec(before)) !== null) {
+      const text = [...pm[1].matchAll(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g)]
+        .map((m) => m[1]).join("").replace(/\s+/g, " ").trim();
+      if (text.length >= 2 && text.length <= 120) headings.push(text);
+    }
   }
-  return Array.from(texts).slice(0, 150);
+
+  // Extract tables with depth-counting so nested tables don't confuse boundaries
+  const tables: string[][][] = [];
+  let pos = 0;
+  while (pos < xml.length && tables.length < 12) {
+    const tblStart = xml.indexOf("<w:tbl", pos);
+    if (tblStart === -1) break;
+    let depth = 1, scan = tblStart + 6;
+    while (depth > 0 && scan < xml.length) {
+      const no = xml.indexOf("<w:tbl", scan);
+      const nc = xml.indexOf("</w:tbl>", scan);
+      if (nc === -1) { scan = xml.length; break; }
+      if (no !== -1 && no < nc) { depth++; scan = no + 6; }
+      else { depth--; scan = nc + 8; }
+    }
+    const tblXml = xml.slice(tblStart, scan);
+    const rows: string[][] = [];
+    for (const [, trContent] of tblXml.matchAll(/<w:tr\b[^>]*>([\s\S]*?)<\/w:tr>/g)) {
+      if (rows.length >= 30) break;
+      const cells: string[] = [];
+      for (const [, tcContent] of trContent.matchAll(/<w:tc\b[^>]*>([\s\S]*?)<\/w:tc>/g)) {
+        if (cells.length >= 8) break;
+        if (/<w:drawing/.test(tcContent)) {
+          cells.push("[IMAGE]");
+        } else {
+          const text = [...tcContent.matchAll(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g)]
+            .map((m) => m[1]).join("").replace(/\s+/g, " ").trim();
+          cells.push(text.slice(0, 80));
+        }
+      }
+      if (cells.length > 0) rows.push(cells);
+    }
+    if (rows.length > 0) tables.push(rows);
+    pos = scan;
+  }
+
+  return { headings, tables };
+}
+
+function formatDocStructure(s: DocStructure): string {
+  const lines: string[] = [];
+  if (s.headings.length > 0) {
+    lines.push("TITLE / HEADINGS (text before tables):");
+    s.headings.forEach((h) => lines.push(`  "${h}"`));
+    lines.push("");
+  }
+  s.tables.forEach((table, ti) => {
+    const cols = Math.max(...table.map((r) => r.length), 0);
+    lines.push(`TABLE ${ti + 1} (${table.length} rows × ${cols} cols):`);
+    table.forEach((row, ri) => {
+      const cells = row.map((c) => (c === "[IMAGE]" ? "[IMAGE]" : c === "" ? "[empty]" : `"${c}"`));
+      lines.push(`  Row ${ri + 1}: | ${cells.join(" | ")} |`);
+    });
+    lines.push("");
+  });
+  return lines.join("\n");
 }
 
 // Extract image drawing slots from document.xml + _rels/document.xml.rels.
@@ -204,9 +267,10 @@ function classifySlot(s: { cx: number; cy: number }): ImageSlot["purpose"] {
   return "unknown";
 }
 
-// Call Claude Haiku to map template labels → standard field names AND identify image cells.
+// Call Claude to analyze the full document structure: map label cells → standard fields
+// and identify image placeholder cells by understanding layout, not just a flat word list.
 async function analyzeFieldsWithClaude(
-  cellTexts: string[],
+  structure: DocStructure,
   apiKey: string,
 ): Promise<{ fieldMap: Record<string, string>; imageCells: ImageCellDef[] }> {
   const EMPTY = { fieldMap: {}, imageCells: [] };
@@ -225,26 +289,43 @@ async function analyzeFieldsWithClaude(
     "SKILLS", "SPOKEN_LANGUAGES", "COC_AGENCY_NAME", "EMERGENCY_CONTACT",
   ];
 
-  const systemPrompt =
-    `You are analyzing a CV/recruitment DOCX template.\n\n` +
-    `Complete TWO tasks:\n\n` +
-    `TASK 1 — Field mapping:\n` +
-    `Map ONLY labels that match a standard candidate field to one of these names:\n` +
-    `${STANDARD.join(", ")}\n` +
-    `Skip Arabic-only text, section headers, and decorative text.\n` +
-    `IMPORTANT: Some templates mistakenly use a religion value (e.g. "Non-muslim", "Muslim", "Christian") as a row label — this always means the row is for HEIGHT, map it to HEIGHT. Do NOT map such value-like strings to RELIGION.\n\n` +
-    `TASK 2 — Image cell identification:\n` +
-    `Identify labels that are image/photo placeholders. Classify each as:\n` +
-    `- "photo"     → small passport-size photo. Examples: "PHOTO", "Photo", "Photograph", "Picture", "Pic", "4x4", "4X4 PHOTO", "ID Photo", "Passport Size Photo", "Applicant Photo", "صورة", "صورة شخصية"\n` +
-    `- "fullphoto" → large or full-body photo. Examples: "FULL PHOTO", "Full Size Photo", "Full Size Picture", "Full Body Photo", "Full Body Picture", "Full Length Photo", "Full Length", "Whole Body", "Body Photo", "صورة كاملة", "صورة كاملة الجسم"\n` +
-    `- "passport"  → passport bio-page scan. Examples: "PASSPORT SCAN", "PASSPORT COPY", "Passport Image", "Bio Page", "صورة الجواز", "نسخة الجواز"\n` +
-    `Any label that includes the word "photo", "picture", "photograph" or "صورة" without a "full"/"body"/"whole" qualifier should be "photo". Any with "full", "body", "whole", or "length" qualifier should be "fullphoto".\n\n` +
-    `Return ONLY valid JSON, no explanation:\n` +
-    `{"fieldMap":{"Label":"STANDARD_FIELD"},"imageCells":[{"label":"PHOTO","purpose":"photo"}]}`;
+  const systemPrompt = [
+    "You are analyzing a recruitment/CV DOCX template for a staff management system.",
+    "",
+    "You will receive the FULL DOCUMENT LAYOUT — title/headings and each table with its exact rows and columns.",
+    "Cells marked [IMAGE] contain an embedded image drawing. Cells marked [empty] have no text.",
+    "",
+    "UNDERSTAND THE LAYOUT FIRST:",
+    "- Tables follow a label→value pattern. Common patterns:",
+    "  • 2-col table: | Label | [empty] |  (label in col 0, value slot in col 1)",
+    "  • 4-col table: | Label | [empty] | Label | [empty] |  (two key-value pairs per row)",
+    "  • A cell spanning the full row width with [IMAGE] is a photo/passport placeholder",
+    "- The document title and headings reveal the template's purpose (domestic worker CV, passport page, etc.)",
+    "- Identify which tables hold candidate info vs which hold company branding / signatures",
+    "",
+    "TASK 1 — Field mapping:",
+    `Map label cells to one of these standard field names: ${STANDARD.join(", ")}`,
+    "",
+    "Rules:",
+    "- Only map actual label cells (e.g. 'Full Name', 'Date of Birth', 'الاسم') — not value cells or decorators",
+    "- Arabic labels are valid — map them if they clearly refer to a standard field",
+    "- Skip company names, agency names, section headings, signatures, table borders-only rows",
+    "- Value-like strings used as row labels (e.g. 'Non-Muslim', 'Muslim', 'Male') always indicate HEIGHT — map to HEIGHT",
+    "- Use the row/column position to resolve ambiguity (e.g. 'Religion' next to 'Height' helps confirm both)",
+    "",
+    "TASK 2 — Image cell identification:",
+    "Cells containing [IMAGE] or text labels that clearly name a photo/scan slot:",
+    "- \"photo\"     → small portrait/passport-size. Examples: PHOTO, Photograph, Pic, 4x4, صورة, صورة شخصية",
+    "- \"fullphoto\" → large or full-body photo. Examples: FULL PHOTO, Full Body, Full Length, صورة كاملة",
+    "- \"passport\"  → passport bio-page scan. Examples: PASSPORT SCAN, PASSPORT COPY, Bio Page, صورة الجواز",
+    "Any photo/picture/صورة word without full/body/whole qualifier → photo. With those qualifiers → fullphoto.",
+    "[IMAGE] cells in a table that also contains personal info labels → likely a photo; classify by position (small table cell = photo, large standalone table = fullphoto).",
+    "",
+    "Return ONLY valid JSON — no explanation, no markdown:",
+    '{"fieldMap":{"Label text as it appears in the doc":"STANDARD_FIELD"},"imageCells":[{"label":"exact cell text or [IMAGE]","purpose":"photo"}]}',
+  ].join("\n");
 
-  const userPrompt =
-    `These are the unique text labels found in the template's table cells:\n` +
-    `${cellTexts.map((t) => `"${t}"`).join(", ")}`;
+  const userPrompt = `Here is the full document layout extracted from the DOCX:\n\n${formatDocStructure(structure)}`;
 
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -257,7 +338,7 @@ async function analyzeFieldsWithClaude(
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 1024,
+        max_tokens: 2048,
         system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
         messages: [{ role: "user", content: userPrompt }],
       }),
@@ -308,13 +389,13 @@ export const optimizeCvTemplate = createServerFn({ method: "POST" })
     const rawSlots = extractImageSlots(docXml, relsXml);
     const imageSlots: ImageSlot[] = rawSlots.map((s) => ({ ...s, purpose: classifySlot(s) }));
 
-    // Ask Claude to map this template's label text to standard field names
-    const cellTexts = extractCellTexts(docXml);
+    // Ask Claude to analyze the full document layout and map labels to standard fields
+    const docStructure = extractDocumentStructure(docXml);
     let fieldMap: Record<string, string> = {};
     let imageCells: ImageCellDef[] = [];
     const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (apiKey && cellTexts.length > 0) {
-      ({ fieldMap, imageCells } = await analyzeFieldsWithClaude(cellTexts, apiKey));
+    if (apiKey && (docStructure.tables.length > 0 || docStructure.headings.length > 0)) {
+      ({ fieldMap, imageCells } = await analyzeFieldsWithClaude(docStructure, apiKey));
     }
 
     const metadata: TemplateMetadata = { fieldMap, imageSlots, imageCells };
