@@ -879,19 +879,22 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
       ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
     }
 
-    // 4. Unwrap WPG anchor groups → plain <wp:inline> so docx-preview can render them.
-    //    WPG (Word Processing Group) anchors embed images inside wps:txbx text boxes —
-    //    a structure docx-preview doesn't support; converting to inline makes them visible.
-    if (slot.inWpgAnchor)
-      xml = simplifyWpgAnchorForRId(xml, slot.rId, slot.cx, slot.cy);
+    // 4 & 5 only apply when rendering via docx-preview (PDF path, embedPassport=false).
+    // For direct DOCX downloads (embedPassport=true) Word handles WPG natively — these
+    // transformations strip structure that Word validates, corrupting the file.
+    if (!embedPassport) {
+      // 4. Unwrap WPG anchor groups → plain <wp:inline> so docx-preview can render them.
+      if (slot.inWpgAnchor)
+        xml = simplifyWpgAnchorForRId(xml, slot.rId, slot.cx, slot.cy);
 
-    // 5. Cap drawings that overflow the A4 printable area (~6.5" × 9.5" in EMU).
-    //    Some templates declare fullphoto slots at 11"×17" — they overflow docx-preview's
-    //    794 px container and vanish. Scaling to A4 makes them visible and fills the page.
-    const MAX_CX = 5_942_700, MAX_CY = 8_687_100;
-    if (slot.cx > MAX_CX || slot.cy > MAX_CY) {
-      const scale = Math.min(MAX_CX / slot.cx, MAX_CY / slot.cy);
-      xml = fixInlineDrawingSize(xml, slot.rId, Math.round(slot.cx * scale), Math.round(slot.cy * scale));
+      // 5. Cap drawings that overflow the A4 printable area (~6.5" × 9.5" in EMU).
+      //    Some templates declare fullphoto slots at 11"×17" — they overflow docx-preview's
+      //    794 px container and vanish. Scaling to A4 makes them visible and fills the page.
+      const MAX_CX = 5_942_700, MAX_CY = 8_687_100;
+      if (slot.cx > MAX_CX || slot.cy > MAX_CY) {
+        const scale = Math.min(MAX_CX / slot.cx, MAX_CY / slot.cy);
+        xml = fixInlineDrawingSize(xml, slot.rId, Math.round(slot.cx * scale), Math.round(slot.cy * scale));
+      }
     }
   };
 
