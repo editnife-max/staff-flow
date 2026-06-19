@@ -487,6 +487,19 @@ function ManagerCandidatesPage() {
     },
   });
 
+  // Pre-fetch CV templates so they're instantly available when ActionDialog opens.
+  // Uses the same query key as ActionDialog's internal query to share the cache.
+  useQuery({
+    queryKey: ["cv-templates", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cv_templates").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const countryMeta = useMemo(
     () => assignCountries.map((c) => ({ name: c.name, flag: c.flag })),
     [assignCountries],
