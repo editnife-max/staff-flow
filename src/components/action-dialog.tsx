@@ -214,6 +214,44 @@ function nextCell(xml: string, from: number): number {
   return -1;
 }
 
+// Renames every label cell whose text matches `oldLabel` to `newLabel` in-place.
+// Preserves all cell formatting (<w:tcPr>, run properties, etc.) — only the text nodes change.
+function renameLabel(xml: string, oldLabel: string, newLabel: string): string {
+  const normTarget = normLabel(oldLabel);
+  let pos = 0;
+  while (pos < xml.length) {
+    const cellStart = nextCell(xml, pos);
+    if (cellStart === -1) break;
+    const cellEnd = xml.indexOf("</w:tc>", cellStart);
+    if (cellEnd === -1) break;
+    if (normLabel(cellText(xml, cellStart, cellEnd)) === normTarget) {
+      let first = true;
+      const newCell = xml.slice(cellStart, cellEnd + 7).replace(
+        /<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g,
+        (_, attrs) => {
+          if (first) { first = false; return `<w:t${attrs ?? ""}>${xmlEsc(newLabel)}</w:t>`; }
+          return `<w:t${attrs ?? ""}></w:t>`;
+        },
+      );
+      xml = xml.slice(0, cellStart) + newCell + xml.slice(cellEnd + 7);
+      pos = cellStart + newCell.length;
+    } else {
+      pos = cellEnd + 7;
+    }
+  }
+  return xml;
+}
+
+// Label aliases: template cells that use a non-standard label text but should
+// be treated as a different standard label for filling purposes.
+// The rename happens BEFORE the fill pass so fillField sees the canonical label.
+const LABEL_ALIASES: [string, string][] = [
+  ["Non-Muslim",  "Height"],
+  ["Non Muslim",  "Height"],
+  ["NON-MUSLIM",  "Height"],
+  ["NON MUSLIM",  "Height"],
+];
+
 function fillField(xml: string, label: string, value: string): string {
   const normTarget = normLabel(label);
   let pos = 0;
@@ -780,6 +818,12 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
   const entry = zip.file("word/document.xml");
   if (!entry) throw new Error("word/document.xml missing");
   let xml = new TextDecoder("utf-8").decode(entry.asUint8Array());
+
+  // Rename non-standard label cells to their canonical equivalents before filling.
+  // e.g. templates that use "Non-Muslim" where the label should read "Height".
+  for (const [oldLbl, newLbl] of LABEL_ALIASES) {
+    xml = renameLabel(xml, oldLbl, newLbl);
+  }
 
   // Use Claude's label mapping if the template has metadata; otherwise fall back to standard labels
   const meta = (template.metadata as TemplateMetadata | null | undefined);
