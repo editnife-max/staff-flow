@@ -214,6 +214,29 @@ function nextCell(xml: string, from: number): number {
   return -1;
 }
 
+// Depth-counted cell-end: finds the </w:tc> that closes the cell opened at cellStart,
+// correctly skipping over </w:tc> tags that belong to nested tables inside the cell.
+// Falls back to a plain indexOf result if depth-counting fails (malformed XML).
+function outerCellEnd(xml: string, cellStart: number): number {
+  let depth = 1;
+  let scan = cellStart + 5;
+  while (depth > 0 && scan < xml.length) {
+    const nextOpen  = xml.indexOf("<w:tc",  scan);
+    const nextClose = xml.indexOf("</w:tc>", scan);
+    if (nextClose === -1) break;
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      const ch = xml[nextOpen + 5];
+      if (ch === ">" || ch === " " || ch === "\n" || ch === "\t") depth++;
+      scan = nextOpen + 5;
+    } else {
+      depth--;
+      if (depth === 0) return nextClose;
+      scan = nextClose + 7;
+    }
+  }
+  return xml.indexOf("</w:tc>", cellStart); // fallback
+}
+
 // Renames every label cell whose text matches `oldLabel` to `newLabel` in-place.
 // Preserves all cell formatting (<w:tcPr>, run properties, etc.) — only the text nodes change.
 function renameLabel(xml: string, oldLabel: string, newLabel: string): string {
@@ -470,7 +493,7 @@ function replaceImageCell(
   while (pos < xml.length) {
     const cellStart = nextCell(xml, pos);
     if (cellStart === -1) break;
-    const cellEnd = xml.indexOf("</w:tc>", cellStart);
+    const cellEnd = outerCellEnd(xml, cellStart);
     if (cellEnd === -1) break;
 
     if (normLabel(cellText(xml, cellStart, cellEnd)) === normTarget) {
@@ -514,7 +537,7 @@ function replaceImageCellContaining(
   while (pos < xml.length) {
     const cellStart = nextCell(xml, pos);
     if (cellStart === -1) break;
-    const cellEnd = xml.indexOf("</w:tc>", cellStart);
+    const cellEnd = outerCellEnd(xml, cellStart);
     if (cellEnd === -1) break;
     if (normLabel(cellText(xml, cellStart, cellEnd)).includes(normSub)) {
       const cellSlice = xml.slice(cellStart, cellEnd + 7);
