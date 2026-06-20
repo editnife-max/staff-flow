@@ -629,7 +629,16 @@ function StaffCandidatesPage() {
     let list = candidates.filter((c) => c.status === tab);
     // Processing tab handles its own filtering inside ProcessingTable
     if (tab === "processing") return list;
-    if (passport) list = list.filter((c) => (c.passport_number ?? "").toLowerCase().includes(passport.toLowerCase()));
+    if (passport) {
+      const q = passport.toLowerCase();
+      
+      list = list.filter((c) =>
+        (c.full_name ?? "").toLowerCase().includes(q) ||
+        (c.labour_id ?? "").toLowerCase().includes(q) ||
+        (c.passport_number ?? "").toLowerCase().includes(q) ||
+        (c.candidate_code ?? "").toLowerCase().includes(q),
+      );
+    }
     if (filters.education.length > 0) list = list.filter((c) => filters.education.includes(c.education ?? ""));
     if (filters.marital.length > 0) list = list.filter((c) => filters.marital.includes(c.marital_status ?? ""));
     if (filters.gender.length > 0) list = list.filter((c) => filters.gender.includes(c.gender ?? ""));
@@ -1010,7 +1019,7 @@ function StaffCandidatesPage() {
           <div className="mt-3 flex flex-wrap gap-3">
             <div className="relative w-60">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input className="pl-9 h-8 text-xs rounded-none" placeholder="Passport Number" value={passport} onChange={(e) => setPassport(e.target.value)} />
+              <Input className="pl-9 h-8 text-xs rounded-none" placeholder="Name, Labour ID, Passport…" value={passport} onChange={(e) => setPassport(e.target.value)} />
             </div>
           </div>
           </>
