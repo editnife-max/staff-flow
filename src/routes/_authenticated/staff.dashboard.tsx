@@ -208,16 +208,24 @@ function InlineText({ value, onSave, truncate }: { value: string; onSave: (v: st
   );
 }
 
-function InlineDate({ value, onSave }: { value: string; onSave: (v: string | null) => void }) {
+function InlineDate({ value, onSave, showDays }: { value: string; onSave: (v: string | null) => void; showDays?: boolean }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const fmt = (v: string) =>
     v ? new Date(v + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) : "";
+  const days = showDays && value
+    ? Math.floor((Date.now() - new Date(value + "T00:00:00").getTime()) / 86_400_000)
+    : null;
   if (!editing) {
     return (
       <button type="button" onClick={() => { setDraft(value); setEditing(true); }}
         className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block">
-        {value ? fmt(value) : <span className="text-muted-foreground">—</span>}
+        {value ? (
+          <span className="flex flex-col leading-tight">
+            <span>{fmt(value)}</span>
+            {days !== null && <span className="text-[11px] text-muted-foreground">({days} day{days !== 1 ? "s" : ""})</span>}
+          </span>
+        ) : <span className="text-muted-foreground">—</span>}
       </button>
     );
   }
@@ -257,7 +265,7 @@ function DashboardCandidateCard({
   type FieldDef =
     | { label: string; value: string; bold?: boolean }
     | { label: string; value: string; edit: "text"; field: EditableField; long?: boolean }
-    | { label: string; value: string; edit: "date"; field: EditableField }
+    | { label: string; value: string; edit: "date"; field: EditableField; showDays?: boolean }
     | { label: string; value: string; edit: "select"; field: EditableField; options: string[] };
 
   const fields: FieldDef[] = [
@@ -279,7 +287,7 @@ function DashboardCandidateCard({
     { label: "MEDICAL DATE",    value: (() => { if (!candidate.medical_date) return ""; const days = Math.floor((Date.now() - new Date(candidate.medical_date + "T00:00:00").getTime()) / 86400000); return candidate.medical_status === "Fit" ? `${Math.max(1, days)} days ago` : candidate.medical_date; })(), edit: "date", field: "medical_date" },
     { label: "AVAILABILITY",    value: statusKey,                      edit: "select", field: "status",           options: AVAILABILITY_OPTIONS },
     { label: "SELECTED BY",     value: candidate.selected_by ?? "",    edit: "text",   field: "selected_by" },
-    { label: "CONTRACT DATE",   value: candidate.contract_date ?? "",  edit: "date",   field: "contract_date" },
+    { label: "CONTRACT DATE",   value: candidate.contract_date ?? "",  edit: "date",   field: "contract_date", showDays: true },
     { label: "CV SENT TO",      value: candidate.cv_sent_to ?? "—" },
     { label: "CV SENT DATE",    value: candidate.cv_sent_date ? new Date(candidate.cv_sent_date).toLocaleDateString() : "—" },
     { label: "TICKET STATUS",   value: candidate.ticket_status ?? "",  edit: "select", field: "ticket_status",    options: TICKET_OPTIONS },
@@ -329,7 +337,7 @@ function DashboardCandidateCard({
                     {"edit" in f && f.edit === "text" ? (
                       <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} truncate={"long" in f && f.long} />
                     ) : "edit" in f && f.edit === "date" ? (
-                      <InlineDate value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
+                      <InlineDate value={f.value} onSave={(v) => onUpdateField(f.field, v)} showDays={"showDays" in f ? f.showDays : undefined} />
                     ) : "edit" in f && f.edit === "select" ? (
                       <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
                     ) : (

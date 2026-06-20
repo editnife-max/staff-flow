@@ -2046,7 +2046,7 @@ function CandidateCard({
   type FieldDef =
     | { label: string; value: string; bold?: boolean; copy?: boolean }
     | { label: string; value: string; edit: "text"; field: EditableField; long?: boolean }
-    | { label: string; value: string; edit: "date"; field: EditableField; display?: string }
+    | { label: string; value: string; edit: "date"; field: EditableField; display?: string; showDays?: boolean }
     | { label: string; value: string; edit: "select"; field: EditableField; options: string[] };
 
   const allFields: FieldDef[] = [
@@ -2071,7 +2071,7 @@ function CandidateCard({
     { label: "AVAILABILITY", value: (() => { const v = candidate.availability_type ?? "available"; return v.charAt(0).toUpperCase() + v.slice(1); })(), edit: "select", field: "availability_type", options: ["Available", "Private", "Unavailable"] },
 
     { label: "SELECTED BY", value: candidate.selected_by ?? "", edit: "select", field: "selected_by", options: agencyOptions },
-    { label: "CONTRACT DATE", value: candidate.contract_date ?? "", edit: "date", field: "contract_date" },
+    { label: "CONTRACT DATE", value: candidate.contract_date ?? "", edit: "date", field: "contract_date", showDays: true },
     { label: "CV SENT TO", value: candidate.cv_sent_to ?? "", edit: "select", field: "cv_sent_to", options: agencyOptions },
     { label: "CV SENT DATE", value: candidate.cv_sent_date ? new Date(candidate.cv_sent_date).toLocaleDateString() : "—" },
     { label: "NARRATIVE", value: candidate.narrative ?? "", edit: "text", field: "narrative", long: true },
@@ -2130,7 +2130,7 @@ function CandidateCard({
                     {"edit" in f && f.edit === "text" ? (
                       <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
                     ) : "edit" in f && f.edit === "date" ? (
-                      <InlineDate value={f.value} display={f.display} onSave={(v) => onUpdateField(f.field, v)} />
+                      <InlineDate value={f.value} display={f.display} showDays={"showDays" in f ? f.showDays : undefined} onSave={(v) => onUpdateField(f.field, v)} />
                     ) : "edit" in f && f.edit === "select" ? (
                       colLabel === "COC STATUS" && f.value === "Placed" ? (
                         <TooltipProvider>
@@ -3010,16 +3010,24 @@ function ProcessingCard({
   );
 }
 
-function InlineDate({ value, onSave, display }: { value: string; onSave: (v: string | null) => void; display?: string }) {
+function InlineDate({ value, onSave, display, showDays }: { value: string; onSave: (v: string | null) => void; display?: string; showDays?: boolean }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const fmt = (v: string) =>
     v ? new Date(v + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) : "";
+  const days = showDays && value
+    ? Math.floor((Date.now() - new Date(value + "T00:00:00").getTime()) / 86_400_000)
+    : null;
   if (!editing) {
     return (
       <button type="button" onClick={() => { setDraft(value); setEditing(true); }}
         className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block">
-        {display ?? (value ? fmt(value) : <span className="text-muted-foreground">—</span>)}
+        {display ?? (value ? (
+          <span className="flex flex-col leading-tight">
+            <span>{fmt(value)}</span>
+            {days !== null && <span className="text-[11px] text-muted-foreground">({days} day{days !== 1 ? "s" : ""})</span>}
+          </span>
+        ) : <span className="text-muted-foreground">—</span>)}
       </button>
     );
   }
