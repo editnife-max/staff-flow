@@ -534,8 +534,23 @@ function StaffDashboard() {
       queryClient.invalidateQueries({ queryKey: ["staff-dashboard-candidates", user?.id] }),
   });
 
-  const handleUpdateField = (id: string, field: EditableField, value: string | null) =>
+  const handleUpdateField = (id: string, field: EditableField, value: string | null) => {
     fieldMut.mutate({ id, field, value });
+    // Undo medical Fit → clear medical date
+    if (field === "medical_status" && value !== "Fit") {
+      const c = candidates.find((c) => c.id === id);
+      if (c?.medical_status === "Fit") fieldMut.mutate({ id, field: "medical_date", value: null });
+    }
+    // Visa arrived → set status to arrived
+    if (field === "visa_status" && value === "Arrived KSA")
+      fieldMut.mutate({ id, field: "status", value: "arrived" });
+    // Tasheer No → clear wokala, tasheer date, visa status
+    if (field === "tasheer_status" && value === "No") {
+      fieldMut.mutate({ id, field: "wokala_status", value: null });
+      fieldMut.mutate({ id, field: "tasheer_date", value: null });
+      fieldMut.mutate({ id, field: "visa_status", value: null });
+    }
+  };
 
   const medExpiryChecked = useRef<Set<string>>(new Set());
   useEffect(() => {

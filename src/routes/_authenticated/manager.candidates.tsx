@@ -654,13 +654,27 @@ function ManagerCandidatesPage() {
 
   const handleUpdateField = useCallback((id: string, field: string, value: string | null) => {
     fieldMut.mutate({ id, field, value });
+    const current = () => qc.getQueryData<Candidate[]>(["manager-candidates", user?.id])?.find((c) => c.id === id);
     if (field === "selected_by" && value) {
-      const current = qc.getQueryData<Candidate[]>(["manager-candidates", user?.id])?.find((c) => c.id === id);
+      const c = current();
       const fill = resolveSelectedBy(value);
-      if (fill.destination_country && !current?.destination_country)
+      if (fill.destination_country && !c?.destination_country)
         fieldMut.mutate({ id, field: "destination_country", value: fill.destination_country });
-      if (fill.office && !current?.office)
+      if (fill.office && !c?.office)
         fieldMut.mutate({ id, field: "office", value: fill.office });
+    }
+    // Undo medical Fit → clear medical date
+    if (field === "medical_status" && value !== "Fit") {
+      if (current()?.medical_status === "Fit") fieldMut.mutate({ id, field: "medical_date", value: null });
+    }
+    // Visa arrived → set status to arrived
+    if (field === "visa_status" && value === "Arrived KSA")
+      fieldMut.mutate({ id, field: "status", value: "arrived" });
+    // Tasheer No → clear wokala, tasheer date, visa status
+    if (field === "tasheer_status" && value === "No") {
+      fieldMut.mutate({ id, field: "wokala_status", value: null });
+      fieldMut.mutate({ id, field: "tasheer_date", value: null });
+      fieldMut.mutate({ id, field: "visa_status", value: null });
     }
   }, [fieldMut, resolveSelectedBy, qc, user?.id]);
 
