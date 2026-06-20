@@ -151,8 +151,10 @@ function ManagerDashboard() {
   const [cvDismissed, setCvDismissed] = useState(false);
   const [cvDaysEdit, setCvDaysEdit] = useState(false);
   const [cvDaysDraft, setCvDaysDraft] = useState("");
-  const [cocNotDoneOpen, setCocNotDoneOpen] = useState(false);
-  const [cocNotDoneDismissed, setCocNotDoneDismissed] = useState(false);
+  const [cocNoOpen, setCocNoOpen] = useState(false);
+  const [cocNoDismissed, setCocNoDismissed] = useState(false);
+  const [cocPlacedOpen, setCocPlacedOpen] = useState(false);
+  const [cocPlacedDismissed, setCocPlacedDismissed] = useState(false);
   const [medNotFitOpen, setMedNotFitOpen] = useState(false);
   const [medNotFitDismissed, setMedNotFitDismissed] = useState(false);
   const [cocDoneMedNotFitOpen, setCocDoneMedNotFitOpen] = useState(false);
@@ -220,7 +222,8 @@ function ManagerDashboard() {
   const tasheerDoneWokalaUnpaid = candidates.filter(
     (c) => c.status === "processing" && c.tasheer_status === "Done" && c.wokala_status === "Unpaid",
   );
-  const cocNotDone = candidates.filter((c) => !!c.coc_status && c.coc_status !== "Done");
+  const cocNo = candidates.filter((c) => c.coc_status === "No");
+  const cocPlaced = candidates.filter((c) => c.coc_status === "Placed");
   const medNotFit = candidates.filter((c) => c.medical_status === "Unfit");
   const cocDoneMedNotFit = candidates.filter((c) => c.coc_status === "Done" && c.medical_status === "Unfit");
   const visaReturned = candidates.filter((c) => c.visa_status === "Returned");
@@ -315,20 +318,20 @@ function ManagerDashboard() {
         </div>
       )}
 
-      {/* COC Not Done Banner */}
-      {cocNotDone.length > 0 && !cocNotDoneDismissed && (
+      {/* COC — No Banner */}
+      {cocNo.length > 0 && !cocNoDismissed && (
         <div
           className="flex items-center justify-between gap-3 rounded-none border border-yellow-300 bg-yellow-50 dark:bg-yellow-950/40 dark:border-yellow-700 px-4 py-3 cursor-pointer hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition-colors"
-          onClick={() => setCocNotDoneOpen(true)}
+          onClick={() => setCocNoOpen(true)}
         >
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 shrink-0" />
             <div>
               <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">
-                COC Not Done — {cocNotDone.length} candidate{cocNotDone.length > 1 ? "s" : ""}
+                COC — No — {cocNo.length} candidate{cocNo.length > 1 ? "s" : ""}
               </p>
               <p className="text-xs text-yellow-600 dark:text-yellow-400">
-                Click to view candidates with COC status Not Done
+                Click to view candidates with COC status No
               </p>
             </div>
           </div>
@@ -336,8 +339,39 @@ function ManagerDashboard() {
             <ChevronRight className="h-4 w-4 text-yellow-500" />
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); setCocNotDoneDismissed(true); }}
+              onClick={(e) => { e.stopPropagation(); setCocNoDismissed(true); }}
               className="p-1 rounded-none text-yellow-400 hover:text-yellow-700 hover:bg-yellow-200 dark:hover:bg-yellow-800 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* COC — Placed Banner */}
+      {cocPlaced.length > 0 && !cocPlacedDismissed && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-none border border-violet-300 bg-violet-50 dark:bg-violet-950/40 dark:border-violet-700 px-4 py-3 cursor-pointer hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-colors"
+          onClick={() => setCocPlacedOpen(true)}
+        >
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-violet-600 dark:text-violet-400 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">
+                COC — Placed — {cocPlaced.length} candidate{cocPlaced.length > 1 ? "s" : ""}
+              </p>
+              <p className="text-xs text-violet-600 dark:text-violet-400">
+                Click to view candidates with COC status Placed
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <ChevronRight className="h-4 w-4 text-violet-500" />
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setCocPlacedDismissed(true); }}
+              className="p-1 rounded-none text-violet-400 hover:text-violet-700 hover:bg-violet-200 dark:hover:bg-violet-800 transition-colors"
               aria-label="Dismiss"
             >
               <X className="h-4 w-4" />
@@ -739,16 +773,16 @@ function ManagerDashboard() {
           </div>
         </DialogContent>
       </Dialog>
-      {/* COC Not Done Dialog */}
-      <Dialog open={cocNotDoneOpen} onOpenChange={setCocNotDoneOpen}>
+      {/* COC — No Dialog */}
+      <Dialog open={cocNoOpen} onOpenChange={setCocNoOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-yellow-700 dark:text-yellow-300">
               <AlertTriangle className="h-5 w-5" />
-              COC Not Done ({cocNotDone.length})
+              COC — No ({cocNo.length})
             </DialogTitle>
           </DialogHeader>
-          <PaginatedDialogList items={cocNotDone} renderItem={(c) => (
+          <PaginatedDialogList items={cocNo} renderItem={(c) => (
             <div key={c.id} className="flex items-center gap-3 py-3">
               <Avatar className="h-9 w-9 shrink-0">
                 {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
@@ -759,14 +793,49 @@ function ManagerDashboard() {
                 <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
               </div>
               <div className="shrink-0 text-right">
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300">Not Done</span>
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300">No</span>
                 <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
               </div>
             </div>
           )} />
           <div className="pt-2 flex justify-end">
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
-              <Link to="/manager/candidates" onClick={() => setCocNotDoneOpen(false)}>
+              <Link to="/manager/candidates" onClick={() => setCocNoOpen(false)}>
+                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* COC — Placed Dialog */}
+      <Dialog open={cocPlacedOpen} onOpenChange={setCocPlacedOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-violet-700 dark:text-violet-300">
+              <AlertTriangle className="h-5 w-5" />
+              COC — Placed ({cocPlaced.length})
+            </DialogTitle>
+          </DialogHeader>
+          <PaginatedDialogList items={cocPlaced} renderItem={(c) => (
+            <div key={c.id} className="flex items-center gap-3 py-3">
+              <Avatar className="h-9 w-9 shrink-0">
+                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
+              </div>
+              <div className="shrink-0 text-right">
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Placed</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+              </div>
+            </div>
+          )} />
+          <div className="pt-2 flex justify-end">
+            <Button asChild size="sm" className="rounded-none text-xs gap-1">
+              <Link to="/manager/candidates" onClick={() => setCocPlacedOpen(false)}>
                 Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
               </Link>
             </Button>
