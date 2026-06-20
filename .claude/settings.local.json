@@ -94,7 +94,10 @@
       "Bash(git fetch *)",
       "Bash(gh pr *)",
       "PowerShell(bunx wrangler deploy 2>&1)",
-      "PowerShell(bunx wrangler whoami 2>&1)"
+      "PowerShell(bunx wrangler whoami 2>&1)",
+      "Bash(New-Item -ItemType File -Path \"C:\\\\Project\\\\flowpath-suite\\\\README.md\" -Force)",
+      "Bash(Out-Null)",
+      "Bash(Write-Output \"created\")"
     ]
   },
   "enableAllProjectMcpServers": true,
