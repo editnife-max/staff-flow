@@ -1920,7 +1920,7 @@ function CandidateCardList({
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
       {filtered.length > 0 && (
         <div className="sticky bottom-0 z-10 bg-background shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
-          <div ref={mirrorRef} className="overflow-x-auto overflow-y-hidden w-full"><div className="h-px" /></div>
+          <div ref={mirrorRef} className="w-full" style={{ overflowX: "scroll", overflowY: "hidden", height: 16 }}><div style={{ height: 1 }} /></div>
           <div className="flex items-center justify-between px-4 py-2 flex-wrap gap-2">
           <div className="flex items-center gap-1">
             <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
@@ -2586,7 +2586,7 @@ function ProcessingTable({
 
       {candidates.length > 0 && (
         <div className="sticky bottom-0 z-10 bg-background shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
-          <div ref={mirrorRef} className="overflow-x-auto overflow-y-hidden w-full"><div className="h-px" /></div>
+          <div ref={mirrorRef} className="w-full" style={{ overflowX: "scroll", overflowY: "hidden", height: 16 }}><div style={{ height: 1 }} /></div>
           <div className="flex items-center justify-between px-4 py-2 flex-wrap gap-2">
           <div className="flex items-center gap-1">
             <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
