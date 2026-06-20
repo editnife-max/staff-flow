@@ -1763,18 +1763,29 @@ function CandidateCardList({
   const [activeOfficeTab, setActiveOfficeTab] = useState("all");
   const scrollRef = useRef<HTMLDivElement>(null);
   const fadeRef = useRef<HTMLDivElement>(null);
+  const mirrorRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = scrollRef.current;
+    const mirror = mirrorRef.current;
     if (!el) return;
     const sync = () => {
       const atEnd = el.scrollLeft >= el.scrollWidth - el.clientWidth - 1;
       if (fadeRef.current) fadeRef.current.style.opacity = (!atEnd && el.scrollWidth > el.clientWidth) ? "1" : "0";
+      if (mirror) mirror.scrollLeft = el.scrollLeft;
     };
-    sync();
+    const syncWidth = () => {
+      if (mirror) {
+        const inner = mirror.firstElementChild as HTMLElement;
+        if (inner) inner.style.width = el.scrollWidth + "px";
+      }
+    };
+    const onMirrorScroll = () => { if (mirror) el.scrollLeft = mirror.scrollLeft; };
+    sync(); syncWidth();
     el.addEventListener("scroll", sync, { passive: true });
-    const ro = new ResizeObserver(sync);
+    if (mirror) mirror.addEventListener("scroll", onMirrorScroll, { passive: true });
+    const ro = new ResizeObserver(() => { sync(); syncWidth(); });
     ro.observe(el);
-    return () => { el.removeEventListener("scroll", sync); ro.disconnect(); };
+    return () => { el.removeEventListener("scroll", sync); mirror?.removeEventListener("scroll", onMirrorScroll); ro.disconnect(); };
   }, []);
   const countryOptions = useMemo(() => countryMeta.map((c) => c.name), [countryMeta]);
 
@@ -1954,7 +1965,9 @@ function CandidateCardList({
       )}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
       {filtered.length > 0 && (
-        <div className="sticky bottom-0 z-10 bg-background flex items-center justify-between px-4 py-2 shadow-[0_-1px_3px_rgba(0,0,0,0.06)] flex-wrap gap-2">
+        <div className="sticky bottom-0 z-10 bg-background shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
+          <div ref={mirrorRef} className="overflow-x-auto overflow-y-hidden w-full"><div className="h-px" /></div>
+          <div className="flex items-center justify-between px-4 py-2 flex-wrap gap-2">
           <div className="flex items-center gap-1">
             <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
               onClick={() => { setPage((p) => p - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
@@ -1994,6 +2007,7 @@ function CandidateCardList({
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
               <ChevronUp className="h-3.5 w-3.5" /> Back to top
             </Button>
+          </div>
           </div>
         </div>
       )}
@@ -2262,18 +2276,29 @@ function ProcessingTable({
   const f = procFilters;
   const scrollRef = useRef<HTMLDivElement>(null);
   const fadeRef = useRef<HTMLDivElement>(null);
+  const mirrorRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = scrollRef.current;
+    const mirror = mirrorRef.current;
     if (!el) return;
     const sync = () => {
       const atEnd = el.scrollLeft >= el.scrollWidth - el.clientWidth - 1;
       if (fadeRef.current) fadeRef.current.style.opacity = (!atEnd && el.scrollWidth > el.clientWidth) ? "1" : "0";
+      if (mirror) mirror.scrollLeft = el.scrollLeft;
     };
-    sync();
+    const syncWidth = () => {
+      if (mirror) {
+        const inner = mirror.firstElementChild as HTMLElement;
+        if (inner) inner.style.width = el.scrollWidth + "px";
+      }
+    };
+    const onMirrorScroll = () => { if (mirror) el.scrollLeft = mirror.scrollLeft; };
+    sync(); syncWidth();
     el.addEventListener("scroll", sync, { passive: true });
-    const ro = new ResizeObserver(sync);
+    if (mirror) mirror.addEventListener("scroll", onMirrorScroll, { passive: true });
+    const ro = new ResizeObserver(() => { sync(); syncWidth(); });
     ro.observe(el);
-    return () => { el.removeEventListener("scroll", sync); ro.disconnect(); };
+    return () => { el.removeEventListener("scroll", sync); mirror?.removeEventListener("scroll", onMirrorScroll); ro.disconnect(); };
   }, []);
   const allCols = useMemo((): ProcessingColDef[] => {
     const countryNames = countryMeta.map((c) => c.name);
@@ -2587,7 +2612,9 @@ function ProcessingTable({
       )}
 
       {candidates.length > 0 && (
-        <div className="sticky bottom-0 z-10 bg-background flex items-center justify-between px-4 py-2 shadow-[0_-1px_3px_rgba(0,0,0,0.06)] flex-wrap gap-2">
+        <div className="sticky bottom-0 z-10 bg-background shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
+          <div ref={mirrorRef} className="overflow-x-auto overflow-y-hidden w-full"><div className="h-px" /></div>
+          <div className="flex items-center justify-between px-4 py-2 flex-wrap gap-2">
           <div className="flex items-center gap-1">
             <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
               onClick={() => { setPage((p) => p - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
@@ -2627,6 +2654,7 @@ function ProcessingTable({
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
               <ChevronUp className="h-3.5 w-3.5" /> Back to top
             </Button>
+          </div>
           </div>
         </div>
       )}
