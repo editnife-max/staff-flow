@@ -220,12 +220,12 @@ function InlineDate({ value, onSave, showDays }: { value: string; onSave: (v: st
     return (
       <button type="button" onClick={() => { setDraft(value); setEditing(true); }}
         className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block">
-        {value ? (
-          <span className="flex flex-col leading-tight">
-            <span>{fmt(value)}</span>
-            {days !== null && <span className="text-[11px] text-muted-foreground">({days} day{days !== 1 ? "s" : ""})</span>}
+        {value ? fmt(value) : <span className="text-muted-foreground">—</span>}
+        {days !== null && (
+          <span className="block text-[11px] text-muted-foreground leading-none mt-0.5">
+            ({days} day{days !== 1 ? "s" : ""})
           </span>
-        ) : <span className="text-muted-foreground">—</span>}
+        )}
       </button>
     );
   }
