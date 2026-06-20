@@ -89,6 +89,17 @@ const BULK_FIELD_DEFS = [
   { key: "arrival_city",     label: "Arrival City", processingOnly: true },
 ];
 
+const BULK_FIELD_OPTIONS: Partial<Record<string, string[]>> = {
+  tasheer_status:   TASHEER_OPTIONS,
+  wokala_status:    WOKALA_OPTIONS,
+  visa_status:      VISA_OPTIONS,
+  insurance_status: INSURANCE_OPTIONS,
+  unfilled_lmis:    UNFILLED_LMIS_OPTIONS,
+  lmis_status:      LMIS_OPTIONS,
+  ticket_status:    TICKET_OPTIONS,
+  arrival_city:     ARRIVAL_CITY_OPTIONS,
+};
+
 const SKILLS_LIST = [
   "Cooking", "Cleaning", "Childcare", "Eldercare", "Ironing",
   "Driving", "Gardening", "Sewing", "Babysitting", "Pet Care", "Nursing",
@@ -1121,7 +1132,8 @@ function StaffCandidatesPage() {
               </Select>
 
               {BULK_FIELD_DEFS.filter((fd) => fd.processingOnly === (tab === "processing")).map((fd) => {
-                const staticOpts = fd.key === "musaned_status" ? countryMeta.map((c) => c.name) : undefined;
+                const staticOpts = BULK_FIELD_OPTIONS[fd.key]
+                  ?? (fd.key === "musaned_status" ? countryMeta.map((c) => c.name) : undefined);
                 const opts = staticOpts ?? Array.from(new Set(
                   filtered.map((c) => (c[fd.key as keyof Candidate] as string | null) ?? "").filter(Boolean)
                 )).sort();
