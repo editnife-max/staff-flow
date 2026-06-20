@@ -214,7 +214,6 @@ const PROCESSING_COLS: ProcessingColDef[] = [
   { key: "contract_date",     header: "Contract Date",     type: "date" },
   { key: "medical_status",    header: "Medical",           type: "select", options: MEDICAL_OPTIONS },
   { key: "medical_date",      header: "Medical Date",      type: "date" },
-  { key: "medical_days",      header: "Medical Days",      type: "text" },
   { key: "coc_status",        header: "COC",               type: "select", options: COC_OPTIONS },
   { key: "tasheer_status",    header: "Tasheer",           type: "select", options: TASHEER_OPTIONS },
   { key: "tasheer_date",      header: "Tasheer Date",      type: "date" },
@@ -2740,8 +2739,15 @@ function ProcessingCard({
                     ) : col.type === "text" ? (
                       <InlineText value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
                     ) : col.type === "date" ? (
-                      col.key === "medical_date" && candidate.medical_status === "Fit" && strVal ? (
-                        <span className="line-clamp-2 break-words">{Math.max(1, Math.floor((Date.now() - new Date(strVal).getTime()) / 86400000))} days ago</span>
+                      col.key === "medical_date" && strVal ? (
+                        <span className="line-clamp-2 break-words">{(() => {
+                          const d = new Date(strVal + "T00:00:00");
+                          const dd = String(d.getDate()).padStart(2, "0");
+                          const mm = String(d.getMonth() + 1).padStart(2, "0");
+                          const yy = String(d.getFullYear()).slice(2);
+                          const days = Math.max(1, Math.floor((Date.now() - d.getTime()) / 86400000));
+                          return `${dd}/${mm}/${yy} (${days} days ago)`;
+                        })()}</span>
                       ) : (
                         <InlineDate value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
                       )
