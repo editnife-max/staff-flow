@@ -403,6 +403,20 @@ function resolveTableWidth(xml: string, from: number): number {
     : Math.round((9360 / 1440) * 914400); // A4/Letter printable width fallback
 }
 
+// When a cell contains a nested table (e.g. photo placeholder cells that use a nested
+// table to set visual height), sum that table's row heights to get the true display
+// height. Returns 0 if no nested table or no explicit row heights are declared.
+function resolveNestedTableHeight(cellSlice: string): number {
+  if (!cellSlice.includes("<w:tbl")) return 0;
+  let total = 0;
+  const re = /<w:trHeight\b([^>]*)\/>/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(cellSlice)) !== null) {
+    total += parseInt(/\bw:val="(\d+)"/.exec(m[1])?.[1] ?? "0");
+  }
+  return total > 0 ? Math.round((total / 1440) * 914400) : 0;
+}
+
 // Resolve the cell's declared width in EMU, handling dxa and pct units.
 function resolveCellWidth(cellSlice: string, tblWidthEmu: number): number {
   const attrs = /<w:tcW\b([^/]*)\/?>/.exec(cellSlice)?.[1] ?? "";
@@ -501,13 +515,17 @@ function replaceImageCell(
 
       const tblW  = resolveTableWidth(xml, cellStart);
       let cxEmu   = resolveCellWidth(cellSlice, tblW);
-      const cellH = resolveCellHeight(xml, cellStart, cellEnd);
+      const cellH   = resolveCellHeight(xml, cellStart, cellEnd);
+      const nestedH = resolveNestedTableHeight(cellSlice);
 
-      // Stretch image to fill the full declared cell area (cx × cy).
-      // For auto-height rows (cellH = 0) size proportionally — the row expands to fit.
-      let cyEmu = cellH > 0
-        ? cellH
-        : (naturalW > 0 ? Math.round(cxEmu * (naturalH / naturalW)) : cxEmu);
+      // Priority: nested-table height (photo cells that embed a nested table to set
+      // visual height) → outer row accumulated height → proportional to image.
+      // The image is stretched to fill cx × cy via <a:stretch><a:fillRect/></a:stretch>.
+      const cyEmu = nestedH > 0
+        ? nestedH
+        : (cellH > 0
+          ? cellH
+          : (naturalW > 0 ? Math.round(cxEmu * (naturalH / naturalW)) : cxEmu));
 
       const tcPrMatch = cellSlice.match(/<w:tcPr[\s\S]*?<\/w:tcPr>/);
       const tcPr = tcPrWithZeroMargins(tcPrMatch ? tcPrMatch[0] : "");
@@ -543,10 +561,13 @@ function replaceImageCellContaining(
       const cellSlice = xml.slice(cellStart, cellEnd + 7);
       const tblW  = resolveTableWidth(xml, cellStart);
       let cxEmu   = resolveCellWidth(cellSlice, tblW);
-      const cellH = resolveCellHeight(xml, cellStart, cellEnd);
-      let cyEmu   = cellH > 0
-        ? cellH
-        : (naturalW > 0 ? Math.round(cxEmu * (naturalH / naturalW)) : cxEmu);
+      const cellH   = resolveCellHeight(xml, cellStart, cellEnd);
+      const nestedH = resolveNestedTableHeight(cellSlice);
+      const cyEmu   = nestedH > 0
+        ? nestedH
+        : (cellH > 0
+          ? cellH
+          : (naturalW > 0 ? Math.round(cxEmu * (naturalH / naturalW)) : cxEmu));
       const tcPrMatch = cellSlice.match(/<w:tcPr[\s\S]*?<\/w:tcPr>/);
       const tcPr = tcPrWithZeroMargins(tcPrMatch ? tcPrMatch[0] : "");
       const newCell = `<w:tc>${tcPr}${inlineDrawingXml(rId, substring, picId, cxEmu, cyEmu)}</w:tc>`;
