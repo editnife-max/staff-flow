@@ -1781,11 +1781,13 @@ function CandidateCardList({
     };
     const onMirrorScroll = () => { if (mirror) el.scrollLeft = mirror.scrollLeft; };
     sync(); syncWidth();
+    const raf = requestAnimationFrame(() => { sync(); syncWidth(); });
     el.addEventListener("scroll", sync, { passive: true });
     if (mirror) mirror.addEventListener("scroll", onMirrorScroll, { passive: true });
     const ro = new ResizeObserver(() => { sync(); syncWidth(); });
     ro.observe(el);
-    return () => { el.removeEventListener("scroll", sync); mirror?.removeEventListener("scroll", onMirrorScroll); ro.disconnect(); };
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+    return () => { cancelAnimationFrame(raf); el.removeEventListener("scroll", sync); mirror?.removeEventListener("scroll", onMirrorScroll); ro.disconnect(); };
   }, []);
   const countryOptions = useMemo(() => countryMeta.map((c) => c.name), [countryMeta]);
 
@@ -2294,11 +2296,13 @@ function ProcessingTable({
     };
     const onMirrorScroll = () => { if (mirror) el.scrollLeft = mirror.scrollLeft; };
     sync(); syncWidth();
+    const raf = requestAnimationFrame(() => { sync(); syncWidth(); });
     el.addEventListener("scroll", sync, { passive: true });
     if (mirror) mirror.addEventListener("scroll", onMirrorScroll, { passive: true });
     const ro = new ResizeObserver(() => { sync(); syncWidth(); });
     ro.observe(el);
-    return () => { el.removeEventListener("scroll", sync); mirror?.removeEventListener("scroll", onMirrorScroll); ro.disconnect(); };
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+    return () => { cancelAnimationFrame(raf); el.removeEventListener("scroll", sync); mirror?.removeEventListener("scroll", onMirrorScroll); ro.disconnect(); };
   }, []);
   const allCols = useMemo((): ProcessingColDef[] => {
     const countryNames = countryMeta.map((c) => c.name);
