@@ -354,6 +354,55 @@ function DashboardCandidateCard({
   );
 }
 
+// ─── Pagination bar ──────────────────────────────────────────────────────────
+function PaginationBar({
+  total, page, pageSize, onPage, onPageSize, onBackToTop,
+}: {
+  total: number; page: number; pageSize: number;
+  onPage: (p: number) => void; onPageSize: (s: number) => void; onBackToTop: () => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const start = Math.min((page - 1) * pageSize + 1, total);
+  const end = Math.min(page * pageSize, total);
+  const getPages = (): (number | "...")[] => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const pts: (number | "...")[] = [1];
+    if (page > 3) pts.push("...");
+    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pts.push(i);
+    if (page < totalPages - 2) pts.push("...");
+    pts.push(totalPages);
+    return pts;
+  };
+  return (
+    <div className="flex items-center justify-between gap-3 pt-3 pb-1 flex-wrap border-t border-border mt-2">
+      <div className="flex items-center gap-1 flex-wrap">
+        {getPages().map((p, i) =>
+          p === "..." ? (
+            <span key={`e${i}`} className="px-1 text-muted-foreground text-xs">…</span>
+          ) : (
+            <button key={p} type="button" onClick={() => onPage(p as number)}
+              className={cn("h-6 min-w-[24px] px-1.5 text-xs rounded-none border transition-colors",
+                p === page ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted/60")}>
+              {p}
+            </button>
+          )
+        )}
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-muted-foreground whitespace-nowrap">{start}–{end} of {total}</span>
+        <select value={pageSize} onChange={(e) => onPageSize(Number(e.target.value))}
+          className="h-6 text-xs border border-border bg-background rounded-none px-1 outline-none cursor-pointer">
+          {[5, 10, 50, 100, 500].map((n) => <option key={n} value={n}>{n}</option>)}
+        </select>
+        <button type="button" onClick={onBackToTop}
+          className="text-xs text-muted-foreground hover:text-foreground underline whitespace-nowrap">
+          Back to top
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Alert section ───────────────────────────────────────────────────────────
 function AlertSection({
   icon: Icon, title, iconColor, pillKey, candidates, getNote, onUpdateField, countryOptions, renderCardAction,
@@ -369,14 +418,20 @@ function AlertSection({
   renderCardAction?: (candidate: Candidate) => React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const sectionRef = useRef<HTMLDivElement>(null);
   if (candidates.length === 0) return null;
+  const paginated = candidates.slice((page - 1) * pageSize, page * pageSize);
+  const handleToggle = () => { setOpen((o) => !o); setPage(1); };
+  const backToTop = () => sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   return (
-    <div className="rounded-none border border-border overflow-hidden">
+    <div ref={sectionRef} className="rounded-none border border-border overflow-hidden">
       <button
         type="button"
         className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-background hover:bg-muted/50 transition-colors"
-        onClick={() => setOpen((o) => !o)}
+        onClick={handleToggle}
       >
         <div className="flex items-center gap-3">
           <Icon className={cn("h-4 w-4 shrink-0", iconColor)} />
@@ -390,7 +445,7 @@ function AlertSection({
 
       {open && (
         <div className="border-t border-border bg-muted/10 space-y-4 px-2 py-4">
-          {candidates.map((c) => (
+          {paginated.map((c) => (
             <DashboardCandidateCard
               key={c.id}
               candidate={c}
@@ -400,6 +455,14 @@ function AlertSection({
               extraAction={renderCardAction?.(c)}
             />
           ))}
+          <PaginationBar
+            total={candidates.length}
+            page={page}
+            pageSize={pageSize}
+            onPage={setPage}
+            onPageSize={(s) => { setPageSize(s); setPage(1); }}
+            onBackToTop={backToTop}
+          />
         </div>
       )}
     </div>

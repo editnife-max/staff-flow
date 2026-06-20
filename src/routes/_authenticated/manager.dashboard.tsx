@@ -82,6 +82,64 @@ const STATUS_PILL: Record<string, string> = {
   returned: "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300",
 };
 
+function MgrPaginationBar({
+  total, page, pageSize, onPage, onPageSize,
+}: {
+  total: number; page: number; pageSize: number;
+  onPage: (p: number) => void; onPageSize: (s: number) => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const start = Math.min((page - 1) * pageSize + 1, total);
+  const end = Math.min(page * pageSize, total);
+  const getPages = (): (number | "...")[] => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const pts: (number | "...")[] = [1];
+    if (page > 3) pts.push("...");
+    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pts.push(i);
+    if (page < totalPages - 2) pts.push("...");
+    pts.push(totalPages);
+    return pts;
+  };
+  return (
+    <div className="flex items-center justify-between gap-3 pt-3 flex-wrap border-t border-border mt-1">
+      <div className="flex items-center gap-1 flex-wrap">
+        {getPages().map((p, i) =>
+          p === "..." ? (
+            <span key={`e${i}`} className="px-1 text-muted-foreground text-xs">…</span>
+          ) : (
+            <button key={p} type="button" onClick={() => onPage(p as number)}
+              className={cn("h-6 min-w-[24px] px-1.5 text-xs rounded-none border transition-colors",
+                p === page ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted/60")}>
+              {p}
+            </button>
+          )
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground whitespace-nowrap">{start}–{end} of {total}</span>
+        <select value={pageSize} onChange={(e) => onPageSize(Number(e.target.value))}
+          className="h-6 text-xs border border-border bg-background rounded-none px-1 outline-none cursor-pointer">
+          {[5, 10, 50, 100, 500].map((n) => <option key={n} value={n}>{n}</option>)}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+function PaginatedDialogList({ items, renderItem }: { items: Candidate[]; renderItem: (c: Candidate) => React.ReactNode }) {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const paginated = items.slice((page - 1) * pageSize, page * pageSize);
+  return (
+    <>
+      <div className="max-h-[50vh] overflow-y-auto space-y-0 divide-y divide-border">
+        {paginated.map((c) => renderItem(c))}
+      </div>
+      <MgrPaginationBar total={items.length} page={page} pageSize={pageSize} onPage={setPage} onPageSize={(s) => { setPageSize(s); setPage(1); }} />
+    </>
+  );
+}
+
 function ManagerDashboard() {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -621,30 +679,22 @@ function ManagerDashboard() {
               Medical Expired ({medExpired.length})
             </DialogTitle>
           </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto space-y-0 divide-y divide-border">
-            {medExpired.map((c) => (
-              <div key={c.id} className="flex items-center gap-3 py-3">
-                <Avatar className="h-9 w-9 shrink-0">
-                  {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                  <AvatarFallback className="text-[11px] rounded-none">
-                    {c.full_name.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300">
-                    Expired
-                  </span>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
-                </div>
+          <PaginatedDialogList items={medExpired} renderItem={(c) => (
+            <div key={c.id} className="flex items-center gap-3 py-3">
+              <Avatar className="h-9 w-9 shrink-0">
+                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
               </div>
-            ))}
-          </div>
+              <div className="shrink-0 text-right">
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300">Expired</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+              </div>
+            </div>
+          )} />
           <div className="pt-2 flex justify-end">
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
               <Link to="/manager/candidates" onClick={() => setMedOpen(false)}>
@@ -664,30 +714,22 @@ function ManagerDashboard() {
               Tasheer Done — Wokala Unpaid ({tasheerDoneWokalaUnpaid.length})
             </DialogTitle>
           </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto space-y-0 divide-y divide-border">
-            {tasheerDoneWokalaUnpaid.map((c) => (
-              <div key={c.id} className="flex items-center gap-3 py-3">
-                <Avatar className="h-9 w-9 shrink-0">
-                  {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                  <AvatarFallback className="text-[11px] rounded-none">
-                    {c.full_name.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
-                    Wokala Unpaid
-                  </span>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
-                </div>
+          <PaginatedDialogList items={tasheerDoneWokalaUnpaid} renderItem={(c) => (
+            <div key={c.id} className="flex items-center gap-3 py-3">
+              <Avatar className="h-9 w-9 shrink-0">
+                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
               </div>
-            ))}
-          </div>
+              <div className="shrink-0 text-right">
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Wokala Unpaid</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+              </div>
+            </div>
+          )} />
           <div className="pt-2 flex justify-end">
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
               <Link to="/manager/candidates" onClick={() => setTasheerOpen(false)}>
@@ -706,30 +748,22 @@ function ManagerDashboard() {
               COC Not Done ({cocNotDone.length})
             </DialogTitle>
           </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto space-y-0 divide-y divide-border">
-            {cocNotDone.map((c) => (
-              <div key={c.id} className="flex items-center gap-3 py-3">
-                <Avatar className="h-9 w-9 shrink-0">
-                  {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                  <AvatarFallback className="text-[11px] rounded-none">
-                    {c.full_name.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300">
-                    Not Done
-                  </span>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
-                </div>
+          <PaginatedDialogList items={cocNotDone} renderItem={(c) => (
+            <div key={c.id} className="flex items-center gap-3 py-3">
+              <Avatar className="h-9 w-9 shrink-0">
+                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
               </div>
-            ))}
-          </div>
+              <div className="shrink-0 text-right">
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300">Not Done</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+              </div>
+            </div>
+          )} />
           <div className="pt-2 flex justify-end">
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
               <Link to="/manager/candidates" onClick={() => setCocNotDoneOpen(false)}>
@@ -749,30 +783,22 @@ function ManagerDashboard() {
               Medical Not Fit ({medNotFit.length})
             </DialogTitle>
           </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto space-y-0 divide-y divide-border">
-            {medNotFit.map((c) => (
-              <div key={c.id} className="flex items-center gap-3 py-3">
-                <Avatar className="h-9 w-9 shrink-0">
-                  {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                  <AvatarFallback className="text-[11px] rounded-none">
-                    {c.full_name.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">
-                    Unfit
-                  </span>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
-                </div>
+          <PaginatedDialogList items={medNotFit} renderItem={(c) => (
+            <div key={c.id} className="flex items-center gap-3 py-3">
+              <Avatar className="h-9 w-9 shrink-0">
+                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
               </div>
-            ))}
-          </div>
+              <div className="shrink-0 text-right">
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">Unfit</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+              </div>
+            </div>
+          )} />
           <div className="pt-2 flex justify-end">
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
               <Link to="/manager/candidates" onClick={() => setMedNotFitOpen(false)}>
@@ -792,30 +818,22 @@ function ManagerDashboard() {
               COC Done — Medical Not Fit ({cocDoneMedNotFit.length})
             </DialogTitle>
           </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto space-y-0 divide-y divide-border">
-            {cocDoneMedNotFit.map((c) => (
-              <div key={c.id} className="flex items-center gap-3 py-3">
-                <Avatar className="h-9 w-9 shrink-0">
-                  {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                  <AvatarFallback className="text-[11px] rounded-none">
-                    {c.full_name.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">
-                    Medical Unfit
-                  </span>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
-                </div>
+          <PaginatedDialogList items={cocDoneMedNotFit} renderItem={(c) => (
+            <div key={c.id} className="flex items-center gap-3 py-3">
+              <Avatar className="h-9 w-9 shrink-0">
+                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
               </div>
-            ))}
-          </div>
+              <div className="shrink-0 text-right">
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">Medical Unfit</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+              </div>
+            </div>
+          )} />
           <div className="pt-2 flex justify-end">
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
               <Link to="/manager/candidates" onClick={() => setCocDoneMedNotFitOpen(false)}>
@@ -835,30 +853,22 @@ function ManagerDashboard() {
               Visa Returned ({visaReturned.length})
             </DialogTitle>
           </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto space-y-0 divide-y divide-border">
-            {visaReturned.map((c) => (
-              <div key={c.id} className="flex items-center gap-3 py-3">
-                <Avatar className="h-9 w-9 shrink-0">
-                  {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                  <AvatarFallback className="text-[11px] rounded-none">
-                    {c.full_name.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300">
-                    Returned
-                  </span>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
-                </div>
+          <PaginatedDialogList items={visaReturned} renderItem={(c) => (
+            <div key={c.id} className="flex items-center gap-3 py-3">
+              <Avatar className="h-9 w-9 shrink-0">
+                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
               </div>
-            ))}
-          </div>
+              <div className="shrink-0 text-right">
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300">Returned</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+              </div>
+            </div>
+          )} />
           <div className="pt-2 flex justify-end">
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
               <Link to="/manager/candidates" onClick={() => setVisaReturnedOpen(false)}>
@@ -878,30 +888,22 @@ function ManagerDashboard() {
               Ready for Embassy ({readyForEmbassy.length})
             </DialogTitle>
           </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto space-y-0 divide-y divide-border">
-            {readyForEmbassy.map((c) => (
-              <div key={c.id} className="flex items-center gap-3 py-3">
-                <Avatar className="h-9 w-9 shrink-0">
-                  {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                  <AvatarFallback className="text-[11px] rounded-none">
-                    {c.full_name.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">
-                    Ready for Embassy
-                  </span>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
-                </div>
+          <PaginatedDialogList items={readyForEmbassy} renderItem={(c) => (
+            <div key={c.id} className="flex items-center gap-3 py-3">
+              <Avatar className="h-9 w-9 shrink-0">
+                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
               </div>
-            ))}
-          </div>
+              <div className="shrink-0 text-right">
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">Ready for Embassy</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+              </div>
+            </div>
+          )} />
           <div className="pt-2 flex justify-end">
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
               <Link to="/manager/candidates" onClick={() => setReadyForEmbassyOpen(false)}>
@@ -921,30 +923,22 @@ function ManagerDashboard() {
               Tasheer Ready — Passport Rejected ({tasheerReady.length})
             </DialogTitle>
           </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto space-y-0 divide-y divide-border">
-            {tasheerReady.map((c) => (
-              <div key={c.id} className="flex items-center gap-3 py-3">
-                <Avatar className="h-9 w-9 shrink-0">
-                  {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                  <AvatarFallback className="text-[11px] rounded-none">
-                    {c.full_name.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
-                    Passport Rejected
-                  </span>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
-                </div>
+          <PaginatedDialogList items={tasheerReady} renderItem={(c) => (
+            <div key={c.id} className="flex items-center gap-3 py-3">
+              <Avatar className="h-9 w-9 shrink-0">
+                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
               </div>
-            ))}
-          </div>
+              <div className="shrink-0 text-right">
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">Passport Rejected</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+              </div>
+            </div>
+          )} />
           <div className="pt-2 flex justify-end">
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
               <Link to="/manager/candidates" onClick={() => setTasheerReadyOpen(false)}>
@@ -964,36 +958,30 @@ function ManagerDashboard() {
               Tasheer Overdue ({tasheerOverdue.length})
             </DialogTitle>
           </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto space-y-0 divide-y divide-border">
-            {tasheerOverdue.map((c) => {
-              const days = c.tasheer_date
-                ? Math.floor((today.getTime() - new Date(c.tasheer_date + "T00:00:00").getTime()) / 86_400_000)
-                : null;
-              return (
-                <div key={c.id} className="flex items-center gap-3 py-3">
-                  <Avatar className="h-9 w-9 shrink-0">
-                    {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                    <AvatarFallback className="text-[11px] rounded-none">
-                      {c.full_name.slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      Booked: {c.tasheer_date ? new Date(c.tasheer_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) : "—"}
-                      {days !== null ? ` · ${days}d overdue` : ""}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
-                      Overdue
-                    </span>
-                    <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
-                  </div>
+          <PaginatedDialogList items={tasheerOverdue} renderItem={(c) => {
+            const days = c.tasheer_date
+              ? Math.floor((today.getTime() - new Date(c.tasheer_date + "T00:00:00").getTime()) / 86_400_000)
+              : null;
+            return (
+              <div key={c.id} className="flex items-center gap-3 py-3">
+                <Avatar className="h-9 w-9 shrink-0">
+                  {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                  <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    Booked: {c.tasheer_date ? new Date(c.tasheer_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) : "—"}
+                    {days !== null ? ` · ${days}d overdue` : ""}
+                  </p>
                 </div>
-              );
-            })}
-          </div>
+                <div className="shrink-0 text-right">
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">Overdue</span>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+                </div>
+              </div>
+            );
+          }} />
           <div className="pt-2 flex justify-end">
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
               <Link to="/manager/candidates" onClick={() => setTasheerOverdueOpen(false)}>
@@ -1013,30 +1001,22 @@ function ManagerDashboard() {
               Medical Fit — LMIS Not Tested ({fitLmisNotTested.length})
             </DialogTitle>
           </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto space-y-0 divide-y divide-border">
-            {fitLmisNotTested.map((c) => (
-              <div key={c.id} className="flex items-center gap-3 py-3">
-                <Avatar className="h-9 w-9 shrink-0">
-                  {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                  <AvatarFallback className="text-[11px] rounded-none">
-                    {c.full_name.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">
-                    Not Tested
-                  </span>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
-                </div>
+          <PaginatedDialogList items={fitLmisNotTested} renderItem={(c) => (
+            <div key={c.id} className="flex items-center gap-3 py-3">
+              <Avatar className="h-9 w-9 shrink-0">
+                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
               </div>
-            ))}
-          </div>
+              <div className="shrink-0 text-right">
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">Not Tested</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+              </div>
+            </div>
+          )} />
           <div className="pt-2 flex justify-end">
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
               <Link to="/manager/candidates" onClick={() => setFitLmisNotTestedOpen(false)}>
@@ -1103,34 +1083,28 @@ function ManagerDashboard() {
               </button>
             )}
           </div>
-          <div className="max-h-[55vh] overflow-y-auto space-y-0 divide-y divide-border">
-            {cvOverdue.map((c) => {
-              const days = c.cv_sent_date
-                ? Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000)
-                : null;
-              return (
-                <div key={c.id} className="flex items-center gap-3 py-3">
-                  <Avatar className="h-9 w-9 shrink-0">
-                    {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                    <AvatarFallback className="text-[11px] rounded-none">
-                      {c.full_name.slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      Sent to: {c.cv_sent_to}{days !== null ? ` · ${days}d ago` : ""}
-                    </p>
-                  </div>
-                  <div className="shrink-0">
-                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">
-                      {days !== null ? `${days}d overdue` : "Overdue"}
-                    </span>
-                  </div>
+          <PaginatedDialogList items={cvOverdue} renderItem={(c) => {
+            const days = c.cv_sent_date
+              ? Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000)
+              : null;
+            return (
+              <div key={c.id} className="flex items-center gap-3 py-3">
+                <Avatar className="h-9 w-9 shrink-0">
+                  {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                  <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                  <p className="text-xs text-muted-foreground truncate">Sent to: {c.cv_sent_to}{days !== null ? ` · ${days}d ago` : ""}</p>
                 </div>
-              );
-            })}
-          </div>
+                <div className="shrink-0">
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">
+                    {days !== null ? `${days}d overdue` : "Overdue"}
+                  </span>
+                </div>
+              </div>
+            );
+          }} />
           <div className="pt-2 flex justify-end">
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
               <Link to="/manager/candidates" onClick={() => setCvOpen(false)}>
