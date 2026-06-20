@@ -2740,13 +2740,13 @@ function ProcessingCard({
                       <InlineText value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
                     ) : col.type === "date" ? (
                       col.key === "medical_date" && strVal ? (
-                        <span className="line-clamp-2 break-words">{(() => {
+                        <span className="break-words">{(() => {
                           const d = new Date(strVal + "T00:00:00");
                           const dd = String(d.getDate()).padStart(2, "0");
                           const mm = String(d.getMonth() + 1).padStart(2, "0");
-                          const yy = String(d.getFullYear()).slice(2);
+                          const yyyy = d.getFullYear();
                           const days = Math.max(1, Math.floor((Date.now() - d.getTime()) / 86400000));
-                          return `${dd}/${mm}/${yy} (${days} days ago)`;
+                          return <>{`${dd}/${mm}/${yyyy}`}<br /><span className="text-muted-foreground text-xs">({days} days ago)</span></>;
                         })()}</span>
                       ) : (
                         <InlineDate value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
