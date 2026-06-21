@@ -33,7 +33,7 @@ import {
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff, bulkUpdateField,
   bulkImportCandidates,
 } from "@/lib/candidates.functions";
-import { UserCheck, X } from "lucide-react";
+import { UserCheck, X, Download } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import * as XLSX from "xlsx";
 
@@ -2701,6 +2701,7 @@ function ProcessingCard({
   const [cocPlacedOpen, setCocPlacedOpen] = useState(false);
   const [cocPlacedName, setCocPlacedName] = useState("");
   const [cocPlacedPhone, setCocPlacedPhone] = useState("");
+  const [lmisFilesOpen, setLmisFilesOpen] = useState(false);
 
   function handleColUpdate(colKey: string, value: string | null) {
     if (colKey === "coc_status" && value === "Placed") {
@@ -2813,7 +2814,27 @@ function ProcessingCard({
                         <InlineDate value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
                       )
                     ) : col.type === "select" ? (
-                      col.key === "coc_status" && strVal === "Placed" ? (
+                      col.key === "unfilled_lmis" ? (
+                        <button
+                          type="button"
+                          onClick={() => setLmisFilesOpen(true)}
+                          className="flex flex-wrap gap-1 text-left min-w-[70px] hover:opacity-80 transition-opacity"
+                        >
+                          {(() => {
+                            const ca = candidate as any;
+                            const docs: { label: string; color: string }[] = [];
+                            if (ca.lmis_insu_url) docs.push({ label: "INSU", color: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300" });
+                            if (ca.lmis_coc_url) docs.push({ label: "COC", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300" });
+                            const bothIds = ca.lmis_id_url && ca.lmis_id_relative_url;
+                            if (ca.lmis_id_url || ca.lmis_id_relative_url) docs.push({ label: bothIds ? "ID'S" : "ID", color: "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300" });
+                            return docs.length > 0
+                              ? docs.map((d) => (
+                                  <span key={d.label} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-none ${d.color}`}>{d.label}</span>
+                                ))
+                              : <span className="text-muted-foreground text-sm">—</span>;
+                          })()}
+                        </button>
+                      ) : col.key === "coc_status" && strVal === "Placed" ? (
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -3012,6 +3033,13 @@ function ProcessingCard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    )}
+    {lmisFilesOpen && (
+      <LmisFilesDialog
+        candidate={candidate}
+        onUpdateField={(field, value) => onUpdateField(field, value)}
+        onClose={() => setLmisFilesOpen(false)}
+      />
     )}
     </>
   );
@@ -3376,6 +3404,124 @@ function PhotoUpload({
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
       />
     </div>
+  );
+}
+
+function LmisDocSection({
+  label, url, onUpload, onRemove,
+}: {
+  label: string; url: string;
+  onUpload: (f: File) => Promise<void>;
+  onRemove: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    try { await onUpload(file); }
+    catch { toast.error("Upload failed"); }
+    finally { setUploading(false); }
+  };
+  const isImage = url && !url.endsWith(".pdf");
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between min-h-[20px]">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+        {url && (
+          <a href={url} download target="_blank" rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-0.5 text-[11px] text-primary hover:underline">
+            <Download className="h-3 w-3" /> Download
+          </a>
+        )}
+      </div>
+      <div className="relative">
+        <div
+          role="button" tabIndex={0}
+          onClick={() => inputRef.current?.click()}
+          onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); }}
+          className={cn(
+            "border-2 border-dashed rounded-none cursor-pointer transition-colors flex flex-col items-center justify-center gap-1.5 min-h-[90px] p-2 bg-muted/20 select-none",
+            dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/60",
+          )}
+        >
+          {uploading ? (
+            <span className="text-xs text-muted-foreground animate-pulse">Uploading…</span>
+          ) : dragOver ? (
+            <><Upload className="h-5 w-5 text-primary" /><span className="text-xs text-primary">Drop to upload</span></>
+          ) : url ? (
+            <>
+              {isImage
+                ? <img src={url} alt={label} className="max-h-[60px] max-w-full object-contain rounded-none" />
+                : <><ImageIcon className="h-7 w-7 text-muted-foreground" /><span className="text-[10px] text-muted-foreground truncate max-w-[140px]">{url.split("/").pop()}</span></>}
+              <span className="text-[10px] text-primary">Click to replace</span>
+            </>
+          ) : (
+            <><Upload className="h-5 w-5 text-muted-foreground" /><span className="text-xs text-muted-foreground">Click or drag &amp; drop</span></>
+          )}
+        </div>
+        {url && !uploading && (
+          <button type="button" onClick={(e) => { e.stopPropagation(); onRemove(); }}
+            className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center rounded-none bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors">
+            <X className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+      <input ref={inputRef} type="file" accept="image/*,.pdf" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
+    </div>
+  );
+}
+
+function LmisFilesDialog({
+  candidate, onUpdateField, onClose,
+}: {
+  candidate: Candidate;
+  onUpdateField: (field: string, value: string | null) => void;
+  onClose: () => void;
+}) {
+  const c = candidate as any;
+  const insuUrl: string = c.lmis_insu_url ?? "";
+  const cocUrl: string = c.lmis_coc_url ?? "";
+  const idUrl: string = c.lmis_id_url ?? "";
+  const idRelUrl: string = c.lmis_id_relative_url ?? "";
+  const hasBothIds = !!(idUrl && idRelUrl);
+
+  const upload = async (file: File, field: string) => {
+    const ext = file.name.split(".").pop() ?? "jpg";
+    const path = `lmis/${candidate.id}/${field}_${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("candidate-files").upload(path, file, { upsert: true });
+    if (error) throw error;
+    const { data } = supabase.storage.from("candidate-files").getPublicUrl(path);
+    onUpdateField(field, data.publicUrl);
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-2xl rounded-none">
+        <DialogHeader>
+          <DialogTitle className="text-base">LMIS Documents — {candidate.full_name}</DialogTitle>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-4 pt-1">
+          <LmisDocSection label="INSU" url={insuUrl}
+            onUpload={(f) => upload(f, "lmis_insu_url")}
+            onRemove={() => onUpdateField("lmis_insu_url", null)} />
+          <LmisDocSection label="COC" url={cocUrl}
+            onUpload={(f) => upload(f, "lmis_coc_url")}
+            onRemove={() => onUpdateField("lmis_coc_url", null)} />
+          <LmisDocSection label={hasBothIds ? "ID'S — Candidate" : "ID (Candidate)"} url={idUrl}
+            onUpload={(f) => upload(f, "lmis_id_url")}
+            onRemove={() => onUpdateField("lmis_id_url", null)} />
+          <LmisDocSection label={hasBothIds ? "ID'S — Relative" : "ID (Relative)"} url={idRelUrl}
+            onUpload={(f) => upload(f, "lmis_id_relative_url")}
+            onRemove={() => onUpdateField("lmis_id_relative_url", null)} />
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

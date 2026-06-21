@@ -85,6 +85,7 @@ const InlineFieldSchema = z.object({
     "coc_agency_name", "coc_agency_phone",
     "insurance_date",
     "availability_type",
+    "lmis_insu_url", "lmis_coc_url", "lmis_id_url", "lmis_id_relative_url",
   ]),
   value: z.string().nullable(),
 });
