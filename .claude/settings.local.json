@@ -97,7 +97,8 @@
       "PowerShell(bunx wrangler whoami 2>&1)",
       "Bash(New-Item -ItemType File -Path \"C:\\\\Project\\\\flowpath-suite\\\\README.md\" -Force)",
       "Bash(Out-Null)",
-      "Bash(Write-Output \"created\")"
+      "Bash(Write-Output \"created\")",
+      "PowerShell(\\(Get-Content \"C:\\\\Project\\\\flowpath-suite\\\\src\\\\components\\\\action-dialog.tsx\" | Measure-Object -Line\\).Lines)"
     ]
   },
   "enableAllProjectMcpServers": true,
