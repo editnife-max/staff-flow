@@ -199,6 +199,8 @@ const OPTION_COLORS: Record<string, string> = {
   // Sort
   "newest":            "bg-sky-100/50 text-[#181A27] dark:bg-sky-900/40 dark:text-sky-300",
   "oldest":            "bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
+  "Not Selected":      "bg-zinc-100/30 text-zinc-400 dark:bg-zinc-900/40 dark:text-zinc-500",
+  "":                  "bg-zinc-100/30 text-zinc-400 dark:bg-zinc-900/40 dark:text-zinc-500",
 };
 
 type ProcessingColDef =
@@ -977,28 +979,28 @@ function StaffCandidatesPage() {
               options={[{ value: "18-25", label: "18-25" }, { value: "26-35", label: "26-35" }, { value: "36-45", label: "36-45" }, { value: "46-99", label: "46+" }]} />
             <MultiFilterSelect placeholder="Gender" values={filters.gender} icon={User}
               onChange={(v) => setFilters({ ...filters, gender: v })}
-              options={[{ value: "Male", label: "Male" }, { value: "Female", label: "Female" }]} />
+              options={[{ value: "", label: "Not Selected" }, { value: "Male", label: "Male" }, { value: "Female", label: "Female" }]} />
             <MultiFilterSelect placeholder="Religion" values={filters.religion} icon={BookOpen}
               onChange={(v) => setFilters({ ...filters, religion: v })}
-              options={[{ value: "Muslim", label: "Muslim" }, { value: "Non-muslim", label: "Non-muslim" }]} />
+              options={[{ value: "", label: "Not Selected" }, { value: "Muslim", label: "Muslim" }, { value: "Non-muslim", label: "Non-muslim" }]} />
             <MultiFilterSelect placeholder="Medical" values={filters.medical} icon={Stethoscope}
               onChange={(v) => setFilters({ ...filters, medical: v })}
-              options={MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))} />
+              options={[{ value: "", label: "Not Selected" }, ...MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))]} />
             <MultiFilterSelect placeholder="Narrative" values={filters.narrative} icon={FileText}
               onChange={(v) => setFilters({ ...filters, narrative: v })}
-              options={opts.narrative.map((o) => ({ value: o, label: o }))} />
+              options={[{ value: "", label: "Not Selected" }, ...opts.narrative.map((o) => ({ value: o, label: o }))]} />
             <MultiFilterSelect placeholder="Experience" values={filters.experience} icon={Briefcase}
               onChange={(v) => setFilters({ ...filters, experience: v })}
-              options={[{ value: "Yes", label: "Yes" }, { value: "No", label: "No" }, { value: "None", label: "None" }]} />
+              options={[{ value: "", label: "Not Selected" }, { value: "Yes", label: "Yes" }, { value: "No", label: "No" }, { value: "None", label: "None" }]} />
             <MultiFilterSelect placeholder="COC" values={filters.coc} icon={FileCheck}
               onChange={(v) => setFilters({ ...filters, coc: v })}
-              options={["Done","No","Booked","Placed","Yitazez","Pending Release"].map((o) => ({ value: o, label: o }))} />
+              options={[{ value: "", label: "Not Selected" }, ...["Done","No","Booked","Placed","Yitazez","Pending Release"].map((o) => ({ value: o, label: o }))]} />
             <MultiFilterSelect placeholder="Country" values={filters.musaned} icon={Globe}
               onChange={(v) => setFilters({ ...filters, musaned: v })}
-              options={assignCountries.map((c) => ({ value: c.name, label: c.name }))} />
+              options={[{ value: "", label: "Not Selected" }, ...assignCountries.map((c) => ({ value: c.name, label: c.name }))]} />
             <MultiFilterSelect placeholder="CV Sent To" values={filters.cv_sent_to} icon={Send}
               onChange={(v) => setFilters({ ...filters, cv_sent_to: v })}
-              options={agencyOptions.map((o) => ({ value: o, label: o }))} />
+              options={[{ value: "", label: "Not Selected" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />
             {tab === "available" ? (
               <MultiFilterSelect placeholder="Availability" values={filters.private_filter} icon={Activity}
                 onChange={(v) => setFilters({ ...filters, private_filter: v })}
@@ -2373,29 +2375,29 @@ function ProcessingTable({
           {showFilters && (
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
               <MultiFilterSelect values={f.narrative} onChange={setMulti("narrative")} placeholder="Narrative" icon={FileText}
-                options={narrativeOpts.map((o) => ({ value: o, label: o }))} />
+                options={[{ value: "", label: "Not Selected" }, ...narrativeOpts.map((o) => ({ value: o, label: o }))]} />
               <MultiFilterSelect values={f.medical_status} onChange={setMulti("medical_status")} placeholder="Medical" icon={Stethoscope}
-                options={MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))} />
+                options={[{ value: "", label: "Not Selected" }, ...MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <MultiFilterSelect values={f.coc_status} onChange={setMulti("coc_status")} placeholder="COC" icon={FileCheck}
-                options={COC_OPTIONS.map((o) => ({ value: o, label: o }))} />
+                options={[{ value: "", label: "Not Selected" }, ...COC_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <MultiFilterSelect values={f.tasheer_status} onChange={setMulti("tasheer_status")} placeholder="Tasheer"
-                options={TASHEER_OPTIONS.map((o) => ({ value: o, label: o }))} />
+                options={[{ value: "", label: "Not Selected" }, ...TASHEER_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <MultiFilterSelect values={f.wokala_status} onChange={setMulti("wokala_status")} placeholder="Wokala"
-                options={WOKALA_OPTIONS.map((o) => ({ value: o, label: o }))} />
+                options={[{ value: "", label: "Not Selected" }, ...WOKALA_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <MultiFilterSelect values={f.visa_status} onChange={setMulti("visa_status")} placeholder="Visa"
-                options={VISA_OPTIONS.map((o) => ({ value: o, label: o }))} />
+                options={[{ value: "", label: "Not Selected" }, ...VISA_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <MultiFilterSelect values={f.insurance_status} onChange={setMulti("insurance_status")} placeholder="Insurance"
-                options={INSURANCE_OPTIONS.map((o) => ({ value: o, label: o }))} />
+                options={[{ value: "", label: "Not Selected" }, ...INSURANCE_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <MultiFilterSelect values={f.unfilled_lmis} onChange={setMulti("unfilled_lmis")} placeholder="LMIS file"
                 options={UNFILLED_LMIS_OPTIONS.map((o) => ({ value: o, label: o }))} />
               <MultiFilterSelect values={f.lmis_status} onChange={setMulti("lmis_status")} placeholder="LMIS"
-                options={LMIS_OPTIONS.map((o) => ({ value: o, label: o }))} />
+                options={[{ value: "", label: "Not Selected" }, ...LMIS_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <MultiFilterSelect values={f.ticket_status} onChange={setMulti("ticket_status")} placeholder="Ticket"
-                options={TICKET_OPTIONS.map((o) => ({ value: o, label: o }))} />
+                options={[{ value: "", label: "Not Selected" }, ...TICKET_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <MultiFilterSelect values={f.arrival_city} onChange={setMulti("arrival_city")} placeholder="Arrival City"
-                options={ARRIVAL_CITY_OPTIONS.map((o) => ({ value: o, label: o }))} />
+                options={[{ value: "", label: "Not Selected" }, ...ARRIVAL_CITY_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <MultiFilterSelect values={f.selected_by} onChange={setMulti("selected_by")} placeholder="Selected By"
-                options={agencyOptions.map((o) => ({ value: o, label: o }))} />
+                options={[{ value: "", label: "Not Selected" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />
             </div>
           )}
           <div className="mt-2 text-xs text-muted-foreground">
