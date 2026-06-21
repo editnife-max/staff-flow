@@ -1544,7 +1544,7 @@ function StaffCandidatesPage() {
         <ProcessingEditDialog
           candidate={processingEdit}
           onClose={() => setProcessingEdit(null)}
-          onUpdateField={(field, value) => fieldMut.mutate({ id: processingEdit.id, field, value })}
+          onUpdateField={(field, value) => handleUpdateField(processingEdit.id, field, value)}
           agencyOptions={agencyOptions}
           countryOptions={countryMeta.map((c) => c.name)}
           officesByCountry={officesByCountry}
