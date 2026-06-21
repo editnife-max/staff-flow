@@ -603,6 +603,11 @@ function StaffCandidatesPage() {
     }
     if (field === "visa_status" && value === "Arrived KSA")
       fieldMut.mutate({ id, field: "status", value: "arrived" });
+    if (field === "tasheer_status" && (value === "No" || !value)) {
+      fieldMut.mutate({ id, field: "wokala_status", value: null });
+      fieldMut.mutate({ id, field: "tasheer_date", value: null });
+      fieldMut.mutate({ id, field: "visa_status", value: null });
+    }
   }, [fieldMut, resolveSelectedBy, qc, user?.id]);
 
   const handleCocAwareUpdate = useCallback((id: string, field: string, value: string | null) => {
@@ -1227,6 +1232,11 @@ function StaffCandidatesPage() {
             }
             if (field === "visa_status" && value === "Arrived KSA")
               fieldMut.mutate({ id, field: "status", value: "arrived" });
+            if (field === "tasheer_status" && (value === "No" || !value)) {
+              fieldMut.mutate({ id, field: "wokala_status", value: null });
+              fieldMut.mutate({ id, field: "tasheer_date", value: null });
+              fieldMut.mutate({ id, field: "visa_status", value: null });
+            }
           }}
           onEdit={(c) => setProcessingEdit(c)}
           cancelMode
