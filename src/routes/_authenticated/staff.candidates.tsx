@@ -2815,25 +2815,35 @@ function ProcessingCard({
                       )
                     ) : col.type === "select" ? (
                       col.key === "unfilled_lmis" ? (
-                        <button
-                          type="button"
-                          onClick={() => setLmisFilesOpen(true)}
-                          className="flex flex-wrap gap-1 text-left min-w-[70px] hover:opacity-80 transition-opacity"
-                        >
+                        <div className="flex flex-col gap-0.5">
                           {(() => {
                             const ca = candidate as any;
-                            const docs: { label: string; color: string }[] = [];
-                            if (ca.lmis_insu_url) docs.push({ label: "INSU", color: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300" });
-                            if (ca.lmis_coc_url) docs.push({ label: "COC", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300" });
-                            const bothIds = ca.lmis_id_url && ca.lmis_id_relative_url;
-                            if (ca.lmis_id_url || ca.lmis_id_relative_url) docs.push({ label: bothIds ? "ID'S" : "ID", color: "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300" });
-                            return docs.length > 0
-                              ? docs.map((d) => (
-                                  <span key={d.label} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-none ${d.color}`}>{d.label}</span>
-                                ))
-                              : <span className="text-muted-foreground text-sm">—</span>;
+                            const bothIds = !!(ca.lmis_id_url && ca.lmis_id_relative_url);
+                            const items: React.ReactNode[] = [];
+                            if (ca.lmis_insu_url) items.push(
+                              <div key="insu" className="flex items-center gap-1">
+                                <button type="button" onClick={() => setLmisFilesOpen(true)} className="text-[10px] font-semibold text-green-700 dark:text-green-400 hover:underline">INSU</button>
+                                <a href={ca.lmis_insu_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-green-700 dark:text-green-400 hover:opacity-70"><Download className="h-3 w-3" /></a>
+                              </div>
+                            );
+                            if (ca.lmis_coc_url) items.push(
+                              <div key="coc" className="flex items-center gap-1">
+                                <button type="button" onClick={() => setLmisFilesOpen(true)} className="text-[10px] font-semibold text-blue-700 dark:text-blue-400 hover:underline">COC</button>
+                                <a href={ca.lmis_coc_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-blue-700 dark:text-blue-400 hover:opacity-70"><Download className="h-3 w-3" /></a>
+                              </div>
+                            );
+                            if (ca.lmis_id_url || ca.lmis_id_relative_url) items.push(
+                              <div key="id" className="flex items-center gap-1">
+                                <button type="button" onClick={() => setLmisFilesOpen(true)} className="text-[10px] font-semibold text-purple-700 dark:text-purple-400 hover:underline">{bothIds ? "ID'S" : "ID"}</button>
+                                {ca.lmis_id_url && <a href={ca.lmis_id_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-purple-700 dark:text-purple-400 hover:opacity-70"><Download className="h-3 w-3" /></a>}
+                                {bothIds && <a href={ca.lmis_id_relative_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-purple-700 dark:text-purple-400 hover:opacity-70"><Download className="h-3 w-3" /></a>}
+                              </div>
+                            );
+                            return items.length > 0
+                              ? items
+                              : <button type="button" onClick={() => setLmisFilesOpen(true)} className="text-muted-foreground text-sm">—</button>;
                           })()}
-                        </button>
+                        </div>
                       ) : col.key === "coc_status" && strVal === "Placed" ? (
                         <TooltipProvider>
                           <Tooltip>
