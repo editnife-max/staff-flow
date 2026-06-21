@@ -2687,6 +2687,24 @@ function ProcessingTable({
   );
 }
 
+async function downloadFile(url: string) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const ext = url.split(".").pop()?.split("?")[0] ?? "file";
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objUrl;
+    a.download = `lmis_file.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(objUrl);
+  } catch {
+    toast.error("Download failed");
+  }
+}
+
 function ProcessingCard({
   candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onUpdateField, onEdit, onDelete, cancelMode,
   officesByCountry, agencyPhones,
@@ -2842,20 +2860,20 @@ function ProcessingCard({
                             if (ca.lmis_insu_url) items.push(
                               <div key="insu" className="flex items-center gap-1">
                                 <button type="button" onClick={() => setLmisFilesOpen(true)} className="text-[10px] font-semibold text-green-700 dark:text-green-400 hover:underline">INSU</button>
-                                <a href={ca.lmis_insu_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-green-700 dark:text-green-400 hover:opacity-70"><Download className="h-3 w-3" /></a>
+                                <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(ca.lmis_insu_url); }} className="text-green-700 dark:text-green-400 hover:opacity-70"><Download className="h-3 w-3" /></button>
                               </div>
                             );
                             if (ca.lmis_coc_url) items.push(
                               <div key="coc" className="flex items-center gap-1">
                                 <button type="button" onClick={() => setLmisFilesOpen(true)} className="text-[10px] font-semibold text-blue-700 dark:text-blue-400 hover:underline">COC</button>
-                                <a href={ca.lmis_coc_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-blue-700 dark:text-blue-400 hover:opacity-70"><Download className="h-3 w-3" /></a>
+                                <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(ca.lmis_coc_url); }} className="text-blue-700 dark:text-blue-400 hover:opacity-70"><Download className="h-3 w-3" /></button>
                               </div>
                             );
                             if (ca.lmis_id_url || ca.lmis_id_relative_url) items.push(
                               <div key="id" className="flex items-center gap-1">
                                 <button type="button" onClick={() => setLmisFilesOpen(true)} className="text-[10px] font-semibold text-purple-700 dark:text-purple-400 hover:underline">{bothIds ? "ID'S" : "ID"}</button>
-                                {ca.lmis_id_url && <a href={ca.lmis_id_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-purple-700 dark:text-purple-400 hover:opacity-70"><Download className="h-3 w-3" /></a>}
-                                {bothIds && <a href={ca.lmis_id_relative_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-purple-700 dark:text-purple-400 hover:opacity-70"><Download className="h-3 w-3" /></a>}
+                                {ca.lmis_id_url && <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(ca.lmis_id_url); }} className="text-purple-700 dark:text-purple-400 hover:opacity-70"><Download className="h-3 w-3" /></button>}
+                                {bothIds && <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(ca.lmis_id_relative_url); }} className="text-purple-700 dark:text-purple-400 hover:opacity-70"><Download className="h-3 w-3" /></button>}
                               </div>
                             );
                             return items.length > 0
@@ -3435,11 +3453,10 @@ function LmisDocSection({
       <div className="flex items-center justify-between min-h-[20px]">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
         {url && (
-          <a href={url} target="_blank" rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
+          <button type="button" onClick={() => downloadFile(url)}
             className="flex items-center gap-0.5 text-[11px] text-primary hover:underline">
             <Download className="h-3 w-3" /> Download
-          </a>
+          </button>
         )}
       </div>
       <div className="relative">
