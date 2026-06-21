@@ -665,10 +665,6 @@ function ManagerCandidatesPage() {
       if (fill.office && !c?.office)
         fieldMut.mutate({ id, field: "office", value: fill.office });
     }
-    // Undo medical Fit → clear medical date
-    if (field === "medical_status" && value !== "Fit") {
-      if (current()?.medical_status === "Fit") fieldMut.mutate({ id, field: "medical_date", value: null });
-    }
     // Visa arrived → set status to arrived
     if (field === "visa_status" && value === "Arrived KSA")
       fieldMut.mutate({ id, field: "status", value: "arrived" });
