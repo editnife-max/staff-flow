@@ -601,6 +601,8 @@ function StaffCandidatesPage() {
       const current = qc.getQueryData<Candidate[]>(["staff-candidates", user?.id])?.find((c) => c.id === id);
       if (current?.medical_status === "Fit" || !value) fieldMut.mutate({ id, field: "medical_date", value: null });
     }
+    if (field === "visa_status" && value === "Arrived KSA")
+      fieldMut.mutate({ id, field: "status", value: "arrived" });
   }, [fieldMut, resolveSelectedBy, qc, user?.id]);
 
   const handleCocAwareUpdate = useCallback((id: string, field: string, value: string | null) => {
@@ -1218,6 +1220,8 @@ function StaffCandidatesPage() {
               const c = qc.getQueryData<Candidate[]>(["staff-candidates", user?.id])?.find((c) => c.id === id);
               if (c?.medical_status === "Fit" || !value) fieldMut.mutate({ id, field: "medical_date", value: null });
             }
+            if (field === "visa_status" && value === "Arrived KSA")
+              fieldMut.mutate({ id, field: "status", value: "arrived" });
           }}
           onEdit={(c) => setProcessingEdit(c)}
           cancelMode
