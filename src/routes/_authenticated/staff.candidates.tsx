@@ -3439,7 +3439,7 @@ function LmisDocSection({
       <div className="flex items-center justify-between min-h-[20px]">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
         {url && (
-          <a href={url} download target="_blank" rel="noopener noreferrer"
+          <a href={url} target="_blank" rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
             className="flex items-center gap-0.5 text-[11px] text-primary hover:underline">
             <Download className="h-3 w-3" /> Download
