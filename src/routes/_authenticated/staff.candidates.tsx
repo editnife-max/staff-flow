@@ -725,8 +725,13 @@ function StaffCandidatesPage() {
   });
 
   const bulkStatusMut = useMutation({
-    mutationFn: async (status: Status) =>
-      bulkStatus({ data: { ids: Array.from(selected), status } }),
+    mutationFn: async (status: Status) => {
+      const ids = Array.from(selected);
+      const r = await bulkStatus({ data: { ids, status } });
+      if (status === "processing")
+        await bulkField({ data: { ids, field: "visa_status", value: null } });
+      return r;
+    },
     onSuccess: (r, status) => {
       toast.success(`Updated ${r.count} candidate(s)`);
       qc.invalidateQueries({ queryKey: ["staff-candidates"] });
