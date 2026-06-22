@@ -679,6 +679,11 @@ function ManagerCandidatesPage() {
       fieldMut.mutate({ id, field: "tasheer_date", value: null });
       fieldMut.mutate({ id, field: "visa_status", value: null });
     }
+    // Tasheer Done + Wokala Paid → Visa "Ready for embassy"
+    if (field === "tasheer_status" && value === "Done" && current()?.wokala_status === "Paid")
+      fieldMut.mutate({ id, field: "visa_status", value: "Ready for embassy" });
+    if (field === "wokala_status" && value === "Paid" && current()?.tasheer_status === "Done")
+      fieldMut.mutate({ id, field: "visa_status", value: "Ready for embassy" });
     // LMIS Issued + Visa Issued → Ticket Ready; either undone → clear Ticket
     if (field === "lmis_status") {
       if (value === "Issued" && current()?.visa_status === "Issued")

@@ -681,6 +681,17 @@ function StaffDashboard() {
       fieldMut.mutate({ id, field: "tasheer_date", value: null });
       fieldMut.mutate({ id, field: "visa_status", value: null });
     }
+    // Tasheer Done + Wokala Paid → Visa "Ready for embassy"
+    if (field === "tasheer_status" && value === "Done") {
+      const c = candidates.find((c) => c.id === id);
+      if (c?.wokala_status === "Paid")
+        fieldMut.mutate({ id, field: "visa_status", value: "Ready for embassy" });
+    }
+    if (field === "wokala_status" && value === "Paid") {
+      const c = candidates.find((c) => c.id === id);
+      if (c?.tasheer_status === "Done")
+        fieldMut.mutate({ id, field: "visa_status", value: "Ready for embassy" });
+    }
     // LMIS Issued + Visa Issued → Ticket Ready; either undone → clear Ticket
     if (field === "lmis_status") {
       const c = candidates.find((c) => c.id === id);
