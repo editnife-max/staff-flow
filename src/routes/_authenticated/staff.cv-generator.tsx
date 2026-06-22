@@ -4,11 +4,12 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, FileText, User, ArrowUpDown, ChevronDown, ChevronUp,
   Send, ClipboardPaste, X, RotateCcw, Stethoscope, Briefcase, FileCheck,
-  Globe, BookOpen, Users, Calendar, SlidersHorizontal,
+  Globe, BookOpen, Users, Calendar, SlidersHorizontal, Trash2,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { ActionDialog as BulkActionDialog } from "@/components/action-dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,8 +50,8 @@ const OPTION_COLORS: Record<string, string> = {
 // ── Candidate card ─────────────────────────────────────────────────────────────
 
 function CvCandidateCard({
-  candidate: c, selected, onToggleSelect, onAction, overdueDays, lockedDaysLeft,
-}: { candidate: Candidate; selected: boolean; onToggleSelect: () => void; onAction: () => void; overdueDays?: number; lockedDaysLeft?: number }) {
+  candidate: c, selected, onToggleSelect, onAction, onRemoveFromAgency, overdueDays, lockedDaysLeft,
+}: { candidate: Candidate; selected: boolean; onToggleSelect: () => void; onAction: () => void; onRemoveFromAgency: () => void; overdueDays?: number; lockedDaysLeft?: number }) {
   type FieldDef = { label: string; value: string; bold?: boolean; badge?: boolean };
   const fields: FieldDef[] = [
     { label: "FULL NAME",      value: c.full_name,                                                   bold: true },
@@ -151,6 +152,16 @@ function CvCandidateCard({
           >
             VIEW
           </Button>
+          {c.cv_sent_to && (
+            <Button
+              size="sm" variant="ghost"
+              onClick={onRemoveFromAgency}
+              className="h-7 px-2 text-[11px] gap-1 text-destructive hover:text-destructive hover:bg-destructive/10 rounded"
+              title={`Remove from ${c.cv_sent_to}`}
+            >
+              <Trash2 className="h-3 w-3" /> Remove
+            </Button>
+          )}
         </div>
       </div>
     </div>
@@ -208,10 +219,27 @@ function CvGeneratorPage() {
   const [selected,    setSelected]    = useState<Set<string>>(new Set());
   const [sendOffice,       setSendOffice]        = useState("");
   const [actionCandidates, setActionCandidates] = useState<Candidate[]>([]);
+  const [removeTarget,     setRemoveTarget]      = useState<Candidate | null>(null);
 
   const toggleSelect = (id: string) =>
     setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const clearSelection = () => setSelected(new Set());
+
+  const removeFromAgencyMut = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("candidates")
+        .update({ cv_sent_to: null, cv_sent_date: null } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Candidate removed from agency");
+      qc.invalidateQueries({ queryKey: ["cv-candidates"] });
+      setRemoveTarget(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const sendToOfficeMut = useMutation({
     mutationFn: async ({ ids, office }: { ids: string[]; office: string }) => {
@@ -544,6 +572,7 @@ function CvGeneratorPage() {
                 selected={selected.has(c.id)}
                 onToggleSelect={() => toggleSelect(c.id)}
                 onAction={() => setActionCandidates([c])}
+                onRemoveFromAgency={() => setRemoveTarget(c)}
                 overdueDays={status?.overdueDays}
                 lockedDaysLeft={status?.lockedDaysLeft}
               />
@@ -560,6 +589,30 @@ function CvGeneratorPage() {
       {actionCandidates.length > 0 && (
         <BulkActionDialog candidates={actionCandidates} onClose={() => setActionCandidates([])} />
       )}
+
+      <Dialog open={!!removeTarget} onOpenChange={(o) => { if (!o) setRemoveTarget(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-4 w-4 text-destructive" /> Remove from Agency
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Remove <strong>{removeTarget?.full_name}</strong> from{" "}
+            <strong>{removeTarget?.cv_sent_to}</strong>? Their CV sent record will be cleared.
+          </p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRemoveTarget(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={removeFromAgencyMut.isPending}
+              onClick={() => removeTarget && removeFromAgencyMut.mutate(removeTarget.id)}
+            >
+              {removeFromAgencyMut.isPending ? "Removing…" : "Remove"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
