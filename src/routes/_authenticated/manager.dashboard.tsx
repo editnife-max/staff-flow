@@ -4,7 +4,7 @@ import React, { useState, useRef } from "react";
 import {
   Users, Clock, CheckCircle2, XCircle, AlertTriangle,
   UserPlus, Stethoscope, X, ChevronRight, RotateCcw, Send, Settings,
-  Upload, Download, FileUp,
+  Upload, Download, FileUp, Ticket,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -242,6 +242,8 @@ function ManagerDashboard() {
   const [lmisDraftImportedOpen, setLmisDraftImportedOpen] = useState(false);
   const [lmisDraftImportedDismissed, setLmisDraftImportedDismissed] = useState(false);
   const [lmisFilesCandidate, setLmisFilesCandidate] = useState<Candidate | null>(null);
+  const [ticketReadyOpen, setTicketReadyOpen] = useState(false);
+  const [ticketReadyDismissed, setTicketReadyDismissed] = useState(false);
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["dashboard-candidates", user?.id],
@@ -329,6 +331,7 @@ function ManagerDashboard() {
   });
   const fitLmisNotTested = candidates.filter((c) => c.medical_status === "Fit" && c.coc_status === "Done" && (!c.lmis_status || c.lmis_status === "Not tested"));
   const lmisDraftImported = candidates.filter((c) => c.lmis_status === "Draft" || c.lmis_status === "Imported");
+  const ticketReady = candidates.filter((c) => c.ticket_status === "Ready");
 
   const cvOverdue = candidates.filter((c) => {
     if (!c.cv_sent_to || c.selected_by || !c.cv_sent_date) return false;
@@ -587,6 +590,37 @@ function ManagerDashboard() {
               type="button"
               onClick={(e) => { e.stopPropagation(); setLmisDraftImportedDismissed(true); }}
               className="p-1 rounded-none text-indigo-400 hover:text-indigo-700 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Ticket Ready Banner */}
+      {ticketReady.length > 0 && !ticketReadyDismissed && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-none border border-violet-300 bg-violet-50 dark:bg-violet-950/40 dark:border-violet-700 px-4 py-3 cursor-pointer hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-colors"
+          onClick={() => setTicketReadyOpen(true)}
+        >
+          <div className="flex items-center gap-3">
+            <Ticket className="h-5 w-5 text-violet-600 dark:text-violet-400 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">
+                Ticket Ready — {ticketReady.length} candidate{ticketReady.length > 1 ? "s" : ""}
+              </p>
+              <p className="text-xs text-violet-600 dark:text-violet-400">
+                Click to view candidates with ticket status Ready
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <ChevronRight className="h-4 w-4 text-violet-500" />
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setTicketReadyDismissed(true); }}
+              className="p-1 rounded-none text-violet-400 hover:text-violet-700 hover:bg-violet-200 dark:hover:bg-violet-800 transition-colors"
               aria-label="Dismiss"
             >
               <X className="h-4 w-4" />
@@ -1299,6 +1333,41 @@ function ManagerDashboard() {
           <div className="pt-2 flex justify-end">
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
               <Link to="/manager/candidates" onClick={() => setCvOpen(false)}>
+                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Ticket Ready Dialog */}
+      <Dialog open={ticketReadyOpen} onOpenChange={setTicketReadyOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-violet-700 dark:text-violet-300">
+              <Ticket className="h-5 w-5" />
+              Ticket Ready ({ticketReady.length})
+            </DialogTitle>
+          </DialogHeader>
+          <PaginatedDialogList items={ticketReady} renderItem={(c) => (
+            <div key={c.id} className="flex items-center gap-3 py-3">
+              <Avatar className="h-9 w-9 shrink-0">
+                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
+              </div>
+              <div className="shrink-0 text-right">
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Ready</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+              </div>
+            </div>
+          )} />
+          <div className="pt-2 flex justify-end">
+            <Button asChild size="sm" className="rounded-none text-xs gap-1">
+              <Link to="/manager/candidates" onClick={() => setTicketReadyOpen(false)}>
                 Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
               </Link>
             </Button>

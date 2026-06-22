@@ -764,6 +764,7 @@ function StaffDashboard() {
   );
   const fitLmisNotTested = candidates.filter((c) => c.medical_status === "Fit" && c.coc_status === "Done" && (!c.lmis_status || c.lmis_status === "Not tested"));
   const lmisDraftImported = candidates.filter((c) => c.lmis_status === "Draft" || c.lmis_status === "Imported");
+  const ticketReady = candidates.filter((c) => c.ticket_status === "Ready");
 
   const cvOverdue = candidates.filter((c) => {
     if (!c.cv_sent_to || c.selected_by || !c.cv_sent_date) return false;
@@ -807,7 +808,7 @@ function StaffDashboard() {
       </div>
 
       {/* Alert sections */}
-      {(cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || cvOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0) && (
+      {(cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || ticketReady.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || cvOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0) && (
         <div className="space-y-2">
           <AlertSection icon={FileCheck}    title="COC — No"                     iconColor="text-orange-600 dark:text-orange-400" pillKey="coc"     candidates={cocNo}         onUpdateField={handleUpdateField} countryOptions={countryOptions} />
           <AlertSection icon={FileCheck}    title="COC — Placed"                 iconColor="text-violet-600 dark:text-violet-400" pillKey="coc"     candidates={cocPlaced}     onUpdateField={handleUpdateField} countryOptions={countryOptions} />
@@ -823,6 +824,7 @@ function StaffDashboard() {
           <AlertSection icon={ClipboardList} title="LMIS file"               iconColor="text-amber-600 dark:text-amber-400"   pillKey="lmis"    candidates={unfilledLmis}  onUpdateField={handleUpdateField} countryOptions={countryOptions} />
           <AlertSection icon={Ticket}        title="Ticket Not Booked — Over 20 Days" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketNotBooked} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => c.contract_date ? `${daysSince(c.contract_date)}d since contract` : null} />
+          <AlertSection icon={Ticket}        title="Ticket Ready" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketReady} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
           <AlertSection icon={Landmark}      title="Embassy Visa — Pending"      iconColor="text-sky-600 dark:text-sky-400"       pillKey="embassy"   candidates={embassyPending} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => c.processing_notes ?? null} />
           <AlertSection icon={BadgeCheck}    title="Ready for Embassy Visa"      iconColor="text-emerald-600 dark:text-emerald-400" pillKey="visaready"  candidates={visaReady}     onUpdateField={handleUpdateField} countryOptions={countryOptions}
