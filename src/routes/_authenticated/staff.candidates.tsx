@@ -608,6 +608,15 @@ function StaffCandidatesPage() {
       fieldMut.mutate({ id, field: "tasheer_date", value: null });
       fieldMut.mutate({ id, field: "visa_status", value: null });
     }
+    // LMIS Issued + Visa Issued → Ticket Ready
+    if (field === "lmis_status" && value === "Issued") {
+      const c = qc.getQueryData<Candidate[]>(["staff-candidates", user?.id])?.find((c) => c.id === id);
+      if (c?.visa_status === "Issued") fieldMut.mutate({ id, field: "ticket_status", value: "Ready" });
+    }
+    if (field === "visa_status" && value === "Issued") {
+      const c = qc.getQueryData<Candidate[]>(["staff-candidates", user?.id])?.find((c) => c.id === id);
+      if (c?.lmis_status === "Issued") fieldMut.mutate({ id, field: "ticket_status", value: "Ready" });
+    }
   }, [fieldMut, resolveSelectedBy, qc, user?.id]);
 
   const handleCocAwareUpdate = useCallback((id: string, field: string, value: string | null) => {
@@ -1236,6 +1245,15 @@ function StaffCandidatesPage() {
               fieldMut.mutate({ id, field: "wokala_status", value: null });
               fieldMut.mutate({ id, field: "tasheer_date", value: null });
               fieldMut.mutate({ id, field: "visa_status", value: null });
+            }
+            // LMIS Issued + Visa Issued → Ticket Ready
+            if (field === "lmis_status" && value === "Issued") {
+              const c = qc.getQueryData<Candidate[]>(["staff-candidates", user?.id])?.find((c) => c.id === id);
+              if (c?.visa_status === "Issued") fieldMut.mutate({ id, field: "ticket_status", value: "Ready" });
+            }
+            if (field === "visa_status" && value === "Issued") {
+              const c = qc.getQueryData<Candidate[]>(["staff-candidates", user?.id])?.find((c) => c.id === id);
+              if (c?.lmis_status === "Issued") fieldMut.mutate({ id, field: "ticket_status", value: "Ready" });
             }
           }}
           onEdit={(c) => setProcessingEdit(c)}

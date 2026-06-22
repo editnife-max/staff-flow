@@ -680,6 +680,15 @@ function StaffDashboard() {
       fieldMut.mutate({ id, field: "tasheer_date", value: null });
       fieldMut.mutate({ id, field: "visa_status", value: null });
     }
+    // LMIS Issued + Visa Issued → Ticket Ready
+    if (field === "lmis_status" && value === "Issued") {
+      const c = candidates.find((c) => c.id === id);
+      if (c?.visa_status === "Issued") fieldMut.mutate({ id, field: "ticket_status", value: "Ready" });
+    }
+    if (field === "visa_status" && value === "Issued") {
+      const c = candidates.find((c) => c.id === id);
+      if (c?.lmis_status === "Issued") fieldMut.mutate({ id, field: "ticket_status", value: "Ready" });
+    }
   };
 
   const medExpiryChecked = useRef<Set<string>>(new Set());
