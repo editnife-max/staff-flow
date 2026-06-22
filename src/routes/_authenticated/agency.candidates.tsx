@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useState } from "react";
 import {
   Search, SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
   ArrowUpDown, Users, User, BookOpen, Briefcase, Heart, Send,
-  Play, Download, Eye, FileText,
+  Play, Download, Eye, FileText, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -24,6 +24,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { getStaffList, sendCandidatesNotification } from "@/lib/notifications.functions";
 import { CvPreview, candidateToCanvas } from "@/components/cv-preview";
 import { canvasToPdf } from "@/lib/pdf-export";
+import { removeCandidateFromAgency } from "@/lib/agency-candidates.functions";
 
 export const Route = createFileRoute("/_authenticated/agency/candidates")({
   head: () => ({ meta: [{ title: "Candidates — Agency Portal" }] }),
@@ -83,6 +84,7 @@ const initialFilters = {
 };
 
 function AgencyCandidatesPage() {
+  const qc = useQueryClient();
   const [search, setSearch]           = useState("");
   const [showFilters, setShowFilters] = useState(true);
   const [filters, setFilters]         = useState(initialFilters);
@@ -315,6 +317,7 @@ function AgencyCandidatesPage() {
               candidate={c}
               selected={selected.has(c.id)}
               onToggle={() => toggleSelect(c.id)}
+              onRemoved={() => qc.invalidateQueries({ queryKey: ["agency-candidates"] })}
             />
           ))}
         </div>
@@ -438,11 +441,14 @@ function CvViewDialog({ candidate, onClose }: { candidate: Candidate; onClose: (
 }
 
 function AgencyCandidateCard({
-  candidate: c, selected, onToggle,
-}: { candidate: Candidate; selected: boolean; onToggle: () => void }) {
-  const [videoOpen, setVideoOpen] = useState(false);
-  const [cvOpen, setCvOpen]       = useState(false);
-  const [dlCv, setDlCv]           = useState(false);
+  candidate: c, selected, onToggle, onRemoved,
+}: { candidate: Candidate; selected: boolean; onToggle: () => void; onRemoved: () => void }) {
+  const [videoOpen, setVideoOpen]   = useState(false);
+  const [cvOpen, setCvOpen]         = useState(false);
+  const [dlCv, setDlCv]             = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+
+  const doRemove = useServerFn(removeCandidateFromAgency);
 
   const age = calcAge(c.dob) ?? c.age;
 
@@ -568,12 +574,65 @@ function AgencyCandidateCard({
               No video
             </div>
           )}
+          {/* Remove from agency */}
+          <Button
+            size="sm" variant="ghost"
+            className="w-full h-6 text-[10px] gap-0.5 rounded-sm px-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={() => setConfirmRemove(true)}
+          >
+            <Trash2 className="h-2.5 w-2.5 shrink-0" /> Remove
+          </Button>
         </div>
       </div>
 
       {videoOpen && <VideoPlayDialog url={c.video_url!} onClose={() => setVideoOpen(false)} />}
       {cvOpen && <CvViewDialog candidate={c} onClose={() => setCvOpen(false)} />}
+
+      {/* Remove confirmation */}
+      <Dialog open={confirmRemove} onOpenChange={(o) => { if (!o) setConfirmRemove(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-4 w-4 text-destructive" /> Remove Candidate
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Remove <strong>{c.full_name}</strong> from your agency list? The candidate will no longer appear in your portal.
+          </p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmRemove(false)}>Cancel</Button>
+            <RemoveButton
+              candidateId={c.id}
+              doRemove={doRemove}
+              onDone={() => { setConfirmRemove(false); onRemoved(); }}
+            />
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
+  );
+}
+
+function RemoveButton({
+  candidateId, doRemove, onDone,
+}: {
+  candidateId: string;
+  doRemove: (args: { data: { id: string } }) => Promise<{ ok: boolean }>;
+  onDone: () => void;
+}) {
+  const removeMut = useMutation({
+    mutationFn: () => doRemove({ data: { id: candidateId } }),
+    onSuccess: () => { toast.success("Candidate removed from your list"); onDone(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  return (
+    <Button
+      variant="destructive"
+      onClick={() => removeMut.mutate()}
+      disabled={removeMut.isPending}
+    >
+      {removeMut.isPending ? "Removing…" : "Remove"}
+    </Button>
   );
 }
 
