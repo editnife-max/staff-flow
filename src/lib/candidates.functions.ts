@@ -111,10 +111,20 @@ export const upsertCandidate = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const managerId = await resolveManagerId(context.userId);
+
+    // Auto-derive cv_sent_to from musaned_status (Country)
+    const today = new Date().toISOString().split("T")[0];
+    const autoCountryPatch = (payload: typeof data.data): Record<string, unknown> => {
+      if (payload.musaned_status) {
+        return { ...payload, cv_sent_to: payload.musaned_status, cv_sent_date: today };
+      }
+      return { ...payload, cv_sent_to: null, cv_sent_date: null };
+    };
+
     if (data.id) {
       const { error } = await (supabaseAdmin
         .from("candidates") as any)
-        .update({ ...data.data })
+        .update(autoCountryPatch(data.data))
         .eq("id", data.id)
         .eq("manager_id", managerId);
       if (error) throw new Error(error.message);
@@ -140,7 +150,7 @@ export const upsertCandidate = createServerFn({ method: "POST" })
     const { data: row, error } = await supabaseAdmin
       .from("candidates")
       .insert({
-        ...data.data,
+        ...autoCountryPatch(data.data),
         manager_id: managerId,
         created_by_user_id: context.userId,
         created_by_name: createdByName,
@@ -176,6 +186,16 @@ export const updateCandidateField = createServerFn({ method: "POST" })
 
     if (data.field === "cv_sent_to" && raw) {
       payload.cv_sent_date = new Date().toISOString().split("T")[0];
+    }
+
+    // Auto-assign cv_sent_to when the Country (musaned_status) field is set
+    if (data.field === "musaned_status" && raw) {
+      payload.cv_sent_to = raw;
+      payload.cv_sent_date = new Date().toISOString().split("T")[0];
+    }
+    if (data.field === "musaned_status" && !raw) {
+      payload.cv_sent_to = null;
+      payload.cv_sent_date = null;
     }
 
     // When selected_by is set on an available candidate, auto-advance to processing
