@@ -3257,11 +3257,16 @@ function MultiFilterSelect({
   icon?: React.ElementType;
 }) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const isEmpty = values.length === 0;
   const hasSingleColor = !isEmpty && values.length === 1 && !!OPTION_COLORS[values[0]];
 
   const toggle = (val: string) =>
     onChange(values.includes(val) ? values.filter((v) => v !== val) : [...values, val]);
+
+  const filtered = search
+    ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
+    : options;
 
   const triggerLabel = isEmpty
     ? placeholder
@@ -3271,7 +3276,7 @@ function MultiFilterSelect({
 
   return (
     <div className="flex items-center gap-0.5">
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSearch(""); }}>
         <PopoverTrigger asChild>
           <button
             type="button"
@@ -3289,26 +3294,40 @@ function MultiFilterSelect({
             <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-44 p-1 rounded-none" align="start">
-          {options.map((o) => {
-            const checked = values.includes(o.value);
-            const color = OPTION_COLORS[o.label] ?? OPTION_COLORS[o.value];
-            return (
-              <button
-                key={o.value}
-                type="button"
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 transition-colors"
-                onClick={() => toggle(o.value)}
-              >
-                <Checkbox checked={checked} className="h-3.5 w-3.5 pointer-events-none" />
-                {color ? (
-                  <span className={cn("text-[13px] font-medium px-1.5 py-0.5", color)}>{o.label}</span>
-                ) : (
-                  <span className="text-[13px] text-[#181A27] dark:text-white">{o.label}</span>
-                )}
-              </button>
-            );
-          })}
+        <PopoverContent className="w-52 p-1 rounded-none" align="start">
+          <div className="px-1 pb-1">
+            <input
+              autoFocus
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search…"
+              className="w-full h-6 text-[12px] px-2 border border-border rounded-none bg-background outline-none placeholder:text-muted-foreground"
+            />
+          </div>
+          <div className="max-h-[220px] overflow-y-auto">
+            {filtered.map((o) => {
+              const checked = values.includes(o.value);
+              const color = OPTION_COLORS[o.label] ?? OPTION_COLORS[o.value];
+              return (
+                <button
+                  key={o.value}
+                  type="button"
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 transition-colors"
+                  onClick={() => toggle(o.value)}
+                >
+                  <Checkbox checked={checked} className="h-3.5 w-3.5 pointer-events-none" />
+                  {color ? (
+                    <span className={cn("text-[13px] font-medium px-1.5 py-0.5", color)}>{o.label}</span>
+                  ) : (
+                    <span className="text-[13px] text-[#181A27] dark:text-white">{o.label}</span>
+                  )}
+                </button>
+              );
+            })}
+            {filtered.length === 0 && (
+              <p className="text-center text-[12px] text-muted-foreground py-2">No results</p>
+            )}
+          </div>
         </PopoverContent>
       </Popover>
       {!isEmpty && (
