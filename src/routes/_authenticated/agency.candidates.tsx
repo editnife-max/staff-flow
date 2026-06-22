@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Search, SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
   ArrowUpDown, Users, User, BookOpen, Briefcase, Heart, Send,
+  Play, Download, Eye, FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -12,7 +13,6 @@ import { PageHeader } from "@/components/page-header";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -22,6 +22,8 @@ import { cn, calcAge } from "@/lib/utils";
 import { X } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { getStaffList, sendCandidatesNotification } from "@/lib/notifications.functions";
+import { CvPreview, candidateToCanvas } from "@/components/cv-preview";
+import { canvasToPdf } from "@/lib/pdf-export";
 
 export const Route = createFileRoute("/_authenticated/agency/candidates")({
   head: () => ({ meta: [{ title: "Candidates — Agency Portal" }] }),
@@ -32,6 +34,9 @@ type Candidate = {
   id: string;
   full_name: string;
   photo_url: string | null;
+  full_photo_url: string | null;
+  passport_scan_url: string | null;
+  video_url: string | null;
   occupation: string | null;
   country: string | null;
   gender: string | null;
@@ -39,18 +44,33 @@ type Candidate = {
   age: number | null;
   religion: string | null;
   marital_status: string | null;
-  experience: string | null;
+  children: number | null;
+  birth_place: string | null;
+  living_town: string | null;
   education: string | null;
+  experience: string | null;
+  experience_country: string | null;
+  experience_years: string | null;
   english_level: string | null;
   arabic_level: string | null;
+  spoken_languages: string | null;
+  weight: number | null;
+  height: number | null;
+  skills: string | null;
+  notes: string | null;
+  remark: string | null;
   medical_status: string | null;
   passport_status: string | null;
+  passport_number: string | null;
+  passport_issue_date: string | null;
+  passport_expiry_date: string | null;
+  place_of_issue: string | null;
+  labour_id: string | null;
   coc_status: string | null;
   selected_by: string | null;
   cv_sent_to: string | null;
   status: string;
 };
-
 
 const initialFilters = {
   sort:       "newest",
@@ -67,8 +87,6 @@ function AgencyCandidatesPage() {
   const [showFilters, setShowFilters] = useState(true);
   const [filters, setFilters]         = useState(initialFilters);
   const [selected, setSelected]       = useState<Set<string>>(new Set());
-
-  // Send-to-staff dialog
   const [sendOpen, setSendOpen]       = useState(false);
   const [staffId, setStaffId]         = useState("");
   const [message, setMessage]         = useState("");
@@ -82,9 +100,13 @@ function AgencyCandidatesPage() {
       const { data, error } = await supabase
         .from("candidates")
         .select(
-          "id,full_name,photo_url,occupation,country,gender,dob,age,religion,marital_status," +
-          "experience,education,english_level,arabic_level,medical_status,passport_status," +
-          "coc_status,selected_by,cv_sent_to,status"
+          "id,full_name,photo_url,full_photo_url,passport_scan_url,video_url," +
+          "occupation,country,gender,dob,age,religion,marital_status,children," +
+          "birth_place,living_town,education,experience,experience_country,experience_years," +
+          "english_level,arabic_level,spoken_languages,weight,height,skills,notes,remark," +
+          "medical_status,passport_status,passport_number,passport_issue_date," +
+          "passport_expiry_date,place_of_issue,labour_id,coc_status," +
+          "selected_by,cv_sent_to,status"
         )
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -100,28 +122,13 @@ function AgencyCandidatesPage() {
 
   const ageFromNum = filters.ageFrom !== "" ? Number(filters.ageFrom) : null;
   const ageToNum   = filters.ageTo   !== "" ? Number(filters.ageTo)   : null;
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const fadeRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const sync = () => {
-      const atEnd = el.scrollLeft >= el.scrollWidth - el.clientWidth - 1;
-      if (fadeRef.current) fadeRef.current.style.opacity = (!atEnd && el.scrollWidth > el.clientWidth) ? "1" : "0";
-    };
-    sync();
-    el.addEventListener("scroll", sync, { passive: true });
-    const ro = new ResizeObserver(sync);
-    ro.observe(el);
-    return () => { el.removeEventListener("scroll", sync); ro.disconnect(); };
-  }, []);
 
   const filtered = candidates
     .filter((c) => !search || c.full_name.toLowerCase().includes(search.toLowerCase()))
-    .filter((c) => filters.gender     === "all" || c.gender          === filters.gender)
-    .filter((c) => filters.religion   === "all" || c.religion        === filters.religion)
-    .filter((c) => filters.experience === "all" || c.experience      === filters.experience)
-    .filter((c) => filters.marital    === "all" || c.marital_status  === filters.marital)
+    .filter((c) => filters.gender     === "all" || c.gender         === filters.gender)
+    .filter((c) => filters.religion   === "all" || c.religion       === filters.religion)
+    .filter((c) => filters.experience === "all" || c.experience     === filters.experience)
+    .filter((c) => filters.marital    === "all" || c.marital_status === filters.marital)
     .filter((c) => ageFromNum === null || (c.age != null && c.age >= ageFromNum))
     .filter((c) => ageToNum   === null || (c.age != null && c.age <= ageToNum))
     .sort((a, b) =>
@@ -267,7 +274,7 @@ function AgencyCandidatesPage() {
 
       {/* Selection toolbar */}
       {filtered.length > 0 && (
-        <div className="flex items-center gap-3 mb-2 px-[5px]">
+        <div className="flex items-center gap-3 mb-3">
           <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
             <Checkbox
               checked={selected.size > 0 && selected.size === filtered.length}
@@ -291,26 +298,25 @@ function AgencyCandidatesPage() {
         </div>
       )}
 
-      {/* Results */}
+      {/* Results grid */}
       {isLoading ? (
-        <Card className="rounded-none"><CardContent className="p-8 text-center text-sm text-muted-foreground">Loading…</CardContent></Card>
+        <Card className="rounded-none">
+          <CardContent className="p-8 text-center text-sm text-muted-foreground">Loading…</CardContent>
+        </Card>
       ) : filtered.length === 0 ? (
-        <Card className="rounded-none"><CardContent className="p-8 text-center text-sm text-muted-foreground">No candidates found.</CardContent></Card>
+        <Card className="rounded-none">
+          <CardContent className="p-8 text-center text-sm text-muted-foreground">No candidates found.</CardContent>
+        </Card>
       ) : (
-        <div className="relative">
-          <div ref={scrollRef} className="overflow-x-auto">
-            <div className="min-w-max space-y-2">
-              {filtered.map((c) => (
-                <AgencyCandidateCard
-                  key={c.id}
-                  candidate={c}
-                  selected={selected.has(c.id)}
-                  onToggle={() => toggleSelect(c.id)}
-                />
-              ))}
-            </div>
-          </div>
-          <div ref={fadeRef} aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-white to-transparent opacity-0 transition-opacity duration-200" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          {filtered.map((c) => (
+            <AgencyCandidateCard
+              key={c.id}
+              candidate={c}
+              selected={selected.has(c.id)}
+              onToggle={() => toggleSelect(c.id)}
+            />
+          ))}
         </div>
       )}
 
@@ -350,10 +356,7 @@ function AgencyCandidatesPage() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={closeSend}>Cancel</Button>
-            <Button
-              onClick={() => sendMut.mutate()}
-              disabled={!staffId || sendMut.isPending}
-            >
+            <Button onClick={() => sendMut.mutate()} disabled={!staffId || sendMut.isPending}>
               {sendMut.isPending ? "Sending…" : "Send"}
             </Button>
           </DialogFooter>
@@ -363,86 +366,214 @@ function AgencyCandidatesPage() {
   );
 }
 
-const BADGE_COLORS: Record<string, string> = {
-  Fit:           "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
-  Unfit:         "bg-red-100/50 text-[#181A27] dark:bg-red-900/40 dark:text-red-300",
-  Booked:        "bg-blue-100/50 text-[#181A27] dark:bg-blue-900/40 dark:text-blue-300",
-  "In progress": "bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
-  Expired:       "bg-orange-100/50 text-[#181A27] dark:bg-orange-900/40 dark:text-orange-300",
-  Done:          "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
-  No:            "bg-zinc-100/50 text-[#181A27] dark:bg-zinc-800 dark:text-zinc-400",
-  Yes:           "bg-emerald-100/50 text-[#181A27] dark:bg-emerald-900/40 dark:text-emerald-300",
-};
+function VideoPlayDialog({ url, onClose }: { url: string; onClose: () => void }) {
+  const handleDownload = async () => {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      const ext = url.split("?")[0].split(".").pop() ?? "mp4";
+      a.download = `video.${ext}`;
+      a.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      window.open(url, "_blank");
+    }
+  };
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-2xl rounded-none">
+        <DialogHeader>
+          <DialogTitle className="text-base">Video</DialogTitle>
+        </DialogHeader>
+        <div className="relative w-full aspect-video bg-black overflow-hidden">
+          <video src={url} controls autoPlay className="w-full h-full" />
+        </div>
+        <div className="flex justify-end gap-2 pt-1">
+          <Button size="sm" variant="outline" className="rounded-none gap-1 text-xs" onClick={handleDownload}>
+            <Download className="h-3 w-3" /> Download Video
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CvViewDialog({ candidate, onClose }: { candidate: Candidate; onClose: () => void }) {
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const canvas = await candidateToCanvas(candidate as any, null);
+      await canvasToPdf(canvas, `${candidate.full_name} — CV.pdf`);
+    } catch {
+      toast.error("Failed to generate PDF");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-4xl">
+        <DialogHeader>
+          <DialogTitle>CV — {candidate.full_name}</DialogTitle>
+        </DialogHeader>
+        <div className="max-h-[68vh] overflow-auto">
+          <CvPreview candidate={candidate as any} template={null} />
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Close</Button>
+          <Button onClick={handleDownload} disabled={downloading} className="gap-1.5">
+            <Download className="h-4 w-4" />
+            {downloading ? "Generating…" : "Download PDF"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function AgencyCandidateCard({
   candidate: c, selected, onToggle,
 }: { candidate: Candidate; selected: boolean; onToggle: () => void }) {
-  type FieldDef = { label: string; value: string; bold?: boolean; badge?: boolean };
-  const fields: FieldDef[] = [
-    { label: "FULL NAME",  value: c.full_name,                                         bold: true },
-    { label: "OCCUPATION", value: c.occupation ?? "—" },
-    { label: "COUNTRY",    value: c.country ?? "—" },
-    { label: "AGE",        value: String(calcAge(c.dob) ?? c.age ?? "—") },
-    { label: "GENDER",     value: c.gender ?? "—" },
-    { label: "RELIGION",   value: c.religion ?? "—" },
-    { label: "MARITAL",    value: c.marital_status ?? "—" },
-    { label: "EXPERIENCE", value: c.experience ?? "—" },
-    { label: "EDUCATION",  value: c.education ?? "—" },
-    { label: "ENGLISH",    value: c.english_level ?? "—" },
-    { label: "ARABIC",     value: c.arabic_level ?? "—" },
-    { label: "MEDICAL",    value: c.medical_status ?? "—",  badge: true },
-    { label: "COC",        value: c.coc_status ?? "—",      badge: true },
-    { label: "PASSPORT",   value: c.passport_status ?? "—", badge: true },
-  ];
+  const [videoOpen, setVideoOpen] = useState(false);
+  const [cvOpen, setCvOpen]       = useState(false);
+  const [dlCv, setDlCv]           = useState(false);
+
+  const age = calcAge(c.dob) ?? c.age;
+
+  const handleDownloadCv = async () => {
+    setDlCv(true);
+    try {
+      const canvas = await candidateToCanvas(c as any, null);
+      await canvasToPdf(canvas, `${c.full_name} — CV.pdf`);
+    } catch {
+      toast.error("Failed to generate PDF");
+    } finally {
+      setDlCv(false);
+    }
+  };
+
+  const handleDownloadVideo = async () => {
+    if (!c.video_url) return;
+    try {
+      const res = await fetch(c.video_url);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      const ext = c.video_url.split("?")[0].split(".").pop() ?? "mp4";
+      a.download = `${c.full_name} — video.${ext}`;
+      a.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      window.open(c.video_url, "_blank");
+    }
+  };
 
   return (
-    <div
-      className={cn("border border-border shadow-sm rounded-sm transition-colors flex items-center", selected && "ring-1 ring-primary/50")}
-      style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}
-    >
-      {/* Fixed left — checkbox + status badge */}
-      <div
-        className="sticky left-0 z-10 self-stretch shrink-0 flex flex-col items-center justify-center gap-2 px-4"
-        style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}
-      >
-        <Checkbox checked={selected} onCheckedChange={onToggle} aria-label="Select candidate" />
-        <StatusBadge status={c.status} />
-      </div>
-
-      {/* Avatar */}
-      <div className="shrink-0 px-4 py-3">
-        <Avatar className="h-14 w-14">
-          {c.photo_url && <AvatarImage src={c.photo_url} alt={c.full_name} />}
-          <AvatarFallback className="text-[11px]">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-        </Avatar>
-      </div>
-
-      {/* Fields */}
-      <div className="flex items-start gap-6 py-3 pr-4">
-        {fields.map((f) => (
-          <div key={f.label} className="shrink-0 w-[90px]">
-            <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">
-              {f.label}
+    <>
+      <div className={cn(
+        "border border-border rounded-sm bg-card shadow-sm overflow-hidden flex flex-col transition-colors",
+        selected && "ring-2 ring-primary/60",
+      )}>
+        {/* Square passport-size photo */}
+        <div className="relative aspect-square bg-muted overflow-hidden">
+          {c.photo_url ? (
+            <img
+              src={c.photo_url}
+              alt={c.full_name}
+              className="w-full h-full object-cover object-top"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-muted-foreground/30">
+              <User className="h-16 w-16" />
             </div>
-            {f.badge && f.value && f.value !== "—" ? (
-              <span className={cn(
-                "text-[11px] font-semibold px-1.5 py-0.5 rounded-sm whitespace-nowrap",
-                BADGE_COLORS[f.value] ?? "bg-zinc-100/50 text-[#181A27]",
-              )}>
-                {f.value}
-              </span>
-            ) : (
-              <div className={cn(
-                "text-sm text-foreground break-words",
-                f.bold && "font-semibold",
-              )}>
-                {f.value}
-              </div>
-            )}
+          )}
+          <div className="absolute top-2 left-2">
+            <Checkbox
+              checked={selected}
+              onCheckedChange={onToggle}
+              aria-label="Select candidate"
+              className="bg-white/90 border-white/80 shadow data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+            />
           </div>
-        ))}
+          <div className="absolute top-2 right-2">
+            <StatusBadge status={c.status} />
+          </div>
+        </div>
+
+        {/* Candidate info */}
+        <div className="p-3 space-y-1.5 flex-1">
+          <div className="font-semibold text-sm leading-tight line-clamp-2">{c.full_name}</div>
+          <div className="space-y-1 text-xs">
+            <div className="flex items-baseline gap-1">
+              <span className="font-medium text-muted-foreground w-16 shrink-0">Age</span>
+              <span className="text-foreground">{age ?? "—"}</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="font-medium text-muted-foreground w-16 shrink-0">Religion</span>
+              <span className="text-foreground truncate">{c.religion ?? "—"}</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="font-medium text-muted-foreground w-16 shrink-0">Experience</span>
+              <span className="text-foreground truncate">{c.experience ?? "—"}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="px-3 pb-3 space-y-1.5">
+          <div className="grid grid-cols-2 gap-1">
+            <Button
+              size="sm" variant="outline"
+              className="h-7 text-[11px] gap-1 rounded-sm px-2"
+              onClick={() => setCvOpen(true)}
+            >
+              <Eye className="h-3 w-3 shrink-0" /> View CV
+            </Button>
+            <Button
+              size="sm" variant="outline"
+              className="h-7 text-[11px] gap-1 rounded-sm px-2"
+              onClick={handleDownloadCv}
+              disabled={dlCv}
+            >
+              <FileText className="h-3 w-3 shrink-0" />
+              {dlCv ? "…" : "CV PDF"}
+            </Button>
+          </div>
+          {c.video_url ? (
+            <div className="grid grid-cols-2 gap-1">
+              <Button
+                size="sm" variant="outline"
+                className="h-7 text-[11px] gap-1 rounded-sm px-2"
+                onClick={() => setVideoOpen(true)}
+              >
+                <Play className="h-3 w-3 shrink-0 fill-current" /> Play
+              </Button>
+              <Button
+                size="sm" variant="outline"
+                className="h-7 text-[11px] gap-1 rounded-sm px-2"
+                onClick={handleDownloadVideo}
+              >
+                <Download className="h-3 w-3 shrink-0" /> Video
+              </Button>
+            </div>
+          ) : (
+            <div className="h-7 flex items-center justify-center text-[10px] text-muted-foreground/50 border border-dashed border-border rounded-sm">
+              No video
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      {videoOpen && <VideoPlayDialog url={c.video_url!} onClose={() => setVideoOpen(false)} />}
+      {cvOpen && <CvViewDialog candidate={c} onClose={() => setCvOpen(false)} />}
+    </>
   );
 }
 
