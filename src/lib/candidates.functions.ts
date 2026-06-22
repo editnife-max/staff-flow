@@ -65,6 +65,7 @@ const CandidateInput = z.object({
   photo_url: z.preprocess((v) => (v === "" ? null : v), z.string().url().optional().nullable()),
   full_photo_url: z.preprocess((v) => (v === "" ? null : v), z.string().url().optional().nullable()),
   passport_scan_url: z.preprocess((v) => (v === "" ? null : v), z.string().url().optional().nullable()),
+  video_url: z.preprocess((v) => (v === "" ? null : v), z.string().url().optional().nullable()),
 });
 
 const InlineFieldSchema = z.object({
@@ -86,6 +87,7 @@ const InlineFieldSchema = z.object({
     "insurance_date",
     "availability_type",
     "lmis_insu_url", "lmis_coc_url", "lmis_id_url", "lmis_id_relative_url",
+    "video_url",
   ]),
   value: z.string().nullable(),
 });

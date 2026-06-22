@@ -201,6 +201,7 @@ export type Database = {
           ticket_updated_at: string | null
           unfilled_lmis: string | null
           updated_at: string
+          video_url: string | null
           visa_status: string | null
           visa_updated_at: string | null
           weight: number | null
@@ -283,6 +284,7 @@ export type Database = {
           ticket_updated_at?: string | null
           unfilled_lmis?: string | null
           updated_at?: string
+          video_url?: string | null
           visa_status?: string | null
           visa_updated_at?: string | null
           weight?: number | null
@@ -365,6 +367,7 @@ export type Database = {
           ticket_updated_at?: string | null
           unfilled_lmis?: string | null
           updated_at?: string
+          video_url?: string | null
           visa_status?: string | null
           visa_updated_at?: string | null
           weight?: number | null

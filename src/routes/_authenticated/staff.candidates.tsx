@@ -33,7 +33,7 @@ import {
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff, bulkUpdateField,
   bulkImportCandidates,
 } from "@/lib/candidates.functions";
-import { UserCheck, X, Download } from "lucide-react";
+import { UserCheck, X, Download, Play } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import * as XLSX from "xlsx";
 
@@ -240,6 +240,7 @@ const CANDIDATE_CARD_COLS = [
   "PASSPORT STATUS", "COC STATUS", "COUNTRY", "MEDICAL STATUS", "MEDICAL DATE",
   "EXPERIENCE", "NOTES", "AVAILABILITY", "SELECTED BY",
   "GENDER", "LIVING TOWN", "OFFICE",
+  "VIDEO",
 ] as const;
 
 const initialForm = {
@@ -297,6 +298,7 @@ const initialForm = {
   // Notes
   remark: "",
   notes: "",
+  video_url: "",
   availability_type: "Available",
 };
 
@@ -709,6 +711,7 @@ function StaffCandidatesPage() {
         photo_url: form.photo_url || null,
         full_photo_url: form.full_photo_url || null,
         passport_scan_url: form.passport_scan_url || null,
+        video_url: form.video_url || null,
         passport_issue_date: form.passport_issue_date || null,
         passport_expiry_date: form.passport_expiry_date || null,
         children: form.children === "" ? null : Number(form.children),
@@ -933,6 +936,7 @@ function StaffCandidatesPage() {
       skills: c.skills ?? "",
       remark: c.remark ?? "",
       notes: c.notes ?? "",
+      video_url: c.video_url ?? "",
     });
     setOpen(true);
   };
@@ -1529,6 +1533,16 @@ function StaffCandidatesPage() {
                   <Label className="text-xs">Notes</Label>
                   <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-none text-sm" />
                 </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Video URL</Label>
+                  <input
+                    type="url"
+                    value={form.video_url}
+                    onChange={(e) => setForm({ ...form, video_url: e.target.value })}
+                    placeholder="https://…"
+                    className="w-full rounded-none border border-input bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                  />
+                </div>
               </div>
             </FormSection>
           </div>
@@ -1748,7 +1762,7 @@ type EditableField =
   | "visa_status" | "insurance_status" | "unfilled_lmis" | "lmis_status"
   | "ticket_status" | "ticket_date" | "arrival_city" | "emergency_contact"
   | "processing_notes" | "remark" | "cv_sent_to" | "coc_agency_name" | "coc_agency_phone" | "insurance_date"
-  | "availability_type";
+  | "availability_type" | "video_url";
 
 function CandidateCardList({
   candidates, selected, onToggleSelect, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn,
@@ -2030,6 +2044,80 @@ function CandidateCardList({
   );
 }
 
+function VideoPlayDialog({ url, onClose }: { url: string; onClose: () => void }) {
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-2xl rounded-none">
+        <DialogHeader>
+          <DialogTitle className="text-base">Video</DialogTitle>
+        </DialogHeader>
+        <div className="relative w-full aspect-video bg-black overflow-hidden">
+          <video src={url} controls autoPlay className="w-full h-full" />
+        </div>
+        <div className="flex justify-end gap-2 pt-1">
+          <Button asChild size="sm" variant="outline" className="rounded-none gap-1 text-xs">
+            <a href={url} target="_blank" rel="noopener noreferrer" download>
+              <Download className="h-3 w-3" /> Download
+            </a>
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function VideoCell({ url, onSave }: { url: string | null; onSave: (v: string | null) => void }) {
+  const [playOpen, setPlayOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(url ?? "");
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => { setEditing(false); onSave(draft.trim() || null); }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "Escape") { setDraft(url ?? ""); setEditing(false); }
+        }}
+        placeholder="Paste video URL…"
+        className="rounded-none border border-primary bg-background px-1 py-0.5 text-[12px] outline-none w-[80px]"
+      />
+    );
+  }
+
+  if (url) {
+    return (
+      <div className="flex flex-col gap-0.5">
+        <div className="flex items-center gap-1.5">
+          <button type="button" onClick={() => setPlayOpen(true)}
+            className="flex items-center gap-0.5 text-[11px] text-primary hover:underline font-medium">
+            <Play className="h-3 w-3 fill-current" /> Play
+          </button>
+          <a href={url} target="_blank" rel="noopener noreferrer" download
+            className="flex items-center gap-0.5 text-[11px] text-muted-foreground hover:text-foreground">
+            <Download className="h-3 w-3" />
+          </a>
+        </div>
+        <button type="button" onClick={() => { setDraft(url); setEditing(true); }}
+          className="text-[10px] text-muted-foreground hover:underline text-left">
+          Change
+        </button>
+        {playOpen && <VideoPlayDialog url={url} onClose={() => setPlayOpen(false)} />}
+      </div>
+    );
+  }
+
+  return (
+    <button type="button" onClick={() => setEditing(true)}
+      className="text-[11px] text-muted-foreground hover:text-foreground rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border block">
+      Add URL
+    </button>
+  );
+}
+
 function CandidateCard({
   candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, agencyOptions, agencyPhones, countryOptions,
 }: {
@@ -2130,6 +2218,14 @@ function CandidateCard({
           <div className="flex-1 flex items-start gap-6">
             {visibleCols.map((colLabel) => {
               if (colLabel === "FULL NAME") return null;
+              if (colLabel === "VIDEO") {
+                return (
+                  <div key="VIDEO" className="shrink-0 w-[90px]">
+                    <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">VIDEO</div>
+                    <VideoCell url={candidate.video_url ?? null} onSave={(v) => onUpdateField("video_url", v)} />
+                  </div>
+                );
+              }
               const f = allFields.find((f) => f.label === colLabel);
               if (!f) return null;
               return (
