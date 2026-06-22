@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   Users, Clock, CheckCircle2, XCircle, RotateCcw,
   ChevronDown, ChevronUp, Stethoscope, FileCheck, ClipboardList, Ticket, FileText, CalendarX, Landmark, BadgeCheck, AlertTriangle, Send,
-  Upload, Download, X,
+  Upload, Download, X, MapPin,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -112,6 +112,7 @@ const ALERT_PILL: Record<string, string> = {
   tasheer:    "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
   cvoverdue:  "bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300",
   fitlmis:    "bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300",
+  arrival:    "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300",
 };
 
 // ─── Inline components ───────────────────────────────────────────────────────
@@ -765,6 +766,7 @@ function StaffDashboard() {
   const fitLmisNotTested = candidates.filter((c) => c.medical_status === "Fit" && c.coc_status === "Done" && (!c.lmis_status || c.lmis_status === "Not tested"));
   const lmisDraftImported = candidates.filter((c) => c.lmis_status === "Draft" || c.lmis_status === "Imported");
   const ticketReady = candidates.filter((c) => c.ticket_status === "Ready");
+  const arrivalCityMissing = candidates.filter((c) => c.status === "processing" && !c.arrival_city);
 
   const cvOverdue = candidates.filter((c) => {
     if (!c.cv_sent_to || c.selected_by || !c.cv_sent_date) return false;
@@ -808,7 +810,7 @@ function StaffDashboard() {
       </div>
 
       {/* Alert sections */}
-      {(cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || ticketReady.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || cvOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0) && (
+      {(cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || cvOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0) && (
         <div className="space-y-2">
           <AlertSection icon={FileCheck}    title="COC — No"                     iconColor="text-orange-600 dark:text-orange-400" pillKey="coc"     candidates={cocNo}         onUpdateField={handleUpdateField} countryOptions={countryOptions} />
           <AlertSection icon={FileCheck}    title="COC — Placed"                 iconColor="text-violet-600 dark:text-violet-400" pillKey="coc"     candidates={cocPlaced}     onUpdateField={handleUpdateField} countryOptions={countryOptions} />
@@ -825,6 +827,7 @@ function StaffDashboard() {
           <AlertSection icon={Ticket}        title="Ticket Not Booked — Over 20 Days" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketNotBooked} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => c.contract_date ? `${daysSince(c.contract_date)}d since contract` : null} />
           <AlertSection icon={Ticket}        title="Ticket Ready" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketReady} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
+          <AlertSection icon={MapPin}        title="Arrival City Not Set" iconColor="text-cyan-600 dark:text-cyan-400" pillKey="arrival" candidates={arrivalCityMissing} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
           <AlertSection icon={Landmark}      title="Embassy Visa — Pending"      iconColor="text-sky-600 dark:text-sky-400"       pillKey="embassy"   candidates={embassyPending} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             getNote={(c) => c.processing_notes ?? null} />
           <AlertSection icon={BadgeCheck}    title="Ready for Embassy Visa"      iconColor="text-emerald-600 dark:text-emerald-400" pillKey="visaready"  candidates={visaReady}     onUpdateField={handleUpdateField} countryOptions={countryOptions}

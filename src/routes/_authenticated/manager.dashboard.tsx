@@ -4,7 +4,7 @@ import React, { useState, useRef } from "react";
 import {
   Users, Clock, CheckCircle2, XCircle, AlertTriangle,
   UserPlus, Stethoscope, X, ChevronRight, RotateCcw, Send, Settings,
-  Upload, Download, FileUp, Ticket,
+  Upload, Download, FileUp, Ticket, MapPin,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -244,6 +244,8 @@ function ManagerDashboard() {
   const [lmisFilesCandidate, setLmisFilesCandidate] = useState<Candidate | null>(null);
   const [ticketReadyOpen, setTicketReadyOpen] = useState(false);
   const [ticketReadyDismissed, setTicketReadyDismissed] = useState(false);
+  const [arrivalCityOpen, setArrivalCityOpen] = useState(false);
+  const [arrivalCityDismissed, setArrivalCityDismissed] = useState(false);
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["dashboard-candidates", user?.id],
@@ -332,6 +334,7 @@ function ManagerDashboard() {
   const fitLmisNotTested = candidates.filter((c) => c.medical_status === "Fit" && c.coc_status === "Done" && (!c.lmis_status || c.lmis_status === "Not tested"));
   const lmisDraftImported = candidates.filter((c) => c.lmis_status === "Draft" || c.lmis_status === "Imported");
   const ticketReady = candidates.filter((c) => c.ticket_status === "Ready");
+  const arrivalCityMissing = candidates.filter((c) => c.status === "processing" && !c.arrival_city);
 
   const cvOverdue = candidates.filter((c) => {
     if (!c.cv_sent_to || c.selected_by || !c.cv_sent_date) return false;
@@ -621,6 +624,37 @@ function ManagerDashboard() {
               type="button"
               onClick={(e) => { e.stopPropagation(); setTicketReadyDismissed(true); }}
               className="p-1 rounded-none text-violet-400 hover:text-violet-700 hover:bg-violet-200 dark:hover:bg-violet-800 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Arrival City Missing Banner */}
+      {arrivalCityMissing.length > 0 && !arrivalCityDismissed && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-none border border-cyan-300 bg-cyan-50 dark:bg-cyan-950/40 dark:border-cyan-700 px-4 py-3 cursor-pointer hover:bg-cyan-100 dark:hover:bg-cyan-900/40 transition-colors"
+          onClick={() => setArrivalCityOpen(true)}
+        >
+          <div className="flex items-center gap-3">
+            <MapPin className="h-5 w-5 text-cyan-600 dark:text-cyan-400 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-cyan-800 dark:text-cyan-200">
+                Arrival City Not Set — {arrivalCityMissing.length} candidate{arrivalCityMissing.length > 1 ? "s" : ""}
+              </p>
+              <p className="text-xs text-cyan-600 dark:text-cyan-400">
+                Processing candidates with no arrival city assigned
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <ChevronRight className="h-4 w-4 text-cyan-500" />
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setArrivalCityDismissed(true); }}
+              className="p-1 rounded-none text-cyan-400 hover:text-cyan-700 hover:bg-cyan-200 dark:hover:bg-cyan-800 transition-colors"
               aria-label="Dismiss"
             >
               <X className="h-4 w-4" />
@@ -1333,6 +1367,41 @@ function ManagerDashboard() {
           <div className="pt-2 flex justify-end">
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
               <Link to="/manager/candidates" onClick={() => setCvOpen(false)}>
+                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Arrival City Missing Dialog */}
+      <Dialog open={arrivalCityOpen} onOpenChange={setArrivalCityOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-cyan-700 dark:text-cyan-300">
+              <MapPin className="h-5 w-5" />
+              Arrival City Not Set ({arrivalCityMissing.length})
+            </DialogTitle>
+          </DialogHeader>
+          <PaginatedDialogList items={arrivalCityMissing} renderItem={(c) => (
+            <div key={c.id} className="flex items-center gap-3 py-3">
+              <Avatar className="h-9 w-9 shrink-0">
+                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
+              </div>
+              <div className="shrink-0 text-right">
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300">No City</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{c.ticket_status ?? "—"}</p>
+              </div>
+            </div>
+          )} />
+          <div className="pt-2 flex justify-end">
+            <Button asChild size="sm" className="rounded-none text-xs gap-1">
+              <Link to="/manager/candidates" onClick={() => setArrivalCityOpen(false)}>
                 Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
               </Link>
             </Button>
