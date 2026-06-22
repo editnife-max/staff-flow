@@ -2066,6 +2066,21 @@ function CandidateCardList({
 }
 
 function VideoPlayDialog({ url, onClose }: { url: string; onClose: () => void }) {
+  const handleDownload = async () => {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      const ext = url.split("?")[0].split(".").pop() ?? "mp4";
+      a.download = `video.${ext}`;
+      a.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      window.open(url, "_blank");
+    }
+  };
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-2xl rounded-none">
@@ -2076,10 +2091,8 @@ function VideoPlayDialog({ url, onClose }: { url: string; onClose: () => void })
           <video src={url} controls autoPlay className="w-full h-full" />
         </div>
         <div className="flex justify-end gap-2 pt-1">
-          <Button asChild size="sm" variant="outline" className="rounded-none gap-1 text-xs">
-            <a href={url} target="_blank" rel="noopener noreferrer" download>
-              <Download className="h-3 w-3" /> Download
-            </a>
+          <Button size="sm" variant="outline" className="rounded-none gap-1 text-xs" onClick={handleDownload}>
+            <Download className="h-3 w-3" /> Download
           </Button>
         </div>
       </DialogContent>
@@ -2110,6 +2123,21 @@ function VideoCell({ url, onSave }: { url: string | null; onSave: (v: string | n
   }
 
   if (url) {
+    const handleDownload = async () => {
+      try {
+        const res = await fetch(url);
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        const ext = url.split("?")[0].split(".").pop() ?? "mp4";
+        a.download = `video.${ext}`;
+        a.click();
+        URL.revokeObjectURL(blobUrl);
+      } catch {
+        window.open(url, "_blank");
+      }
+    };
     return (
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-1.5">
@@ -2117,10 +2145,10 @@ function VideoCell({ url, onSave }: { url: string | null; onSave: (v: string | n
             className="flex items-center gap-0.5 text-[11px] text-primary hover:underline font-medium">
             <Play className="h-3 w-3 fill-current" /> Play
           </button>
-          <a href={url} target="_blank" rel="noopener noreferrer" download
+          <button type="button" onClick={handleDownload}
             className="flex items-center gap-0.5 text-[11px] text-muted-foreground hover:text-foreground">
             <Download className="h-3 w-3" />
-          </a>
+          </button>
         </div>
         <button type="button" onClick={() => { setDraft(url); setEditing(true); }}
           className="text-[10px] text-muted-foreground hover:underline text-left">
