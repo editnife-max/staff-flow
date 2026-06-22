@@ -308,7 +308,7 @@ function AgencyCandidatesPage() {
           <CardContent className="p-8 text-center text-sm text-muted-foreground">No candidates found.</CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
           {filtered.map((c) => (
             <AgencyCandidateCard
               key={c.id}
@@ -491,80 +491,80 @@ function AgencyCandidateCard({
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-muted-foreground/30">
-              <User className="h-16 w-16" />
+              <User className="h-10 w-10" />
             </div>
           )}
-          <div className="absolute top-2 left-2">
+          <div className="absolute top-1 left-1">
             <Checkbox
               checked={selected}
               onCheckedChange={onToggle}
               aria-label="Select candidate"
-              className="bg-white/90 border-white/80 shadow data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+              className="h-3.5 w-3.5 bg-white/90 border-white/80 shadow data-[state=checked]:bg-primary data-[state=checked]:border-primary"
             />
           </div>
-          <div className="absolute top-2 right-2">
+          <div className="absolute top-1 right-1">
             <StatusBadge status={c.status} />
           </div>
         </div>
 
         {/* Candidate info */}
-        <div className="p-3 space-y-1.5 flex-1">
-          <div className="font-semibold text-sm leading-tight line-clamp-2">{c.full_name}</div>
-          <div className="space-y-1 text-xs">
+        <div className="p-2 space-y-1 flex-1">
+          <div className="font-semibold text-xs leading-tight line-clamp-2">{c.full_name}</div>
+          <div className="space-y-0.5 text-[10px]">
             <div className="flex items-baseline gap-1">
-              <span className="font-medium text-muted-foreground w-16 shrink-0">Age</span>
+              <span className="font-medium text-muted-foreground w-12 shrink-0">Age</span>
               <span className="text-foreground">{age ?? "—"}</span>
             </div>
             <div className="flex items-baseline gap-1">
-              <span className="font-medium text-muted-foreground w-16 shrink-0">Religion</span>
+              <span className="font-medium text-muted-foreground w-12 shrink-0">Religion</span>
               <span className="text-foreground truncate">{c.religion ?? "—"}</span>
             </div>
             <div className="flex items-baseline gap-1">
-              <span className="font-medium text-muted-foreground w-16 shrink-0">Experience</span>
+              <span className="font-medium text-muted-foreground w-12 shrink-0">Exp.</span>
               <span className="text-foreground truncate">{c.experience ?? "—"}</span>
             </div>
           </div>
         </div>
 
         {/* Action buttons */}
-        <div className="px-3 pb-3 space-y-1.5">
-          <div className="grid grid-cols-2 gap-1">
+        <div className="px-2 pb-2 space-y-1">
+          <div className="grid grid-cols-2 gap-0.5">
             <Button
               size="sm" variant="outline"
-              className="h-7 text-[11px] gap-1 rounded-sm px-2"
+              className="h-6 text-[10px] gap-0.5 rounded-sm px-1"
               onClick={() => setCvOpen(true)}
             >
-              <Eye className="h-3 w-3 shrink-0" /> View CV
+              <Eye className="h-2.5 w-2.5 shrink-0" /> View CV
             </Button>
             <Button
               size="sm" variant="outline"
-              className="h-7 text-[11px] gap-1 rounded-sm px-2"
+              className="h-6 text-[10px] gap-0.5 rounded-sm px-1"
               onClick={handleDownloadCv}
               disabled={dlCv}
             >
-              <FileText className="h-3 w-3 shrink-0" />
+              <FileText className="h-2.5 w-2.5 shrink-0" />
               {dlCv ? "…" : "CV PDF"}
             </Button>
           </div>
           {c.video_url ? (
-            <div className="grid grid-cols-2 gap-1">
+            <div className="grid grid-cols-2 gap-0.5">
               <Button
                 size="sm" variant="outline"
-                className="h-7 text-[11px] gap-1 rounded-sm px-2"
+                className="h-6 text-[10px] gap-0.5 rounded-sm px-1"
                 onClick={() => setVideoOpen(true)}
               >
-                <Play className="h-3 w-3 shrink-0 fill-current" /> Play
+                <Play className="h-2.5 w-2.5 shrink-0 fill-current" /> Play
               </Button>
               <Button
                 size="sm" variant="outline"
-                className="h-7 text-[11px] gap-1 rounded-sm px-2"
+                className="h-6 text-[10px] gap-0.5 rounded-sm px-1"
                 onClick={handleDownloadVideo}
               >
-                <Download className="h-3 w-3 shrink-0" /> Video
+                <Download className="h-2.5 w-2.5 shrink-0" /> Video
               </Button>
             </div>
           ) : (
-            <div className="h-7 flex items-center justify-center text-[10px] text-muted-foreground/50 border border-dashed border-border rounded-sm">
+            <div className="h-6 flex items-center justify-center text-[9px] text-muted-foreground/40 border border-dashed border-border rounded-sm">
               No video
             </div>
           )}
