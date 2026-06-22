@@ -7,6 +7,7 @@ import {
   Upload, Download, FileUp, Ticket, MapPin,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { updateCandidateField } from "@/lib/candidates.functions";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -293,6 +294,27 @@ function ManagerDashboard() {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["dashboard-candidates", user?.id] }),
   });
+
+  const fieldMut = useMutation({
+    mutationFn: (vars: { id: string; field: string; value: string | null }) =>
+      updateCandidateField({ data: vars }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["dashboard-candidates", user?.id] }),
+  });
+
+  const handleUpdateField = (id: string, field: string, value: string | null) => {
+    fieldMut.mutate({ id, field, value });
+    // Tasheer Done + Wokala Paid → Visa "Ready for embassy"
+    if (field === "tasheer_status" && value === "Done") {
+      const c = candidates.find((c) => c.id === id);
+      if (c?.wokala_status === "Paid")
+        fieldMut.mutate({ id, field: "visa_status", value: "Ready for embassy" });
+    }
+    if (field === "wokala_status" && value === "Paid") {
+      const c = candidates.find((c) => c.id === id);
+      if (c?.tasheer_status === "Done")
+        fieldMut.mutate({ id, field: "visa_status", value: "Ready for embassy" });
+    }
+  };
 
   const uploadLmisFile = async (candidateId: string, file: File, field: string) => {
     const ext = file.name.split(".").pop() ?? "jpg";
@@ -948,9 +970,12 @@ function ManagerDashboard() {
                 <p className="text-sm font-semibold truncate">{c.full_name}</p>
                 <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
               </div>
-              <div className="shrink-0 text-right">
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Wokala Unpaid</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+              <div className="shrink-0 flex items-center gap-2">
+                <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                  onClick={() => handleUpdateField(c.id, "wokala_status", "Paid")}>
+                  Mark Paid
+                </Button>
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Unpaid</span>
               </div>
             </div>
           )} />
