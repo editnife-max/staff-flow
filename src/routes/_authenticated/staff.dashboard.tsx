@@ -681,14 +681,20 @@ function StaffDashboard() {
       fieldMut.mutate({ id, field: "tasheer_date", value: null });
       fieldMut.mutate({ id, field: "visa_status", value: null });
     }
-    // LMIS Issued + Visa Issued → Ticket Ready
-    if (field === "lmis_status" && value === "Issued") {
+    // LMIS Issued + Visa Issued → Ticket Ready; either undone → clear Ticket
+    if (field === "lmis_status") {
       const c = candidates.find((c) => c.id === id);
-      if (c?.visa_status === "Issued") fieldMut.mutate({ id, field: "ticket_status", value: "Ready" });
+      if (value === "Issued" && c?.visa_status === "Issued")
+        fieldMut.mutate({ id, field: "ticket_status", value: "Ready" });
+      else if (value !== "Issued" && c?.ticket_status === "Ready")
+        fieldMut.mutate({ id, field: "ticket_status", value: null });
     }
-    if (field === "visa_status" && value === "Issued") {
+    if (field === "visa_status") {
       const c = candidates.find((c) => c.id === id);
-      if (c?.lmis_status === "Issued") fieldMut.mutate({ id, field: "ticket_status", value: "Ready" });
+      if (value === "Issued" && c?.lmis_status === "Issued")
+        fieldMut.mutate({ id, field: "ticket_status", value: "Ready" });
+      else if (value !== "Issued" && c?.ticket_status === "Ready")
+        fieldMut.mutate({ id, field: "ticket_status", value: null });
     }
   };
 

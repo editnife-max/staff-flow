@@ -678,11 +678,19 @@ function ManagerCandidatesPage() {
       fieldMut.mutate({ id, field: "tasheer_date", value: null });
       fieldMut.mutate({ id, field: "visa_status", value: null });
     }
-    // LMIS Issued + Visa Issued → Ticket Ready
-    if (field === "lmis_status" && value === "Issued" && current()?.visa_status === "Issued")
-      fieldMut.mutate({ id, field: "ticket_status", value: "Ready" });
-    if (field === "visa_status" && value === "Issued" && current()?.lmis_status === "Issued")
-      fieldMut.mutate({ id, field: "ticket_status", value: "Ready" });
+    // LMIS Issued + Visa Issued → Ticket Ready; either undone → clear Ticket
+    if (field === "lmis_status") {
+      if (value === "Issued" && current()?.visa_status === "Issued")
+        fieldMut.mutate({ id, field: "ticket_status", value: "Ready" });
+      else if (value !== "Issued" && current()?.ticket_status === "Ready")
+        fieldMut.mutate({ id, field: "ticket_status", value: null });
+    }
+    if (field === "visa_status") {
+      if (value === "Issued" && current()?.lmis_status === "Issued")
+        fieldMut.mutate({ id, field: "ticket_status", value: "Ready" });
+      else if (value !== "Issued" && current()?.ticket_status === "Ready")
+        fieldMut.mutate({ id, field: "ticket_status", value: null });
+    }
   }, [fieldMut, resolveSelectedBy, qc, user?.id]);
 
   const handleCocAwareUpdate = useCallback((id: string, field: string, value: string | null) => {
