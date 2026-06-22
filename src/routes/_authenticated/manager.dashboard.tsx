@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Users, Clock, CheckCircle2, XCircle, AlertTriangle,
   UserPlus, Stethoscope, X, ChevronRight, RotateCcw, Send, Settings,
+  Upload, Download, FileUp,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -140,6 +141,75 @@ function PaginatedDialogList({ items, renderItem }: { items: Candidate[]; render
   );
 }
 
+function LmisDocSection({
+  label, url, onUpload, onRemove,
+}: {
+  label: string; url: string;
+  onUpload: (file: File) => Promise<void>;
+  onRemove: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    try { await onUpload(file); } finally { setUploading(false); }
+  };
+
+  const isImage = url && !url.endsWith(".pdf");
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between min-h-[20px]">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+        {url && (
+          <a href={url} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-0.5 text-[11px] text-primary hover:underline">
+            <Download className="h-3 w-3" /> View
+          </a>
+        )}
+      </div>
+      <div className="relative">
+        <div
+          role="button" tabIndex={0}
+          onClick={() => inputRef.current?.click()}
+          onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); }}
+          className={cn(
+            "border-2 border-dashed rounded-none cursor-pointer transition-colors flex flex-col items-center justify-center gap-1.5 min-h-[90px] p-2 bg-muted/20 select-none",
+            dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/60",
+          )}
+        >
+          {uploading ? (
+            <span className="text-xs text-muted-foreground animate-pulse">Uploading…</span>
+          ) : dragOver ? (
+            <><Upload className="h-5 w-5 text-primary" /><span className="text-xs text-primary">Drop to upload</span></>
+          ) : url ? (
+            <>
+              {isImage
+                ? <img src={url} alt={label} className="max-h-[60px] max-w-full object-contain rounded-none" />
+                : <><FileUp className="h-7 w-7 text-muted-foreground" /><span className="text-[10px] text-muted-foreground truncate max-w-[140px]">{url.split("/").pop()?.slice(0, 20)}</span></>}
+              <span className="text-[10px] text-primary">Click to replace</span>
+            </>
+          ) : (
+            <><Upload className="h-5 w-5 text-muted-foreground" /><span className="text-xs text-muted-foreground">Click or drag &amp; drop</span></>
+          )}
+        </div>
+        {url && !uploading && (
+          <button type="button" onClick={(e) => { e.stopPropagation(); onRemove(); }}
+            className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center rounded-none bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors">
+            <X className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+      <input ref={inputRef} type="file" accept="image/*,.pdf" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
+    </div>
+  );
+}
+
 function ManagerDashboard() {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -169,6 +239,9 @@ function ManagerDashboard() {
   const [tasheerOverdueDismissed, setTasheerOverdueDismissed] = useState(false);
   const [fitLmisNotTestedOpen, setFitLmisNotTestedOpen] = useState(false);
   const [fitLmisNotTestedDismissed, setFitLmisNotTestedDismissed] = useState(false);
+  const [lmisDraftImportedOpen, setLmisDraftImportedOpen] = useState(false);
+  const [lmisDraftImportedDismissed, setLmisDraftImportedDismissed] = useState(false);
+  const [lmisFilesCandidate, setLmisFilesCandidate] = useState<Candidate | null>(null);
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["dashboard-candidates", user?.id],
@@ -209,6 +282,23 @@ function ManagerDashboard() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["manager-profile", user?.id] }),
   });
 
+  const updateLmisMut = useMutation({
+    mutationFn: async ({ id, field, value }: { id: string; field: string; value: string | null }) => {
+      const { error } = await (supabase.from("candidates") as any).update({ [field]: value }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["dashboard-candidates", user?.id] }),
+  });
+
+  const uploadLmisFile = async (candidateId: string, file: File, field: string) => {
+    const ext = file.name.split(".").pop() ?? "jpg";
+    const path = `lmis/${candidateId}/${field}_${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("candidate-files").upload(path, file, { upsert: true });
+    if (error) throw error;
+    const { data } = supabase.storage.from("candidate-files").getPublicUrl(path);
+    updateLmisMut.mutate({ id: candidateId, field, value: data.publicUrl });
+  };
+
   const counts = {
     available: candidates.filter((c) => c.status === "available").length,
     processing: candidates.filter((c) => c.status === "processing").length,
@@ -238,6 +328,7 @@ function ManagerDashboard() {
     return new Date(c.tasheer_date + "T00:00:00") < today;
   });
   const fitLmisNotTested = candidates.filter((c) => c.medical_status === "Fit" && c.coc_status === "Done" && (!c.lmis_status || c.lmis_status === "Not tested"));
+  const lmisDraftImported = candidates.filter((c) => c.lmis_status === "Draft" || c.lmis_status === "Imported");
 
   const cvOverdue = candidates.filter((c) => {
     if (!c.cv_sent_to || c.selected_by || !c.cv_sent_date) return false;
@@ -465,6 +556,37 @@ function ManagerDashboard() {
               type="button"
               onClick={(e) => { e.stopPropagation(); setFitLmisNotTestedDismissed(true); }}
               className="p-1 rounded-none text-teal-400 hover:text-teal-700 hover:bg-teal-200 dark:hover:bg-teal-800 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* LMIS Draft / Imported Banner */}
+      {lmisDraftImported.length > 0 && !lmisDraftImportedDismissed && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-none border border-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 dark:border-indigo-700 px-4 py-3 cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors"
+          onClick={() => setLmisDraftImportedOpen(true)}
+        >
+          <div className="flex items-center gap-3">
+            <Upload className="h-5 w-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-200">
+                LMIS Files Needed — {lmisDraftImported.length} candidate{lmisDraftImported.length > 1 ? "s" : ""}
+              </p>
+              <p className="text-xs text-indigo-600 dark:text-indigo-400">
+                LMIS status is Draft or Imported — click to upload files
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <ChevronRight className="h-4 w-4 text-indigo-500" />
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setLmisDraftImportedDismissed(true); }}
+              className="p-1 rounded-none text-indigo-400 hover:text-indigo-700 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors"
               aria-label="Dismiss"
             >
               <X className="h-4 w-4" />
@@ -1183,6 +1305,83 @@ function ManagerDashboard() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* LMIS Draft / Imported — List Dialog */}
+      <Dialog open={lmisDraftImportedOpen} onOpenChange={setLmisDraftImportedOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-indigo-700 dark:text-indigo-300">
+              <Upload className="h-5 w-5" />
+              LMIS Files Needed ({lmisDraftImported.length})
+            </DialogTitle>
+          </DialogHeader>
+          <PaginatedDialogList items={lmisDraftImported} renderItem={(c) => (
+            <div key={c.id} className="flex items-center gap-3 py-3">
+              <Avatar className="h-9 w-9 shrink-0">
+                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
+                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
+              </div>
+              <div className="shrink-0 flex items-center gap-2">
+                <span className={cn(
+                  "text-[11px] font-medium px-2 py-0.5 rounded-none",
+                  c.lmis_status === "Draft"
+                    ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                    : "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
+                )}>
+                  {c.lmis_status}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-[11px] px-2 rounded-none gap-1"
+                  onClick={() => setLmisFilesCandidate(c)}
+                >
+                  <Upload className="h-3 w-3" /> Files
+                </Button>
+              </div>
+            </div>
+          )} />
+          <div className="pt-2 flex justify-end">
+            <Button asChild size="sm" className="rounded-none text-xs gap-1">
+              <Link to="/manager/candidates" onClick={() => setLmisDraftImportedOpen(false)}>
+                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* LMIS Files Upload Dialog */}
+      {lmisFilesCandidate && (() => {
+        const c = lmisFilesCandidate as any;
+        return (
+          <Dialog open onOpenChange={(o) => { if (!o) setLmisFilesCandidate(null); }}>
+            <DialogContent className="max-w-2xl rounded-none">
+              <DialogHeader>
+                <DialogTitle className="text-base">LMIS Documents — {lmisFilesCandidate.full_name}</DialogTitle>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-4 pt-1">
+                <LmisDocSection label="INSU" url={c.lmis_insu_url ?? ""}
+                  onUpload={(f) => uploadLmisFile(lmisFilesCandidate.id, f, "lmis_insu_url")}
+                  onRemove={() => updateLmisMut.mutate({ id: lmisFilesCandidate.id, field: "lmis_insu_url", value: null })} />
+                <LmisDocSection label="COC" url={c.lmis_coc_url ?? ""}
+                  onUpload={(f) => uploadLmisFile(lmisFilesCandidate.id, f, "lmis_coc_url")}
+                  onRemove={() => updateLmisMut.mutate({ id: lmisFilesCandidate.id, field: "lmis_coc_url", value: null })} />
+                <LmisDocSection label={c.lmis_id_url && c.lmis_id_relative_url ? "ID'S — Candidate" : "ID (Candidate)"} url={c.lmis_id_url ?? ""}
+                  onUpload={(f) => uploadLmisFile(lmisFilesCandidate.id, f, "lmis_id_url")}
+                  onRemove={() => updateLmisMut.mutate({ id: lmisFilesCandidate.id, field: "lmis_id_url", value: null })} />
+                <LmisDocSection label={c.lmis_id_url && c.lmis_id_relative_url ? "ID'S — Relative" : "ID (Relative)"} url={c.lmis_id_relative_url ?? ""}
+                  onUpload={(f) => uploadLmisFile(lmisFilesCandidate.id, f, "lmis_id_relative_url")}
+                  onRemove={() => updateLmisMut.mutate({ id: lmisFilesCandidate.id, field: "lmis_id_relative_url", value: null })} />
+              </div>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
     </div>
   );
 }
