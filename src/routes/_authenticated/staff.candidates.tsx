@@ -1848,7 +1848,7 @@ function CandidateCardList({
 
   const filtered = useMemo(() => {
     let list = candidates;
-    if (activeCountryTab !== "all") list = list.filter((c) => c.destination_country === activeCountryTab);
+    if (activeCountryTab !== "all") list = list.filter((c) => c.musaned_status === activeCountryTab);
     if (activeOfficeTab !== "all") list = list.filter((c) => c.office === activeOfficeTab);
     return list;
   }, [candidates, activeCountryTab, activeOfficeTab]);
@@ -1877,7 +1877,7 @@ function CandidateCardList({
                 All ({candidates.length})
               </button>
               {countryMeta.map((c) => {
-                const count = candidates.filter((cand) => cand.destination_country === c.name).length;
+                const count = candidates.filter((cand) => cand.musaned_status === c.name).length;
                 return (
                   <button key={c.name} type="button"
                     onClick={() => { setActiveCountryTab(activeCountryTab === c.name ? "all" : c.name); setActiveOfficeTab("all"); }}
@@ -1905,7 +1905,7 @@ function CandidateCardList({
                 All offices
               </button>
               {(officesByCountry[activeCountryTab] ?? []).map((office) => {
-                const count = candidates.filter((c) => c.destination_country === activeCountryTab && c.office === office).length;
+                const count = candidates.filter((c) => c.musaned_status === activeCountryTab && c.office === office).length;
                 return (
                   <button key={office} type="button"
                     onClick={() => setActiveOfficeTab(activeOfficeTab === office ? "all" : office)}
@@ -2481,7 +2481,7 @@ function ProcessingTable({
 
   const filteredCandidates = useMemo(() => {
     let list = candidates;
-    if (activeCountryTab !== "all") list = list.filter((c) => c.destination_country === activeCountryTab);
+    if (activeCountryTab !== "all") list = list.filter((c) => c.musaned_status === activeCountryTab);
     if (activeOfficeTab !== "all") list = list.filter((c) => c.office === activeOfficeTab);
     if (search) {
       const q = search.toLowerCase();
@@ -2625,7 +2625,7 @@ function ProcessingTable({
                 All ({candidates.length})
               </button>
               {countryMeta.map((c) => {
-                const count = candidates.filter((cand) => cand.destination_country === c.name).length;
+                const count = candidates.filter((cand) => cand.musaned_status === c.name).length;
                 return (
                   <button
                     key={c.name}
@@ -2670,7 +2670,7 @@ function ProcessingTable({
                 All offices
               </button>
               {(officesByCountry[activeCountryTab] ?? []).map((office) => {
-                const count = candidates.filter((c) => c.destination_country === activeCountryTab && c.office === office).length;
+                const count = candidates.filter((c) => c.musaned_status === activeCountryTab && c.office === office).length;
                 return (
                   <button
                     key={office}
