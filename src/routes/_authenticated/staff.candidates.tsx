@@ -1987,7 +1987,7 @@ function CandidateCardList({
         <Card><CardContent className="p-12 text-center text-muted-foreground">No candidates here yet.</CardContent></Card>
       ) : (
         <div className="relative">
-          <div ref={scrollRef} className="overflow-x-auto">
+          <div ref={scrollRef} className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="space-y-2 min-w-max">
               {paginated.map((c) => (
                 <CandidateCard
@@ -2750,7 +2750,7 @@ function ProcessingTable({
         <Card><CardContent className="p-8 text-center text-muted-foreground">No matches for the selected filters.</CardContent></Card>
       ) : (
         <div className="relative">
-          <div ref={scrollRef} className="overflow-x-auto">
+          <div ref={scrollRef} className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="space-y-2 min-w-max">
               {paginated.map((c) => (
                 <ProcessingCard
