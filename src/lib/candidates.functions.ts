@@ -209,6 +209,19 @@ export const updateCandidateField = createServerFn({ method: "POST" })
       if (!cand?.contract_date) payload.contract_date = new Date().toISOString().split("T")[0];
     }
 
+    // When availability_type is set to "Private" and selected_by is already filled, auto-advance to processing
+    if (data.field === "availability_type" && raw === "Private") {
+      const { data: cand } = await supabaseAdmin
+        .from("candidates")
+        .select("status, contract_date, selected_by")
+        .eq("id", data.id)
+        .maybeSingle();
+      if (cand?.status === "available" && cand?.selected_by) {
+        payload.status = "processing";
+        if (!cand?.contract_date) payload.contract_date = new Date().toISOString().split("T")[0];
+      }
+    }
+
     const { error } = await (supabaseAdmin.from("candidates") as any)
       .update(payload)
       .eq("id", data.id)
