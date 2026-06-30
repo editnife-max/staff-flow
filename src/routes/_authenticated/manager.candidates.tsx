@@ -409,6 +409,7 @@ function ManagerCandidatesPage() {
   const [tab, setTab] = useState<Status>("available");
   const [passport, setPassport] = useState("");
   const [showFilters, setShowFilters] = useState(true);
+  const [showSearch, setShowSearch] = useState(false);
   const [filters, setFilters] = useState(initialFilters);
   const activeCount = Object.entries(filters).filter(([k, v]) =>
     k !== "sort" && (Array.isArray(v) ? v.length > 0 : v && v !== "all")
@@ -1128,12 +1129,37 @@ function ManagerCandidatesPage() {
                   <MultiFilterSelect placeholder="Added By" values={filters.added_by} icon={UserPlus}
                     onChange={(v) => setFilters({ ...filters, added_by: v })}
                     options={[{ value: "", label: "Not Selected" }, ...addedByOptions.map((o) => ({ value: o, label: o }))]} />
-                </div>
-                <div className="mt-3 flex flex-wrap gap-3">
-                  <div className="relative w-60">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input className="pl-9 h-8 text-xs rounded-none" placeholder="Name, Labour ID, Passport…" value={passport} onChange={(e) => setPassport(e.target.value)} />
-                  </div>
+                  {showSearch ? (
+                    <div className="flex items-center gap-1">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                        <Input
+                          autoFocus
+                          className="pl-8 h-7 text-xs rounded-none w-52"
+                          placeholder="Name, Labour ID, Passport…"
+                          value={passport}
+                          onChange={(e) => setPassport(e.target.value)}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setShowSearch(false); setPassport(""); }}
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label="Close search"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowSearch(true)}
+                      className="flex items-center gap-1 text-[13px] font-bold text-black hover:opacity-70 transition-opacity"
+                      aria-label="Search"
+                    >
+                      <Search className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               </>
             )}
