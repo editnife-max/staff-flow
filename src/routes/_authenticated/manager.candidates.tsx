@@ -108,80 +108,80 @@ const SKILLS_LIST = [
 ];
 
 const OPTION_COLORS: Record<string, string> = {
-  "Fit":               "bg-emerald-100 text-[#181A27] dark:bg-emerald-900 dark:text-emerald-300",
-  "Unfit":             "bg-red-100 text-[#181A27] dark:bg-red-900 dark:text-red-300",
-  "In progress":       "bg-amber-100 text-[#181A27] dark:bg-amber-900 dark:text-amber-300",
-  "Expired":           "bg-orange-100 text-[#181A27] dark:bg-orange-900 dark:text-orange-300",
-  "No":                "bg-zinc-100 text-[#181A27] dark:bg-zinc-800 dark:text-zinc-400",
-  "Done":              "bg-emerald-100 text-[#181A27] dark:bg-emerald-900 dark:text-emerald-300",
-  "Booked":            "bg-blue-100 text-[#181A27] dark:bg-blue-900 dark:text-blue-300",
-  "Placed":            "bg-violet-100 text-[#181A27] dark:bg-violet-900 dark:text-violet-300",
-  "Yitazez":           "bg-orange-100 text-[#181A27] dark:bg-orange-900 dark:text-orange-300",
-  "Pending release":   "bg-amber-100 text-[#181A27] dark:bg-amber-900 dark:text-amber-300",
-  "Ready":             "bg-violet-100 text-[#181A27] dark:bg-violet-900 dark:text-violet-300",
-  "Paid":              "bg-emerald-100 text-[#181A27] dark:bg-emerald-900 dark:text-emerald-300",
-  "Unpaid":            "bg-red-100 text-[#181A27] dark:bg-red-900 dark:text-red-300",
-  "Ready for embassy": "bg-sky-100 text-[#181A27] dark:bg-sky-900 dark:text-sky-300",
-  "Sent to Embassy":   "bg-violet-100 text-[#181A27] dark:bg-violet-900 dark:text-violet-300",
-  "Privately Sent":    "bg-cyan-100 text-[#181A27] dark:bg-cyan-900 dark:text-cyan-300",
-  "Issued":            "bg-emerald-100 text-[#181A27] dark:bg-emerald-900 dark:text-emerald-300",
-  "Visa canceled":     "bg-red-100 text-[#181A27] dark:bg-red-900 dark:text-red-300",
-  "Arrived KSA":       "bg-green-100 text-[#181A27] dark:bg-green-900 dark:text-green-300",
-  "Returned":          "bg-orange-100 text-[#181A27] dark:bg-orange-900 dark:text-orange-300",
-  "Waiting Replacement":"bg-amber-100 text-[#181A27] dark:bg-amber-900 dark:text-amber-300",
-  "Pending":           "bg-amber-100 text-[#181A27] dark:bg-amber-900 dark:text-amber-300",
-  "No COC":            "bg-red-100 text-[#181A27] dark:bg-red-900 dark:text-red-300",
-  "Not tested":        "bg-zinc-100 text-[#181A27] dark:bg-zinc-800 dark:text-zinc-400",
-  "Imported":          "bg-violet-100 text-[#181A27] dark:bg-violet-900 dark:text-violet-300",
-  "Checked":           "bg-teal-100 text-[#181A27] dark:bg-teal-900 dark:text-teal-300",
-  "Verified":          "bg-emerald-100 text-[#181A27] dark:bg-emerald-900 dark:text-emerald-300",
-  "Draft":             "bg-zinc-100 text-[#181A27] dark:bg-zinc-800 dark:text-zinc-400",
-  "Rejected":          "bg-red-100 text-[#181A27] dark:bg-red-900 dark:text-red-300",
-  "New Order":         "bg-blue-100 text-[#181A27] dark:bg-blue-900 dark:text-blue-300",
-  "Exchange":          "bg-orange-100 text-[#181A27] dark:bg-orange-900 dark:text-orange-300",
-  "Urgent":            "bg-red-100 text-[#181A27] dark:bg-red-900 dark:text-red-300",
-  "RIYADH":            "bg-violet-100 text-[#181A27] dark:bg-violet-900 dark:text-violet-300",
-  "JEDDAH":            "bg-blue-100 text-[#181A27] dark:bg-blue-900 dark:text-blue-300",
-  "DAMMAM":            "bg-cyan-100 text-[#181A27] dark:bg-cyan-900 dark:text-cyan-300",
-  "JOUF":              "bg-amber-100 text-[#181A27] dark:bg-amber-900 dark:text-amber-300",
-  "HAIL":              "bg-orange-100 text-[#181A27] dark:bg-orange-900 dark:text-orange-300",
-  "ABHA":              "bg-emerald-100 text-[#181A27] dark:bg-emerald-900 dark:text-emerald-300",
-  "OTHERS":            "bg-zinc-100 text-[#181A27] dark:bg-zinc-800 dark:text-zinc-400",
-  "Submitted":         "bg-blue-100 text-[#181A27] dark:bg-blue-900 dark:text-blue-300",
-  "Received":          "bg-emerald-100 text-[#181A27] dark:bg-emerald-900 dark:text-emerald-300",
-  "available":         "bg-emerald-100 text-[#181A27] dark:bg-emerald-900 dark:text-emerald-300",
-  "processing":        "bg-amber-100 text-[#181A27] dark:bg-amber-900 dark:text-amber-300",
-  "arrived":           "bg-blue-100 text-[#181A27] dark:bg-blue-900 dark:text-blue-300",
-  "canceled":          "bg-red-100 text-[#181A27] dark:bg-red-900 dark:text-red-300",
-  "returned":          "bg-orange-100 text-[#181A27] dark:bg-orange-900 dark:text-orange-300",
-  "private":           "bg-purple-100 text-[#181A27] dark:bg-purple-900 dark:text-purple-300",
-  "unavailable":       "bg-red-100 text-[#181A27] dark:bg-red-900 dark:text-red-300",
-  "Available":         "bg-emerald-100 text-[#181A27] dark:bg-emerald-900 dark:text-emerald-300",
-  "Private":           "bg-purple-100 text-[#181A27] dark:bg-purple-900 dark:text-purple-300",
-  "Unavailable":       "bg-red-100 text-[#181A27] dark:bg-red-900 dark:text-red-300",
-  "Riyadh":            "bg-violet-100 text-[#181A27] dark:bg-violet-900 dark:text-violet-300",
-  "Jeddah":            "bg-blue-100 text-[#181A27] dark:bg-blue-900 dark:text-blue-300",
-  "Dammam":            "bg-cyan-100 text-[#181A27] dark:bg-cyan-900 dark:text-cyan-300",
-  "Other":             "bg-zinc-100 text-[#181A27] dark:bg-zinc-800 dark:text-zinc-400",
-  "Saudi":             "bg-green-100 text-[#181A27] dark:bg-green-900 dark:text-green-300",
-  "Kuwait":            "bg-teal-100 text-[#181A27] dark:bg-teal-900 dark:text-teal-300",
-  "INSU":              "bg-rose-100 text-[#181A27] dark:bg-rose-900 dark:text-rose-300",
-  "COC":               "bg-orange-100 text-[#181A27] dark:bg-orange-900 dark:text-orange-300",
-  "ID":                "bg-amber-100 text-[#181A27] dark:bg-amber-900 dark:text-amber-300",
-  "18-25":             "bg-sky-100 text-[#181A27] dark:bg-sky-900 dark:text-sky-300",
-  "26-35":             "bg-blue-100 text-[#181A27] dark:bg-blue-900 dark:text-blue-300",
-  "36-45":             "bg-violet-100 text-[#181A27] dark:bg-violet-900 dark:text-violet-300",
-  "46-99":             "bg-indigo-100 text-[#181A27] dark:bg-indigo-900 dark:text-indigo-300",
-  "Male":              "bg-blue-100 text-[#181A27] dark:bg-blue-900 dark:text-blue-300",
-  "Female":            "bg-pink-100 text-[#181A27] dark:bg-pink-900 dark:text-pink-300",
-  "Muslim":            "bg-teal-100 text-[#181A27] dark:bg-teal-900 dark:text-teal-300",
-  "Non-muslim":        "bg-slate-100 text-[#181A27] dark:bg-slate-800 dark:text-slate-400",
-  "Experienced":       "bg-emerald-100 text-[#181A27] dark:bg-emerald-900 dark:text-emerald-300",
-  "Non-Experienced":   "bg-orange-100 text-[#181A27] dark:bg-orange-900 dark:text-orange-300",
-  "Yes":               "bg-emerald-100 text-[#181A27] dark:bg-emerald-900 dark:text-emerald-300",
-  "None":              "bg-zinc-100 text-[#181A27] dark:bg-zinc-800 dark:text-zinc-400",
-  "newest":            "bg-sky-100 text-[#181A27] dark:bg-sky-900 dark:text-sky-300",
-  "oldest":            "bg-amber-100 text-[#181A27] dark:bg-amber-900 dark:text-amber-300",
+  "Fit":               "bg-emerald-100 font-bold text-black dark:bg-emerald-900 dark:text-emerald-300",
+  "Unfit":             "bg-red-100 font-bold text-black dark:bg-red-900 dark:text-red-300",
+  "In progress":       "bg-amber-100 font-bold text-black dark:bg-amber-900 dark:text-amber-300",
+  "Expired":           "bg-orange-100 font-bold text-black dark:bg-orange-900 dark:text-orange-300",
+  "No":                "bg-zinc-100 font-bold text-black dark:bg-zinc-800 dark:text-zinc-400",
+  "Done":              "bg-emerald-100 font-bold text-black dark:bg-emerald-900 dark:text-emerald-300",
+  "Booked":            "bg-blue-100 font-bold text-black dark:bg-blue-900 dark:text-blue-300",
+  "Placed":            "bg-violet-100 font-bold text-black dark:bg-violet-900 dark:text-violet-300",
+  "Yitazez":           "bg-orange-100 font-bold text-black dark:bg-orange-900 dark:text-orange-300",
+  "Pending release":   "bg-amber-100 font-bold text-black dark:bg-amber-900 dark:text-amber-300",
+  "Ready":             "bg-violet-100 font-bold text-black dark:bg-violet-900 dark:text-violet-300",
+  "Paid":              "bg-emerald-100 font-bold text-black dark:bg-emerald-900 dark:text-emerald-300",
+  "Unpaid":            "bg-red-100 font-bold text-black dark:bg-red-900 dark:text-red-300",
+  "Ready for embassy": "bg-sky-100 font-bold text-black dark:bg-sky-900 dark:text-sky-300",
+  "Sent to Embassy":   "bg-violet-100 font-bold text-black dark:bg-violet-900 dark:text-violet-300",
+  "Privately Sent":    "bg-cyan-100 font-bold text-black dark:bg-cyan-900 dark:text-cyan-300",
+  "Issued":            "bg-emerald-100 font-bold text-black dark:bg-emerald-900 dark:text-emerald-300",
+  "Visa canceled":     "bg-red-100 font-bold text-black dark:bg-red-900 dark:text-red-300",
+  "Arrived KSA":       "bg-green-100 font-bold text-black dark:bg-green-900 dark:text-green-300",
+  "Returned":          "bg-orange-100 font-bold text-black dark:bg-orange-900 dark:text-orange-300",
+  "Waiting Replacement":"bg-amber-100 font-bold text-black dark:bg-amber-900 dark:text-amber-300",
+  "Pending":           "bg-amber-100 font-bold text-black dark:bg-amber-900 dark:text-amber-300",
+  "No COC":            "bg-red-100 font-bold text-black dark:bg-red-900 dark:text-red-300",
+  "Not tested":        "bg-zinc-100 font-bold text-black dark:bg-zinc-800 dark:text-zinc-400",
+  "Imported":          "bg-violet-100 font-bold text-black dark:bg-violet-900 dark:text-violet-300",
+  "Checked":           "bg-teal-100 font-bold text-black dark:bg-teal-900 dark:text-teal-300",
+  "Verified":          "bg-emerald-100 font-bold text-black dark:bg-emerald-900 dark:text-emerald-300",
+  "Draft":             "bg-zinc-100 font-bold text-black dark:bg-zinc-800 dark:text-zinc-400",
+  "Rejected":          "bg-red-100 font-bold text-black dark:bg-red-900 dark:text-red-300",
+  "New Order":         "bg-blue-100 font-bold text-black dark:bg-blue-900 dark:text-blue-300",
+  "Exchange":          "bg-orange-100 font-bold text-black dark:bg-orange-900 dark:text-orange-300",
+  "Urgent":            "bg-red-100 font-bold text-black dark:bg-red-900 dark:text-red-300",
+  "RIYADH":            "bg-violet-100 font-bold text-black dark:bg-violet-900 dark:text-violet-300",
+  "JEDDAH":            "bg-blue-100 font-bold text-black dark:bg-blue-900 dark:text-blue-300",
+  "DAMMAM":            "bg-cyan-100 font-bold text-black dark:bg-cyan-900 dark:text-cyan-300",
+  "JOUF":              "bg-amber-100 font-bold text-black dark:bg-amber-900 dark:text-amber-300",
+  "HAIL":              "bg-orange-100 font-bold text-black dark:bg-orange-900 dark:text-orange-300",
+  "ABHA":              "bg-emerald-100 font-bold text-black dark:bg-emerald-900 dark:text-emerald-300",
+  "OTHERS":            "bg-zinc-100 font-bold text-black dark:bg-zinc-800 dark:text-zinc-400",
+  "Submitted":         "bg-blue-100 font-bold text-black dark:bg-blue-900 dark:text-blue-300",
+  "Received":          "bg-emerald-100 font-bold text-black dark:bg-emerald-900 dark:text-emerald-300",
+  "available":         "bg-emerald-100 font-bold text-black dark:bg-emerald-900 dark:text-emerald-300",
+  "processing":        "bg-amber-100 font-bold text-black dark:bg-amber-900 dark:text-amber-300",
+  "arrived":           "bg-blue-100 font-bold text-black dark:bg-blue-900 dark:text-blue-300",
+  "canceled":          "bg-red-100 font-bold text-black dark:bg-red-900 dark:text-red-300",
+  "returned":          "bg-orange-100 font-bold text-black dark:bg-orange-900 dark:text-orange-300",
+  "private":           "bg-purple-100 font-bold text-black dark:bg-purple-900 dark:text-purple-300",
+  "unavailable":       "bg-red-100 font-bold text-black dark:bg-red-900 dark:text-red-300",
+  "Available":         "bg-emerald-100 font-bold text-black dark:bg-emerald-900 dark:text-emerald-300",
+  "Private":           "bg-purple-100 font-bold text-black dark:bg-purple-900 dark:text-purple-300",
+  "Unavailable":       "bg-red-100 font-bold text-black dark:bg-red-900 dark:text-red-300",
+  "Riyadh":            "bg-violet-100 font-bold text-black dark:bg-violet-900 dark:text-violet-300",
+  "Jeddah":            "bg-blue-100 font-bold text-black dark:bg-blue-900 dark:text-blue-300",
+  "Dammam":            "bg-cyan-100 font-bold text-black dark:bg-cyan-900 dark:text-cyan-300",
+  "Other":             "bg-zinc-100 font-bold text-black dark:bg-zinc-800 dark:text-zinc-400",
+  "Saudi":             "bg-green-100 font-bold text-black dark:bg-green-900 dark:text-green-300",
+  "Kuwait":            "bg-teal-100 font-bold text-black dark:bg-teal-900 dark:text-teal-300",
+  "INSU":              "bg-rose-100 font-bold text-black dark:bg-rose-900 dark:text-rose-300",
+  "COC":               "bg-orange-100 font-bold text-black dark:bg-orange-900 dark:text-orange-300",
+  "ID":                "bg-amber-100 font-bold text-black dark:bg-amber-900 dark:text-amber-300",
+  "18-25":             "bg-sky-100 font-bold text-black dark:bg-sky-900 dark:text-sky-300",
+  "26-35":             "bg-blue-100 font-bold text-black dark:bg-blue-900 dark:text-blue-300",
+  "36-45":             "bg-violet-100 font-bold text-black dark:bg-violet-900 dark:text-violet-300",
+  "46-99":             "bg-indigo-100 font-bold text-black dark:bg-indigo-900 dark:text-indigo-300",
+  "Male":              "bg-blue-100 font-bold text-black dark:bg-blue-900 dark:text-blue-300",
+  "Female":            "bg-pink-100 font-bold text-black dark:bg-pink-900 dark:text-pink-300",
+  "Muslim":            "bg-teal-100 font-bold text-black dark:bg-teal-900 dark:text-teal-300",
+  "Non-muslim":        "bg-slate-100 font-bold text-black dark:bg-slate-800 dark:text-slate-400",
+  "Experienced":       "bg-emerald-100 font-bold text-black dark:bg-emerald-900 dark:text-emerald-300",
+  "Non-Experienced":   "bg-orange-100 font-bold text-black dark:bg-orange-900 dark:text-orange-300",
+  "Yes":               "bg-emerald-100 font-bold text-black dark:bg-emerald-900 dark:text-emerald-300",
+  "None":              "bg-zinc-100 font-bold text-black dark:bg-zinc-800 dark:text-zinc-400",
+  "newest":            "bg-sky-100 font-bold text-black dark:bg-sky-900 dark:text-sky-300",
+  "oldest":            "bg-amber-100 font-bold text-black dark:bg-amber-900 dark:text-amber-300",
   "Not Selected":      "bg-zinc-100 text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500",
   "":                  "bg-zinc-100 text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500",
 };
@@ -3257,7 +3257,7 @@ function InlineDate({ value, onSave, display, showDays }: { value: string; onSav
         if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
         if (e.key === "Escape") { setDraft(value); setEditing(false); }
       }}
-      className="rounded-none border border-primary bg-background px-1 py-0.5 text-[14px] text-[#181A27] outline-none min-w-[110px]"
+      className="rounded-none border border-primary bg-background px-1 py-0.5 text-[14px] font-bold text-black outline-none min-w-[110px]"
     />
   );
 }
@@ -3284,7 +3284,7 @@ function InlineText({ value, onSave }: { value: string; onSave: (v: string | nul
         if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
         if (e.key === "Escape") { setDraft(value); setEditing(false); }
       }}
-      className="rounded-none border border-primary bg-background px-1 py-0.5 text-[14px] text-[#181A27] outline-none min-w-[80px]"
+      className="rounded-none border border-primary bg-background px-1 py-0.5 text-[14px] font-bold text-black outline-none min-w-[80px]"
     />
   );
 }
@@ -3336,7 +3336,7 @@ function FilterSelect({
             ? "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
             : hasColor
               ? cn(OPTION_COLORS[value], "border-transparent")
-              : "bg-black/10 border-black/20 text-[#181A27] dark:bg-white/10 dark:border-white/20 dark:text-white",
+              : "bg-black/10 border-black/20 font-bold text-black dark:bg-white/10 dark:border-white/20 dark:text-white",
         )}>
           {Icon && <Icon className="h-3 w-3 shrink-0" />}
           {isReset ? (
@@ -3358,7 +3358,7 @@ function FilterSelect({
                 ) : color ? (
                   <OptionPill label={o.label} />
                 ) : (
-                  <span className="text-[14px] text-[#181A27] dark:text-white">{o.label}</span>
+                  <span className="text-[14px] font-bold text-black dark:text-white">{o.label}</span>
                 )}
               </SelectItem>
             );
@@ -3415,7 +3415,7 @@ function MultiFilterSelect({
                 ? "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
                 : hasSingleColor
                   ? cn(OPTION_COLORS[values[0]], "border-transparent")
-                  : "bg-black/10 border-black/20 text-[#181A27] dark:bg-white/10 dark:border-white/20 dark:text-white",
+                  : "bg-black/10 border-black/20 font-bold text-black dark:bg-white/10 dark:border-white/20 dark:text-white",
             )}
           >
             {Icon && <Icon className="h-3 w-3 shrink-0" />}
@@ -3448,7 +3448,7 @@ function MultiFilterSelect({
                   {color ? (
                     <span className={cn("text-[13px] font-medium px-1.5 py-0.5", color)}>{o.label}</span>
                   ) : (
-                    <span className="text-[13px] text-[#181A27] dark:text-white">{o.label}</span>
+                    <span className="text-[13px] font-bold text-black dark:text-white">{o.label}</span>
                   )}
                 </button>
               );
