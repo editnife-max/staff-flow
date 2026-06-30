@@ -3278,7 +3278,7 @@ function InlineDate({ value, onSave, display }: { value: string; onSave: (v: str
         if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
         if (e.key === "Escape") { setDraft(value); setEditing(false); }
       }}
-      className="rounded-none border border-primary bg-background px-1 py-0.5 text-[14px] text-white outline-none min-w-[110px]"
+      className="rounded-none border border-primary bg-background px-1 py-0.5 text-[14px] text-foreground outline-none min-w-[110px]"
     />
   );
 }
@@ -3312,7 +3312,7 @@ function InlineText({ value, onSave }: { value: string; onSave: (v: string | nul
         if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
         if (e.key === "Escape") { setDraft(value); setEditing(false); }
       }}
-      className="rounded-none border border-primary bg-background px-1 py-0.5 text-[14px] text-white outline-none min-w-[80px]"
+      className="rounded-none border border-primary bg-background px-1 py-0.5 text-[14px] text-foreground outline-none min-w-[80px]"
     />
   );
 }
@@ -3350,7 +3350,7 @@ function CardField({ label, value, bold }: { label: string; value: string; bold?
   return (
     <div className="shrink-0">
       <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap">{label}</div>
-      <div className={cn("mt-0.5 text-[14px] text-white whitespace-nowrap", bold && "font-semibold")}>{value}</div>
+      <div className={cn("mt-0.5 text-[14px] text-foreground whitespace-nowrap", bold && "font-semibold")}>{value}</div>
     </div>
   );
 }
@@ -3390,7 +3390,7 @@ function FilterSelect({
                 ) : color ? (
                   <OptionPill label={o.label} />
                 ) : (
-                  <span className="text-[14px] text-white dark:text-white">{o.label}</span>
+                  <span className="text-[14px] text-black">{o.label}</span>
                 )}
               </SelectItem>
             );
@@ -3476,7 +3476,7 @@ function MultiFilterSelect({
                   {color ? (
                     <span className={cn("text-[13px] font-medium px-1.5 py-0.5", color)}>{o.label}</span>
                   ) : (
-                    <span className="text-[13px] text-white dark:text-white">{o.label}</span>
+                    <span className="text-[13px] text-black">{o.label}</span>
                   )}
                 </button>
               );
