@@ -1118,12 +1118,6 @@ function StaffCandidatesPage() {
                 )}
               >
                 {t.label}
-                <span className={cn(
-                  "ml-1.5 text-[11px] px-1.5 py-0.5 rounded-full font-semibold",
-                  tab === t.key ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
-                )}>
-                  {counts[t.key] ?? 0}
-                </span>
               </button>
             ))}
           </div>

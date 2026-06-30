@@ -1185,14 +1185,6 @@ function ManagerCandidatesPage() {
                 )}
               >
                 {t.label}
-                <span className={cn(
-                  "ml-1.5 text-[11px] px-1.5 py-0.5 rounded-full font-semibold",
-                  tab === t.key ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
-                )}>
-                  {isFiltered && t.key !== "processing"
-                    ? <>{filteredCounts[t.key] ?? 0}<span className="opacity-50 font-normal">/{counts[t.key] ?? 0}</span></>
-                    : counts[t.key] ?? 0}
-                </span>
               </button>
             ))}
           </div>
