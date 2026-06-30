@@ -1070,7 +1070,7 @@ function ManagerCandidatesPage() {
                 {showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
               </button>
               <Button
-                size="sm" variant="ghost" className="h-7 gap-1 text-xs font-bold"
+                size="sm" variant="ghost" className="h-7 gap-1 text-xs font-bold text-black"
                 onClick={() => { setFilters(initialFilters); setPassport(""); }}
                 disabled={activeCount === 0 && !passport}
               >
@@ -2058,7 +2058,7 @@ function CandidateCardList({
             <span className="text-xs text-muted-foreground">
               {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filtered.length)} of {filtered.length}
             </span>
-            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs font-bold"
+            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs font-bold text-black"
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
               <ChevronUp className="h-3.5 w-3.5" /> Back to top
             </Button>
@@ -2817,7 +2817,7 @@ function ProcessingTable({
             <span className="text-xs text-muted-foreground">
               {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filteredCandidates.length)} of {filteredCandidates.length}
             </span>
-            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs font-bold"
+            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs font-bold text-black"
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
               <ChevronUp className="h-3.5 w-3.5" /> Back to top
             </Button>
@@ -3333,10 +3333,10 @@ function FilterSelect({
         <SelectTrigger className={cn(
           "border shadow-none w-auto h-7 px-2 gap-1.5 transition-colors rounded-none text-[13px] font-bold [&>svg]:shrink-0",
           isReset
-            ? "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+            ? "bg-muted/40 border-border text-black hover:bg-muted hover:text-black"
             : hasColor
-              ? cn(OPTION_COLORS[value], "border-transparent")
-              : "bg-black/10 border-black/20 text-white dark:bg-white/10 dark:border-white/20 dark:text-white",
+              ? cn(OPTION_COLORS[value], "border-transparent text-black")
+              : "bg-black/10 border-black/20 text-black dark:bg-white/10 dark:border-white/20 dark:text-black",
         )}>
           {Icon && <Icon className="h-3 w-3 shrink-0" />}
           {isReset ? (
@@ -3412,10 +3412,10 @@ function MultiFilterSelect({
             className={cn(
               "flex items-center gap-1.5 border shadow-none h-7 px-2 transition-colors rounded-none text-[13px] font-bold",
               isEmpty
-                ? "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+                ? "bg-muted/40 border-border text-black hover:bg-muted hover:text-black"
                 : hasSingleColor
-                  ? cn(OPTION_COLORS[values[0]], "border-transparent")
-                  : "bg-black/10 border-black/20 text-white dark:bg-white/10 dark:border-white/20 dark:text-white",
+                  ? cn(OPTION_COLORS[values[0]], "border-transparent text-black")
+                  : "bg-black/10 border-black/20 text-black dark:bg-white/10 dark:border-white/20 dark:text-black",
             )}
           >
             {Icon && <Icon className="h-3 w-3 shrink-0" />}
