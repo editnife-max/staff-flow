@@ -1079,7 +1079,7 @@ function ManagerCandidatesPage() {
             </div>
             {showFilters && (
               <>
-                <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                <div className="mt-3 flex flex-wrap items-center gap-5">
                   <FilterSelect value={filters.sort} onChange={(v) => setFilters({ ...filters, sort: v })}
                     icon={ArrowUpDown}
                     options={[{ value: "newest", label: "Date (Newest)" }, { value: "oldest", label: "Date (Oldest)" }]} />
@@ -2613,7 +2613,7 @@ function ProcessingTable({
             </div>
           </div>
           {showFilters && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
+            <div className="mt-3 flex flex-wrap gap-5">
               <MultiFilterSelect placeholder="Narrative" values={f.narrative} onChange={setMulti("narrative")} options={[{ value: "", label: "Not Selected" }, ...narrativeOpts.map((o) => ({ value: o, label: o }))]} />
               <MultiFilterSelect placeholder="Medical" values={f.medical_status} onChange={setMulti("medical_status")} options={[{ value: "", label: "Not Selected" }, ...MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <MultiFilterSelect placeholder="COC" values={f.coc_status} onChange={setMulti("coc_status")} options={[{ value: "", label: "Not Selected" }, ...COC_OPTIONS.map((o) => ({ value: o, label: o }))]} />

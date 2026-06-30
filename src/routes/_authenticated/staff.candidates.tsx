@@ -1015,7 +1015,7 @@ function StaffCandidatesPage() {
           </div>
           {showFilters && (
           <>
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <div className="mt-3 flex flex-wrap items-center gap-5">
             <FilterSelect value={filters.sort} onChange={(v) => setFilters({ ...filters, sort: v })}
               icon={ArrowUpDown}
               options={[{ value: "newest", label: "Date (Newest)" }, { value: "oldest", label: "Date (Oldest)" }]} />
@@ -2578,7 +2578,7 @@ function ProcessingTable({
             <Input className="pl-9 h-8 text-xs rounded-none" placeholder="Name / Passport / Code" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           {showFilters && (
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <div className="mt-3 flex flex-wrap items-center gap-5">
               <MultiFilterSelect values={f.narrative} onChange={setMulti("narrative")} placeholder="Narrative" icon={FileText}
                 options={[{ value: "", label: "Not Selected" }, ...narrativeOpts.map((o) => ({ value: o, label: o }))]} />
               <MultiFilterSelect values={f.medical_status} onChange={setMulti("medical_status")} placeholder="Medical" icon={Stethoscope}
