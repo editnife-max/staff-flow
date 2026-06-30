@@ -2242,7 +2242,7 @@ function CandidateCard({
     { label: "AVAILABILITY", value: (() => { const v = candidate.availability_type ?? "available"; return v.charAt(0).toUpperCase() + v.slice(1); })(), edit: "select", field: "availability_type", options: ["Available", "Private", "Unavailable"] },
 
     { label: "SELECTED BY", value: candidate.selected_by ?? "", edit: "select", field: "selected_by", options: agencyOptions },
-    { label: "CONTRACT DATE", value: candidate.contract_date ?? "", edit: "date", field: "contract_date" },
+    { label: "CONTRACT DATE", value: candidate.contract_date ?? "", edit: "date", field: "contract_date", showDays: true },
     { label: "CV SENT TO", value: candidate.cv_sent_to ?? "", edit: "select", field: "cv_sent_to", options: agencyOptions },
     { label: "CV SENT DATE", value: candidate.cv_sent_date ? new Date(candidate.cv_sent_date).toLocaleDateString() : "—" },
     { label: "NARRATIVE", value: candidate.narrative ?? "", edit: "text", field: "narrative", long: true },
@@ -3076,7 +3076,7 @@ function ProcessingCard({
                           return <>{`${dd}/${mm}/${yyyy}`}<br /><span className="text-muted-foreground text-xs">({days} days ago)</span></>;
                         })()}</span>
                       ) : (
-                        <InlineDate value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
+                        <InlineDate value={strVal} showDays={col.key === "contract_date"} onSave={(v) => handleColUpdate(col.key, v)} />
                       )
                     ) : col.type === "select" ? (
                       col.key === "unfilled_lmis" ? (

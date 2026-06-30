@@ -3060,7 +3060,7 @@ function ProcessingCard({
                           return <>{`${dd}/${mm}/${yyyy}`}<br /><span className="text-muted-foreground text-xs">({days} days ago)</span></>;
                         })()}</span>
                       ) : (
-                        <InlineDate value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
+                        <InlineDate value={strVal} showDays={col.key === "contract_date"} onSave={(v) => handleColUpdate(col.key, v)} />
                       )
                     ) : col.type === "select" ? (
                       col.key === "unfilled_lmis" ? (
