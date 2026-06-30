@@ -417,33 +417,18 @@ function PaginationBar({
 }
 
 // ─── Excel export ────────────────────────────────────────────────────────────
-function downloadCandidatesExcel(candidates: Candidate[], title: string) {
-  const cols: { key: keyof Candidate; label: string }[] = [
-    { key: "full_name",       label: "Full Name" },
-    { key: "passport_number", label: "Passport No." },
-    { key: "labour_id",       label: "Labour ID" },
-    { key: "occupation",      label: "Occupation" },
-    { key: "status",          label: "Status" },
-    { key: "coc_status",      label: "COC Status" },
-    { key: "medical_status",  label: "Medical Status" },
-    { key: "medical_date",    label: "Medical Date" },
-    { key: "tasheer_status",  label: "Tasheer" },
-    { key: "wokala_status",   label: "Wokala" },
-    { key: "visa_status",     label: "Visa Status" },
-    { key: "ticket_status",   label: "Ticket" },
-    { key: "ticket_date",     label: "Ticket Date" },
-    { key: "lmis_status",     label: "LMIS" },
-    { key: "musaned_status",  label: "Country" },
-    { key: "office",          label: "Office" },
-    { key: "narrative",       label: "Narrative" },
-    { key: "narrative_phone", label: "Narrative Phone" },
-    { key: "selected_by",     label: "Selected By" },
-    { key: "contract_date",   label: "Contract Date" },
-    { key: "arrival_city",    label: "Arrival City" },
-  ];
+type ExportCol = { key: string; label: string };
+const BASE: ExportCol[] = [
+  { key: "full_name",       label: "Full Name" },
+  { key: "passport_number", label: "Passport No." },
+  { key: "occupation",      label: "Occupation" },
+  { key: "status",          label: "Status" },
+];
+
+function downloadCandidatesExcel(candidates: Candidate[], title: string, cols: ExportCol[]) {
   const header = cols.map((c) => c.label);
   const rows = candidates.map((c) =>
-    cols.map((col) => { const v = c[col.key]; return v == null ? "" : String(v); })
+    cols.map((col) => { const v = (c as any)[col.key]; return v == null ? "" : String(v); })
   );
   const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
   ws["!cols"] = header.map((h, i) => ({
@@ -463,7 +448,7 @@ function downloadCandidatesExcel(candidates: Candidate[], title: string) {
 
 // ─── Alert section ───────────────────────────────────────────────────────────
 function AlertSection({
-  icon: Icon, title, iconColor, pillKey, candidates, getNote, renderBadge, onUpdateField, renderCardAction,
+  icon: Icon, title, iconColor, pillKey, candidates, getNote, renderBadge, exportCols, onUpdateField, renderCardAction,
 }: {
   icon: React.ElementType;
   title: string;
@@ -472,6 +457,7 @@ function AlertSection({
   candidates: Candidate[];
   getNote?: (c: Candidate) => string | null;
   renderBadge?: (c: Candidate) => React.ReactNode;
+  exportCols: ExportCol[];
   onUpdateField: (id: string, field: EditableField, value: string | null) => void;
   countryOptions: string[];
   renderCardAction?: (candidate: Candidate) => React.ReactNode;
@@ -502,7 +488,7 @@ function AlertSection({
             role="button"
             title="Download Excel"
             className="p-1 rounded-none text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
-            onClick={(e) => { e.stopPropagation(); downloadCandidatesExcel(candidates, title); }}
+            onClick={(e) => { e.stopPropagation(); downloadCandidatesExcel(candidates, title, exportCols); }}
           >
             <FileSpreadsheet className="h-4 w-4" />
           </span>
@@ -553,7 +539,7 @@ function AlertSection({
           />
           <div className="pt-2 flex items-center justify-between">
             <Button size="sm" variant="outline" className="rounded-none text-xs gap-1 text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-900/20"
-              onClick={() => downloadCandidatesExcel(candidates, title)}>
+              onClick={() => downloadCandidatesExcel(candidates, title, exportCols)}>
               <FileSpreadsheet className="h-3.5 w-3.5" /> Download Excel
             </Button>
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
@@ -952,35 +938,48 @@ function StaffDashboard() {
       {/* Alert sections */}
       {(cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || cvOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0) && (
         <div className="space-y-2">
-          <AlertSection icon={FileCheck}    title="COC — No"                     iconColor="text-orange-600 dark:text-orange-400" pillKey="coc"     candidates={cocNo}         onUpdateField={handleUpdateField} countryOptions={countryOptions}
+          <AlertSection icon={FileCheck} title="COC — No" iconColor="text-orange-600 dark:text-orange-400" pillKey="coc" candidates={cocNo} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "labour_id", label: "Labour ID" }, { key: "office", label: "Office" }, { key: "narrative", label: "Narrative" }, { key: "narrative_phone", label: "Narrative Phone" }]}
             renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300">No</span>} />
-          <AlertSection icon={FileCheck}    title="COC — Placed"                 iconColor="text-violet-600 dark:text-violet-400" pillKey="coc"     candidates={cocPlaced}     onUpdateField={handleUpdateField} countryOptions={countryOptions}
+          <AlertSection icon={FileCheck} title="COC — Placed" iconColor="text-violet-600 dark:text-violet-400" pillKey="coc" candidates={cocPlaced} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "labour_id", label: "Labour ID" }, { key: "selected_by", label: "Selected By" }, { key: "office", label: "Office" }]}
             renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Placed</span>} />
-          <AlertSection icon={Stethoscope}  title="Medical — Not Fit"            iconColor="text-red-600 dark:text-red-400"       pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+          <AlertSection icon={Stethoscope} title="Medical — Not Fit" iconColor="text-red-600 dark:text-red-400" pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }, { key: "coc_status", label: "COC Status" }, { key: "office", label: "Office" }]}
             renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">{c.medical_status}</span>} />
-          <AlertSection icon={Stethoscope}  title="COC Done — Medical Not Fit"  iconColor="text-fuchsia-600 dark:text-fuchsia-400" pillKey="medical" candidates={cocDoneNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+          <AlertSection icon={Stethoscope} title="COC Done — Medical Not Fit" iconColor="text-fuchsia-600 dark:text-fuchsia-400" pillKey="medical" candidates={cocDoneNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }]}
             renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">{c.medical_status}</span>} />
-          <AlertSection icon={CalendarX}    title="Medical — Expired"            iconColor="text-rose-600 dark:text-rose-400"     pillKey="medexp"  candidates={medicalExpired} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+          <AlertSection icon={CalendarX} title="Medical — Expired" iconColor="text-rose-600 dark:text-rose-400" pillKey="medexp" candidates={medicalExpired} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }]}
             renderBadge={(c) => (
               <div className="text-right">
                 <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">Expired</span>
                 {c.medical_date && <p className="text-[10px] text-muted-foreground mt-0.5">{daysSince(c.medical_date)}d ago</p>}
               </div>
             )} />
-          <AlertSection icon={ClipboardList} title="LMIS file"               iconColor="text-amber-600 dark:text-amber-400"   pillKey="lmis"    candidates={unfilledLmis}  onUpdateField={handleUpdateField} countryOptions={countryOptions}
+          <AlertSection icon={ClipboardList} title="LMIS file" iconColor="text-amber-600 dark:text-amber-400" pillKey="lmis" candidates={unfilledLmis} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            exportCols={[...BASE, { key: "lmis_status", label: "LMIS Status" }, { key: "unfilled_lmis", label: "Unfilled LMIS" }, { key: "labour_id", label: "Labour ID" }]}
             renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{c.unfilled_lmis}</span>} />
-          <AlertSection icon={Ticket}        title="Ticket Not Booked — Over 20 Days" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketNotBooked} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+          <AlertSection icon={Ticket} title="Ticket Not Booked — Over 20 Days" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketNotBooked} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            exportCols={[...BASE, { key: "ticket_status", label: "Ticket" }, { key: "contract_date", label: "Contract Date" }, { key: "arrival_city", label: "Arrival City" }, { key: "office", label: "Office" }]}
             renderBadge={(c) => c.contract_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">{daysSince(c.contract_date)}d since contract</span> : null} />
-          <AlertSection icon={Ticket}        title="Ticket Ready" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketReady} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+          <AlertSection icon={Ticket} title="Ticket Ready" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketReady} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            exportCols={[...BASE, { key: "ticket_status", label: "Ticket" }, { key: "ticket_date", label: "Ticket Date" }, { key: "arrival_city", label: "Arrival City" }, { key: "passport_number", label: "Passport No." }]}
             renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Ready</span>} />
-          <AlertSection icon={MapPin}        title="Arrival City Not Set" iconColor="text-cyan-600 dark:text-cyan-400" pillKey="arrival" candidates={arrivalCityMissing} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
-          <AlertSection icon={Landmark}      title="Embassy Visa — Pending"      iconColor="text-sky-600 dark:text-sky-400"       pillKey="embassy"   candidates={embassyPending} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+          <AlertSection icon={MapPin} title="Arrival City Not Set" iconColor="text-cyan-600 dark:text-cyan-400" pillKey="arrival" candidates={arrivalCityMissing} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            exportCols={[...BASE, { key: "arrival_city", label: "Arrival City" }, { key: "ticket_status", label: "Ticket" }, { key: "office", label: "Office" }]} />
+          <AlertSection icon={Landmark} title="Embassy Visa — Pending" iconColor="text-sky-600 dark:text-sky-400" pillKey="embassy" candidates={embassyPending} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "tasheer_status", label: "Tasheer" }, { key: "embassy_date", label: "Embassy Date" }, { key: "processing_notes", label: "Notes" }]}
             renderBadge={(c) => c.processing_notes ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300 max-w-[120px] truncate block">{c.processing_notes}</span> : null} />
-          <AlertSection icon={BadgeCheck}    title="Ready for Embassy Visa"      iconColor="text-emerald-600 dark:text-emerald-400" pillKey="visaready"  candidates={visaReady}     onUpdateField={handleUpdateField} countryOptions={countryOptions}
+          <AlertSection icon={BadgeCheck} title="Ready for Embassy Visa" iconColor="text-emerald-600 dark:text-emerald-400" pillKey="visaready" candidates={visaReady} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "tasheer_status", label: "Tasheer" }, { key: "wokala_status", label: "Wokala" }, { key: "embassy_date", label: "Embassy Date" }]}
             renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">{c.visa_status === "Ready for embassy" ? "Ready" : "Auto"}</span>} />
-          <AlertSection icon={RotateCcw}     title="Visa Returned"               iconColor="text-rose-600 dark:text-rose-400"       pillKey="visareturn" candidates={visaReturned}  onUpdateField={handleUpdateField} countryOptions={countryOptions}
+          <AlertSection icon={RotateCcw} title="Visa Returned" iconColor="text-rose-600 dark:text-rose-400" pillKey="visareturn" candidates={visaReturned} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "remark", label: "Remark" }, { key: "musaned_status", label: "Country" }]}
             renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">Returned</span>} />
           <AlertSection icon={AlertTriangle} title="Tasheer Overdue — Booked Date Passed" iconColor="text-amber-600 dark:text-amber-400" pillKey="tasheer" candidates={tasheerOverdue} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }]}
             renderBadge={(c) => c.tasheer_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{daysSince(c.tasheer_date)}d overdue</span> : null}
             renderCardAction={(c) => (
               <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -988,7 +987,8 @@ function StaffDashboard() {
                 Done
               </Button>
             )} />
-          <AlertSection icon={AlertTriangle} title="Tasheer Done — Wokala Unpaid" iconColor="text-violet-600 dark:text-violet-400"   pillKey="tasheer"   candidates={tasheerDoneWokalaUnpaid} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+          <AlertSection icon={AlertTriangle} title="Tasheer Done — Wokala Unpaid" iconColor="text-violet-600 dark:text-violet-400" pillKey="tasheer" candidates={tasheerDoneWokalaUnpaid} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }, { key: "narrative_phone", label: "Narrative Phone" }]}
             renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Unpaid</span>}
             renderCardAction={(c) => (
               <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
@@ -996,7 +996,8 @@ function StaffDashboard() {
                 Mark Paid
               </Button>
             )} />
-          <AlertSection icon={XCircle}      title="Tasheer — Ready"               iconColor="text-red-600 dark:text-red-400"          pillKey="tasheer"   candidates={passportNotAccepted}    onUpdateField={handleUpdateField} countryOptions={countryOptions}
+          <AlertSection icon={XCircle} title="Tasheer — Ready" iconColor="text-red-600 dark:text-red-400" pillKey="tasheer" candidates={passportNotAccepted} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "passport_number", label: "Passport No." }, { key: "office", label: "Office" }]}
             renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">Ready</span>}
             renderCardAction={(c) => (
               <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -1008,11 +1009,14 @@ function StaffDashboard() {
                 Yes
               </Button>
             )} />
-          <AlertSection icon={Send}          title="CV Sent — No Selection"        iconColor="text-teal-600 dark:text-teal-400"        pillKey="cvoverdue" candidates={cvOverdue}               onUpdateField={handleUpdateField} countryOptions={countryOptions}
+          <AlertSection icon={Send} title="CV Sent — No Selection" iconColor="text-teal-600 dark:text-teal-400" pillKey="cvoverdue" candidates={cvOverdue} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            exportCols={[...BASE, { key: "cv_sent_to", label: "CV Sent To" }, { key: "cv_sent_date", label: "CV Sent Date" }, { key: "musaned_status", label: "Country" }]}
             renderBadge={(c) => c.cv_sent_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">{Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000)}d ago</span> : null} />
-          <AlertSection icon={Stethoscope}  title="Medical Fit — LMIS Not Tested" iconColor="text-teal-600 dark:text-teal-400"        pillKey="fitlmis"   candidates={fitLmisNotTested}        onUpdateField={handleUpdateField} countryOptions={countryOptions}
+          <AlertSection icon={Stethoscope} title="Medical Fit — LMIS Not Tested" iconColor="text-teal-600 dark:text-teal-400" pillKey="fitlmis" candidates={fitLmisNotTested} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }, { key: "coc_status", label: "COC Status" }, { key: "lmis_status", label: "LMIS" }]}
             renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">Not Tested</span>} />
-          <AlertSection icon={Upload}        title="LMIS Draft / Imported — Upload Files" iconColor="text-indigo-600 dark:text-indigo-400" pillKey="lmis" candidates={lmisDraftImported} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+          <AlertSection icon={Upload} title="LMIS Draft / Imported — Upload Files" iconColor="text-indigo-600 dark:text-indigo-400" pillKey="lmis" candidates={lmisDraftImported} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            exportCols={[...BASE, { key: "lmis_status", label: "LMIS Status" }, { key: "labour_id", label: "Labour ID" }, { key: "unfilled_lmis", label: "Unfilled LMIS" }]}
             renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">{c.lmis_status}</span>}
             renderCardAction={(c) => (
               <LmisUploadButton
