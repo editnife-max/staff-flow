@@ -3317,7 +3317,7 @@ function InlineText({ value, onSave }: { value: string; onSave: (v: string | nul
 function OptionPill({ label, className }: { label: string; className?: string }) {
   const color = OPTION_COLORS[label] ?? "bg-muted text-muted-foreground";
   return (
-    <span className={cn("inline-flex items-center rounded-none px-1.5 py-0.5 text-[14px] font-medium leading-none whitespace-nowrap", color, className)}>
+    <span className={cn("inline-flex items-center rounded-sm px-1.5 py-0.5 text-[14px] font-medium leading-none whitespace-nowrap", color, className)}>
       {label}
     </span>
   );
