@@ -2218,7 +2218,7 @@ function CandidateCard({
   type FieldDef =
     | { label: string; value: string; bold?: boolean; copy?: boolean }
     | { label: string; value: string; edit: "text"; field: EditableField; long?: boolean }
-    | { label: string; value: string; edit: "date"; field: EditableField; display?: string }
+    | { label: string; value: string; edit: "date"; field: EditableField; display?: string; showDays?: boolean }
     | { label: string; value: string; edit: "select"; field: EditableField; options: string[] };
 
   const allFields: FieldDef[] = [
@@ -2307,7 +2307,7 @@ function CandidateCard({
                     {"edit" in f && f.edit === "text" ? (
                       <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
                     ) : "edit" in f && f.edit === "date" ? (
-                      <InlineDate value={f.value} display={f.display} onSave={(v) => onUpdateField(f.field, v)} />
+                      <InlineDate value={f.value} display={f.display} showDays={"showDays" in f ? f.showDays : undefined} onSave={(v) => onUpdateField(f.field, v)} />
                     ) : "edit" in f && f.edit === "select" ? (
                       colLabel === "COC STATUS" && f.value === "Placed" ? (
                         <TooltipProvider>
@@ -3320,11 +3320,14 @@ function ProcessingCard({
   );
 }
 
-function InlineDate({ value, onSave, display }: { value: string; onSave: (v: string | null) => void; display?: string }) {
+function InlineDate({ value, onSave, display, showDays }: { value: string; onSave: (v: string | null) => void; display?: string; showDays?: boolean }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const fmt = (v: string) =>
     v ? new Date(v + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) : "";
+  const days = showDays && value
+    ? Math.floor((Date.now() - new Date(value + "T00:00:00").getTime()) / 86_400_000)
+    : null;
   if (!editing) {
     return (
       <button
@@ -3333,6 +3336,11 @@ function InlineDate({ value, onSave, display }: { value: string; onSave: (v: str
         className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block"
       >
         {display ?? (value ? fmt(value) : <span className="text-muted-foreground">—</span>)}
+        {days !== null && (
+          <span className="block text-[11px] text-muted-foreground leading-none mt-0.5">
+            ({days} day{days !== 1 ? "s" : ""})
+          </span>
+        )}
       </button>
     );
   }
