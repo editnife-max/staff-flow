@@ -3,10 +3,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Users, Clock, CheckCircle2, XCircle, RotateCcw, UserPlus, ChevronRight,
+  Users, Clock, CheckCircle2, XCircle, RotateCcw, UserPlus, ChevronRight, FileSpreadsheet,
   Stethoscope, FileCheck, ClipboardList, Ticket, FileText, CalendarX, Landmark, BadgeCheck, AlertTriangle, Send,
   Upload, Download, X, MapPin,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -415,6 +416,51 @@ function PaginationBar({
   );
 }
 
+// ─── Excel export ────────────────────────────────────────────────────────────
+function downloadCandidatesExcel(candidates: Candidate[], title: string) {
+  const cols: { key: keyof Candidate; label: string }[] = [
+    { key: "full_name",       label: "Full Name" },
+    { key: "passport_number", label: "Passport No." },
+    { key: "labour_id",       label: "Labour ID" },
+    { key: "occupation",      label: "Occupation" },
+    { key: "status",          label: "Status" },
+    { key: "coc_status",      label: "COC Status" },
+    { key: "medical_status",  label: "Medical Status" },
+    { key: "medical_date",    label: "Medical Date" },
+    { key: "tasheer_status",  label: "Tasheer" },
+    { key: "wokala_status",   label: "Wokala" },
+    { key: "visa_status",     label: "Visa Status" },
+    { key: "ticket_status",   label: "Ticket" },
+    { key: "ticket_date",     label: "Ticket Date" },
+    { key: "lmis_status",     label: "LMIS" },
+    { key: "musaned_status",  label: "Country" },
+    { key: "office",          label: "Office" },
+    { key: "narrative",       label: "Narrative" },
+    { key: "narrative_phone", label: "Narrative Phone" },
+    { key: "selected_by",     label: "Selected By" },
+    { key: "contract_date",   label: "Contract Date" },
+    { key: "arrival_city",    label: "Arrival City" },
+  ];
+  const header = cols.map((c) => c.label);
+  const rows = candidates.map((c) =>
+    cols.map((col) => { const v = c[col.key]; return v == null ? "" : String(v); })
+  );
+  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+  ws["!cols"] = header.map((h, i) => ({
+    wch: Math.max(h.length, ...rows.map((r) => String(r[i] ?? "").length), 10),
+  }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Candidates");
+  const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${title} — ${candidates.length} candidates.xlsx`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
+}
+
 // ─── Alert section ───────────────────────────────────────────────────────────
 function AlertSection({
   icon: Icon, title, iconColor, pillKey, candidates, getNote, renderBadge, onUpdateField, renderCardAction,
@@ -451,7 +497,17 @@ function AlertSection({
             {candidates.length}
           </span>
         </div>
-        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        <div className="flex items-center gap-2">
+          <span
+            role="button"
+            title="Download Excel"
+            className="p-1 rounded-none text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+            onClick={(e) => { e.stopPropagation(); downloadCandidatesExcel(candidates, title); }}
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+          </span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        </div>
       </button>
 
       <Dialog open={open} onOpenChange={(o) => { if (!o) setOpen(false); }}>
@@ -495,7 +551,11 @@ function AlertSection({
             onPageSize={(s) => { setPageSize(s); setPage(1); }}
             onBackToTop={() => listRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
           />
-          <div className="pt-2 flex justify-end">
+          <div className="pt-2 flex items-center justify-between">
+            <Button size="sm" variant="outline" className="rounded-none text-xs gap-1 text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-900/20"
+              onClick={() => downloadCandidatesExcel(candidates, title)}>
+              <FileSpreadsheet className="h-3.5 w-3.5" /> Download Excel
+            </Button>
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
               <Link to="/staff/candidates" onClick={() => setOpen(false)}>
                 Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
