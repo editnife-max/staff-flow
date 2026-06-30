@@ -2053,7 +2053,7 @@ function CandidateCardList({
             <span className="text-xs text-muted-foreground">
               {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filtered.length)} of {filtered.length}
             </span>
-            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"
+            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs font-bold"
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
               <ChevronUp className="h-3.5 w-3.5" /> Back to top
             </Button>
@@ -2565,7 +2565,7 @@ function ProcessingTable({
               )}
               {showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
             </button>
-            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"
+            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs font-bold"
               onClick={() => { setProcFilters(INITIAL_PROC_FILTERS); setSearch(""); }} disabled={activeCount === 0 && !search}>
               <RotateCcw className="h-3.5 w-3.5" /> Reset
             </Button>
@@ -2831,7 +2831,7 @@ function ProcessingTable({
             <span className="text-xs text-muted-foreground">
               {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filteredCandidates.length)} of {filteredCandidates.length}
             </span>
-            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"
+            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs font-bold"
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
               <ChevronUp className="h-3.5 w-3.5" /> Back to top
             </Button>
@@ -3368,7 +3368,7 @@ function FilterSelect({
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger
           className={cn(
-            "border shadow-none w-auto h-7 px-2 gap-1.5 transition-colors rounded-none text-[13px] font-medium [&>svg]:shrink-0",
+            "border shadow-none w-auto h-7 px-2 gap-1.5 transition-colors rounded-none text-[13px] font-bold [&>svg]:shrink-0",
             isReset
               ? "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
               : hasColor
@@ -3451,7 +3451,7 @@ function MultiFilterSelect({
           <button
             type="button"
             className={cn(
-              "flex items-center gap-1.5 border shadow-none h-7 px-2 transition-colors rounded-none text-[13px] font-medium",
+              "flex items-center gap-1.5 border shadow-none h-7 px-2 transition-colors rounded-none text-[13px] font-bold",
               isEmpty
                 ? "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
                 : hasSingleColor
