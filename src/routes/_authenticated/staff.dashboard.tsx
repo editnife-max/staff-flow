@@ -482,6 +482,42 @@ function AlertSection({
 }
 
 // ─── LMIS file upload components ─────────────────────────────────────────────
+async function downloadLmisAsPdf(url: string) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const ext = (url.split(".").pop()?.split("?")[0] ?? "").toLowerCase();
+    const isImage = ["jpg", "jpeg", "png", "webp", "bmp"].includes(ext) || blob.type.startsWith("image/");
+    if (isImage) {
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target!.result as string);
+        reader.readAsDataURL(blob);
+      });
+      const img = new Image();
+      await new Promise<void>((resolve) => { img.onload = () => resolve(); img.src = dataUrl; });
+      const { default: jsPDF } = await import("jspdf");
+      const pdf = new jsPDF({ orientation: img.width > img.height ? "landscape" : "portrait", unit: "mm" });
+      const pw = pdf.internal.pageSize.getWidth();
+      const ph = pdf.internal.pageSize.getHeight();
+      const ratio = Math.min(pw / img.width, ph / img.height);
+      pdf.addImage(dataUrl, ext === "png" ? "PNG" : "JPEG", (pw - img.width * ratio) / 2, (ph - img.height * ratio) / 2, img.width * ratio, img.height * ratio);
+      pdf.save("lmis_file.pdf");
+    } else {
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = "lmis_file.pdf";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objUrl);
+    }
+  } catch {
+    console.error("Download failed");
+  }
+}
+
 function LmisDocSection({
   label, url, onUpload, onRemove,
 }: {
@@ -504,10 +540,10 @@ function LmisDocSection({
       <div className="flex items-center justify-between min-h-[20px]">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
         {url && (
-          <a href={url} target="_blank" rel="noopener noreferrer"
+          <button type="button" onClick={() => downloadLmisAsPdf(url)}
             className="flex items-center gap-0.5 text-[11px] text-primary hover:underline">
-            <Download className="h-3 w-3" /> View
-          </a>
+            <Download className="h-3 w-3" /> Download
+          </button>
         )}
       </div>
       <div className="relative">

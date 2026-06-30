@@ -2876,15 +2876,36 @@ async function downloadFile(url: string) {
   try {
     const res = await fetch(url);
     const blob = await res.blob();
-    const ext = url.split(".").pop()?.split("?")[0] ?? "file";
-    const objUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = objUrl;
-    a.download = `lmis_file.${ext}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(objUrl);
+    const ext = (url.split(".").pop()?.split("?")[0] ?? "").toLowerCase();
+    const isImage = ["jpg", "jpeg", "png", "webp", "bmp"].includes(ext) || blob.type.startsWith("image/");
+
+    if (isImage) {
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target!.result as string);
+        reader.readAsDataURL(blob);
+      });
+      const img = new Image();
+      await new Promise<void>((resolve) => { img.onload = () => resolve(); img.src = dataUrl; });
+      const { default: jsPDF } = await import("jspdf");
+      const pdf = new jsPDF({ orientation: img.width > img.height ? "landscape" : "portrait", unit: "mm" });
+      const pw = pdf.internal.pageSize.getWidth();
+      const ph = pdf.internal.pageSize.getHeight();
+      const ratio = Math.min(pw / img.width, ph / img.height);
+      const iw = img.width * ratio;
+      const ih = img.height * ratio;
+      pdf.addImage(dataUrl, ext === "png" ? "PNG" : "JPEG", (pw - iw) / 2, (ph - ih) / 2, iw, ih);
+      pdf.save("lmis_file.pdf");
+    } else {
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = "lmis_file.pdf";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objUrl);
+    }
   } catch {
     toast.error("Download failed");
   }
