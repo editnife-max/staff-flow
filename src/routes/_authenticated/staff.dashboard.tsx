@@ -3,8 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Users, Clock, CheckCircle2, XCircle, RotateCcw,
-  ChevronDown, ChevronUp, Stethoscope, FileCheck, ClipboardList, Ticket, FileText, CalendarX, Landmark, BadgeCheck, AlertTriangle, Send,
+  Users, Clock, CheckCircle2, XCircle, RotateCcw, UserPlus, ChevronRight,
+  Stethoscope, FileCheck, ClipboardList, Ticket, FileText, CalendarX, Landmark, BadgeCheck, AlertTriangle, Send,
   Upload, Download, X, MapPin,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -432,18 +432,17 @@ function AlertSection({
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const sectionRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   if (candidates.length === 0) return null;
   const paginated = candidates.slice((page - 1) * pageSize, page * pageSize);
-  const handleToggle = () => { setOpen((o) => !o); setPage(1); };
-  const backToTop = () => sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const backToTop = () => contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
 
   return (
-    <div ref={sectionRef} className="rounded-none border border-border overflow-hidden">
+    <>
       <button
         type="button"
-        className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-background hover:bg-muted/50 transition-colors"
-        onClick={handleToggle}
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-background border border-border hover:bg-muted/50 transition-colors rounded-none"
+        onClick={() => { setOpen(true); setPage(1); }}
       >
         <div className="flex items-center gap-3">
           <Icon className={cn("h-4 w-4 shrink-0", iconColor)} />
@@ -452,32 +451,50 @@ function AlertSection({
             {candidates.length}
           </span>
         </div>
-        <ChevronDown className={cn("h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200", open && "rotate-180")} />
+        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
       </button>
 
-      {open && (
-        <div className="border-t border-border bg-muted/10 space-y-4 px-2 py-4">
-          {paginated.map((c) => (
-            <DashboardCandidateCard
-              key={c.id}
-              candidate={c}
-              note={getNote?.(c) ?? null}
-              onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
-              countryOptions={countryOptions}
-              extraAction={renderCardAction?.(c)}
+      <Dialog open={open} onOpenChange={(o) => { if (!o) setOpen(false); }}>
+        <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col rounded-none p-0 gap-0">
+          <DialogHeader className="px-4 pt-4 pb-3 border-b border-border shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Icon className={cn("h-5 w-5", iconColor)} />
+              {title}
+              <span className={cn("text-xs font-bold px-2 py-0.5 rounded-none", ALERT_PILL[pillKey])}>
+                {candidates.length}
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+          <div ref={contentRef} className="overflow-y-auto flex-1 space-y-4 px-2 py-4">
+            {paginated.map((c) => (
+              <DashboardCandidateCard
+                key={c.id}
+                candidate={c}
+                note={getNote?.(c) ?? null}
+                onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
+                countryOptions={countryOptions}
+                extraAction={renderCardAction?.(c)}
+              />
+            ))}
+            <PaginationBar
+              total={candidates.length}
+              page={page}
+              pageSize={pageSize}
+              onPage={setPage}
+              onPageSize={(s) => { setPageSize(s); setPage(1); }}
+              onBackToTop={backToTop}
             />
-          ))}
-          <PaginationBar
-            total={candidates.length}
-            page={page}
-            pageSize={pageSize}
-            onPage={setPage}
-            onPageSize={(s) => { setPageSize(s); setPage(1); }}
-            onBackToTop={backToTop}
-          />
-        </div>
-      )}
-    </div>
+          </div>
+          <div className="shrink-0 border-t border-border px-4 py-3 flex justify-end">
+            <Button asChild size="sm" className="rounded-none text-xs gap-1">
+              <Link to="/staff/candidates" onClick={() => setOpen(false)}>
+                Manage Candidates <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -835,7 +852,7 @@ function StaffDashboard() {
         <h1 className="text-xl font-bold tracking-tight">Dashboard</h1>
         <Button asChild size="sm" className="gap-2 text-xs h-8 rounded-none">
           <Link to="/staff/candidates">
-            <Users className="h-4 w-4" /> HR Pool
+            <UserPlus className="h-4 w-4" /> Manage Candidates
           </Link>
         </Button>
       </div>
