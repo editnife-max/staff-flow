@@ -15,6 +15,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import { updateCandidateField } from "@/lib/candidates.functions";
@@ -445,6 +447,46 @@ function downloadCandidatesExcel(candidates: Candidate[], title: string, cols: E
   a.download = `${title} — ${candidates.length} candidates.xlsx`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 30_000);
+}
+
+// ─── Ticket booking popup button ─────────────────────────────────────────────
+function TicketBookButton({ candidateId, candidateName, onConfirm }: {
+  candidateId: string;
+  candidateName: string;
+  onConfirm: (date: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState("");
+  return (
+    <>
+      <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+        onClick={() => { setOpen(true); setDate(""); }}>
+        Mark Booked
+      </Button>
+      <Dialog open={open} onOpenChange={(o) => { if (!o) setOpen(false); }}>
+        <DialogContent className="max-w-sm rounded-none">
+          <DialogHeader>
+            <DialogTitle>Book Ticket</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Enter the ticket date for <strong>{candidateName}</strong>.
+          </p>
+          <Input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="rounded-none h-9"
+          />
+          <DialogFooter>
+            <Button variant="ghost" className="rounded-none" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button disabled={!date} className="rounded-none" onClick={() => { onConfirm(date); setOpen(false); }}>
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }
 
 // ─── Alert section ───────────────────────────────────────────────────────────
@@ -1002,19 +1044,27 @@ function StaffDashboard() {
             exportCols={[...BASE, { key: "ticket_status", label: "Ticket" }, { key: "contract_date", label: "Contract Date" }, { key: "arrival_city", label: "Arrival City" }, { key: "office", label: "Office" }]}
             renderBadge={(c) => c.contract_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">{daysSince(c.contract_date)}d since contract</span> : null}
             renderCardAction={(c) => (
-              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
-                onClick={() => handleUpdateField(c.id, "ticket_status", "Booked")}>
-                Mark Booked
-              </Button>
+              <TicketBookButton
+                candidateId={c.id}
+                candidateName={c.full_name}
+                onConfirm={(date) => {
+                  handleUpdateField(c.id, "ticket_date", date);
+                  handleUpdateField(c.id, "ticket_status", "Booked");
+                }}
+              />
             )} />
           <AlertSection icon={Ticket} title="Ticket Ready" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketReady} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             exportCols={[...BASE, { key: "ticket_status", label: "Ticket" }, { key: "ticket_date", label: "Ticket Date" }, { key: "arrival_city", label: "Arrival City" }, { key: "passport_number", label: "Passport No." }]}
             renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Ready</span>}
             renderCardAction={(c) => (
-              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
-                onClick={() => handleUpdateField(c.id, "ticket_status", "Booked")}>
-                Mark Booked
-              </Button>
+              <TicketBookButton
+                candidateId={c.id}
+                candidateName={c.full_name}
+                onConfirm={(date) => {
+                  handleUpdateField(c.id, "ticket_date", date);
+                  handleUpdateField(c.id, "ticket_status", "Booked");
+                }}
+              />
             )} />
           <AlertSection icon={MapPin} title="Arrival City Not Set" iconColor="text-cyan-600 dark:text-cyan-400" pillKey="arrival" candidates={arrivalCityMissing} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             exportCols={[...BASE, { key: "arrival_city", label: "Arrival City" }, { key: "ticket_status", label: "Ticket" }, { key: "office", label: "Office" }]}
