@@ -2463,6 +2463,7 @@ function ProcessingTable({
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set(["destination_country", "office"]));
   const [showColPicker, setShowColPicker] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
+  const [showSearch, setShowSearch] = useState(false);
   const [search, setSearch] = useState("");
   const [procFilters, setProcFilters] = useState(INITIAL_PROC_FILTERS);
   const [activeCountryTab, setActiveCountryTab] = useState("all");
@@ -2596,15 +2597,11 @@ function ProcessingTable({
               )}
               {showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
             </button>
-            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs ml-auto"
-              onClick={() => { setProcFilters(INITIAL_PROC_FILTERS); setSearch(""); }}
+            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs font-bold text-black ml-auto"
+              onClick={() => { setProcFilters(INITIAL_PROC_FILTERS); setSearch(""); setShowSearch(false); }}
               disabled={activeCount === 0 && !search}>
               <RotateCcw className="h-3.5 w-3.5" /> Reset
             </Button>
-            <div className="relative w-48">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input className="pl-8 h-7 text-xs rounded-none" placeholder="Search name / passport…" value={search} onChange={(e) => setSearch(e.target.value)} />
-            </div>
             <div className="relative">
               <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs"
                 onClick={() => setShowColPicker((v) => !v)}>
@@ -2652,6 +2649,37 @@ function ProcessingTable({
               <MultiFilterSelect placeholder="Ticket" values={f.ticket_status} onChange={setMulti("ticket_status")} options={[{ value: "", label: "Not Selected" }, ...TICKET_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <MultiFilterSelect placeholder="Arrival City" values={f.arrival_city} onChange={setMulti("arrival_city")} options={[{ value: "", label: "Not Selected" }, ...ARRIVAL_CITY_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <MultiFilterSelect placeholder="Selected By" values={f.selected_by} onChange={setMulti("selected_by")} options={[{ value: "", label: "Not Selected" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />
+              {showSearch ? (
+                <div className="flex items-center gap-1">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      autoFocus
+                      className="pl-8 h-7 text-xs rounded-none w-52"
+                      placeholder="Search name / passport…"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setShowSearch(false); setSearch(""); }}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label="Close search"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowSearch(true)}
+                  className="flex items-center gap-1 text-[13px] font-bold text-black hover:opacity-70 transition-opacity"
+                  aria-label="Search"
+                >
+                  <Search className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           )}
           <div className="mt-2 text-xs text-muted-foreground">
