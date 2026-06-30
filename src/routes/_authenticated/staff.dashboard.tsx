@@ -417,7 +417,7 @@ function PaginationBar({
 
 // ─── Alert section ───────────────────────────────────────────────────────────
 function AlertSection({
-  icon: Icon, title, iconColor, pillKey, candidates, getNote, onUpdateField, countryOptions, renderCardAction,
+  icon: Icon, title, iconColor, pillKey, candidates, getNote, renderBadge, onUpdateField, renderCardAction,
 }: {
   icon: React.ElementType;
   title: string;
@@ -425,6 +425,7 @@ function AlertSection({
   pillKey: keyof typeof ALERT_PILL;
   candidates: Candidate[];
   getNote?: (c: Candidate) => string | null;
+  renderBadge?: (c: Candidate) => React.ReactNode;
   onUpdateField: (id: string, field: EditableField, value: string | null) => void;
   countryOptions: string[];
   renderCardAction?: (candidate: Candidate) => React.ReactNode;
@@ -432,10 +433,9 @@ function AlertSection({
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   if (candidates.length === 0) return null;
   const paginated = candidates.slice((page - 1) * pageSize, page * pageSize);
-  const backToTop = () => contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
 
   return (
     <>
@@ -455,40 +455,50 @@ function AlertSection({
       </button>
 
       <Dialog open={open} onOpenChange={(o) => { if (!o) setOpen(false); }}>
-        <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col rounded-none p-0 gap-0">
-          <DialogHeader className="px-4 pt-4 pb-3 border-b border-border shrink-0">
-            <DialogTitle className="flex items-center gap-2 text-base">
+        <DialogContent className="max-w-lg rounded-none">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
               <Icon className={cn("h-5 w-5", iconColor)} />
-              {title}
-              <span className={cn("text-xs font-bold px-2 py-0.5 rounded-none", ALERT_PILL[pillKey])}>
-                {candidates.length}
-              </span>
+              {title} ({candidates.length})
             </DialogTitle>
           </DialogHeader>
-          <div ref={contentRef} className="overflow-y-auto flex-1 space-y-4 px-2 py-4">
+          <div ref={listRef} className="max-h-[50vh] overflow-y-auto divide-y divide-border">
             {paginated.map((c) => (
-              <DashboardCandidateCard
-                key={c.id}
-                candidate={c}
-                note={getNote?.(c) ?? null}
-                onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
-                countryOptions={countryOptions}
-                extraAction={renderCardAction?.(c)}
-              />
+              <div key={c.id} className="flex items-center gap-3 py-3">
+                <Avatar className="h-9 w-9 shrink-0">
+                  {c.photo_url && <AvatarImage src={c.photo_url} alt={c.full_name} />}
+                  <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
+                </div>
+                <div className="shrink-0 flex items-center gap-2">
+                  {renderCardAction?.(c)}
+                  <div className="text-right">
+                    {renderBadge ? renderBadge(c) : getNote?.(c) ? (
+                      <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-none", ALERT_PILL[pillKey])}>
+                        {getNote(c)}
+                      </span>
+                    ) : null}
+                    <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+                  </div>
+                </div>
+              </div>
             ))}
-            <PaginationBar
-              total={candidates.length}
-              page={page}
-              pageSize={pageSize}
-              onPage={setPage}
-              onPageSize={(s) => { setPageSize(s); setPage(1); }}
-              onBackToTop={backToTop}
-            />
           </div>
-          <div className="shrink-0 border-t border-border px-4 py-3 flex justify-end">
+          <PaginationBar
+            total={candidates.length}
+            page={page}
+            pageSize={pageSize}
+            onPage={setPage}
+            onPageSize={(s) => { setPageSize(s); setPage(1); }}
+            onBackToTop={() => listRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
+          />
+          <div className="pt-2 flex justify-end">
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
               <Link to="/staff/candidates" onClick={() => setOpen(false)}>
-                Manage Candidates <ChevronRight className="h-3.5 w-3.5" />
+                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
               </Link>
             </Button>
           </div>
@@ -882,58 +892,68 @@ function StaffDashboard() {
       {/* Alert sections */}
       {(cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || cvOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0) && (
         <div className="space-y-2">
-          <AlertSection icon={FileCheck}    title="COC — No"                     iconColor="text-orange-600 dark:text-orange-400" pillKey="coc"     candidates={cocNo}         onUpdateField={handleUpdateField} countryOptions={countryOptions} />
-          <AlertSection icon={FileCheck}    title="COC — Placed"                 iconColor="text-violet-600 dark:text-violet-400" pillKey="coc"     candidates={cocPlaced}     onUpdateField={handleUpdateField} countryOptions={countryOptions} />
-          <AlertSection icon={Stethoscope}  title="Medical — Not Fit"            iconColor="text-red-600 dark:text-red-400"       pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
+          <AlertSection icon={FileCheck}    title="COC — No"                     iconColor="text-orange-600 dark:text-orange-400" pillKey="coc"     candidates={cocNo}         onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300">No</span>} />
+          <AlertSection icon={FileCheck}    title="COC — Placed"                 iconColor="text-violet-600 dark:text-violet-400" pillKey="coc"     candidates={cocPlaced}     onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Placed</span>} />
+          <AlertSection icon={Stethoscope}  title="Medical — Not Fit"            iconColor="text-red-600 dark:text-red-400"       pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">{c.medical_status}</span>} />
           <AlertSection icon={Stethoscope}  title="COC Done — Medical Not Fit"  iconColor="text-fuchsia-600 dark:text-fuchsia-400" pillKey="medical" candidates={cocDoneNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions}
-            getNote={(c) => c.medical_status ?? null} />
+            renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">{c.medical_status}</span>} />
           <AlertSection icon={CalendarX}    title="Medical — Expired"            iconColor="text-rose-600 dark:text-rose-400"     pillKey="medexp"  candidates={medicalExpired} onUpdateField={handleUpdateField} countryOptions={countryOptions}
-            getNote={(c) => {
-              if (c.medical_status === "Expired") return "Set as expired";
-              if (c.medical_date) return `${daysSince(c.medical_date)}d since medical`;
-              return null;
-            }} />
-          <AlertSection icon={ClipboardList} title="LMIS file"               iconColor="text-amber-600 dark:text-amber-400"   pillKey="lmis"    candidates={unfilledLmis}  onUpdateField={handleUpdateField} countryOptions={countryOptions} />
+            renderBadge={(c) => (
+              <div className="text-right">
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">Expired</span>
+                {c.medical_date && <p className="text-[10px] text-muted-foreground mt-0.5">{daysSince(c.medical_date)}d ago</p>}
+              </div>
+            )} />
+          <AlertSection icon={ClipboardList} title="LMIS file"               iconColor="text-amber-600 dark:text-amber-400"   pillKey="lmis"    candidates={unfilledLmis}  onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{c.unfilled_lmis}</span>} />
           <AlertSection icon={Ticket}        title="Ticket Not Booked — Over 20 Days" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketNotBooked} onUpdateField={handleUpdateField} countryOptions={countryOptions}
-            getNote={(c) => c.contract_date ? `${daysSince(c.contract_date)}d since contract` : null} />
-          <AlertSection icon={Ticket}        title="Ticket Ready" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketReady} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
+            renderBadge={(c) => c.contract_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">{daysSince(c.contract_date)}d since contract</span> : null} />
+          <AlertSection icon={Ticket}        title="Ticket Ready" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketReady} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Ready</span>} />
           <AlertSection icon={MapPin}        title="Arrival City Not Set" iconColor="text-cyan-600 dark:text-cyan-400" pillKey="arrival" candidates={arrivalCityMissing} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
           <AlertSection icon={Landmark}      title="Embassy Visa — Pending"      iconColor="text-sky-600 dark:text-sky-400"       pillKey="embassy"   candidates={embassyPending} onUpdateField={handleUpdateField} countryOptions={countryOptions}
-            getNote={(c) => c.processing_notes ?? null} />
+            renderBadge={(c) => c.processing_notes ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300 max-w-[120px] truncate block">{c.processing_notes}</span> : null} />
           <AlertSection icon={BadgeCheck}    title="Ready for Embassy Visa"      iconColor="text-emerald-600 dark:text-emerald-400" pillKey="visaready"  candidates={visaReady}     onUpdateField={handleUpdateField} countryOptions={countryOptions}
-            getNote={(c) => c.visa_status === "Ready for embassy" ? "Manual" : null} />
+            renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">{c.visa_status === "Ready for embassy" ? "Ready" : "Auto"}</span>} />
           <AlertSection icon={RotateCcw}     title="Visa Returned"               iconColor="text-rose-600 dark:text-rose-400"       pillKey="visareturn" candidates={visaReturned}  onUpdateField={handleUpdateField} countryOptions={countryOptions}
-            getNote={(c) => c.remark ?? null} />
+            renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">Returned</span>} />
           <AlertSection icon={AlertTriangle} title="Tasheer Overdue — Booked Date Passed" iconColor="text-amber-600 dark:text-amber-400" pillKey="tasheer" candidates={tasheerOverdue} onUpdateField={handleUpdateField} countryOptions={countryOptions}
-            getNote={(c) => c.tasheer_date ? `${daysSince(c.tasheer_date)}d overdue` : null}
+            renderBadge={(c) => c.tasheer_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{daysSince(c.tasheer_date)}d overdue</span> : null}
             renderCardAction={(c) => (
-              <Button
-                size="sm"
-                className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
-                onClick={() => handleUpdateField(c.id, "tasheer_status", "Done")}
-              >
+              <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => handleUpdateField(c.id, "tasheer_status", "Done")}>
                 Done
               </Button>
             )} />
-          <AlertSection icon={AlertTriangle} title="Tasheer Done — Wokala Unpaid" iconColor="text-violet-600 dark:text-violet-400"   pillKey="tasheer"   candidates={tasheerDoneWokalaUnpaid} onUpdateField={handleUpdateField} countryOptions={countryOptions} />
-          <AlertSection icon={XCircle}      title="Tasheer — Ready"               iconColor="text-red-600 dark:text-red-400"          pillKey="tasheer"   candidates={passportNotAccepted}    onUpdateField={handleUpdateField} countryOptions={countryOptions}
+          <AlertSection icon={AlertTriangle} title="Tasheer Done — Wokala Unpaid" iconColor="text-violet-600 dark:text-violet-400"   pillKey="tasheer"   candidates={tasheerDoneWokalaUnpaid} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Unpaid</span>}
             renderCardAction={(c) => (
-              <Button
-                size="sm"
-                className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
+              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                onClick={() => handleUpdateField(c.id, "wokala_status", "Paid")}>
+                Mark Paid
+              </Button>
+            )} />
+          <AlertSection icon={XCircle}      title="Tasheer — Ready"               iconColor="text-red-600 dark:text-red-400"          pillKey="tasheer"   candidates={passportNotAccepted}    onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">Ready</span>}
+            renderCardAction={(c) => (
+              <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
                 onClick={() => {
                   handleUpdateField(c.id, "passport_accepted", "true");
                   handleUpdateField(c.id, "tasheer_status", "Done");
                   handleUpdateField(c.id, "visa_status", "Ready for embassy");
-                }}
-              >
+                }}>
                 Yes
               </Button>
             )} />
           <AlertSection icon={Send}          title="CV Sent — No Selection"        iconColor="text-teal-600 dark:text-teal-400"        pillKey="cvoverdue" candidates={cvOverdue}               onUpdateField={handleUpdateField} countryOptions={countryOptions}
-            getNote={(c) => c.cv_sent_date ? `${Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000)}d ago` : null} />
-          <AlertSection icon={Stethoscope}  title="Medical Fit — LMIS Not Tested" iconColor="text-teal-600 dark:text-teal-400"        pillKey="fitlmis"   candidates={fitLmisNotTested}        onUpdateField={handleUpdateField} countryOptions={countryOptions} />
+            renderBadge={(c) => c.cv_sent_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">{Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000)}d ago</span> : null} />
+          <AlertSection icon={Stethoscope}  title="Medical Fit — LMIS Not Tested" iconColor="text-teal-600 dark:text-teal-400"        pillKey="fitlmis"   candidates={fitLmisNotTested}        onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">Not Tested</span>} />
           <AlertSection icon={Upload}        title="LMIS Draft / Imported — Upload Files" iconColor="text-indigo-600 dark:text-indigo-400" pillKey="lmis" candidates={lmisDraftImported} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">{c.lmis_status}</span>}
             renderCardAction={(c) => (
               <LmisUploadButton
                 candidate={c}
