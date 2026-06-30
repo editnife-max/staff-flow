@@ -3333,14 +3333,7 @@ function FilterSelect({
   return (
     <div className="flex items-center gap-0.5">
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className={cn(
-          "border shadow-none w-auto h-7 px-2 gap-1.5 transition-colors rounded-none text-[13px] font-bold [&>svg]:shrink-0",
-          isReset
-            ? "bg-muted/40 border-border text-black hover:bg-muted hover:text-black"
-            : hasColor
-              ? cn(OPTION_COLORS[value], "border-transparent text-black")
-              : "bg-black/10 border-black/20 text-black dark:bg-white/10 dark:border-white/20 dark:text-black",
-        )}>
+        <SelectTrigger className="border-0 bg-transparent shadow-none h-auto w-auto px-0 gap-1 text-[13px] font-bold text-black hover:opacity-70 transition-opacity [&>svg]:shrink-0">
           {Icon && <Icon className="h-3 w-3 shrink-0" />}
           {isReset ? (
             <span>{placeholder}</span>
@@ -3412,14 +3405,7 @@ function MultiFilterSelect({
         <PopoverTrigger asChild>
           <button
             type="button"
-            className={cn(
-              "flex items-center gap-1.5 border shadow-none h-7 px-2 transition-colors rounded-none text-[13px] font-bold",
-              isEmpty
-                ? "bg-muted/40 border-border text-black hover:bg-muted hover:text-black"
-                : hasSingleColor
-                  ? cn(OPTION_COLORS[values[0]], "border-transparent text-black")
-                  : "bg-black/10 border-black/20 text-black dark:bg-white/10 dark:border-white/20 dark:text-black",
-            )}
+            className="flex items-center gap-1 bg-transparent border-0 text-[13px] font-bold text-black hover:opacity-70 transition-opacity px-0"
           >
             {Icon && <Icon className="h-3 w-3 shrink-0" />}
             <span>{triggerLabel}</span>
