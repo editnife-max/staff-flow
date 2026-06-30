@@ -1454,7 +1454,7 @@ function ManagerCandidatesPage() {
             <FormSection title="Passport" required>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Passport Number *" value={form.passport_number} onChange={(v) => setForm({ ...form, passport_number: v })} />
-                <Field label="Labour ID *" value={form.labour_id} onChange={(v) => setForm({ ...form, labour_id: v })} />
+                <Field label="Labour ID *" value={form.labour_id} onChange={(v) => setForm({ ...form, labour_id: v.toUpperCase() })} placeholder="EF/EM + 8 digits" maxLength={10} />
                 <Field label="Issue Date *" type="date" value={form.passport_issue_date} onChange={(v) => setForm({ ...form, passport_issue_date: v })} />
                 <Field label="Expiry Date *" type="date" value={form.passport_expiry_date} onChange={(v) => setForm({ ...form, passport_expiry_date: v })} />
                 <div className="col-span-2">
@@ -1593,6 +1593,9 @@ function ManagerCandidatesPage() {
                 }
                 if (!form.labour_id?.trim() || !form.passport_issue_date) {
                   toast.error("Labour ID and Issue Date are required"); return;
+                }
+                if (!/^(EF|EM)\d{8}$/.test(form.labour_id.trim())) {
+                  toast.error("Labour ID must be 10 characters starting with EF or EM followed by 8 digits"); return;
                 }
                 if (!form.experience) {
                   toast.error("Work Experience is required"); return;
@@ -3473,11 +3476,11 @@ function MultiFilterSelect({
   );
 }
 
-function Field({ label, value, onChange, type = "text", placeholder }: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string }) {
+function Field({ label, value, onChange, type = "text", placeholder, maxLength }: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string; maxLength?: number }) {
   return (
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
-      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="rounded-none h-9" placeholder={placeholder} />
+      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="rounded-none h-9" placeholder={placeholder} maxLength={maxLength} />
     </div>
   );
 }
