@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   Users, Clock, CheckCircle2, XCircle, RotateCcw, UserPlus, ChevronRight, FileSpreadsheet,
   Stethoscope, FileCheck, ClipboardList, Ticket, FileText, CalendarX, Landmark, BadgeCheck,
-  AlertTriangle, Send, Upload, Download, X, MapPin,
+  AlertTriangle, Send, Upload, Download, X, MapPin, TrendingUp,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -528,6 +528,16 @@ function ManagerDashboard() {
     },
   });
 
+  const { data: staffList = [] } = useQuery({
+    queryKey: ["staff-list", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("staff").select("id, name, role_title, status").order("name");
+      if (error) throw error;
+      return data as { id: string; name: string; role_title: string | null; status: string }[];
+    },
+  });
+
   const { data: profile } = useQuery({
     queryKey: ["manager-profile", user?.id],
     enabled: !!user,
@@ -606,6 +616,23 @@ function ManagerDashboard() {
     canceled:   candidates.filter((c) => c.status === "canceled").length,
     returned:   candidates.filter((c) => c.status === "returned").length,
   };
+
+  const staffStats = staffList
+    .map((s) => {
+      const assigned  = candidates.filter((c) => (c as any).assigned_staff_id === s.id);
+      const arrived    = assigned.filter((c) => c.status === "arrived").length;
+      const processing = assigned.filter((c) => c.status === "processing").length;
+      const canceled   = assigned.filter((c) => c.status === "canceled").length;
+      const returned   = assigned.filter((c) => c.status === "returned").length;
+      const tot        = assigned.length;
+      const rate       = tot > 0 ? Math.round((arrived / tot) * 100) : 0;
+      return { ...s, total: tot, arrived, processing, canceled, returned, rate };
+    })
+    .sort((a, b) => b.arrived - a.arrived || b.total - a.total);
+
+  const avgRate = staffStats.length > 0
+    ? Math.round(staffStats.reduce((s, r) => s + r.rate, 0) / staffStats.length)
+    : 0;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -701,6 +728,71 @@ function ManagerDashboard() {
           );
         })}
       </div>
+
+      {/* Staff Performance */}
+      {staffStats.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between px-0.5">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Staff Performance</span>
+            </div>
+            <span className="text-[11px] text-muted-foreground">
+              {staffStats.length} staff &bull; avg arrival rate: <strong>{avgRate}%</strong>
+            </span>
+          </div>
+          <div className="border border-border overflow-hidden rounded-none">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-muted/40 border-b border-border">
+                  <th className="text-left px-3 py-2 font-medium text-muted-foreground">Name</th>
+                  <th className="text-center px-3 py-2 font-medium text-muted-foreground">Assigned</th>
+                  <th className="text-center px-3 py-2 font-medium text-muted-foreground">Arrived</th>
+                  <th className="text-center px-3 py-2 font-medium text-muted-foreground">Processing</th>
+                  <th className="text-center px-3 py-2 font-medium text-muted-foreground">Canceled</th>
+                  <th className="text-center px-3 py-2 font-medium text-muted-foreground">Returned</th>
+                  <th className="text-center px-3 py-2 font-medium text-muted-foreground">Arrival Rate</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {staffStats.map((s) => (
+                  <tr key={s.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-3 py-2">
+                      <span className="font-medium">{s.name}</span>
+                      {s.role_title && (
+                        <span className="ml-1.5 text-muted-foreground text-[11px]">{s.role_title}</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-center font-medium">{s.total}</td>
+                    <td className="px-3 py-2 text-center font-semibold text-emerald-600 dark:text-emerald-400">{s.arrived}</td>
+                    <td className="px-3 py-2 text-center text-amber-600 dark:text-amber-400">{s.processing}</td>
+                    <td className="px-3 py-2 text-center text-red-500 dark:text-red-400">{s.canceled}</td>
+                    <td className="px-3 py-2 text-center text-orange-500 dark:text-orange-400">{s.returned}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="h-1.5 w-14 bg-muted rounded-full overflow-hidden shrink-0">
+                          <div
+                            className={cn("h-full rounded-full transition-all",
+                              s.rate >= 70 ? "bg-emerald-500" : s.rate >= 40 ? "bg-amber-500" : "bg-red-500"
+                            )}
+                            style={{ width: `${s.rate}%` }}
+                          />
+                        </div>
+                        <span className={cn("font-semibold tabular-nums",
+                          s.rate >= 70 ? "text-emerald-600 dark:text-emerald-400" :
+                          s.rate >= 40 ? "text-amber-600 dark:text-amber-400" : "text-red-500 dark:text-red-400"
+                        )}>
+                          {s.rate}%
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Alert sections */}
       {hasAlerts && (
