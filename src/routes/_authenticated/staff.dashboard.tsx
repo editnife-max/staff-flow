@@ -449,6 +449,46 @@ function downloadCandidatesExcel(candidates: Candidate[], title: string, cols: E
   setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
+// ─── Medical re-book popup button ────────────────────────────────────────────
+function MedicalBookButton({ candidateId, candidateName, onConfirm }: {
+  candidateId: string;
+  candidateName: string;
+  onConfirm: (date: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState("");
+  return (
+    <>
+      <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+        onClick={() => { setOpen(true); setDate(""); }}>
+        Re-Book
+      </Button>
+      <Dialog open={open} onOpenChange={(o) => { if (!o) setOpen(false); }}>
+        <DialogContent className="max-w-sm rounded-none">
+          <DialogHeader>
+            <DialogTitle>Book Medical</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Enter the medical appointment date for <strong>{candidateName}</strong>.
+          </p>
+          <Input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="rounded-none h-9"
+          />
+          <DialogFooter>
+            <Button variant="ghost" className="rounded-none" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button disabled={!date} className="rounded-none" onClick={() => { onConfirm(date); setOpen(false); }}>
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 // ─── Ticket booking popup button ─────────────────────────────────────────────
 function TicketBookButton({ candidateId, candidateName, onConfirm }: {
   candidateId: string;
@@ -985,37 +1025,57 @@ function StaffDashboard() {
             exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "labour_id", label: "Labour ID" }, { key: "office", label: "Office" }, { key: "narrative", label: "Narrative" }, { key: "narrative_phone", label: "Narrative Phone" }]}
             renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300">No</span>}
             renderCardAction={(c) => (
-              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
-                onClick={() => handleUpdateField(c.id, "coc_status", "Booked")}>
-                Book COC
-              </Button>
+              <Select onValueChange={(v) => handleUpdateField(c.id, "coc_status", v)}>
+                <SelectTrigger className="h-7 text-xs rounded-none w-[130px]">
+                  <SelectValue placeholder="Set COC" />
+                </SelectTrigger>
+                <SelectContent>
+                  {["Done", "No", "Booked", "Placed", "Yitazez", "Pending release"].map((opt) => (
+                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )} />
           <AlertSection icon={FileCheck} title="COC — Placed" iconColor="text-violet-600 dark:text-violet-400" pillKey="coc" candidates={cocPlaced} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "labour_id", label: "Labour ID" }, { key: "selected_by", label: "Selected By" }, { key: "office", label: "Office" }]}
             renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Placed</span>}
             renderCardAction={(c) => (
-              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
-                onClick={() => handleUpdateField(c.id, "coc_status", "Done")}>
-                Mark Done
-              </Button>
+              <Select onValueChange={(v) => handleUpdateField(c.id, "coc_status", v)}>
+                <SelectTrigger className="h-7 text-xs rounded-none w-[130px]">
+                  <SelectValue placeholder="Set COC" />
+                </SelectTrigger>
+                <SelectContent>
+                  {["Done", "No", "Booked", "Placed", "Yitazez", "Pending release"].map((opt) => (
+                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )} />
           <AlertSection icon={Stethoscope} title="Medical — Not Fit" iconColor="text-red-600 dark:text-red-400" pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }, { key: "coc_status", label: "COC Status" }, { key: "office", label: "Office" }]}
             renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">{c.medical_status}</span>}
             renderCardAction={(c) => (
-              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
-                onClick={() => handleUpdateField(c.id, "medical_status", "Booked")}>
-                Re-Book
-              </Button>
+              <MedicalBookButton
+                candidateId={c.id}
+                candidateName={c.full_name}
+                onConfirm={(date) => {
+                  handleUpdateField(c.id, "medical_date", date);
+                  handleUpdateField(c.id, "medical_status", "Booked");
+                }}
+              />
             )} />
           <AlertSection icon={Stethoscope} title="COC Done — Medical Not Fit" iconColor="text-fuchsia-600 dark:text-fuchsia-400" pillKey="medical" candidates={cocDoneNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }]}
             renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">{c.medical_status}</span>}
             renderCardAction={(c) => (
-              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
-                onClick={() => handleUpdateField(c.id, "medical_status", "Booked")}>
-                Re-Book
-              </Button>
+              <MedicalBookButton
+                candidateId={c.id}
+                candidateName={c.full_name}
+                onConfirm={(date) => {
+                  handleUpdateField(c.id, "medical_date", date);
+                  handleUpdateField(c.id, "medical_status", "Booked");
+                }}
+              />
             )} />
           <AlertSection icon={CalendarX} title="Medical — Expired" iconColor="text-rose-600 dark:text-rose-400" pillKey="medexp" candidates={medicalExpired} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }]}
@@ -1026,10 +1086,14 @@ function StaffDashboard() {
               </div>
             )}
             renderCardAction={(c) => (
-              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
-                onClick={() => handleUpdateField(c.id, "medical_status", "Booked")}>
-                Re-Book
-              </Button>
+              <MedicalBookButton
+                candidateId={c.id}
+                candidateName={c.full_name}
+                onConfirm={(date) => {
+                  handleUpdateField(c.id, "medical_date", date);
+                  handleUpdateField(c.id, "medical_status", "Booked");
+                }}
+              />
             )} />
           <AlertSection icon={ClipboardList} title="LMIS file" iconColor="text-amber-600 dark:text-amber-400" pillKey="lmis" candidates={unfilledLmis} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             exportCols={[...BASE, { key: "lmis_status", label: "LMIS Status" }, { key: "unfilled_lmis", label: "Unfilled LMIS" }, { key: "labour_id", label: "Labour ID" }]}

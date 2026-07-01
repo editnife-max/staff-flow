@@ -188,6 +188,23 @@ export const updateCandidateField = createServerFn({ method: "POST" })
       payload.cv_sent_date = new Date().toISOString().split("T")[0];
     }
 
+    // Clear ticket_date whenever ticket_status changes to anything other than "Booked"
+    if (data.field === "ticket_status" && raw !== "Booked") {
+      payload.ticket_date = null;
+    }
+
+    // When tasheer_status changes, clear downstream fields.
+    // Preserve tasheer_date when setting to "Booked" (date is captured in the booking popup)
+    // or "Done" (date reflects when the appointment was booked).
+    if (data.field === "tasheer_status") {
+      payload.wokala_status = null;
+      payload.embassy_date = null;
+      payload.visa_status = null;
+      if (raw !== "Booked" && raw !== "Done") {
+        payload.tasheer_date = null;
+      }
+    }
+
     // Auto-assign cv_sent_to when the Country (musaned_status) field is set
     if (data.field === "musaned_status" && raw) {
       payload.cv_sent_to = raw;
