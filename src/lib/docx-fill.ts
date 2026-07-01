@@ -169,7 +169,12 @@ export const CV_FIELD_MAP = (c: Candidate): [string, string][] => [
   ["NOTES",                  c.notes ?? c.remark                           ?? ""],
   ["NOTE",                   c.notes ?? c.remark                           ?? ""],
   ["REF NO",                 c.serial_number ?? c.candidate_code            ?? ""],
+  ["REG NO",                 c.serial_number ?? c.candidate_code            ?? ""],
   ["CONTACT NO",             c.narrative_phone ?? c.emergency_contact       ?? ""],
+  ["HOUSE MAID MOB",         c.narrative_phone ?? c.emergency_contact       ?? ""],
+  ["COUNTRY",                c.experience_country                           ?? ""],
+  ["HIGHEST EDUCATIONAL LEVEL", c.education                                 ?? ""],
+  ["DATE OF BIRTH & AGE",    (c.dob ?? "") + (c.age != null ? " " + String(c.age) : "")],
 ];
 
 function xmlEsc(s: string) {
