@@ -973,17 +973,31 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
 
       let beforeInsert = xml.slice(0, insertAt);
 
+      // Returns true when the slice has balanced <w:tc> open/close counts,
+      // meaning we are at body level and not mid-way through a table cell.
+      const atBodyLevel = (slice: string): boolean => {
+        const opens  = (slice.match(/<w:tc[\s>]/g) ?? []).length;
+        const closes = (slice.match(/<\/w:tc>/g) ?? []).length;
+        return opens === closes;
+      };
+
       // Remove the intermediate section-break paragraph and everything after it.
       // 2-page templates embed a <w:sectPr> inside a paragraph's <w:pPr> to create
       // a page boundary — this is what produces the blank page-2 slot. Cutting at
       // that paragraph removes the blank page and all trailing placeholder content.
+      // Guard: only truncate if the cut point is at body level, not inside a table cell.
       const innerSectPrPos = beforeInsert.indexOf("<w:sectPr");
       if (innerSectPrPos !== -1) {
         const paraStart = beforeInsert.lastIndexOf("<w:p", innerSectPrPos);
-        if (paraStart !== -1) beforeInsert = beforeInsert.slice(0, paraStart);
+        if (paraStart !== -1) {
+          const candidate = beforeInsert.slice(0, paraStart);
+          if (atBodyLevel(candidate)) beforeInsert = candidate;
+        }
       }
 
       // Strip any remaining trailing empty paragraphs (no <w:r> runs).
+      // Only strip paragraphs that are at body level — never strip inside a table cell,
+      // as that would leave unclosed <w:tc> tags before </w:body> and corrupt the file.
       let stripping = true;
       while (stripping) {
         stripping = false;
@@ -993,8 +1007,11 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
           if (idx > lastParaStart) lastParaStart = idx;
         }
         if (lastParaStart !== -1 && !/<w:r[\s>]/.test(beforeInsert.slice(lastParaStart))) {
-          beforeInsert = beforeInsert.slice(0, lastParaStart);
-          stripping = true;
+          const candidate = beforeInsert.slice(0, lastParaStart);
+          if (atBodyLevel(candidate)) {
+            beforeInsert = candidate;
+            stripping = true;
+          }
         }
       }
 
