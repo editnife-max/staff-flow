@@ -122,6 +122,18 @@ export async function candidateToCanvas(c: Candidate, template: CvTemplate | nul
   const root = createRoot(container);
   flushSync(() => root.render(<CvPreview candidate={c} template={template} />));
   const el = (container.firstElementChild as HTMLElement) ?? container;
+
+  // Wait for all images to finish loading before screenshotting — otherwise
+  // cross-origin photos render as blank in the PDF.
+  const imgs = Array.from(el.querySelectorAll("img")) as HTMLImageElement[];
+  await Promise.all(
+    imgs.map((img) =>
+      img.complete
+        ? Promise.resolve()
+        : new Promise<void>((res) => { img.onload = () => res(); img.onerror = () => res(); }),
+    ),
+  );
+
   const canvas = await html2canvas(el, {
     scale: 2, backgroundColor: "#ffffff", useCORS: true, allowTaint: false,
     onclone: (_doc, cloned) => {
@@ -132,5 +144,6 @@ export async function candidateToCanvas(c: Candidate, template: CvTemplate | nul
   });
   root.unmount();
   document.body.removeChild(container);
+  if (!canvas.width || !canvas.height) throw new Error("CV rendered to a blank canvas — check the candidate photo URL.");
   return canvas;
 }

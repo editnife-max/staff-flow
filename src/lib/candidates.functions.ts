@@ -93,10 +93,13 @@ const InlineFieldSchema = z.object({
 });
 
 async function resolveChangedBy(userId: string): Promise<{ name: string; email: string | null }> {
-  const { data: staffRow } = await supabaseAdmin.from("staff").select("name").eq("user_id", userId).maybeSingle();
-  const { data: profile } = await supabaseAdmin.from("profiles").select("full_name, email").eq("id", userId).maybeSingle();
+  const [{ data: staffRow }, { data: profile }, { data: { user } }] = await Promise.all([
+    supabaseAdmin.from("staff").select("name").eq("user_id", userId).maybeSingle(),
+    supabaseAdmin.from("profiles").select("full_name").eq("id", userId).maybeSingle(),
+    supabaseAdmin.auth.admin.getUserById(userId),
+  ]);
   const name = staffRow?.name ?? profile?.full_name ?? "Unknown";
-  const email = (profile as any)?.email ?? null;
+  const email = user?.email ?? null;
   return { name, email };
 }
 
