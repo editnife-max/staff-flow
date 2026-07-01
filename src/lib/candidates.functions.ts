@@ -92,6 +92,19 @@ const InlineFieldSchema = z.object({
   value: z.string().nullable(),
 });
 
+async function resolveChangedBy(userId: string): Promise<{ name: string; email: string | null }> {
+  const { data: staffRow } = await supabaseAdmin.from("staff").select("name").eq("user_id", userId).maybeSingle();
+  const { data: profile } = await supabaseAdmin.from("profiles").select("full_name, email").eq("id", userId).maybeSingle();
+  const name = staffRow?.name ?? profile?.full_name ?? "Unknown";
+  const email = (profile as any)?.email ?? null;
+  return { name, email };
+}
+
+const UNTRACKED_FIELDS = new Set([
+  "lmis_insu_url", "lmis_coc_url", "lmis_id_url", "lmis_id_relative_url", "video_url",
+  "photo_url", "full_photo_url", "passport_scan_url", "medical_days",
+]);
+
 async function resolveManagerId(userId: string): Promise<string> {
   const { data: roles } = await supabaseAdmin
     .from("user_roles")
@@ -122,12 +135,44 @@ export const upsertCandidate = createServerFn({ method: "POST" })
     };
 
     if (data.id) {
-      const { error } = await (supabaseAdmin
-        .from("candidates") as any)
-        .update(autoCountryPatch(data.data))
+      // Fetch existing values before update so we can log what changed
+      const { data: existing } = await (supabaseAdmin.from("candidates") as any)
+        .select("*")
+        .eq("id", data.id)
+        .eq("manager_id", managerId)
+        .maybeSingle();
+
+      const patched = autoCountryPatch(data.data);
+      const { error } = await (supabaseAdmin.from("candidates") as any)
+        .update(patched)
         .eq("id", data.id)
         .eq("manager_id", managerId);
       if (error) throw new Error(error.message);
+
+      if (existing) {
+        const { name: changedByName, email: changedByEmail } = await resolveChangedBy(context.userId);
+        const logRows: Record<string, unknown>[] = [];
+        for (const [field, newVal] of Object.entries(patched)) {
+          if (UNTRACKED_FIELDS.has(field)) continue;
+          const oldRaw = existing[field];
+          const oldStr = oldRaw == null ? null : String(oldRaw);
+          const newStr = newVal == null ? null : String(newVal);
+          if (oldStr === newStr) continue;
+          logRows.push({
+            candidate_id: data.id,
+            field,
+            old_value: oldStr,
+            new_value: newStr,
+            changed_by_user_id: context.userId,
+            changed_by_name: changedByName,
+            changed_by_email: changedByEmail,
+          });
+        }
+        if (logRows.length > 0) {
+          await supabaseAdmin.from("candidate_field_log").insert(logRows as never);
+        }
+      }
+
       return { ok: true, id: data.id };
     }
     // Resolve "Added By" name from staff record (if creator is staff) or profile
@@ -244,9 +289,6 @@ export const updateCandidateField = createServerFn({ method: "POST" })
       }
     }
 
-    const UNTRACKED_FIELDS = new Set([
-      "lmis_insu_url", "lmis_coc_url", "lmis_id_url", "lmis_id_relative_url", "video_url", "medical_days",
-    ]);
     const shouldTrack = !UNTRACKED_FIELDS.has(data.field);
 
     // Fetch old value before updating so we can record the before/after change
@@ -270,14 +312,7 @@ export const updateCandidateField = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     if (shouldTrack) {
-      let changedByName = "Unknown";
-      const { data: staffRow } = await supabaseAdmin.from("staff").select("name").eq("user_id", context.userId).maybeSingle();
-      if (staffRow?.name) {
-        changedByName = staffRow.name;
-      } else {
-        const { data: profile } = await supabaseAdmin.from("profiles").select("full_name").eq("id", context.userId).maybeSingle();
-        if (profile?.full_name) changedByName = profile.full_name;
-      }
+      const { name: changedByName, email: changedByEmail } = await resolveChangedBy(context.userId);
       await supabaseAdmin.from("candidate_field_log").insert({
         candidate_id: data.id,
         field: data.field,
@@ -285,6 +320,7 @@ export const updateCandidateField = createServerFn({ method: "POST" })
         new_value: raw,
         changed_by_user_id: context.userId,
         changed_by_name: changedByName,
+        changed_by_email: changedByEmail,
       });
     }
 

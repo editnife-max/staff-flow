@@ -2226,7 +2226,7 @@ function CandidateHistoryDialog({ candidateId, candidateName, open, onClose }: {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("candidate_field_log")
-        .select("id, field, old_value, new_value, changed_by_name, changed_at")
+        .select("id, field, old_value, new_value, changed_by_name, changed_by_email, changed_at")
         .eq("candidate_id", candidateId)
         .order("changed_at", { ascending: true });
       if (error) throw error;
@@ -2282,6 +2282,9 @@ function CandidateHistoryDialog({ candidateId, candidateName, open, onClose }: {
                   </div>
                   <div className="text-[11px] text-muted-foreground mt-0.5">
                     by <span className="font-medium text-foreground">{log.changed_by_name}</span>
+                    {(log as any).changed_by_email && (
+                      <span className="ml-1 text-muted-foreground/70">({(log as any).changed_by_email})</span>
+                    )}
                     {" · "}
                     {fmtTs(log.changed_at)}
                   </div>

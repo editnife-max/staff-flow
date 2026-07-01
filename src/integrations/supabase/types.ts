@@ -89,6 +89,7 @@ export type Database = {
         Row: {
           candidate_id: string
           changed_at: string
+          changed_by_email: string | null
           changed_by_name: string
           changed_by_user_id: string | null
           field: string
@@ -99,6 +100,7 @@ export type Database = {
         Insert: {
           candidate_id: string
           changed_at?: string
+          changed_by_email?: string | null
           changed_by_name?: string
           changed_by_user_id?: string | null
           field: string
@@ -109,6 +111,7 @@ export type Database = {
         Update: {
           candidate_id?: string
           changed_at?: string
+          changed_by_email?: string | null
           changed_by_name?: string
           changed_by_user_id?: string | null
           field?: string
