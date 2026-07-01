@@ -1,20 +1,23 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
-  Users, Clock, CheckCircle2, XCircle, AlertTriangle,
-  UserPlus, Stethoscope, X, ChevronRight, RotateCcw, Send, Settings,
-  Upload, Download, FileUp, Ticket, MapPin,
+  Users, Clock, CheckCircle2, XCircle, RotateCcw, UserPlus, ChevronRight, FileSpreadsheet,
+  Stethoscope, FileCheck, ClipboardList, Ticket, FileText, CalendarX, Landmark, BadgeCheck,
+  AlertTriangle, Send, Upload, Download, X, MapPin,
 } from "lucide-react";
+import * as XLSX from "xlsx";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { updateCandidateField } from "@/lib/candidates.functions";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
+import { updateCandidateField } from "@/lib/candidates.functions";
 
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"];
 
@@ -23,72 +26,76 @@ export const Route = createFileRoute("/_authenticated/manager/dashboard")({
   component: ManagerDashboard,
 });
 
+// ─── Stat cards ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG = [
-  {
-    key: "available",
-    label: "Available",
-    icon: Users,
-    bg: "bg-emerald-50 dark:bg-emerald-950/40",
-    icon_bg: "bg-emerald-100 dark:bg-emerald-900/60",
-    icon_color: "text-emerald-600 dark:text-emerald-400",
-    value_color: "text-emerald-700 dark:text-emerald-300",
-    bar: "bg-emerald-500",
-  },
-  {
-    key: "processing",
-    label: "Processing",
-    icon: Clock,
-    bg: "bg-amber-50 dark:bg-amber-950/40",
-    icon_bg: "bg-amber-100 dark:bg-amber-900/60",
-    icon_color: "text-amber-600 dark:text-amber-400",
-    value_color: "text-amber-700 dark:text-amber-300",
-    bar: "bg-amber-500",
-  },
-  {
-    key: "arrived",
-    label: "Arrived",
-    icon: CheckCircle2,
-    bg: "bg-blue-50 dark:bg-blue-950/40",
-    icon_bg: "bg-blue-100 dark:bg-blue-900/60",
-    icon_color: "text-blue-600 dark:text-blue-400",
-    value_color: "text-blue-700 dark:text-blue-300",
-    bar: "bg-blue-500",
-  },
-  {
-    key: "canceled",
-    label: "Canceled",
-    icon: XCircle,
-    bg: "bg-red-50 dark:bg-red-950/40",
-    icon_bg: "bg-red-100 dark:bg-red-900/60",
-    icon_color: "text-red-600 dark:text-red-400",
-    value_color: "text-red-700 dark:text-red-300",
-    bar: "bg-red-500",
-  },
-  {
-    key: "returned",
-    label: "Returned",
-    icon: RotateCcw,
-    bg: "bg-orange-50 dark:bg-orange-950/40",
-    icon_bg: "bg-orange-100 dark:bg-orange-900/60",
-    icon_color: "text-orange-600 dark:text-orange-400",
-    value_color: "text-orange-700 dark:text-orange-300",
-    bar: "bg-orange-500",
-  },
-] as const;
+  { key: "available" as const, label: "Available", icon: Users,
+    bg: "bg-emerald-50 dark:bg-emerald-950/40", icon_bg: "bg-emerald-100 dark:bg-emerald-900/60",
+    icon_color: "text-emerald-600 dark:text-emerald-400", value_color: "text-emerald-700 dark:text-emerald-300" },
+  { key: "processing" as const, label: "Processing", icon: Clock,
+    bg: "bg-amber-50 dark:bg-amber-950/40", icon_bg: "bg-amber-100 dark:bg-amber-900/60",
+    icon_color: "text-amber-600 dark:text-amber-400", value_color: "text-amber-700 dark:text-amber-300" },
+  { key: "arrived" as const, label: "Arrived", icon: CheckCircle2,
+    bg: "bg-blue-50 dark:bg-blue-950/40", icon_bg: "bg-blue-100 dark:bg-blue-900/60",
+    icon_color: "text-blue-600 dark:text-blue-400", value_color: "text-blue-700 dark:text-blue-300" },
+  { key: "canceled" as const, label: "Canceled", icon: XCircle,
+    bg: "bg-red-50 dark:bg-red-950/40", icon_bg: "bg-red-100 dark:bg-red-900/60",
+    icon_color: "text-red-600 dark:text-red-400", value_color: "text-red-700 dark:text-red-300" },
+  { key: "returned" as const, label: "Returned", icon: RotateCcw,
+    bg: "bg-orange-50 dark:bg-orange-950/40", icon_bg: "bg-orange-100 dark:bg-orange-900/60",
+    icon_color: "text-orange-600 dark:text-orange-400", value_color: "text-orange-700 dark:text-orange-300" },
+];
 
-const STATUS_PILL: Record<string, string> = {
-  available: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
-  processing: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
-  arrived: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
-  canceled: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
-  returned: "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300",
+const ALERT_PILL: Record<string, string> = {
+  coc:       "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300",
+  medical:   "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
+  medexp:    "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300",
+  lmis:      "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+  ticket:    "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
+  embassy:   "bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300",
+  visaready: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
+  visareturn:"bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300",
+  tasheer:   "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
+  cvoverdue: "bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300",
+  fitlmis:   "bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300",
+  arrival:   "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300",
 };
 
-function MgrPaginationBar({
-  total, page, pageSize, onPage, onPageSize,
+// ─── Excel export ────────────────────────────────────────────────────────────
+type ExportCol = { key: string; label: string };
+const BASE: ExportCol[] = [
+  { key: "full_name",       label: "Full Name" },
+  { key: "passport_number", label: "Passport No." },
+  { key: "occupation",      label: "Occupation" },
+  { key: "status",          label: "Status" },
+];
+
+function downloadCandidatesExcel(candidates: Candidate[], title: string, cols: ExportCol[]) {
+  const header = cols.map((c) => c.label);
+  const rows = candidates.map((c) =>
+    cols.map((col) => { const v = (c as any)[col.key]; return v == null ? "" : String(v); })
+  );
+  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+  ws["!cols"] = header.map((h, i) => ({
+    wch: Math.max(h.length, ...rows.map((r) => String(r[i] ?? "").length), 10),
+  }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Candidates");
+  const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${title} — ${candidates.length} candidates.xlsx`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
+}
+
+// ─── Pagination bar ──────────────────────────────────────────────────────────
+function PaginationBar({
+  total, page, pageSize, onPage, onPageSize, onBackToTop,
 }: {
   total: number; page: number; pageSize: number;
-  onPage: (p: number) => void; onPageSize: (s: number) => void;
+  onPage: (p: number) => void; onPageSize: (s: number) => void; onBackToTop: () => void;
 }) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = Math.min((page - 1) * pageSize + 1, total);
@@ -103,7 +110,7 @@ function MgrPaginationBar({
     return pts;
   };
   return (
-    <div className="flex items-center justify-between gap-3 pt-3 flex-wrap border-t border-border mt-1">
+    <div className="flex items-center justify-between gap-3 pt-3 pb-1 flex-wrap border-t border-border mt-2">
       <div className="flex items-center gap-1 flex-wrap">
         {getPages().map((p, i) =>
           p === "..." ? (
@@ -117,31 +124,139 @@ function MgrPaginationBar({
           )
         )}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <span className="text-xs text-muted-foreground whitespace-nowrap">{start}–{end} of {total}</span>
         <select value={pageSize} onChange={(e) => onPageSize(Number(e.target.value))}
           className="h-6 text-xs border border-border bg-background rounded-none px-1 outline-none cursor-pointer">
           {[5, 10, 50, 100, 500].map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
+        <button type="button" onClick={onBackToTop}
+          className="text-xs text-muted-foreground hover:text-foreground underline whitespace-nowrap">
+          Back to top
+        </button>
       </div>
     </div>
   );
 }
 
-function PaginatedDialogList({ items, renderItem }: { items: Candidate[]; renderItem: (c: Candidate) => React.ReactNode }) {
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const paginated = items.slice((page - 1) * pageSize, page * pageSize);
+// ─── Medical re-book popup button ────────────────────────────────────────────
+function MedicalBookButton({ candidateName, onConfirm }: {
+  candidateName: string;
+  onConfirm: (date: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState("");
   return (
     <>
-      <div className="max-h-[50vh] overflow-y-auto space-y-0 divide-y divide-border">
-        {paginated.map((c) => renderItem(c))}
-      </div>
-      <MgrPaginationBar total={items.length} page={page} pageSize={pageSize} onPage={setPage} onPageSize={(s) => { setPageSize(s); setPage(1); }} />
+      <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+        onClick={() => { setOpen(true); setDate(""); }}>
+        Re-Book
+      </Button>
+      <Dialog open={open} onOpenChange={(o) => { if (!o) setOpen(false); }}>
+        <DialogContent className="max-w-sm rounded-none">
+          <DialogHeader><DialogTitle>Book Medical</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Enter the medical appointment date for <strong>{candidateName}</strong>.
+          </p>
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-none h-9" />
+          <DialogFooter>
+            <Button variant="ghost" className="rounded-none" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button disabled={!date} className="rounded-none" onClick={() => { onConfirm(date); setOpen(false); }}>
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
 
+// ─── Ticket booking popup button ─────────────────────────────────────────────
+function TicketBookButton({ candidateName, onConfirm }: {
+  candidateName: string;
+  onConfirm: (date: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState("");
+  return (
+    <>
+      <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+        onClick={() => { setOpen(true); setDate(""); }}>
+        Mark Booked
+      </Button>
+      <Dialog open={open} onOpenChange={(o) => { if (!o) setOpen(false); }}>
+        <DialogContent className="max-w-sm rounded-none">
+          <DialogHeader><DialogTitle>Book Ticket</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Enter the ticket date for <strong>{candidateName}</strong>.
+          </p>
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-none h-9" />
+          <DialogFooter>
+            <Button variant="ghost" className="rounded-none" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button disabled={!date} className="rounded-none" onClick={() => { onConfirm(date); setOpen(false); }}>
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// ─── COC status select with mandatory booking date when "Booked" ─────────────
+function CocBookButton({ candidate, onConfirm }: {
+  candidate: Candidate;
+  onConfirm: (status: string, date?: string) => void;
+}) {
+  const [bookingOpen, setBookingOpen] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+  const [date, setDate] = useState("");
+
+  const handleSelect = (v: string) => {
+    if (v === "Booked") {
+      setPendingStatus(v);
+      setDate("");
+      setBookingOpen(true);
+    } else {
+      onConfirm(v);
+    }
+  };
+
+  return (
+    <>
+      <Select onValueChange={handleSelect}>
+        <SelectTrigger className="h-7 text-xs rounded-none w-[130px]">
+          <SelectValue placeholder="Set COC" />
+        </SelectTrigger>
+        <SelectContent>
+          {["Done", "No", "Booked", "Placed", "Yitazez", "Pending release"].map((opt) => (
+            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Dialog open={bookingOpen} onOpenChange={(o) => { if (!o) setBookingOpen(false); }}>
+        <DialogContent className="max-w-sm rounded-none">
+          <DialogHeader><DialogTitle>COC Booking Date</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Enter the COC booking date for <strong>{candidate.full_name}</strong>.
+          </p>
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-none h-9" />
+          <DialogFooter>
+            <Button variant="ghost" className="rounded-none" onClick={() => setBookingOpen(false)}>Cancel</Button>
+            <Button disabled={!date} className="rounded-none" onClick={() => {
+              if (pendingStatus) onConfirm(pendingStatus, date);
+              setBookingOpen(false);
+            }}>
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// ─── LMIS file upload components ─────────────────────────────────────────────
 async function downloadLmisAsPdf(url: string) {
   try {
     const res = await fetch(url);
@@ -166,21 +281,14 @@ async function downloadLmisAsPdf(url: string) {
     } else {
       const objUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = objUrl;
-      a.download = "lmis_file.pdf";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      a.href = objUrl; a.download = "lmis_file.pdf";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(objUrl);
     }
-  } catch {
-    console.error("Download failed");
-  }
+  } catch { console.error("Download failed"); }
 }
 
-function LmisDocSection({
-  label, url, onUpload, onRemove,
-}: {
+function LmisDocSection({ label, url, onUpload, onRemove }: {
   label: string; url: string;
   onUpload: (file: File) => Promise<void>;
   onRemove: () => void;
@@ -188,12 +296,10 @@ function LmisDocSection({
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
-
   const handleFile = async (file: File) => {
     setUploading(true);
     try { await onUpload(file); } finally { setUploading(false); }
   };
-
   const isImage = url && !url.endsWith(".pdf");
   return (
     <div className="space-y-1.5">
@@ -207,8 +313,7 @@ function LmisDocSection({
         )}
       </div>
       <div className="relative">
-        <div
-          role="button" tabIndex={0}
+        <div role="button" tabIndex={0}
           onClick={() => inputRef.current?.click()}
           onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -227,7 +332,7 @@ function LmisDocSection({
             <>
               {isImage
                 ? <img src={url} alt={label} className="max-h-[60px] max-w-full object-contain rounded-none" />
-                : <><FileUp className="h-7 w-7 text-muted-foreground" /><span className="text-[10px] text-muted-foreground truncate max-w-[140px]">{url.split("/").pop()?.slice(0, 20)}</span></>}
+                : <><Upload className="h-7 w-7 text-muted-foreground" /><span className="text-[10px] text-muted-foreground truncate max-w-[140px]">{url.split("/").pop()?.slice(0, 20)}</span></>}
               <span className="text-[10px] text-primary">Click to replace</span>
             </>
           ) : (
@@ -247,42 +352,158 @@ function LmisDocSection({
   );
 }
 
+function LmisUploadButton({ candidate, onUpdate }: {
+  candidate: Candidate;
+  onUpdate: (field: string, value: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const c = candidate as any;
+  const upload = async (file: File, field: string) => {
+    const ext = file.name.split(".").pop() ?? "jpg";
+    const path = `lmis/${candidate.id}/${field}_${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("candidate-files").upload(path, file, { upsert: true });
+    if (error) throw error;
+    const { data } = supabase.storage.from("candidate-files").getPublicUrl(path);
+    onUpdate(field, data.publicUrl);
+  };
+  const hasBothIds = !!(c.lmis_id_url && c.lmis_id_relative_url);
+  return (
+    <>
+      <Button size="sm" variant="outline" className="h-6 text-[12px] px-2 rounded-none gap-1" onClick={() => setOpen(true)}>
+        <Upload className="h-3 w-3" /> Files
+      </Button>
+      {open && (
+        <Dialog open onOpenChange={(o) => { if (!o) setOpen(false); }}>
+          <DialogContent className="max-w-2xl rounded-none">
+            <DialogHeader>
+              <DialogTitle className="text-base">LMIS Documents — {candidate.full_name}</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-4 pt-1">
+              <LmisDocSection label="INSU" url={c.lmis_insu_url ?? ""}
+                onUpload={(f) => upload(f, "lmis_insu_url")} onRemove={() => onUpdate("lmis_insu_url", null)} />
+              <LmisDocSection label="COC" url={c.lmis_coc_url ?? ""}
+                onUpload={(f) => upload(f, "lmis_coc_url")} onRemove={() => onUpdate("lmis_coc_url", null)} />
+              <LmisDocSection label={hasBothIds ? "ID'S — Candidate" : "ID (Candidate)"} url={c.lmis_id_url ?? ""}
+                onUpload={(f) => upload(f, "lmis_id_url")} onRemove={() => onUpdate("lmis_id_url", null)} />
+              <LmisDocSection label={hasBothIds ? "ID'S — Relative" : "ID (Relative)"} url={c.lmis_id_relative_url ?? ""}
+                onUpload={(f) => upload(f, "lmis_id_relative_url")} onRemove={() => onUpdate("lmis_id_relative_url", null)} />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
+  );
+}
+
+// ─── Alert section ───────────────────────────────────────────────────────────
+function AlertSection({
+  icon: Icon, title, iconColor, pillKey, candidates, getNote, renderBadge, exportCols, onUpdateField, renderCardAction,
+}: {
+  icon: React.ElementType;
+  title: string;
+  iconColor: string;
+  pillKey: keyof typeof ALERT_PILL;
+  candidates: Candidate[];
+  getNote?: (c: Candidate) => string | null;
+  renderBadge?: (c: Candidate) => React.ReactNode;
+  exportCols: ExportCol[];
+  onUpdateField: (id: string, field: string, value: string | null) => void;
+  renderCardAction?: (candidate: Candidate) => React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const listRef = useRef<HTMLDivElement>(null);
+  if (candidates.length === 0) return null;
+  const paginated = candidates.slice((page - 1) * pageSize, page * pageSize);
+
+  return (
+    <>
+      <button
+        type="button"
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-background border border-border hover:bg-muted/50 transition-colors rounded-none"
+        onClick={() => { setOpen(true); setPage(1); }}
+      >
+        <div className="flex items-center gap-3">
+          <Icon className={cn("h-4 w-4 shrink-0", iconColor)} />
+          <span className="text-sm font-semibold">{title}</span>
+          <span className={cn("text-xs font-bold px-2 py-0.5 rounded-none", ALERT_PILL[pillKey])}>
+            {candidates.length}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span
+            role="button"
+            title="Download Excel"
+            className="p-1 rounded-none text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+            onClick={(e) => { e.stopPropagation(); downloadCandidatesExcel(candidates, title, exportCols); }}
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+          </span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        </div>
+      </button>
+
+      <Dialog open={open} onOpenChange={(o) => { if (!o) setOpen(false); }}>
+        <DialogContent className="max-w-lg rounded-none">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Icon className={cn("h-5 w-5", iconColor)} />
+              {title} ({candidates.length})
+            </DialogTitle>
+          </DialogHeader>
+          <div ref={listRef} className="max-h-[50vh] overflow-y-auto divide-y divide-border">
+            {paginated.map((c) => (
+              <div key={c.id} className="flex items-center gap-3 py-3">
+                <Avatar className="h-9 w-9 shrink-0">
+                  {c.photo_url && <AvatarImage src={c.photo_url} alt={c.full_name} />}
+                  <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
+                </div>
+                <div className="shrink-0 flex items-center gap-2">
+                  {renderCardAction?.(c)}
+                  <div className="text-right">
+                    {renderBadge ? renderBadge(c) : getNote?.(c) ? (
+                      <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-none", ALERT_PILL[pillKey])}>
+                        {getNote(c)}
+                      </span>
+                    ) : null}
+                    <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <PaginationBar
+            total={candidates.length} page={page} pageSize={pageSize}
+            onPage={setPage}
+            onPageSize={(s) => { setPageSize(s); setPage(1); }}
+            onBackToTop={() => listRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
+          />
+          <div className="pt-2 flex items-center justify-between">
+            <Button size="sm" variant="outline" className="rounded-none text-xs gap-1 text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-900/20"
+              onClick={() => downloadCandidatesExcel(candidates, title, exportCols)}>
+              <FileSpreadsheet className="h-3.5 w-3.5" /> Download Excel
+            </Button>
+            <Button asChild size="sm" className="rounded-none text-xs gap-1">
+              <Link to="/manager/candidates" onClick={() => setOpen(false)}>
+                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// ─── Page ────────────────────────────────────────────────────────────────────
 function ManagerDashboard() {
   const { user } = useAuth();
-  const qc = useQueryClient();
-  const [medOpen, setMedOpen] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
-  const [tasheerOpen, setTasheerOpen] = useState(false);
-  const [tasheerDismissed, setTasheerDismissed] = useState(false);
-  const [cvOpen, setCvOpen] = useState(false);
-  const [cvDismissed, setCvDismissed] = useState(false);
-  const [cvDaysEdit, setCvDaysEdit] = useState(false);
-  const [cvDaysDraft, setCvDaysDraft] = useState("");
-  const [cocNoOpen, setCocNoOpen] = useState(false);
-  const [cocNoDismissed, setCocNoDismissed] = useState(false);
-  const [cocPlacedOpen, setCocPlacedOpen] = useState(false);
-  const [cocPlacedDismissed, setCocPlacedDismissed] = useState(false);
-  const [medNotFitOpen, setMedNotFitOpen] = useState(false);
-  const [medNotFitDismissed, setMedNotFitDismissed] = useState(false);
-  const [cocDoneMedNotFitOpen, setCocDoneMedNotFitOpen] = useState(false);
-  const [cocDoneMedNotFitDismissed, setCocDoneMedNotFitDismissed] = useState(false);
-  const [visaReturnedOpen, setVisaReturnedOpen] = useState(false);
-  const [visaReturnedDismissed, setVisaReturnedDismissed] = useState(false);
-  const [readyForEmbassyOpen, setReadyForEmbassyOpen] = useState(false);
-  const [readyForEmbassyDismissed, setReadyForEmbassyDismissed] = useState(false);
-  const [tasheerReadyOpen, setTasheerReadyOpen] = useState(false);
-  const [tasheerReadyDismissed, setTasheerReadyDismissed] = useState(false);
-  const [tasheerOverdueOpen, setTasheerOverdueOpen] = useState(false);
-  const [tasheerOverdueDismissed, setTasheerOverdueDismissed] = useState(false);
-  const [fitLmisNotTestedOpen, setFitLmisNotTestedOpen] = useState(false);
-  const [fitLmisNotTestedDismissed, setFitLmisNotTestedDismissed] = useState(false);
-  const [lmisDraftImportedOpen, setLmisDraftImportedOpen] = useState(false);
-  const [lmisDraftImportedDismissed, setLmisDraftImportedDismissed] = useState(false);
-  const [lmisFilesCandidate, setLmisFilesCandidate] = useState<Candidate | null>(null);
-  const [ticketReadyOpen, setTicketReadyOpen] = useState(false);
-  const [ticketReadyDismissed, setTicketReadyDismissed] = useState(false);
-  const [arrivalCityOpen, setArrivalCityOpen] = useState(false);
-  const [arrivalCityDismissed, setArrivalCityDismissed] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["dashboard-candidates", user?.id],
@@ -297,49 +518,45 @@ function ManagerDashboard() {
     },
   });
 
+  const { data: assignCountries = [] } = useQuery({
+    queryKey: ["assignment-countries", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("assignment_countries").select("name").order("name");
+      if (error) throw error;
+      return data as { name: string }[];
+    },
+  });
+
   const { data: profile } = useQuery({
     queryKey: ["manager-profile", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("cv_days_threshold")
-        .eq("id", user!.id)
-        .maybeSingle();
-      if (error) throw error;
+      const { data } = await supabase.from("profiles").select("cv_days_threshold").eq("id", user!.id).maybeSingle();
       return data;
     },
   });
-  const cvDaysThreshold = profile?.cv_days_threshold ?? 7;
-
-  const updateThresholdMut = useMutation({
-    mutationFn: async (days: number) => {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ cv_days_threshold: days })
-        .eq("id", user!.id);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["manager-profile", user?.id] }),
-  });
-
-  const updateLmisMut = useMutation({
-    mutationFn: async ({ id, field, value }: { id: string; field: string; value: string | null }) => {
-      const { error } = await (supabase.from("candidates") as any).update({ [field]: value }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["dashboard-candidates", user?.id] }),
-  });
+  const managerCvThreshold = profile?.cv_days_threshold ?? 7;
 
   const fieldMut = useMutation({
     mutationFn: (vars: { id: string; field: string; value: string | null }) =>
-      updateCandidateField({ data: vars }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["dashboard-candidates", user?.id] }),
+      updateCandidateField({ data: vars as never }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dashboard-candidates", user?.id] }),
   });
 
   const handleUpdateField = (id: string, field: string, value: string | null) => {
     fieldMut.mutate({ id, field, value });
-    // Tasheer Done + Wokala Paid → Visa "Ready for embassy"
+    if (field === "medical_status" && value !== "Fit") {
+      const c = candidates.find((c) => c.id === id);
+      if (c?.medical_status === "Fit") fieldMut.mutate({ id, field: "medical_date", value: null });
+    }
+    if (field === "visa_status" && value === "Arrived KSA")
+      fieldMut.mutate({ id, field: "status", value: "arrived" });
+    if (field === "tasheer_status" && value === "No") {
+      fieldMut.mutate({ id, field: "wokala_status", value: null });
+      fieldMut.mutate({ id, field: "tasheer_date", value: null });
+      fieldMut.mutate({ id, field: "visa_status", value: null });
+    }
     if (field === "tasheer_status" && value === "Done") {
       const c = candidates.find((c) => c.id === id);
       if (c?.wokala_status === "Paid")
@@ -350,55 +567,110 @@ function ManagerDashboard() {
       if (c?.tasheer_status === "Done")
         fieldMut.mutate({ id, field: "visa_status", value: "Ready for embassy" });
     }
+    if (field === "lmis_status") {
+      const c = candidates.find((c) => c.id === id);
+      if (value === "Issued" && c?.visa_status === "Issued")
+        fieldMut.mutate({ id, field: "ticket_status", value: "Ready" });
+      else if (value !== "Issued" && c?.ticket_status === "Ready")
+        fieldMut.mutate({ id, field: "ticket_status", value: null });
+    }
+    if (field === "visa_status") {
+      const c = candidates.find((c) => c.id === id);
+      if (value === "Issued" && c?.lmis_status === "Issued")
+        fieldMut.mutate({ id, field: "ticket_status", value: "Ready" });
+      else if (value !== "Issued" && c?.ticket_status === "Ready")
+        fieldMut.mutate({ id, field: "ticket_status", value: null });
+    }
   };
 
-  const uploadLmisFile = async (candidateId: string, file: File, field: string) => {
-    const ext = file.name.split(".").pop() ?? "jpg";
-    const path = `lmis/${candidateId}/${field}_${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("candidate-files").upload(path, file, { upsert: true });
-    if (error) throw error;
-    const { data } = supabase.storage.from("candidate-files").getPublicUrl(path);
-    updateLmisMut.mutate({ id: candidateId, field, value: data.publicUrl });
-  };
+  const medExpiryChecked = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const today = new Date();
+    for (const c of candidates) {
+      if (medExpiryChecked.current.has(c.id)) continue;
+      if (c.medical_status === "Fit" && c.medical_date) {
+        const diffDays = Math.floor((today.getTime() - new Date(c.medical_date + "T00:00:00").getTime()) / 86400000);
+        if (diffDays >= 90) {
+          medExpiryChecked.current.add(c.id);
+          fieldMut.mutate({ id: c.id, field: "medical_status", value: "Expired" });
+        }
+      }
+    }
+  }, [candidates]);
 
-  const counts = {
-    available: candidates.filter((c) => c.status === "available").length,
-    processing: candidates.filter((c) => c.status === "processing").length,
-    arrived: candidates.filter((c) => c.status === "arrived").length,
-    canceled: candidates.filter((c) => c.status === "canceled").length,
-    returned: candidates.filter((c) => c.status === "returned").length,
-  };
   const total = candidates.length;
-
-  const medExpired = candidates.filter((c) => c.medical_status === "Expired");
-  const tasheerDoneWokalaUnpaid = candidates.filter(
-    (c) => c.status === "processing" && c.tasheer_status === "Done" && c.wokala_status === "Unpaid",
-  );
-  const cocNo = candidates.filter((c) => c.coc_status === "No");
-  const cocPlaced = candidates.filter((c) => c.coc_status === "Placed");
-  const medNotFit = candidates.filter((c) => c.medical_status === "Unfit");
-  const cocDoneMedNotFit = candidates.filter((c) => c.coc_status === "Done" && c.medical_status === "Unfit");
-  const visaReturned = candidates.filter((c) => c.visa_status === "Returned");
-  const readyForEmbassy = candidates.filter((c) => c.status === "processing" && c.visa_status === "Ready for embassy");
-  const tasheerReady = candidates.filter((c) => c.status === "processing" && c.tasheer_status === "Ready");
-  const recent = candidates.slice(0, 12);
+  const counts = {
+    available:  candidates.filter((c) => c.status === "available").length,
+    processing: candidates.filter((c) => c.status === "processing").length,
+    arrived:    candidates.filter((c) => c.status === "arrived").length,
+    canceled:   candidates.filter((c) => c.status === "canceled").length,
+    returned:   candidates.filter((c) => c.status === "returned").length,
+  };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const tasheerOverdue = candidates.filter((c) => {
+
+  const cocNo         = candidates.filter((c) => c.coc_status === "No");
+  const cocPlaced     = candidates.filter((c) => c.coc_status === "Placed");
+  const medicalNotFit = candidates.filter((c) => c.medical_status && c.medical_status !== "Fit");
+  const cocDoneNotFit = candidates.filter((c) => c.coc_status === "Done" && c.medical_status && c.medical_status !== "Fit");
+  const unfilledLmis  = candidates.filter((c) => c.status === "processing" && c.unfilled_lmis && c.unfilled_lmis.trim() !== "");
+
+  const medicalExpired = candidates.filter((c) => {
+    if (c.medical_status === "Expired") return true;
+    if (c.medical_status === "Fit" && c.medical_date) {
+      const days = Math.floor((today.getTime() - new Date(c.medical_date + "T00:00:00").getTime()) / 86_400_000);
+      return days >= 90;
+    }
+    return false;
+  });
+
+  const ticketNotBooked = candidates.filter((c) => {
+    if (!c.contract_date) return false;
+    if (c.ticket_status === "Booked") return false;
+    const days = Math.floor((today.getTime() - new Date(c.contract_date + "T00:00:00").getTime()) / 86_400_000);
+    return days > 20;
+  });
+
+  const embassyPending = candidates.filter(
+    (c) => c.status === "processing" && c.tasheer_status === "Done" && c.visa_status !== "Ready for embassy" && c.processing_notes,
+  );
+
+  const visaReady = candidates.filter(
+    (c) => c.status === "processing" && c.visa_status !== "Returned" && (
+      (c.tasheer_status === "Done" && c.wokala_status === "Paid" && !c.visa_status) ||
+      c.visa_status === "Ready for embassy"
+    ),
+  );
+
+  const visaReturned            = candidates.filter((c) => c.status === "processing" && c.visa_status === "Returned");
+  const tasheerDoneWokalaUnpaid = candidates.filter((c) => c.status === "processing" && c.tasheer_status === "Done" && c.wokala_status === "Unpaid");
+  const tasheerOverdue          = candidates.filter((c) => {
     if (c.tasheer_status !== "Booked" || !c.tasheer_date) return false;
     return new Date(c.tasheer_date + "T00:00:00") < today;
   });
-  const fitLmisNotTested = candidates.filter((c) => c.medical_status === "Fit" && c.coc_status === "Done" && (!c.lmis_status || c.lmis_status === "Not tested"));
-  const lmisDraftImported = candidates.filter((c) => c.lmis_status === "Draft" || c.lmis_status === "Imported");
-  const ticketReady = candidates.filter((c) => c.ticket_status === "Ready");
-  const arrivalCityMissing = candidates.filter((c) => c.status === "processing" && !c.arrival_city);
+  const passportNotAccepted = candidates.filter((c) => c.status === "processing" && c.tasheer_status === "Ready");
+  const fitLmisNotTested    = candidates.filter((c) => c.medical_status === "Fit" && c.coc_status === "Done" && (!c.lmis_status || c.lmis_status === "Not tested"));
+  const lmisDraftImported   = candidates.filter((c) => c.lmis_status === "Draft" || c.lmis_status === "Imported");
+  const ticketReady         = candidates.filter((c) => c.ticket_status === "Ready");
+  const arrivalCityMissing  = candidates.filter((c) => c.status === "processing" && !c.arrival_city);
 
   const cvOverdue = candidates.filter((c) => {
     if (!c.cv_sent_to || c.selected_by || !c.cv_sent_date) return false;
     const days = Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000);
-    return days >= cvDaysThreshold;
+    return days >= managerCvThreshold;
   });
+
+  const daysSince = (d: string) =>
+    Math.floor((today.getTime() - new Date(d + "T00:00:00").getTime()) / 86_400_000);
+
+  const hasAlerts = cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 ||
+    cocDoneNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 ||
+    ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 ||
+    embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 ||
+    tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 ||
+    cvOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0 ||
+    lmisDraftImported.length > 0;
 
   return (
     <div className="space-y-6 mx-[79.6px]">
@@ -411,484 +683,10 @@ function ManagerDashboard() {
         </Button>
       </div>
 
-      {/* Medical Expired Banner */}
-      {medExpired.length > 0 && !dismissed && (
-        <div
-          className="flex items-center justify-between gap-3 rounded-none border border-orange-300 bg-orange-50 dark:bg-orange-950/40 dark:border-orange-700 px-4 py-3 cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-colors"
-          onClick={() => setMedOpen(true)}
-        >
-          <div className="flex items-center gap-3">
-            <Stethoscope className="h-5 w-5 text-orange-600 dark:text-orange-400 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-orange-800 dark:text-orange-200">
-                Medical Expired — {medExpired.length} candidate{medExpired.length > 1 ? "s" : ""}
-              </p>
-              <p className="text-xs text-orange-600 dark:text-orange-400">
-                Click to view candidates with expired medical status
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <ChevronRight className="h-4 w-4 text-orange-500" />
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setDismissed(true); }}
-              className="p-1 rounded-none text-orange-400 hover:text-orange-700 hover:bg-orange-200 dark:hover:bg-orange-800 transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Tasheer Done + Wokala Unpaid Banner */}
-      {tasheerDoneWokalaUnpaid.length > 0 && !tasheerDismissed && (
-        <div
-          className="flex items-center justify-between gap-3 rounded-none border border-violet-300 bg-violet-50 dark:bg-violet-950/40 dark:border-violet-700 px-4 py-3 cursor-pointer hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-colors"
-          onClick={() => setTasheerOpen(true)}
-        >
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-violet-600 dark:text-violet-400 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">
-                Tasheer Done but Wokala Unpaid — {tasheerDoneWokalaUnpaid.length} candidate{tasheerDoneWokalaUnpaid.length > 1 ? "s" : ""}
-              </p>
-              <p className="text-xs text-violet-600 dark:text-violet-400">
-                Click to view candidates with Tasheer Done but Wokala not yet paid
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <ChevronRight className="h-4 w-4 text-violet-500" />
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setTasheerDismissed(true); }}
-              className="p-1 rounded-none text-violet-400 hover:text-violet-700 hover:bg-violet-200 dark:hover:bg-violet-800 transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* COC — No Banner */}
-      {cocNo.length > 0 && !cocNoDismissed && (
-        <div
-          className="flex items-center justify-between gap-3 rounded-none border border-yellow-300 bg-yellow-50 dark:bg-yellow-950/40 dark:border-yellow-700 px-4 py-3 cursor-pointer hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition-colors"
-          onClick={() => setCocNoOpen(true)}
-        >
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">
-                COC — No — {cocNo.length} candidate{cocNo.length > 1 ? "s" : ""}
-              </p>
-              <p className="text-xs text-yellow-600 dark:text-yellow-400">
-                Click to view candidates with COC status No
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <ChevronRight className="h-4 w-4 text-yellow-500" />
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setCocNoDismissed(true); }}
-              className="p-1 rounded-none text-yellow-400 hover:text-yellow-700 hover:bg-yellow-200 dark:hover:bg-yellow-800 transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* COC — Placed Banner */}
-      {cocPlaced.length > 0 && !cocPlacedDismissed && (
-        <div
-          className="flex items-center justify-between gap-3 rounded-none border border-violet-300 bg-violet-50 dark:bg-violet-950/40 dark:border-violet-700 px-4 py-3 cursor-pointer hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-colors"
-          onClick={() => setCocPlacedOpen(true)}
-        >
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-violet-600 dark:text-violet-400 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">
-                COC — Placed — {cocPlaced.length} candidate{cocPlaced.length > 1 ? "s" : ""}
-              </p>
-              <p className="text-xs text-violet-600 dark:text-violet-400">
-                Click to view candidates with COC status Placed
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <ChevronRight className="h-4 w-4 text-violet-500" />
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setCocPlacedDismissed(true); }}
-              className="p-1 rounded-none text-violet-400 hover:text-violet-700 hover:bg-violet-200 dark:hover:bg-violet-800 transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Medical Not Fit Banner */}
-      {medNotFit.length > 0 && !medNotFitDismissed && (
-        <div
-          className="flex items-center justify-between gap-3 rounded-none border border-red-300 bg-red-50 dark:bg-red-950/40 dark:border-red-700 px-4 py-3 cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
-          onClick={() => setMedNotFitOpen(true)}
-        >
-          <div className="flex items-center gap-3">
-            <Stethoscope className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-red-800 dark:text-red-200">
-                Medical Not Fit — {medNotFit.length} candidate{medNotFit.length > 1 ? "s" : ""}
-              </p>
-              <p className="text-xs text-red-600 dark:text-red-400">
-                Click to view candidates with Medical status Not Fit
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <ChevronRight className="h-4 w-4 text-red-500" />
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setMedNotFitDismissed(true); }}
-              className="p-1 rounded-none text-red-400 hover:text-red-700 hover:bg-red-200 dark:hover:bg-red-800 transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* COC Done + Medical Not Fit Banner */}
-      {cocDoneMedNotFit.length > 0 && !cocDoneMedNotFitDismissed && (
-        <div
-          className="flex items-center justify-between gap-3 rounded-none border border-rose-300 bg-rose-50 dark:bg-rose-950/40 dark:border-rose-700 px-4 py-3 cursor-pointer hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors"
-          onClick={() => setCocDoneMedNotFitOpen(true)}
-        >
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-400 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-rose-800 dark:text-rose-200">
-                COC Done — Medical Not Fit — {cocDoneMedNotFit.length} candidate{cocDoneMedNotFit.length > 1 ? "s" : ""}
-              </p>
-              <p className="text-xs text-rose-600 dark:text-rose-400">
-                Click to view candidates with COC Done but Medical Not Fit
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <ChevronRight className="h-4 w-4 text-rose-500" />
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setCocDoneMedNotFitDismissed(true); }}
-              className="p-1 rounded-none text-rose-400 hover:text-rose-700 hover:bg-rose-200 dark:hover:bg-rose-800 transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Medical Fit — LMIS Not Tested Banner */}
-      {fitLmisNotTested.length > 0 && !fitLmisNotTestedDismissed && (
-        <div
-          className="flex items-center justify-between gap-3 rounded-none border border-teal-300 bg-teal-50 dark:bg-teal-950/40 dark:border-teal-700 px-4 py-3 cursor-pointer hover:bg-teal-100 dark:hover:bg-teal-900/40 transition-colors"
-          onClick={() => setFitLmisNotTestedOpen(true)}
-        >
-          <div className="flex items-center gap-3">
-            <Stethoscope className="h-5 w-5 text-teal-600 dark:text-teal-400 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-teal-800 dark:text-teal-200">
-                Medical Fit — LMIS Not Tested — {fitLmisNotTested.length} candidate{fitLmisNotTested.length > 1 ? "s" : ""}
-              </p>
-              <p className="text-xs text-teal-600 dark:text-teal-400">
-                Click to view candidates with Medical Fit and LMIS Not Tested
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <ChevronRight className="h-4 w-4 text-teal-500" />
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setFitLmisNotTestedDismissed(true); }}
-              className="p-1 rounded-none text-teal-400 hover:text-teal-700 hover:bg-teal-200 dark:hover:bg-teal-800 transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* LMIS Draft / Imported Banner */}
-      {lmisDraftImported.length > 0 && !lmisDraftImportedDismissed && (
-        <div
-          className="flex items-center justify-between gap-3 rounded-none border border-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 dark:border-indigo-700 px-4 py-3 cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors"
-          onClick={() => setLmisDraftImportedOpen(true)}
-        >
-          <div className="flex items-center gap-3">
-            <Upload className="h-5 w-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-indigo-800 dark:text-indigo-200">
-                LMIS Files Needed — {lmisDraftImported.length} candidate{lmisDraftImported.length > 1 ? "s" : ""}
-              </p>
-              <p className="text-xs text-indigo-600 dark:text-indigo-400">
-                LMIS status is Draft or Imported — click to upload files
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <ChevronRight className="h-4 w-4 text-indigo-500" />
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setLmisDraftImportedDismissed(true); }}
-              className="p-1 rounded-none text-indigo-400 hover:text-indigo-700 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Ticket Ready Banner */}
-      {ticketReady.length > 0 && !ticketReadyDismissed && (
-        <div
-          className="flex items-center justify-between gap-3 rounded-none border border-violet-300 bg-violet-50 dark:bg-violet-950/40 dark:border-violet-700 px-4 py-3 cursor-pointer hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-colors"
-          onClick={() => setTicketReadyOpen(true)}
-        >
-          <div className="flex items-center gap-3">
-            <Ticket className="h-5 w-5 text-violet-600 dark:text-violet-400 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">
-                Ticket Ready — {ticketReady.length} candidate{ticketReady.length > 1 ? "s" : ""}
-              </p>
-              <p className="text-xs text-violet-600 dark:text-violet-400">
-                Click to view candidates with ticket status Ready
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <ChevronRight className="h-4 w-4 text-violet-500" />
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setTicketReadyDismissed(true); }}
-              className="p-1 rounded-none text-violet-400 hover:text-violet-700 hover:bg-violet-200 dark:hover:bg-violet-800 transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Arrival City Missing Banner */}
-      {arrivalCityMissing.length > 0 && !arrivalCityDismissed && (
-        <div
-          className="flex items-center justify-between gap-3 rounded-none border border-cyan-300 bg-cyan-50 dark:bg-cyan-950/40 dark:border-cyan-700 px-4 py-3 cursor-pointer hover:bg-cyan-100 dark:hover:bg-cyan-900/40 transition-colors"
-          onClick={() => setArrivalCityOpen(true)}
-        >
-          <div className="flex items-center gap-3">
-            <MapPin className="h-5 w-5 text-cyan-600 dark:text-cyan-400 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-cyan-800 dark:text-cyan-200">
-                Arrival City Not Set — {arrivalCityMissing.length} candidate{arrivalCityMissing.length > 1 ? "s" : ""}
-              </p>
-              <p className="text-xs text-cyan-600 dark:text-cyan-400">
-                Processing candidates with no arrival city assigned
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <ChevronRight className="h-4 w-4 text-cyan-500" />
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setArrivalCityDismissed(true); }}
-              className="p-1 rounded-none text-cyan-400 hover:text-cyan-700 hover:bg-cyan-200 dark:hover:bg-cyan-800 transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Visa Returned Banner */}
-      {visaReturned.length > 0 && !visaReturnedDismissed && (
-        <div
-          className="flex items-center justify-between gap-3 rounded-none border border-sky-300 bg-sky-50 dark:bg-sky-950/40 dark:border-sky-700 px-4 py-3 cursor-pointer hover:bg-sky-100 dark:hover:bg-sky-900/40 transition-colors"
-          onClick={() => setVisaReturnedOpen(true)}
-        >
-          <div className="flex items-center gap-3">
-            <RotateCcw className="h-5 w-5 text-sky-600 dark:text-sky-400 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-sky-800 dark:text-sky-200">
-                Visa Returned — {visaReturned.length} candidate{visaReturned.length > 1 ? "s" : ""}
-              </p>
-              <p className="text-xs text-sky-600 dark:text-sky-400">
-                Click to view candidates with Visa status Returned
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <ChevronRight className="h-4 w-4 text-sky-500" />
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setVisaReturnedDismissed(true); }}
-              className="p-1 rounded-none text-sky-400 hover:text-sky-700 hover:bg-sky-200 dark:hover:bg-sky-800 transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Ready for Embassy Banner */}
-      {readyForEmbassy.length > 0 && !readyForEmbassyDismissed && (
-        <div
-          className="flex items-center justify-between gap-3 rounded-none border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 dark:border-emerald-700 px-4 py-3 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
-          onClick={() => setReadyForEmbassyOpen(true)}
-        >
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
-                Ready for Embassy — {readyForEmbassy.length} candidate{readyForEmbassy.length > 1 ? "s" : ""}
-              </p>
-              <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                Click to view candidates ready for embassy visa
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <ChevronRight className="h-4 w-4 text-emerald-500" />
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setReadyForEmbassyDismissed(true); }}
-              className="p-1 rounded-none text-emerald-400 hover:text-emerald-700 hover:bg-emerald-200 dark:hover:bg-emerald-800 transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Tasheer Ready (Passport Rejected) Banner */}
-      {tasheerReady.length > 0 && !tasheerReadyDismissed && (
-        <div
-          className="flex items-center justify-between gap-3 rounded-none border border-amber-300 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-700 px-4 py-3 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
-          onClick={() => setTasheerReadyOpen(true)}
-        >
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
-                Tasheer Ready (Passport Rejected) — {tasheerReady.length} candidate{tasheerReady.length > 1 ? "s" : ""}
-              </p>
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                Click to view candidates with passport rejected, awaiting resubmission
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <ChevronRight className="h-4 w-4 text-amber-500" />
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setTasheerReadyDismissed(true); }}
-              className="p-1 rounded-none text-amber-400 hover:text-amber-700 hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Tasheer Overdue Banner */}
-      {tasheerOverdue.length > 0 && !tasheerOverdueDismissed && (
-        <div
-          className="flex items-center justify-between gap-3 rounded-none border border-amber-300 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-700 px-4 py-3 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
-          onClick={() => setTasheerOverdueOpen(true)}
-        >
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
-                Tasheer Overdue — {tasheerOverdue.length} candidate{tasheerOverdue.length > 1 ? "s" : ""}
-              </p>
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                Tasheer was Booked but the date has passed
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <ChevronRight className="h-4 w-4 text-amber-500" />
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setTasheerOverdueDismissed(true); }}
-              className="p-1 rounded-none text-amber-400 hover:text-amber-700 hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* CV Overdue Banner */}
-      {cvOverdue.length > 0 && !cvDismissed && (
-        <div
-          className="flex items-center justify-between gap-3 rounded-none border border-teal-300 bg-teal-50 dark:bg-teal-950/40 dark:border-teal-700 px-4 py-3 cursor-pointer hover:bg-teal-100 dark:hover:bg-teal-900/40 transition-colors"
-          onClick={() => setCvOpen(true)}
-        >
-          <div className="flex items-center gap-3">
-            <Send className="h-5 w-5 text-teal-600 dark:text-teal-400 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-teal-800 dark:text-teal-200">
-                CV Sent — No Selection — {cvOverdue.length} candidate{cvOverdue.length > 1 ? "s" : ""}
-              </p>
-              <p className="text-xs text-teal-600 dark:text-teal-400">
-                CV sent over {cvDaysThreshold} day{cvDaysThreshold !== 1 ? "s" : ""} ago with no selection. Click to view or adjust threshold.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setCvDaysDraft(String(cvDaysThreshold)); setCvDaysEdit(true); setCvOpen(true); }}
-              className="p-1 rounded-none text-teal-400 hover:text-teal-700 hover:bg-teal-200 dark:hover:bg-teal-800 transition-colors"
-              aria-label="Configure days threshold"
-            >
-              <Settings className="h-4 w-4" />
-            </button>
-            <ChevronRight className="h-4 w-4 text-teal-500" />
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setCvDismissed(true); }}
-              className="p-1 rounded-none text-teal-400 hover:text-teal-700 hover:bg-teal-200 dark:hover:bg-teal-800 transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Stat Cards */}
+      {/* Stat cards */}
       <div className="grid grid-cols-3 lg:grid-cols-5 gap-2">
         {STATUS_CONFIG.map((s) => {
           const count = counts[s.key];
-          const pct = total > 0 ? Math.round((count / total) * 100) : 0;
           const Icon = s.icon;
           return (
             <div key={s.key} className={cn("flex items-center gap-2.5 px-3 py-2.5 rounded-none", s.bg)}>
@@ -896,9 +694,7 @@ function ManagerDashboard() {
                 <Icon className={cn("h-3.5 w-3.5", s.icon_color)} />
               </div>
               <div className="min-w-0">
-                <div className="flex items-baseline gap-1">
-                  <span className={cn("text-lg font-bold leading-tight", s.value_color)}>{count}</span>
-                </div>
+                <span className={cn("text-lg font-bold leading-tight", s.value_color)}>{count}</span>
                 <p className="text-[11px] text-foreground/70 font-medium truncate">{s.label}</p>
               </div>
             </div>
@@ -906,681 +702,221 @@ function ManagerDashboard() {
         })}
       </div>
 
-      {/* Recent Requests */}
-      <Card className="rounded-none">
-        <CardHeader className="pb-3 px-5 pt-5">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold">Recent Requests</CardTitle>
-            <Button asChild variant="ghost" size="sm" className="text-xs h-7 rounded-none gap-1">
-              <Link to="/manager/candidates">View all <ChevronRight className="h-3.5 w-3.5" /></Link>
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="px-5 pb-5">
-          {recent.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">
-              No candidates yet.
-            </div>
-          ) : (
-            <div className="space-y-0 divide-y divide-border">
-              {recent.map((c) => (
-                <div key={c.id} className="flex items-center gap-3 py-3">
-                  <Avatar className="h-9 w-9 shrink-0">
-                    {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                    <AvatarFallback className="text-[11px] rounded-none">
-                      {c.full_name.slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {[c.occupation, c.country].filter(Boolean).join(" · ") || "—"}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-none capitalize", STATUS_PILL[c.status] ?? "bg-muted text-muted-foreground")}>
-                      {c.status}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-                      {new Date(c.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Medical Expired Dialog */}
-      <Dialog open={medOpen} onOpenChange={setMedOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-orange-700 dark:text-orange-300">
-              <AlertTriangle className="h-5 w-5" />
-              Medical Expired ({medExpired.length})
-            </DialogTitle>
-          </DialogHeader>
-          <PaginatedDialogList items={medExpired} renderItem={(c) => (
-            <div key={c.id} className="flex items-center gap-3 py-3">
-              <Avatar className="h-9 w-9 shrink-0">
-                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
-              </div>
-              <div className="shrink-0 text-right">
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300">Expired</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
-              </div>
-            </div>
-          )} />
-          <div className="pt-2 flex justify-end">
-            <Button asChild size="sm" className="rounded-none text-xs gap-1">
-              <Link to="/manager/candidates" onClick={() => setMedOpen(false)}>
-                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Tasheer Done + Wokala Unpaid Dialog */}
-      <Dialog open={tasheerOpen} onOpenChange={setTasheerOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-violet-700 dark:text-violet-300">
-              <AlertTriangle className="h-5 w-5" />
-              Tasheer Done — Wokala Unpaid ({tasheerDoneWokalaUnpaid.length})
-            </DialogTitle>
-          </DialogHeader>
-          <PaginatedDialogList items={tasheerDoneWokalaUnpaid} renderItem={(c) => (
-            <div key={c.id} className="flex items-center gap-3 py-3">
-              <Avatar className="h-9 w-9 shrink-0">
-                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
-              </div>
-              <div className="shrink-0 flex items-center gap-2">
-                <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
-                  onClick={() => handleUpdateField(c.id, "wokala_status", "Paid")}>
-                  Mark Paid
-                </Button>
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Unpaid</span>
-              </div>
-            </div>
-          )} />
-          <div className="pt-2 flex justify-end">
-            <Button asChild size="sm" className="rounded-none text-xs gap-1">
-              <Link to="/manager/candidates" onClick={() => setTasheerOpen(false)}>
-                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-      {/* COC — No Dialog */}
-      <Dialog open={cocNoOpen} onOpenChange={setCocNoOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-yellow-700 dark:text-yellow-300">
-              <AlertTriangle className="h-5 w-5" />
-              COC — No ({cocNo.length})
-            </DialogTitle>
-          </DialogHeader>
-          <PaginatedDialogList items={cocNo} renderItem={(c) => (
-            <div key={c.id} className="flex items-center gap-3 py-3">
-              <Avatar className="h-9 w-9 shrink-0">
-                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
-              </div>
-              <div className="shrink-0 text-right">
+      {/* Alert sections */}
+      {hasAlerts && (
+        <div className="space-y-2">
+          <AlertSection icon={FileCheck} title="COC — No" iconColor="text-orange-600 dark:text-orange-400" pillKey="coc" candidates={cocNo} onUpdateField={handleUpdateField}
+            exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "coc_booked_date", label: "COC Booking Date" }, { key: "labour_id", label: "Labour ID" }, { key: "office", label: "Office" }, { key: "narrative", label: "Narrative" }, { key: "narrative_phone", label: "Narrative Phone" }]}
+            renderBadge={(c) => (
+              <div className="text-right">
                 <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300">No</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
+                {(c as any).coc_booked_date && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Booked: {new Date((c as any).coc_booked_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}</p>
+                )}
               </div>
-            </div>
-          )} />
-          <div className="pt-2 flex justify-end">
-            <Button asChild size="sm" className="rounded-none text-xs gap-1">
-              <Link to="/manager/candidates" onClick={() => setCocNoOpen(false)}>
-                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* COC — Placed Dialog */}
-      <Dialog open={cocPlacedOpen} onOpenChange={setCocPlacedOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-violet-700 dark:text-violet-300">
-              <AlertTriangle className="h-5 w-5" />
-              COC — Placed ({cocPlaced.length})
-            </DialogTitle>
-          </DialogHeader>
-          <PaginatedDialogList items={cocPlaced} renderItem={(c) => (
-            <div key={c.id} className="flex items-center gap-3 py-3">
-              <Avatar className="h-9 w-9 shrink-0">
-                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
-              </div>
-              <div className="shrink-0 text-right">
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Placed</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
-              </div>
-            </div>
-          )} />
-          <div className="pt-2 flex justify-end">
-            <Button asChild size="sm" className="rounded-none text-xs gap-1">
-              <Link to="/manager/candidates" onClick={() => setCocPlacedOpen(false)}>
-                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Medical Not Fit Dialog */}
-      <Dialog open={medNotFitOpen} onOpenChange={setMedNotFitOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-700 dark:text-red-300">
-              <Stethoscope className="h-5 w-5" />
-              Medical Not Fit ({medNotFit.length})
-            </DialogTitle>
-          </DialogHeader>
-          <PaginatedDialogList items={medNotFit} renderItem={(c) => (
-            <div key={c.id} className="flex items-center gap-3 py-3">
-              <Avatar className="h-9 w-9 shrink-0">
-                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
-              </div>
-              <div className="shrink-0 text-right">
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">Unfit</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
-              </div>
-            </div>
-          )} />
-          <div className="pt-2 flex justify-end">
-            <Button asChild size="sm" className="rounded-none text-xs gap-1">
-              <Link to="/manager/candidates" onClick={() => setMedNotFitOpen(false)}>
-                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* COC Done + Medical Not Fit Dialog */}
-      <Dialog open={cocDoneMedNotFitOpen} onOpenChange={setCocDoneMedNotFitOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-rose-700 dark:text-rose-300">
-              <AlertTriangle className="h-5 w-5" />
-              COC Done — Medical Not Fit ({cocDoneMedNotFit.length})
-            </DialogTitle>
-          </DialogHeader>
-          <PaginatedDialogList items={cocDoneMedNotFit} renderItem={(c) => (
-            <div key={c.id} className="flex items-center gap-3 py-3">
-              <Avatar className="h-9 w-9 shrink-0">
-                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
-              </div>
-              <div className="shrink-0 text-right">
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">Medical Unfit</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
-              </div>
-            </div>
-          )} />
-          <div className="pt-2 flex justify-end">
-            <Button asChild size="sm" className="rounded-none text-xs gap-1">
-              <Link to="/manager/candidates" onClick={() => setCocDoneMedNotFitOpen(false)}>
-                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Visa Returned Dialog */}
-      <Dialog open={visaReturnedOpen} onOpenChange={setVisaReturnedOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-sky-700 dark:text-sky-300">
-              <RotateCcw className="h-5 w-5" />
-              Visa Returned ({visaReturned.length})
-            </DialogTitle>
-          </DialogHeader>
-          <PaginatedDialogList items={visaReturned} renderItem={(c) => (
-            <div key={c.id} className="flex items-center gap-3 py-3">
-              <Avatar className="h-9 w-9 shrink-0">
-                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
-              </div>
-              <div className="shrink-0 text-right">
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300">Returned</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
-              </div>
-            </div>
-          )} />
-          <div className="pt-2 flex justify-end">
-            <Button asChild size="sm" className="rounded-none text-xs gap-1">
-              <Link to="/manager/candidates" onClick={() => setVisaReturnedOpen(false)}>
-                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Ready for Embassy Dialog */}
-      <Dialog open={readyForEmbassyOpen} onOpenChange={setReadyForEmbassyOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
-              <CheckCircle2 className="h-5 w-5" />
-              Ready for Embassy ({readyForEmbassy.length})
-            </DialogTitle>
-          </DialogHeader>
-          <PaginatedDialogList items={readyForEmbassy} renderItem={(c) => (
-            <div key={c.id} className="flex items-center gap-3 py-3">
-              <Avatar className="h-9 w-9 shrink-0">
-                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
-              </div>
-              <div className="shrink-0 text-right">
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">Ready for Embassy</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
-              </div>
-            </div>
-          )} />
-          <div className="pt-2 flex justify-end">
-            <Button asChild size="sm" className="rounded-none text-xs gap-1">
-              <Link to="/manager/candidates" onClick={() => setReadyForEmbassyOpen(false)}>
-                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Tasheer Ready (Passport Rejected) Dialog */}
-      <Dialog open={tasheerReadyOpen} onOpenChange={setTasheerReadyOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
-              <AlertTriangle className="h-5 w-5" />
-              Tasheer Ready — Passport Rejected ({tasheerReady.length})
-            </DialogTitle>
-          </DialogHeader>
-          <PaginatedDialogList items={tasheerReady} renderItem={(c) => (
-            <div key={c.id} className="flex items-center gap-3 py-3">
-              <Avatar className="h-9 w-9 shrink-0">
-                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
-              </div>
-              <div className="shrink-0 text-right">
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">Passport Rejected</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
-              </div>
-            </div>
-          )} />
-          <div className="pt-2 flex justify-end">
-            <Button asChild size="sm" className="rounded-none text-xs gap-1">
-              <Link to="/manager/candidates" onClick={() => setTasheerReadyOpen(false)}>
-                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Tasheer Overdue Dialog */}
-      <Dialog open={tasheerOverdueOpen} onOpenChange={setTasheerOverdueOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
-              <AlertTriangle className="h-5 w-5" />
-              Tasheer Overdue ({tasheerOverdue.length})
-            </DialogTitle>
-          </DialogHeader>
-          <PaginatedDialogList items={tasheerOverdue} renderItem={(c) => {
-            const days = c.tasheer_date
-              ? Math.floor((today.getTime() - new Date(c.tasheer_date + "T00:00:00").getTime()) / 86_400_000)
-              : null;
-            return (
-              <div key={c.id} className="flex items-center gap-3 py-3">
-                <Avatar className="h-9 w-9 shrink-0">
-                  {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                  <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    Booked: {c.tasheer_date ? new Date(c.tasheer_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) : "—"}
-                    {days !== null ? ` · ${days}d overdue` : ""}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">Overdue</span>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
-                </div>
-              </div>
-            );
-          }} />
-          <div className="pt-2 flex justify-end">
-            <Button asChild size="sm" className="rounded-none text-xs gap-1">
-              <Link to="/manager/candidates" onClick={() => setTasheerOverdueOpen(false)}>
-                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Medical Fit — LMIS Not Tested Dialog */}
-      <Dialog open={fitLmisNotTestedOpen} onOpenChange={setFitLmisNotTestedOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-teal-700 dark:text-teal-300">
-              <Stethoscope className="h-5 w-5" />
-              Medical Fit — LMIS Not Tested ({fitLmisNotTested.length})
-            </DialogTitle>
-          </DialogHeader>
-          <PaginatedDialogList items={fitLmisNotTested} renderItem={(c) => (
-            <div key={c.id} className="flex items-center gap-3 py-3">
-              <Avatar className="h-9 w-9 shrink-0">
-                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
-              </div>
-              <div className="shrink-0 text-right">
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">Not Tested</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
-              </div>
-            </div>
-          )} />
-          <div className="pt-2 flex justify-end">
-            <Button asChild size="sm" className="rounded-none text-xs gap-1">
-              <Link to="/manager/candidates" onClick={() => setFitLmisNotTestedOpen(false)}>
-                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* CV Overdue Dialog */}
-      <Dialog open={cvOpen} onOpenChange={setCvOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-teal-700 dark:text-teal-300">
-              <Send className="h-5 w-5" />
-              CV Sent — No Selection ({cvOverdue.length})
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex items-center gap-2 mb-2 text-sm">
-            <span className="text-muted-foreground">Alert threshold:</span>
-            {cvDaysEdit ? (
-              <span className="flex items-center gap-1.5">
-                <input
-                  autoFocus
-                  type="number"
-                  min={1}
-                  value={cvDaysDraft}
-                  onChange={(e) => setCvDaysDraft(e.target.value)}
-                  className="w-14 border border-input rounded-none px-2 h-7 text-sm"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      const n = parseInt(cvDaysDraft);
-                      if (!isNaN(n) && n > 0) updateThresholdMut.mutate(n);
-                      setCvDaysEdit(false);
-                    }
-                    if (e.key === "Escape") setCvDaysEdit(false);
-                  }}
-                />
-                <span className="text-xs text-muted-foreground">days</span>
-                <button
-                  type="button"
-                  className="text-xs text-primary hover:underline"
-                  onClick={() => {
-                    const n = parseInt(cvDaysDraft);
-                    if (!isNaN(n) && n > 0) updateThresholdMut.mutate(n);
-                    setCvDaysEdit(false);
-                  }}
-                >
-                  Save
-                </button>
-                <button type="button" className="text-xs text-muted-foreground hover:underline" onClick={() => setCvDaysEdit(false)}>
-                  Cancel
-                </button>
-              </span>
-            ) : (
-              <button
-                type="button"
-                className="flex items-center gap-1 font-semibold text-foreground hover:underline"
-                onClick={() => { setCvDaysDraft(String(cvDaysThreshold)); setCvDaysEdit(true); }}
-              >
-                {cvDaysThreshold} days
-                <Settings className="h-3 w-3 opacity-50" />
-              </button>
             )}
-          </div>
-          <PaginatedDialogList items={cvOverdue} renderItem={(c) => {
-            const days = c.cv_sent_date
-              ? Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000)
-              : null;
-            return (
-              <div key={c.id} className="flex items-center gap-3 py-3">
-                <Avatar className="h-9 w-9 shrink-0">
-                  {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                  <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                  <p className="text-xs text-muted-foreground truncate">Sent to: {c.cv_sent_to}{days !== null ? ` · ${days}d ago` : ""}</p>
-                </div>
-                <div className="shrink-0">
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">
-                    {days !== null ? `${days}d overdue` : "Overdue"}
-                  </span>
-                </div>
-              </div>
-            );
-          }} />
-          <div className="pt-2 flex justify-end">
-            <Button asChild size="sm" className="rounded-none text-xs gap-1">
-              <Link to="/manager/candidates" onClick={() => setCvOpen(false)}>
-                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+            renderCardAction={(c) => (
+              <CocBookButton candidate={c} onConfirm={(status, date) => {
+                handleUpdateField(c.id, "coc_status", status);
+                if (date) handleUpdateField(c.id, "coc_booked_date", date);
+              }} />
+            )} />
 
-      {/* Arrival City Missing Dialog */}
-      <Dialog open={arrivalCityOpen} onOpenChange={setArrivalCityOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-cyan-700 dark:text-cyan-300">
-              <MapPin className="h-5 w-5" />
-              Arrival City Not Set ({arrivalCityMissing.length})
-            </DialogTitle>
-          </DialogHeader>
-          <PaginatedDialogList items={arrivalCityMissing} renderItem={(c) => (
-            <div key={c.id} className="flex items-center gap-3 py-3">
-              <Avatar className="h-9 w-9 shrink-0">
-                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
+          <AlertSection icon={FileCheck} title="COC — Placed" iconColor="text-violet-600 dark:text-violet-400" pillKey="coc" candidates={cocPlaced} onUpdateField={handleUpdateField}
+            exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "coc_booked_date", label: "COC Booking Date" }, { key: "labour_id", label: "Labour ID" }, { key: "selected_by", label: "Selected By" }, { key: "office", label: "Office" }]}
+            renderBadge={(c) => (
+              <div className="text-right">
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Placed</span>
+                {(c as any).coc_booked_date && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Booked: {new Date((c as any).coc_booked_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}</p>
+                )}
               </div>
-              <div className="shrink-0 text-right">
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300">No City</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{c.ticket_status ?? "—"}</p>
-              </div>
-            </div>
-          )} />
-          <div className="pt-2 flex justify-end">
-            <Button asChild size="sm" className="rounded-none text-xs gap-1">
-              <Link to="/manager/candidates" onClick={() => setArrivalCityOpen(false)}>
-                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+            )}
+            renderCardAction={(c) => (
+              <CocBookButton candidate={c} onConfirm={(status, date) => {
+                handleUpdateField(c.id, "coc_status", status);
+                if (date) handleUpdateField(c.id, "coc_booked_date", date);
+              }} />
+            )} />
 
-      {/* Ticket Ready Dialog */}
-      <Dialog open={ticketReadyOpen} onOpenChange={setTicketReadyOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-violet-700 dark:text-violet-300">
-              <Ticket className="h-5 w-5" />
-              Ticket Ready ({ticketReady.length})
-            </DialogTitle>
-          </DialogHeader>
-          <PaginatedDialogList items={ticketReady} renderItem={(c) => (
-            <div key={c.id} className="flex items-center gap-3 py-3">
-              <Avatar className="h-9 w-9 shrink-0">
-                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
-              </div>
-              <div className="shrink-0 text-right">
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Ready</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{c.status}</p>
-              </div>
-            </div>
-          )} />
-          <div className="pt-2 flex justify-end">
-            <Button asChild size="sm" className="rounded-none text-xs gap-1">
-              <Link to="/manager/candidates" onClick={() => setTicketReadyOpen(false)}>
-                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+          <AlertSection icon={Stethoscope} title="Medical — Not Fit" iconColor="text-red-600 dark:text-red-400" pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField}
+            exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }, { key: "coc_status", label: "COC Status" }, { key: "office", label: "Office" }]}
+            renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">{c.medical_status}</span>}
+            renderCardAction={(c) => (
+              <MedicalBookButton candidateName={c.full_name}
+                onConfirm={(date) => {
+                  handleUpdateField(c.id, "medical_date", date);
+                  handleUpdateField(c.id, "medical_status", "Booked");
+                }} />
+            )} />
 
-      {/* LMIS Draft / Imported — List Dialog */}
-      <Dialog open={lmisDraftImportedOpen} onOpenChange={setLmisDraftImportedOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-indigo-700 dark:text-indigo-300">
-              <Upload className="h-5 w-5" />
-              LMIS Files Needed ({lmisDraftImported.length})
-            </DialogTitle>
-          </DialogHeader>
-          <PaginatedDialogList items={lmisDraftImported} renderItem={(c) => (
-            <div key={c.id} className="flex items-center gap-3 py-3">
-              <Avatar className="h-9 w-9 shrink-0">
-                {c.photo_url && <img src={c.photo_url} alt={c.full_name} className="h-full w-full object-cover" />}
-                <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{c.full_name}</p>
-                <p className="text-xs text-muted-foreground truncate">{[c.occupation, c.passport_number].filter(Boolean).join(" · ") || "—"}</p>
-              </div>
-              <div className="shrink-0 flex items-center gap-2">
-                <span className={cn(
-                  "text-[11px] font-medium px-2 py-0.5 rounded-none",
-                  c.lmis_status === "Draft"
-                    ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                    : "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
-                )}>
-                  {c.lmis_status}
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-[11px] px-2 rounded-none gap-1"
-                  onClick={() => setLmisFilesCandidate(c)}
-                >
-                  <Upload className="h-3 w-3" /> Files
-                </Button>
-              </div>
-            </div>
-          )} />
-          <div className="pt-2 flex justify-end">
-            <Button asChild size="sm" className="rounded-none text-xs gap-1">
-              <Link to="/manager/candidates" onClick={() => setLmisDraftImportedOpen(false)}>
-                Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+          <AlertSection icon={Stethoscope} title="COC Done — Medical Not Fit" iconColor="text-fuchsia-600 dark:text-fuchsia-400" pillKey="medical" candidates={cocDoneNotFit} onUpdateField={handleUpdateField}
+            exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }]}
+            renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">{c.medical_status}</span>}
+            renderCardAction={(c) => (
+              <MedicalBookButton candidateName={c.full_name}
+                onConfirm={(date) => {
+                  handleUpdateField(c.id, "medical_date", date);
+                  handleUpdateField(c.id, "medical_status", "Booked");
+                }} />
+            )} />
 
-      {/* LMIS Files Upload Dialog */}
-      {lmisFilesCandidate && (() => {
-        const c = lmisFilesCandidate as any;
-        return (
-          <Dialog open onOpenChange={(o) => { if (!o) setLmisFilesCandidate(null); }}>
-            <DialogContent className="max-w-2xl rounded-none">
-              <DialogHeader>
-                <DialogTitle className="text-base">LMIS Documents — {lmisFilesCandidate.full_name}</DialogTitle>
-              </DialogHeader>
-              <div className="grid grid-cols-2 gap-4 pt-1">
-                <LmisDocSection label="INSU" url={c.lmis_insu_url ?? ""}
-                  onUpload={(f) => uploadLmisFile(lmisFilesCandidate.id, f, "lmis_insu_url")}
-                  onRemove={() => updateLmisMut.mutate({ id: lmisFilesCandidate.id, field: "lmis_insu_url", value: null })} />
-                <LmisDocSection label="COC" url={c.lmis_coc_url ?? ""}
-                  onUpload={(f) => uploadLmisFile(lmisFilesCandidate.id, f, "lmis_coc_url")}
-                  onRemove={() => updateLmisMut.mutate({ id: lmisFilesCandidate.id, field: "lmis_coc_url", value: null })} />
-                <LmisDocSection label={c.lmis_id_url && c.lmis_id_relative_url ? "ID'S — Candidate" : "ID (Candidate)"} url={c.lmis_id_url ?? ""}
-                  onUpload={(f) => uploadLmisFile(lmisFilesCandidate.id, f, "lmis_id_url")}
-                  onRemove={() => updateLmisMut.mutate({ id: lmisFilesCandidate.id, field: "lmis_id_url", value: null })} />
-                <LmisDocSection label={c.lmis_id_url && c.lmis_id_relative_url ? "ID'S — Relative" : "ID (Relative)"} url={c.lmis_id_relative_url ?? ""}
-                  onUpload={(f) => uploadLmisFile(lmisFilesCandidate.id, f, "lmis_id_relative_url")}
-                  onRemove={() => updateLmisMut.mutate({ id: lmisFilesCandidate.id, field: "lmis_id_relative_url", value: null })} />
+          <AlertSection icon={CalendarX} title="Medical — Expired" iconColor="text-rose-600 dark:text-rose-400" pillKey="medexp" candidates={medicalExpired} onUpdateField={handleUpdateField}
+            exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }]}
+            renderBadge={(c) => (
+              <div className="text-right">
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">Expired</span>
+                {c.medical_date && <p className="text-[10px] text-muted-foreground mt-0.5">{daysSince(c.medical_date)}d ago</p>}
               </div>
-            </DialogContent>
-          </Dialog>
-        );
-      })()}
+            )}
+            renderCardAction={(c) => (
+              <MedicalBookButton candidateName={c.full_name}
+                onConfirm={(date) => {
+                  handleUpdateField(c.id, "medical_date", date);
+                  handleUpdateField(c.id, "medical_status", "Booked");
+                }} />
+            )} />
+
+          <AlertSection icon={ClipboardList} title="LMIS file" iconColor="text-amber-600 dark:text-amber-400" pillKey="lmis" candidates={unfilledLmis} onUpdateField={handleUpdateField}
+            exportCols={[...BASE, { key: "lmis_status", label: "LMIS Status" }, { key: "unfilled_lmis", label: "Unfilled LMIS" }, { key: "labour_id", label: "Labour ID" }]}
+            renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{c.unfilled_lmis}</span>}
+            renderCardAction={(c) => (
+              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                onClick={() => handleUpdateField(c.id, "unfilled_lmis", "")}>
+                Mark Done
+              </Button>
+            )} />
+
+          <AlertSection icon={Ticket} title="Ticket Not Booked — Over 20 Days" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketNotBooked} onUpdateField={handleUpdateField}
+            exportCols={[...BASE, { key: "ticket_status", label: "Ticket" }, { key: "contract_date", label: "Contract Date" }, { key: "arrival_city", label: "Arrival City" }, { key: "office", label: "Office" }]}
+            renderBadge={(c) => c.contract_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">{daysSince(c.contract_date)}d since contract</span> : null}
+            renderCardAction={(c) => (
+              <TicketBookButton candidateName={c.full_name}
+                onConfirm={(date) => {
+                  handleUpdateField(c.id, "ticket_date", date);
+                  handleUpdateField(c.id, "ticket_status", "Booked");
+                }} />
+            )} />
+
+          <AlertSection icon={Ticket} title="Ticket Ready" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketReady} onUpdateField={handleUpdateField}
+            exportCols={[...BASE, { key: "ticket_status", label: "Ticket" }, { key: "ticket_date", label: "Ticket Date" }, { key: "arrival_city", label: "Arrival City" }, { key: "passport_number", label: "Passport No." }]}
+            renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Ready</span>}
+            renderCardAction={(c) => (
+              <TicketBookButton candidateName={c.full_name}
+                onConfirm={(date) => {
+                  handleUpdateField(c.id, "ticket_date", date);
+                  handleUpdateField(c.id, "ticket_status", "Booked");
+                }} />
+            )} />
+
+          <AlertSection icon={MapPin} title="Arrival City Not Set" iconColor="text-cyan-600 dark:text-cyan-400" pillKey="arrival" candidates={arrivalCityMissing} onUpdateField={handleUpdateField}
+            exportCols={[...BASE, { key: "arrival_city", label: "Arrival City" }, { key: "ticket_status", label: "Ticket" }, { key: "office", label: "Office" }]}
+            renderCardAction={(c) => (
+              <Select onValueChange={(v) => handleUpdateField(c.id, "arrival_city", v)}>
+                <SelectTrigger className="h-7 text-xs rounded-none w-[110px]">
+                  <SelectValue placeholder="Set City" />
+                </SelectTrigger>
+                <SelectContent>
+                  {["Riyadh", "Jeddah", "Dammam", "Mecca", "Medina", "Taif", "Khobar", "Abha"].map((city) => (
+                    <SelectItem key={city} value={city}>{city}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )} />
+
+          <AlertSection icon={Landmark} title="Embassy Visa — Pending" iconColor="text-sky-600 dark:text-sky-400" pillKey="embassy" candidates={embassyPending} onUpdateField={handleUpdateField}
+            exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "tasheer_status", label: "Tasheer" }, { key: "embassy_date", label: "Embassy Date" }, { key: "processing_notes", label: "Notes" }]}
+            renderBadge={(c) => c.processing_notes ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300 max-w-[120px] truncate block">{c.processing_notes}</span> : null}
+            renderCardAction={(c) => (
+              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                onClick={() => handleUpdateField(c.id, "visa_status", "Sent to Embassy")}>
+                Sent to Embassy
+              </Button>
+            )} />
+
+          <AlertSection icon={BadgeCheck} title="Ready for Embassy Visa" iconColor="text-emerald-600 dark:text-emerald-400" pillKey="visaready" candidates={visaReady} onUpdateField={handleUpdateField}
+            exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "tasheer_status", label: "Tasheer" }, { key: "wokala_status", label: "Wokala" }, { key: "embassy_date", label: "Embassy Date" }]}
+            renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">{c.visa_status === "Ready for embassy" ? "Ready" : "Auto"}</span>}
+            renderCardAction={(c) => (
+              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                onClick={() => handleUpdateField(c.id, "visa_status", "Sent to Embassy")}>
+                Sent to Embassy
+              </Button>
+            )} />
+
+          <AlertSection icon={RotateCcw} title="Visa Returned" iconColor="text-rose-600 dark:text-rose-400" pillKey="visareturn" candidates={visaReturned} onUpdateField={handleUpdateField}
+            exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "remark", label: "Remark" }, { key: "musaned_status", label: "Country" }]}
+            renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">Returned</span>}
+            renderCardAction={(c) => (
+              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                onClick={() => handleUpdateField(c.id, "visa_status", "Waiting Replacement")}>
+                Replacement
+              </Button>
+            )} />
+
+          <AlertSection icon={AlertTriangle} title="Tasheer Overdue — Booked Date Passed" iconColor="text-amber-600 dark:text-amber-400" pillKey="tasheer" candidates={tasheerOverdue} onUpdateField={handleUpdateField}
+            exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }]}
+            renderBadge={(c) => c.tasheer_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{daysSince(c.tasheer_date)}d overdue</span> : null}
+            renderCardAction={(c) => (
+              <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => handleUpdateField(c.id, "tasheer_status", "Done")}>
+                Done
+              </Button>
+            )} />
+
+          <AlertSection icon={AlertTriangle} title="Tasheer Done — Wokala Unpaid" iconColor="text-violet-600 dark:text-violet-400" pillKey="tasheer" candidates={tasheerDoneWokalaUnpaid} onUpdateField={handleUpdateField}
+            exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }, { key: "narrative_phone", label: "Narrative Phone" }]}
+            renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Unpaid</span>}
+            renderCardAction={(c) => (
+              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                onClick={() => handleUpdateField(c.id, "wokala_status", "Paid")}>
+                Mark Paid
+              </Button>
+            )} />
+
+          <AlertSection icon={XCircle} title="Tasheer — Ready" iconColor="text-red-600 dark:text-red-400" pillKey="tasheer" candidates={passportNotAccepted} onUpdateField={handleUpdateField}
+            exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "passport_number", label: "Passport No." }, { key: "office", label: "Office" }]}
+            renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">Ready</span>}
+            renderCardAction={(c) => (
+              <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => {
+                  handleUpdateField(c.id, "passport_accepted", "true");
+                  handleUpdateField(c.id, "tasheer_status", "Done");
+                  handleUpdateField(c.id, "visa_status", "Ready for embassy");
+                }}>
+                Yes
+              </Button>
+            )} />
+
+          <AlertSection icon={Send} title="CV Sent — No Selection" iconColor="text-teal-600 dark:text-teal-400" pillKey="cvoverdue" candidates={cvOverdue} onUpdateField={handleUpdateField}
+            exportCols={[...BASE, { key: "cv_sent_to", label: "CV Sent To" }, { key: "cv_sent_date", label: "CV Sent Date" }, { key: "musaned_status", label: "Country" }]}
+            renderBadge={(c) => c.cv_sent_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">{Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000)}d ago</span> : null}
+            renderCardAction={(c) => (
+              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                onClick={() => handleUpdateField(c.id, "cv_sent_to", null)}>
+                Recall CV
+              </Button>
+            )} />
+
+          <AlertSection icon={Stethoscope} title="Medical Fit — LMIS Not Tested" iconColor="text-teal-600 dark:text-teal-400" pillKey="fitlmis" candidates={fitLmisNotTested} onUpdateField={handleUpdateField}
+            exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }, { key: "coc_status", label: "COC Status" }, { key: "lmis_status", label: "LMIS" }]}
+            renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">Not Tested</span>}
+            renderCardAction={(c) => (
+              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                onClick={() => handleUpdateField(c.id, "lmis_status", "Imported")}>
+                Start LMIS
+              </Button>
+            )} />
+
+          <AlertSection icon={Upload} title="LMIS Draft / Imported — Upload Files" iconColor="text-indigo-600 dark:text-indigo-400" pillKey="lmis" candidates={lmisDraftImported} onUpdateField={handleUpdateField}
+            exportCols={[...BASE, { key: "lmis_status", label: "LMIS Status" }, { key: "labour_id", label: "Labour ID" }, { key: "unfilled_lmis", label: "Unfilled LMIS" }]}
+            renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">{c.lmis_status}</span>}
+            renderCardAction={(c) => (
+              <LmisUploadButton candidate={c}
+                onUpdate={(field, value) => handleUpdateField(c.id, field, value)} />
+            )} />
+        </div>
+      )}
     </div>
   );
 }

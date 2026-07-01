@@ -127,7 +127,7 @@ type EditableField =
   | "tasheer_status" | "tasheer_date" | "wokala_status" | "embassy_date"
   | "visa_status" | "insurance_status" | "unfilled_lmis" | "lmis_status"
   | "ticket_status" | "ticket_date" | "arrival_city" | "emergency_contact" | "processing_notes"
-  | "passport_accepted"
+  | "passport_accepted" | "cv_sent_to"
   | "coc_booked_date"
   | "lmis_insu_url" | "lmis_coc_url" | "lmis_id_url" | "lmis_id_relative_url";
 
