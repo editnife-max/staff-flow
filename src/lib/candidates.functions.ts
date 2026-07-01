@@ -83,7 +83,7 @@ const InlineFieldSchema = z.object({
     "processing_notes", "remark",
     "destination_country", "cv_sent_to",
     "passport_accepted",
-    "coc_agency_name", "coc_agency_phone",
+    "coc_agency_name", "coc_agency_phone", "coc_booked_date",
     "insurance_date",
     "availability_type",
     "lmis_insu_url", "lmis_coc_url", "lmis_id_url", "lmis_id_relative_url",
@@ -191,6 +191,11 @@ export const updateCandidateField = createServerFn({ method: "POST" })
     // Clear ticket_date whenever ticket_status changes to anything other than "Booked"
     if (data.field === "ticket_status" && raw !== "Booked") {
       payload.ticket_date = null;
+    }
+
+    // Clear coc_booked_date whenever coc_status changes to anything other than "Booked"
+    if (data.field === "coc_status" && raw !== "Booked") {
+      payload.coc_booked_date = null;
     }
 
     // When tasheer_status changes, clear downstream fields.

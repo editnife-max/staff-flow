@@ -128,6 +128,7 @@ type EditableField =
   | "visa_status" | "insurance_status" | "unfilled_lmis" | "lmis_status"
   | "ticket_status" | "ticket_date" | "arrival_city" | "emergency_contact" | "processing_notes"
   | "passport_accepted"
+  | "coc_booked_date"
   | "lmis_insu_url" | "lmis_coc_url" | "lmis_id_url" | "lmis_id_relative_url";
 
 function OptionPill({ value }: { value: string }) {
@@ -520,6 +521,71 @@ function TicketBookButton({ candidateId, candidateName, onConfirm }: {
           <DialogFooter>
             <Button variant="ghost" className="rounded-none" onClick={() => setOpen(false)}>Cancel</Button>
             <Button disabled={!date} className="rounded-none" onClick={() => { onConfirm(date); setOpen(false); }}>
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// ─── COC status select with mandatory booking date when "Booked" is chosen ───
+function CocBookButton({ candidate, onConfirm }: {
+  candidate: Candidate;
+  onConfirm: (status: string, date?: string) => void;
+}) {
+  const [bookingOpen, setBookingOpen] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+  const [date, setDate] = useState("");
+
+  const handleSelect = (v: string) => {
+    if (v === "Booked") {
+      setPendingStatus(v);
+      setDate("");
+      setBookingOpen(true);
+    } else {
+      onConfirm(v);
+    }
+  };
+
+  return (
+    <>
+      <Select onValueChange={handleSelect}>
+        <SelectTrigger className="h-7 text-xs rounded-none w-[130px]">
+          <SelectValue placeholder="Set COC" />
+        </SelectTrigger>
+        <SelectContent>
+          {["Done", "No", "Booked", "Placed", "Yitazez", "Pending release"].map((opt) => (
+            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Dialog open={bookingOpen} onOpenChange={(o) => { if (!o) setBookingOpen(false); }}>
+        <DialogContent className="max-w-sm rounded-none">
+          <DialogHeader>
+            <DialogTitle>COC Booking Date</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Enter the COC booking date for <strong>{candidate.full_name}</strong>.
+          </p>
+          <Input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="rounded-none h-9"
+          />
+          <DialogFooter>
+            <Button variant="ghost" className="rounded-none" onClick={() => setBookingOpen(false)}>Cancel</Button>
+            <Button
+              disabled={!date}
+              className="rounded-none"
+              onClick={() => {
+                if (pendingStatus) onConfirm(pendingStatus, date);
+                setBookingOpen(false);
+              }}
+            >
               Confirm
             </Button>
           </DialogFooter>
@@ -1022,34 +1088,42 @@ function StaffDashboard() {
       {(cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || cvOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0) && (
         <div className="space-y-2">
           <AlertSection icon={FileCheck} title="COC — No" iconColor="text-orange-600 dark:text-orange-400" pillKey="coc" candidates={cocNo} onUpdateField={handleUpdateField} countryOptions={countryOptions}
-            exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "labour_id", label: "Labour ID" }, { key: "office", label: "Office" }, { key: "narrative", label: "Narrative" }, { key: "narrative_phone", label: "Narrative Phone" }]}
-            renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300">No</span>}
+            exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "coc_booked_date", label: "COC Booking Date" }, { key: "labour_id", label: "Labour ID" }, { key: "office", label: "Office" }, { key: "narrative", label: "Narrative" }, { key: "narrative_phone", label: "Narrative Phone" }]}
+            renderBadge={(c) => (
+              <div className="text-right">
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300">No</span>
+                {(c as any).coc_booked_date && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Booked: {new Date((c as any).coc_booked_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}</p>
+                )}
+              </div>
+            )}
             renderCardAction={(c) => (
-              <Select onValueChange={(v) => handleUpdateField(c.id, "coc_status", v)}>
-                <SelectTrigger className="h-7 text-xs rounded-none w-[130px]">
-                  <SelectValue placeholder="Set COC" />
-                </SelectTrigger>
-                <SelectContent>
-                  {["Done", "No", "Booked", "Placed", "Yitazez", "Pending release"].map((opt) => (
-                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <CocBookButton
+                candidate={c}
+                onConfirm={(status, date) => {
+                  handleUpdateField(c.id, "coc_status", status);
+                  if (date) handleUpdateField(c.id, "coc_booked_date", date);
+                }}
+              />
             )} />
           <AlertSection icon={FileCheck} title="COC — Placed" iconColor="text-violet-600 dark:text-violet-400" pillKey="coc" candidates={cocPlaced} onUpdateField={handleUpdateField} countryOptions={countryOptions}
-            exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "labour_id", label: "Labour ID" }, { key: "selected_by", label: "Selected By" }, { key: "office", label: "Office" }]}
-            renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Placed</span>}
+            exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "coc_booked_date", label: "COC Booking Date" }, { key: "labour_id", label: "Labour ID" }, { key: "selected_by", label: "Selected By" }, { key: "office", label: "Office" }]}
+            renderBadge={(c) => (
+              <div className="text-right">
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Placed</span>
+                {(c as any).coc_booked_date && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Booked: {new Date((c as any).coc_booked_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}</p>
+                )}
+              </div>
+            )}
             renderCardAction={(c) => (
-              <Select onValueChange={(v) => handleUpdateField(c.id, "coc_status", v)}>
-                <SelectTrigger className="h-7 text-xs rounded-none w-[130px]">
-                  <SelectValue placeholder="Set COC" />
-                </SelectTrigger>
-                <SelectContent>
-                  {["Done", "No", "Booked", "Placed", "Yitazez", "Pending release"].map((opt) => (
-                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <CocBookButton
+                candidate={c}
+                onConfirm={(status, date) => {
+                  handleUpdateField(c.id, "coc_status", status);
+                  if (date) handleUpdateField(c.id, "coc_booked_date", date);
+                }}
+              />
             )} />
           <AlertSection icon={Stethoscope} title="Medical — Not Fit" iconColor="text-red-600 dark:text-red-400" pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }, { key: "coc_status", label: "COC Status" }, { key: "office", label: "Office" }]}
