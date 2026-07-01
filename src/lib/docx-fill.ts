@@ -156,6 +156,10 @@ function xmlEsc(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+function xmlEscAttr(s: string) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+
 // Normalize label text: collapse whitespace, strip non-breaking spaces, uppercase
 function normLabel(s: string) {
   return s.replace(/[   ]/g, " ").replace(/\s+/g, " ").trim().toUpperCase();
@@ -224,7 +228,7 @@ function renameLabel(xml: string, oldLabel: string, newLabel: string): string {
   while (pos < xml.length) {
     const cellStart = nextCell(xml, pos);
     if (cellStart === -1) break;
-    const cellEnd = xml.indexOf("</w:tc>", cellStart);
+    const cellEnd = outerCellEnd(xml, cellStart);
     if (cellEnd === -1) break;
     if (normLabel(cellText(xml, cellStart, cellEnd)) === normTarget) {
       let first = true;
@@ -260,13 +264,13 @@ function fillField(xml: string, label: string, value: string): string {
   while (pos < xml.length) {
     const cellStart = nextCell(xml, pos);
     if (cellStart === -1) break;
-    const cellEnd = xml.indexOf("</w:tc>", cellStart);
+    const cellEnd = outerCellEnd(xml, cellStart);
     if (cellEnd === -1) break;
 
     if (normLabel(cellText(xml, cellStart, cellEnd)) === normTarget) {
       let nStart = nextCell(xml, cellEnd + 7);
       if (nStart === -1) { pos = cellEnd + 7; continue; }
-      let nEnd = xml.indexOf("</w:tc>", nStart);
+      let nEnd = outerCellEnd(xml, nStart);
       if (nEnd === -1) { pos = cellEnd + 7; continue; }
 
       // If the next cell is an Arabic label cell, skip it and use the one after.
@@ -274,7 +278,7 @@ function fillField(xml: string, label: string, value: string): string {
       if (/[؀-ۿ]/.test(cellText(xml, nStart, nEnd))) {
         const s2 = nextCell(xml, nEnd + 7);
         if (s2 !== -1) {
-          const e2 = xml.indexOf("</w:tc>", s2);
+          const e2 = outerCellEnd(xml, s2);
           if (e2 !== -1) { nStart = s2; nEnd = e2; }
         }
       }
@@ -539,14 +543,14 @@ function inlineDrawingXml(rId: string, name: string, picId: number, cxEmu: numbe
     ` distT="0" distB="0" distL="0" distR="0">`,
     `<wp:extent cx="${cxEmu}" cy="${cyEmu}"/>`,
     `<wp:effectExtent l="0" t="0" r="0" b="0"/>`,
-    `<wp:docPr id="${picId}" name="${name}"/>`,
+    `<wp:docPr id="${picId}" name="${xmlEscAttr(name)}"/>`,
     `<wp:cNvGraphicFramePr>`,
     `<a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/>`,
     `</wp:cNvGraphicFramePr>`,
     `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">`,
     `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">`,
     `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">`,
-    `<pic:nvPicPr><pic:cNvPr id="${picId}" name="${name}"/><pic:cNvPicPr/></pic:nvPicPr>`,
+    `<pic:nvPicPr><pic:cNvPr id="${picId}" name="${xmlEscAttr(name)}"/><pic:cNvPicPr/></pic:nvPicPr>`,
     `<pic:blipFill>`,
     `<a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>`,
     `<a:stretch><a:fillRect/></a:stretch>`,
@@ -590,14 +594,14 @@ function simplifyWpgAnchorForRId(xml: string, rId: string, cx: number, cy: numbe
         ` distT="0" distB="0" distL="0" distR="0">`,
         `<wp:extent cx="${cx}" cy="${cy}"/>`,
         `<wp:effectExtent l="0" t="0" r="0" b="0"/>`,
-        `<wp:docPr id="${picId}" name="${name}"/>`,
+        `<wp:docPr id="${picId}" name="${xmlEscAttr(name)}"/>`,
         `<wp:cNvGraphicFramePr>`,
         `<a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/>`,
         `</wp:cNvGraphicFramePr>`,
         `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">`,
         `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">`,
         `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">`,
-        `<pic:nvPicPr><pic:cNvPr id="${picId}" name="${name}"/><pic:cNvPicPr/></pic:nvPicPr>`,
+        `<pic:nvPicPr><pic:cNvPr id="${picId}" name="${xmlEscAttr(name)}"/><pic:cNvPicPr/></pic:nvPicPr>`,
         `<pic:blipFill>`,
         `<a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>`,
         `<a:stretch><a:fillRect/></a:stretch>`,
@@ -1003,7 +1007,53 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
   if (ctXml) zip.file(ctPath, new TextEncoder().encode(ctXml));
 
   zip.file("word/document.xml", new TextEncoder().encode(xml));
-  return zip.generate({ type: "uint8array" });
+  const result = zip.generate({ type: "uint8array" });
+  validateDocxBytes(result);
+  return result;
+}
+
+// ── Post-generation validation ────────────────────────────────────────────────
+// Parses the generated ZIP as a DOCX, confirms document.xml is well-formed XML,
+// and checks that every r:embed rId in document.xml has a matching relationship
+// in document.xml.rels. Throws with a descriptive message on any failure so the
+// caller can surface the error instead of delivering a corrupt file silently.
+function validateDocxBytes(bytes: Uint8Array): void {
+  let zip: PizZip;
+  try {
+    zip = new PizZip(bytes);
+  } catch (e: any) {
+    throw new Error(`DOCX validation: generated ZIP is unreadable — ${e?.message ?? e}`);
+  }
+
+  const docEntry = zip.file("word/document.xml");
+  if (!docEntry) throw new Error("DOCX validation: word/document.xml is missing from the generated archive");
+  if (!zip.file("[Content_Types].xml")) throw new Error("DOCX validation: [Content_Types].xml is missing from the generated archive");
+
+  const docXml = new TextDecoder("utf-8").decode(docEntry.asUint8Array());
+
+  if (typeof DOMParser !== "undefined") {
+    const doc = new DOMParser().parseFromString(docXml, "application/xml");
+    const err = doc.querySelector("parsererror");
+    if (err) {
+      const detail = err.textContent?.slice(0, 300) ?? "(no detail)";
+      console.error("[DOCX validation] document.xml parse error:", detail);
+      throw new Error(`DOCX validation: document.xml is malformed XML — ${detail}`);
+    }
+  }
+
+  const relsEntry = zip.file("word/_rels/document.xml.rels");
+  if (relsEntry) {
+    const relsXml = new TextDecoder("utf-8").decode(relsEntry.asUint8Array());
+    const embedRe = /\br:embed="([^"]+)"/g;
+    let m: RegExpExecArray | null;
+    while ((m = embedRe.exec(docXml)) !== null) {
+      const rId = m[1];
+      if (!relsXml.includes(`Id="${rId}"`)) {
+        console.error(`[DOCX validation] r:embed="${rId}" has no matching relationship in document.xml.rels`);
+        throw new Error(`DOCX validation: r:embed="${rId}" in document.xml has no matching entry in document.xml.rels — the image reference is broken`);
+      }
+    }
+  }
 }
 
 // Returns true if the template's metadata declares a passport image slot or cell.

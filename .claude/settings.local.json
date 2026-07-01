@@ -98,7 +98,9 @@
       "Bash(New-Item -ItemType File -Path \"C:\\\\Project\\\\flowpath-suite\\\\README.md\" -Force)",
       "Bash(Out-Null)",
       "Bash(Write-Output \"created\")",
-      "PowerShell(\\(Get-Content \"C:\\\\Project\\\\flowpath-suite\\\\src\\\\components\\\\action-dialog.tsx\" | Measure-Object -Line\\).Lines)"
+      "PowerShell(\\(Get-Content \"C:\\\\Project\\\\flowpath-suite\\\\src\\\\components\\\\action-dialog.tsx\" | Measure-Object -Line\\).Lines)",
+      "Bash(Get-Content \"C:\\\\Project\\\\flowpath-suite\\\\package.json\")",
+      "Bash(Select-String -Pattern \"pizzip|jszip|docx|piz\")"
     ]
   },
   "enableAllProjectMcpServers": true,
