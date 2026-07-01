@@ -8,6 +8,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -58,6 +59,7 @@ type StaffRow = {
   role_title: string | null;
   status: string;
   created_at: string;
+  user_id: string | null;
 };
 
 type CandidateRow = {
@@ -199,6 +201,42 @@ function StaffDetailSheet({ staff, open, onClose }: {
     },
   });
 
+  type ActivityEntry = {
+    id: string;
+    candidate_id: string;
+    candidate_name: string;
+    field: string;
+    new_value: string | null;
+    changed_at: string;
+  };
+
+  const { data: activityLog = [] } = useQuery<ActivityEntry[]>({
+    queryKey: ["staff-activity", staff?.id, staff?.user_id],
+    enabled: open && !!staff?.user_id,
+    queryFn: async () => {
+      const { data: rows, error } = await supabase
+        .from("candidate_field_log")
+        .select("id, candidate_id, field, new_value, changed_at")
+        .eq("changed_by_user_id", staff!.user_id!)
+        .order("changed_at", { ascending: false })
+        .limit(300);
+      if (error) throw error;
+      if (!rows || rows.length === 0) return [];
+
+      const uniqueIds = [...new Set(rows.map((r) => r.candidate_id))];
+      const { data: cands } = await supabase
+        .from("candidates")
+        .select("id, full_name")
+        .in("id", uniqueIds);
+      const nameMap = Object.fromEntries((cands ?? []).map((c) => [c.id, c.full_name]));
+
+      return rows.map((r) => ({
+        ...r,
+        candidate_name: nameMap[r.candidate_id] ?? "Unknown",
+      }));
+    },
+  });
+
   const { candidates, logs: fieldLogs } = data;
 
   const weekStart = startOfWeek().toISOString();
@@ -320,6 +358,39 @@ function StaffDetailSheet({ staff, open, onClose }: {
                 </TableBody>
               </Table>
             </div>
+          </div>
+
+          {/* Full activity log */}
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+              All Updates by {staff?.name} ({activityLog.length})
+            </p>
+            {!staff?.user_id ? (
+              <p className="text-xs text-muted-foreground italic">This staff member has no linked account yet — no activity log available.</p>
+            ) : activityLog.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic">No recorded updates yet.</p>
+            ) : (
+              <div className="space-y-0 border border-border rounded-none overflow-hidden">
+                {activityLog.map((entry, i) => (
+                  <div key={entry.id} className={cn("flex items-start gap-3 px-4 py-2.5 text-xs", i % 2 === 0 ? "bg-muted/20" : "bg-background")}>
+                    <div className="shrink-0 mt-0.5 w-1.5 h-1.5 rounded-full bg-primary/50 mt-[5px]" />
+                    <div className="min-w-0 flex-1">
+                      <span className="font-semibold text-foreground truncate block">{entry.candidate_name}</span>
+                      <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 mt-0.5">
+                        <span className="font-medium text-primary">{FIELD_LABELS[entry.field] ?? entry.field}</span>
+                        <span className="text-muted-foreground">→</span>
+                        <span className="font-semibold">
+                          {entry.new_value
+                            ? (entry.field === "ticket_date" ? fmtDate(entry.new_value) : entry.new_value)
+                            : <em className="text-muted-foreground/60 font-normal">cleared</em>}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-muted-foreground whitespace-nowrap">{fmtTs(entry.changed_at)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Assigned candidates */}

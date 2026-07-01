@@ -33,7 +33,7 @@ import {
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff, bulkUpdateField,
   bulkImportCandidates,
 } from "@/lib/candidates.functions";
-import { UserCheck, X, Download, Play } from "lucide-react";
+import { UserCheck, X, Download, Play, History } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import * as XLSX from "xlsx";
 
@@ -2193,6 +2193,101 @@ function VideoCell({ url, onSave }: { url: string | null; onSave: (v: string | n
   );
 }
 
+// ─── Candidate history dialog ─────────────────────────────────────────────────
+const HISTORY_FIELD_LABELS: Record<string, string> = {
+  visa_status:    "Visa Status",
+  ticket_status:  "Ticket Status",
+  ticket_date:    "Ticket Date",
+  arrival_city:   "Arrival City",
+  medical_status: "Medical Status",
+  medical_date:   "Medical Date",
+  tasheer_status: "Tasheer Status",
+  tasheer_date:   "Tasheer Date",
+  wokala_status:  "Wokala Status",
+  lmis_status:    "LMIS Status",
+  coc_status:     "COC Status",
+  insurance_status:"Insurance",
+  insurance_date: "Insurance Date",
+  status:         "Availability",
+  selected_by:    "Selected By",
+  processing_notes:"Notes",
+  passport_accepted:"Passport Accepted",
+};
+
+function CandidateHistoryDialog({ candidateId, candidateName, open, onClose }: {
+  candidateId: string;
+  candidateName: string;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const { data: logs = [], isLoading } = useQuery({
+    queryKey: ["candidate-history", candidateId],
+    enabled: open,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("candidate_field_log")
+        .select("id, field, new_value, changed_by_name, changed_at")
+        .eq("candidate_id", candidateId)
+        .order("changed_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const fmtTs = (iso: string) =>
+    new Date(iso).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+
+  const fmtVal = (field: string, val: string | null) => {
+    if (!val) return null;
+    if (field === "ticket_date" || field === "tasheer_date" || field === "medical_date" || field === "insurance_date") {
+      return new Date(val + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    }
+    return val;
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-lg rounded-none">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <History className="h-4 w-4 text-muted-foreground" />
+            Update History — {candidateName}
+          </DialogTitle>
+        </DialogHeader>
+        {isLoading ? (
+          <div className="py-8 text-center text-sm text-muted-foreground">Loading…</div>
+        ) : logs.length === 0 ? (
+          <div className="py-8 text-center text-sm text-muted-foreground italic">No updates recorded yet.</div>
+        ) : (
+          <div className="max-h-[60vh] overflow-y-auto space-y-0 divide-y divide-border border border-border rounded-none">
+            {logs.map((log) => (
+              <div key={log.id} className="flex items-start gap-3 px-4 py-2.5">
+                <div className="shrink-0 w-1.5 h-1.5 rounded-full bg-primary/50 mt-[5px]" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-xs">
+                    <span className="font-semibold text-foreground">
+                      {HISTORY_FIELD_LABELS[log.field] ?? log.field}
+                    </span>
+                    <span className="text-muted-foreground">→</span>
+                    <span className="font-medium text-primary">
+                      {fmtVal(log.field, log.new_value) ?? <em className="text-muted-foreground/60 font-normal">cleared</em>}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    by <span className="font-medium text-foreground">{log.changed_by_name}</span>
+                    {" · "}
+                    {fmtTs(log.changed_at)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CandidateCard({
   candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, agencyOptions, agencyPhones, countryOptions,
 }: {
@@ -2216,6 +2311,7 @@ function CandidateCard({
   const [returnOpen, setReturnOpen] = useState(false);
   const [medDateOpen, setMedDateOpen] = useState(false);
   const [pendingMedDate, setPendingMedDate] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
   const statusKey = (["available","processing","arrived","canceled","returned"].includes(candidate.status ?? "")
     ? candidate.status : "available") as Status;
 
@@ -2367,6 +2463,13 @@ function CandidateCard({
               VIEW
             </Button>
             <button onClick={onEdit} className="text-xs text-primary hover:underline">Edit</button>
+            <button
+              onClick={() => setHistoryOpen(true)}
+              className="text-xs text-muted-foreground hover:text-foreground hover:underline flex items-center gap-1"
+              title="View update history"
+            >
+              <History className="h-3 w-3" /> History
+            </button>
             {onReturn && (
               <button onClick={() => setReturnOpen(true)} className="text-xs text-orange-600 hover:underline">Return</button>
             )}
@@ -2391,6 +2494,12 @@ function CandidateCard({
           onClose={() => setReturnOpen(false)}
         />
       )}
+      <CandidateHistoryDialog
+        candidateId={candidate.id}
+        candidateName={candidate.full_name}
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+      />
       {medDateOpen && (
         <Dialog open onOpenChange={(o) => { if (!o) setMedDateOpen(false); }}>
           <DialogContent className="max-w-sm">
@@ -2951,6 +3060,7 @@ function ProcessingCard({
   const [cocPlacedName, setCocPlacedName] = useState("");
   const [cocPlacedPhone, setCocPlacedPhone] = useState("");
   const [lmisFilesOpen, setLmisFilesOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   function handleColUpdate(colKey: string, value: string | null) {
     if (colKey === "coc_status" && value === "Placed") {
@@ -3148,6 +3258,9 @@ function ProcessingCard({
             >
               Delete
             </button>
+            <button onClick={() => setHistoryOpen(true)} className="text-xs text-muted-foreground hover:text-foreground hover:underline flex items-center gap-1">
+              <History className="h-3 w-3" /> History
+            </button>
           </div>
         </div>
       </div>
@@ -3295,6 +3408,12 @@ function ProcessingCard({
         onClose={() => setLmisFilesOpen(false)}
       />
     )}
+    <CandidateHistoryDialog
+      candidateId={candidate.id}
+      candidateName={candidate.full_name}
+      open={historyOpen}
+      onClose={() => setHistoryOpen(false)}
+    />
     </>
   );
 }
