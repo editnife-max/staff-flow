@@ -150,6 +150,26 @@ export const CV_FIELD_MAP = (c: Candidate): [string, string][] => [
   ["COC AGENCY",             c.coc_agency_name                              ?? ""],
   ["COC AGENCY NAME",        c.coc_agency_name                              ?? ""],
   ["EMERGENCY CONTACT",      c.emergency_contact                            ?? ""],
+  // ── Label variants found in the 4 seeded templates ───────────────────────
+  ["NAME",                   c.full_name                                    ?? ""],
+  ["NAME IN FULL",           c.full_name                                    ?? ""],
+  ["PASSPORT NO",            c.passport_number                              ?? ""],
+  ["PASSPORT NUMBER",        c.passport_number                              ?? ""],
+  ["PROFESSION",             c.occupation                                   ?? ""],
+  ["POSITION APPLIED",       c.occupation                                   ?? ""],
+  ["POST APPLIED FOR",       c.occupation                                   ?? ""],
+  ["DATE OF EXP",            c.passport_expiry_date                         ?? ""],
+  ["ENGLISH LANGUAGE",       c.english_level                                ?? ""],
+  ["EDUCATIONAL QUALIFICATION", c.education                                 ?? ""],
+  ["NO OF KIDS",             c.children != null ? String(c.children)        : ""],
+  ["NO OF CHILDREN",         c.children != null ? String(c.children)        : ""],
+  ["PERMANENT ADDRESS",      c.living_town                                  ?? ""],
+  ["ADDRESS",                c.living_town                                  ?? ""],
+  ["ADRESS",                 c.living_town                                  ?? ""],
+  ["NOTES",                  c.notes ?? c.remark                           ?? ""],
+  ["NOTE",                   c.notes ?? c.remark                           ?? ""],
+  ["REF NO",                 c.serial_number ?? c.candidate_code            ?? ""],
+  ["CONTACT NO",             c.narrative_phone ?? c.emergency_contact       ?? ""],
 ];
 
 function xmlEsc(s: string) {
@@ -160,9 +180,18 @@ function xmlEscAttr(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
 }
 
-// Normalize label text: collapse whitespace, strip non-breaking spaces, uppercase
+// Normalize label text: collapse whitespace, strip non-breaking spaces, uppercase,
+// strip trailing punctuation (":", ".") and abbreviation dots ("No. " → "NO ").
 function normLabel(s: string) {
-  return s.replace(/[   ]/g, " ").replace(/\s+/g, " ").trim().toUpperCase();
+  return s
+    .replace(/[   ]/g, " ")  // normalize non-breaking/ideographic spaces
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase()
+    .replace(/\.\s+/g, " ") // "No. " → "NO ", "Jan. " → "JAN "
+    .replace(/[.:]+$/, "")  // strip trailing ":", ".", ".:", etc.
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function cellText(xml: string, from: number, to: number): string {
