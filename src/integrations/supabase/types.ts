@@ -94,6 +94,7 @@ export type Database = {
           field: string
           id: string
           new_value: string | null
+          old_value: string | null
         }
         Insert: {
           candidate_id: string
@@ -103,6 +104,7 @@ export type Database = {
           field: string
           id?: string
           new_value?: string | null
+          old_value?: string | null
         }
         Update: {
           candidate_id?: string
@@ -112,6 +114,7 @@ export type Database = {
           field?: string
           id?: string
           new_value?: string | null
+          old_value?: string | null
         }
         Relationships: [
           {

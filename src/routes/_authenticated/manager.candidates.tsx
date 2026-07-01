@@ -2226,9 +2226,9 @@ function CandidateHistoryDialog({ candidateId, candidateName, open, onClose }: {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("candidate_field_log")
-        .select("id, field, new_value, changed_by_name, changed_at")
+        .select("id, field, old_value, new_value, changed_by_name, changed_at")
         .eq("candidate_id", candidateId)
-        .order("changed_at", { ascending: false });
+        .order("changed_at", { ascending: true });
       if (error) throw error;
       return data ?? [];
     },
@@ -2237,9 +2237,10 @@ function CandidateHistoryDialog({ candidateId, candidateName, open, onClose }: {
   const fmtTs = (iso: string) =>
     new Date(iso).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
+  const DATE_FIELDS = new Set(["ticket_date", "tasheer_date", "medical_date", "insurance_date", "contract_date", "embassy_date", "coc_booked_date"]);
   const fmtVal = (field: string, val: string | null) => {
     if (!val) return null;
-    if (field === "ticket_date" || field === "tasheer_date" || field === "medical_date" || field === "insurance_date") {
+    if (DATE_FIELDS.has(field)) {
       return new Date(val + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
     }
     return val;
@@ -2251,7 +2252,7 @@ function CandidateHistoryDialog({ candidateId, candidateName, open, onClose }: {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <History className="h-4 w-4 text-muted-foreground" />
-            Update History — {candidateName}
+            Change History — {candidateName}
           </DialogTitle>
         </DialogHeader>
         {isLoading ? (
@@ -2259,18 +2260,24 @@ function CandidateHistoryDialog({ candidateId, candidateName, open, onClose }: {
         ) : logs.length === 0 ? (
           <div className="py-8 text-center text-sm text-muted-foreground italic">No updates recorded yet.</div>
         ) : (
-          <div className="max-h-[60vh] overflow-y-auto space-y-0 divide-y divide-border border border-border rounded-none">
-            {logs.map((log) => (
+          <div className="max-h-[60vh] overflow-y-auto divide-y divide-border border border-border rounded-none">
+            {logs.map((log, i) => (
               <div key={log.id} className="flex items-start gap-3 px-4 py-2.5">
-                <div className="shrink-0 w-1.5 h-1.5 rounded-full bg-primary/50 mt-[5px]" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-xs">
-                    <span className="font-semibold text-foreground">
-                      {HISTORY_FIELD_LABELS[log.field] ?? log.field}
+                <div className="flex flex-col items-center shrink-0 pt-[3px]">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
+                  {i < logs.length - 1 && <div className="w-px flex-1 bg-border mt-1" style={{ minHeight: 12 }} />}
+                </div>
+                <div className="flex-1 min-w-0 pb-0.5">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">
+                    {HISTORY_FIELD_LABELS[log.field] ?? log.field}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
+                    <span className={log.old_value ? "text-muted-foreground line-through" : "text-muted-foreground/50 italic"}>
+                      {fmtVal(log.field, log.old_value) ?? "empty"}
                     </span>
                     <span className="text-muted-foreground">→</span>
-                    <span className="font-medium text-primary">
-                      {fmtVal(log.field, log.new_value) ?? <em className="text-muted-foreground/60 font-normal">cleared</em>}
+                    <span className="font-semibold text-foreground">
+                      {fmtVal(log.field, log.new_value) ?? <em className="font-normal text-muted-foreground/60">cleared</em>}
                     </span>
                   </div>
                   <div className="text-[11px] text-muted-foreground mt-0.5">

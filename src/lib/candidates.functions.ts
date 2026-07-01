@@ -244,14 +244,32 @@ export const updateCandidateField = createServerFn({ method: "POST" })
       }
     }
 
+    const UNTRACKED_FIELDS = new Set([
+      "lmis_insu_url", "lmis_coc_url", "lmis_id_url", "lmis_id_relative_url", "video_url", "medical_days",
+    ]);
+    const shouldTrack = !UNTRACKED_FIELDS.has(data.field);
+
+    // Fetch old value before updating so we can record the before/after change
+    let oldValue: string | null = null;
+    if (shouldTrack) {
+      const { data: existing } = await (supabaseAdmin.from("candidates") as any)
+        .select(data.field)
+        .eq("id", data.id)
+        .eq("manager_id", managerId)
+        .maybeSingle();
+      if (existing) {
+        const v = existing[data.field];
+        oldValue = v == null ? null : String(v);
+      }
+    }
+
     const { error } = await (supabaseAdmin.from("candidates") as any)
       .update(payload)
       .eq("id", data.id)
       .eq("manager_id", managerId);
     if (error) throw new Error(error.message);
 
-    const TRACKED_FIELDS = ["visa_status", "ticket_status", "ticket_date", "arrival_city"];
-    if (TRACKED_FIELDS.includes(data.field)) {
+    if (shouldTrack) {
       let changedByName = "Unknown";
       const { data: staffRow } = await supabaseAdmin.from("staff").select("name").eq("user_id", context.userId).maybeSingle();
       if (staffRow?.name) {
@@ -263,6 +281,7 @@ export const updateCandidateField = createServerFn({ method: "POST" })
       await supabaseAdmin.from("candidate_field_log").insert({
         candidate_id: data.id,
         field: data.field,
+        old_value: oldValue,
         new_value: raw,
         changed_by_user_id: context.userId,
         changed_by_name: changedByName,
