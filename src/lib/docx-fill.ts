@@ -500,15 +500,19 @@ function fillJawaPreviousEmployment(xml: string, c: Candidate, opts?: { bold?: b
       changes.push({ start: headerCells[idx].start, end: headerCells[idx].end, value: label });
   }
 
-  // Fill data row:
+  // Fill data row only for experienced candidates (skip first-timers).
   //   col 0 = experience_years (Period)
   //   col 1 = occupation in English (Position)
   //   col 2 = occupation in Arabic — e.g. "عاملة منزلية" for House Maid
-  const arabicOccupation = toArabic(c.occupation, AR_OCCUPATION) || c.occupation || "";
-  const dataValues = [c.experience_years ?? "", c.occupation ?? "", arabicOccupation];
-  for (let i = 0; i < Math.min(dataValues.length, dataCells.length); i++) {
-    if (dataValues[i])
-      changes.push({ start: dataCells[i].start, end: dataCells[i].end, value: dataValues[i] });
+  const exp = (c.experience ?? "").trim().toUpperCase();
+  const isFirstTime = !exp || exp.includes("FIRST") || exp.includes("NO EXPER") || exp === "NONE" || exp === "NO";
+  if (!isFirstTime) {
+    const arabicOccupation = toArabic(c.occupation, AR_OCCUPATION) || c.occupation || "";
+    const dataValues = [c.experience_years ?? "", c.occupation ?? "", arabicOccupation];
+    for (let i = 0; i < Math.min(dataValues.length, dataCells.length); i++) {
+      if (dataValues[i])
+        changes.push({ start: dataCells[i].start, end: dataCells[i].end, value: dataValues[i] });
+    }
   }
 
   // Apply in reverse offset order so earlier positions stay valid
