@@ -34,7 +34,7 @@ function getCandidateFieldValue(c: Candidate, field: string): string {
     DATE_OF_BIRTH:        c.dob                                   ?? "",
     PLACE_OF_BIRTH:       c.birth_place                           ?? "",
     LIVING_TOWN:          c.living_town                           ?? "",
-    AGE:                  c.age      != null ? String(c.age)      : "",
+    AGE:                  c.age      != null ? String(c.age)      : computeAge(c.dob),
     MARITAL_STATUS:       c.marital_status                        ?? "",
     CHILDREN:             c.children != null ? String(c.children) : "",
     EDUCATION:            c.education                             ?? "",
@@ -97,7 +97,7 @@ export const CV_FIELD_MAP = (c: Candidate): [string, string][] => [
   ["DATE OF BIRTH",      c.dob                                             ?? ""],
   ["PLACE OF BIRTH",     c.birth_place                                      ?? ""],
   ["LIVING TOWN",        c.living_town                                      ?? ""],
-  ["AGE",                c.age      != null ? String(c.age)                 : ""],
+  ["AGE",                c.age      != null ? String(c.age)                 : computeAge(c.dob)],
   ["MARITAL STATUS",     c.marital_status                                   ?? ""],
   ["CHILDREN",           c.children != null ? String(c.children)            : ""],
   ["WEIGHT",             c.weight   != null ? `${c.weight} kg`              : ""],
@@ -174,8 +174,19 @@ export const CV_FIELD_MAP = (c: Candidate): [string, string][] => [
   ["HOUSE MAID MOB",         c.narrative_phone ?? c.emergency_contact       ?? ""],
   ["COUNTRY",                c.experience_country                           ?? ""],
   ["HIGHEST EDUCATIONAL LEVEL", c.education                                 ?? ""],
-  ["DATE OF BIRTH & AGE",    (c.dob ?? "") + (c.age != null ? " " + String(c.age) : "")],
+  ["DATE OF BIRTH & AGE",    (c.dob ?? "") + ((c.age != null ? String(c.age) : computeAge(c.dob)) ? " " + (c.age != null ? String(c.age) : computeAge(c.dob)) : "")],
 ];
+
+function computeAge(dob: string | null | undefined): string {
+  if (!dob) return "";
+  const birth = new Date(dob);
+  if (isNaN(birth.getTime())) return "";
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age >= 0 ? String(age) : "";
+}
 
 function xmlEsc(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
