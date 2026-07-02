@@ -441,6 +441,96 @@ function fillJawaSpecialRow(
   return result;
 }
 
+// Fixes the Jawa template's "Previous Employment Abroad" section.
+// Runs AFTER all standard field fills so it has the final say on those cells:
+//   - Rewrites header cells at col-index 1 → "Position", col-index 2 → "City, County"
+//   - Fills the data row below the Arabic label row with candidate employment info
+//     (col0 = experience_years, col1 = occupation, col2 = experience_country)
+function fillJawaPreviousEmployment(xml: string, c: Candidate, opts?: { bold?: boolean }): string {
+  // Anchor: find the Arabic label row containing "الفترة" (Period)
+  let arabicCellPos = -1;
+  let p = 0;
+  while (p < xml.length) {
+    const cs = nextCell(xml, p);
+    if (cs === -1) break;
+    const ce = outerCellEnd(xml, cs);
+    if (ce === -1) break;
+    if (cellText(xml, cs, ce).includes("الفترة")) { arabicCellPos = cs; break; }
+    p = ce + 7;
+  }
+  if (arabicCellPos === -1) return xml;
+
+  const arabicRowStart = xml.lastIndexOf("<w:tr", arabicCellPos);
+  if (arabicRowStart === -1) return xml;
+  { const ch = xml[arabicRowStart + 5]; if (ch !== ">" && ch !== " " && ch !== "\n" && ch !== "\t") return xml; }
+  const arabicRowEnd = xml.indexOf("</w:tr>", arabicRowStart);
+  if (arabicRowEnd === -1) return xml;
+
+  function getCells(src: string, rowStart: number, rowEnd: number) {
+    const cells: Array<{ start: number; end: number }> = [];
+    let rp = rowStart;
+    while (rp < rowEnd) {
+      const cs = nextCell(src, rp);
+      if (cs === -1 || cs >= rowEnd) break;
+      const ce = outerCellEnd(src, cs);
+      if (ce === -1) break;
+      cells.push({ start: cs, end: ce });
+      rp = ce + 7;
+    }
+    return cells;
+  }
+
+  // Previous row = column header row (Period | 2 | Phone No.)
+  const prevTrEnd   = xml.lastIndexOf("</w:tr>", arabicRowStart - 1);
+  const prevTrStart = prevTrEnd !== -1 ? xml.lastIndexOf("<w:tr", prevTrEnd) : -1;
+  const headerCells = prevTrStart !== -1 ? getCells(xml, prevTrStart, prevTrEnd) : [];
+
+  // Next row = data row
+  const nextTrStart = xml.indexOf("<w:tr", arabicRowEnd + 7);
+  const nextTrEnd   = nextTrStart !== -1 ? xml.indexOf("</w:tr>", nextTrStart) : -1;
+  const dataCells   = nextTrStart !== -1 && nextTrEnd !== -1 ? getCells(xml, nextTrStart, nextTrEnd) : [];
+
+  type Change = { start: number; end: number; value: string };
+  const changes: Change[] = [];
+
+  // Fix header cells: index 1 → "Position", index 2 → "City, County"
+  const headerFixes: [number, string][] = [[1, "Position"], [2, "City, County"]];
+  for (const [idx, label] of headerFixes) {
+    if (idx < headerCells.length)
+      changes.push({ start: headerCells[idx].start, end: headerCells[idx].end, value: label });
+  }
+
+  // Fill data row
+  const dataValues = [c.experience_years ?? "", c.occupation ?? "", c.experience_country ?? ""];
+  for (let i = 0; i < Math.min(dataValues.length, dataCells.length); i++) {
+    if (dataValues[i])
+      changes.push({ start: dataCells[i].start, end: dataCells[i].end, value: dataValues[i] });
+  }
+
+  // Apply in reverse offset order so earlier positions stay valid
+  changes.sort((a, b) => b.start - a.start);
+
+  let result = xml;
+  for (const { start: cs, end: ce, value } of changes) {
+    let first = true;
+    let newCell = result.slice(cs, ce + 7).replace(
+      /<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g,
+      (_, attrs) => {
+        if (first) { first = false; return `<w:t${value.includes(" ") ? ' xml:space="preserve"' : (attrs ?? "")}>${xmlEsc(value)}</w:t>`; }
+        return `<w:t${attrs ?? ""}></w:t>`;
+      },
+    );
+    if (first) {
+      const pEnd = newCell.indexOf("</w:p>");
+      if (pEnd !== -1)
+        newCell = newCell.slice(0, pEnd) + `<w:r><w:t${value.includes(" ") ? ' xml:space="preserve"' : ""}>${xmlEsc(value)}</w:t></w:r>` + newCell.slice(pEnd);
+    }
+    if (opts?.bold) newCell = boldifyCell(newCell);
+    result = result.slice(0, cs) + newCell + result.slice(ce + 7);
+  }
+  return result;
+}
+
 function fillField(xml: string, label: string, value: string, opts?: { bold?: boolean }): string {
   const normTarget = normLabel(label);
   let pos = 0;
@@ -1262,8 +1352,8 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
   }
 
   // Standard label-based fill; skip Jawa's positionally-filled fields to avoid
-  // the label cells (Religion / Height / Weight) being treated as value targets.
-  const jawaSkip = isJawa ? new Set(["RELIGION", "HEIGHT", "WEIGHT"]) : null;
+  // the label cells (Religion / Height / Weight / Period) being treated as value targets.
+  const jawaSkip = isJawa ? new Set(["RELIGION", "HEIGHT", "WEIGHT", "PERIOD"]) : null;
   for (const [label, value] of fieldPairs) {
     if (!value) continue;
     if (jawaSkip?.has(normLabel(label))) continue;
@@ -1275,6 +1365,10 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
     if (!value) continue;
     xml = fillFieldBefore(xml, label, value, fillOpts);
   }
+
+  // Jawa: fix Previous Employment Abroad headers and fill data row (runs last so
+  // it overwrites any cells the standard passes may have partially corrupted).
+  if (isJawa) xml = fillJawaPreviousEmployment(xml, c, fillOpts);
 
   // Monaco nationality: the template may use a label variant not caught above.
   // Try all common forms so the cell is always filled regardless of exact wording.
