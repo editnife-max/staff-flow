@@ -457,7 +457,7 @@ function StaffCandidatesPage() {
     queryKey: ["staff-candidates", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.from("candidates").select("*").order("created_at", { ascending: true });
+      const { data, error } = await supabase.from("candidates").select("*").order("created_at", { ascending: true }).order("id", { ascending: true });
       if (error) throw error;
       return data;
     },
@@ -704,11 +704,12 @@ function StaffCandidatesPage() {
         });
       });
     }
-    list = [...list].sort((a, b) =>
-      filters.sort === "newest"
+    list = [...list].sort((a, b) => {
+      const cmp = filters.sort === "newest"
         ? b.created_at.localeCompare(a.created_at)
-        : a.created_at.localeCompare(b.created_at),
-    );
+        : a.created_at.localeCompare(b.created_at);
+      return cmp !== 0 ? cmp : a.id.localeCompare(b.id);
+    });
     return list;
   }, [candidates, tab, passport, filters]);
 

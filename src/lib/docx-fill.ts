@@ -192,14 +192,6 @@ export const CV_FIELD_MAP = (c: Candidate): [string, string][] => [
   ["COUNTRY",                c.experience_country                           ?? ""],
   ["HIGHEST EDUCATIONAL LEVEL", c.education                                 ?? ""],
   ["DATE OF BIRTH & AGE",    (c.dob ?? "") + ((c.age != null ? String(c.age) : computeAge(c.dob)) ? " " + (c.age != null ? String(c.age) : computeAge(c.dob)) : "")],
-  // ── Monaco household-skills checkboxes (always YES for domestic-worker role) ─
-  ["ARAB COOKING",           "YES"],
-  ["COOKING",                "YES"],
-  ["CLEANING",               "YES"],
-  ["WASHING",                "YES"],
-  ["BABY SITTING",           "YES"],
-  ["BABYSITTING",            "YES"],
-  ["IRONING",                "YES"],
 ];
 
 // ── Arabic value translations ─────────────────────────────────────────────────
@@ -1118,6 +1110,117 @@ function fillLevelCheckboxes(xml: string, c: Candidate): string {
   return xml;
 }
 
+// Skill-checkbox fill: checks the candidate's actual skills text and writes bold "Yes"
+// into the adjacent checkmark cell when the skill is present, or clears it when absent.
+// Handles both English (cell after label) and Arabic (cell before label) sides.
+// Strips list-bullet <w:numPr> so template-default ✓ / • / - symbols are removed.
+function fillSkillCheckboxes(xml: string, candidateSkills: string | null | undefined): string {
+  // Map each normalised template label to the keywords we look for in c.skills
+  const SKILL_ALIASES: Record<string, string[]> = {
+    "COOKING":        ["COOKING", "COOK"],
+    "ARAB COOKING":   ["COOKING", "COOK", "ARAB COOKING"],
+    "CLEANING":       ["CLEANING", "CLEAN"],
+    "WASHING":        ["WASHING", "WASH", "LAUNDRY"],
+    "IRONING":        ["IRONING", "IRON"],
+    "BABYSITTING":    ["BABYSITTING", "BABY SITTING", "BABYSITTER"],
+    "BABY SITTING":   ["BABYSITTING", "BABY SITTING", "BABYSITTER"],
+    "BABYSITTER":     ["BABYSITTING", "BABY SITTING", "BABYSITTER"],
+    "BABY CARE":      ["BABY CARE", "BABYSITTING", "BABY SITTING"],
+    "CHILD CARE":     ["CHILD CARE", "CHILDCARE", "CHILDCARING"],
+    "CHILDCARE":      ["CHILD CARE", "CHILDCARE", "CHILDCARING"],
+    "CHILDREN CARE":  ["CHILDREN CARE", "CHILD CARE", "CHILDCARE"],
+    "ELDERLY CARE":   ["ELDERLY CARE", "ELDER CARE", "ELDERLY"],
+    "ELDERLYCARE":    ["ELDERLY CARE", "ELDER CARE", "ELDERLY"],
+    "ELDER CARE":     ["ELDER CARE", "ELDERLY CARE", "ELDERLY"],
+    "HOUSEKEEPING":   ["HOUSEKEEPING", "HOUSE KEEPING"],
+    "HOUSE KEEPING":  ["HOUSEKEEPING", "HOUSE KEEPING"],
+  };
+  // Arabic labels mapped to the same keyword lists
+  const AR_SKILL_ALIASES: Record<string, string[]> = {
+    "التنظيف":        ["CLEANING", "CLEAN"],
+    "الكي":           ["IRONING", "IRON"],
+    "الغسيل":         ["WASHING", "WASH", "LAUNDRY"],
+    "الطبخ":          ["COOKING", "COOK"],
+    "رعاية الأطفال":  ["CHILD CARE", "CHILDCARE", "BABYSITTING", "BABY SITTING"],
+    "رعاية المسنين":  ["ELDERLY CARE", "ELDER CARE", "ELDERLY"],
+  };
+
+  const skillsUpper = (candidateSkills ?? "").toUpperCase();
+
+  function hasSkill(keywords: string[]): boolean {
+    return keywords.some(k => skillsUpper.includes(k.toUpperCase()));
+  }
+
+  const CHECK_VALUES = new Set([
+    "", "YES", "NO", "Yes", "No", "√", "✓", "•", "·", "X", "x", "O", "-", "/",
+  ]);
+
+  const boldRun  = `<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Yes</w:t></w:r>`;
+  const emptyRun = `<w:r><w:t></w:t></w:r>`;
+
+  function replaceCell(cellSlice: string, isYes: boolean): string {
+    let c = cellSlice;
+    c = c.replace(/<w:r\b[\s\S]*?<\/w:r>/g, "");
+    c = c.replace(/<w:numPr\b[\s\S]*?<\/w:numPr>/g, "");
+    const pEnd = c.indexOf("</w:p>");
+    if (pEnd !== -1) c = c.slice(0, pEnd) + (isYes ? boldRun : emptyRun) + c.slice(pEnd);
+    return c;
+  }
+
+  const hits: Array<{ start: number; end: number; isYes: boolean }> = [];
+
+  // English: checkmark cell is immediately AFTER the skill label
+  let pos = 0;
+  while (pos < xml.length) {
+    const cs = nextCell(xml, pos);
+    if (cs === -1) break;
+    const ce = outerCellEnd(xml, cs);
+    if (ce === -1) break;
+    const norm = normLabel(cellText(xml, cs, ce));
+    if (norm in SKILL_ALIASES) {
+      const ns = nextCell(xml, ce + 7);
+      if (ns !== -1) {
+        const ne = outerCellEnd(xml, ns);
+        if (ne !== -1) {
+          const nextRaw = cellText(xml, ns, ne).trim();
+          if (CHECK_VALUES.has(nextRaw) && !/[؀-ۿ]/.test(nextRaw))
+            hits.push({ start: ns, end: ne, isYes: hasSkill(SKILL_ALIASES[norm]) });
+        }
+      }
+    }
+    pos = ce + 7;
+  }
+
+  // Arabic: checkmark cell is immediately BEFORE the Arabic skill label
+  pos = 0;
+  let prevStart = -1, prevEnd = -1;
+  while (pos < xml.length) {
+    const cs = nextCell(xml, pos);
+    if (cs === -1) break;
+    const ce = outerCellEnd(xml, cs);
+    if (ce === -1) break;
+    const raw  = cellText(xml, cs, ce);
+    const norm = normLabel(raw);
+    if (/[؀-ۿ]/.test(raw) && norm in AR_SKILL_ALIASES && prevStart !== -1) {
+      const prevRaw = cellText(xml, prevStart, prevEnd).trim();
+      if (CHECK_VALUES.has(prevRaw) && !/[؀-ۿ]/.test(prevRaw))
+        hits.push({ start: prevStart, end: prevEnd, isYes: hasSkill(AR_SKILL_ALIASES[norm]) });
+    }
+    prevStart = cs;
+    prevEnd   = ce;
+    pos = ce + 7;
+  }
+
+  // Deduplicate, then apply in reverse offset order
+  const seen = new Set<number>();
+  const unique = hits.filter(h => { if (seen.has(h.start)) return false; seen.add(h.start); return true; });
+  unique.sort((a, b) => b.start - a.start);
+  for (const { start, end, isYes } of unique)
+    xml = xml.slice(0, start) + replaceCell(xml.slice(start, end + 7), isYes) + xml.slice(end + 7);
+
+  return xml;
+}
+
 export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedPassport = true): Promise<Uint8Array> {
   const res = await fetch(template.file_url, { mode: "cors" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1181,6 +1284,10 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
       xml = fillField(xml, lbl, nat, { bold: true });
     }
   }
+
+  // Skill checkboxes: write bold "Yes" only for skills the candidate actually has
+  // (parsed from c.skills), blank for all others. Also strips template-default ✓/-.
+  xml = fillSkillCheckboxes(xml, c.skills);
 
   const relsPath  = "word/_rels/document.xml.rels";
   const relsEntry = zip.file(relsPath);

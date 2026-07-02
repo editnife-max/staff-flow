@@ -8,7 +8,7 @@ import {
   SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight,
   ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
-  Globe, Send, Activity, ClipboardPaste, Upload, ImageIcon, UserPlus, AlertTriangle, Table2,
+  Globe, Send, Activity, ClipboardPaste, Upload, ImageIcon, UserPlus, AlertTriangle, Table2, Plus,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -419,6 +419,7 @@ function ManagerCandidatesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Candidate | null>(null);
   const [form, setForm] = useState(initialForm);
+  const [expEntries, setExpEntries] = useState<Array<{ country: string; customCountry: string; years: string }>>([{ country: "", customCountry: "", years: "" }]);
   const [viewing, setViewing] = useState<Candidate | null>(null);
   const [processingEdit, setProcessingEdit] = useState<Candidate | null>(null);
   const [cocPlacedPending, setCocPlacedPending] = useState<{ id: string } | null>(null);
@@ -429,7 +430,7 @@ function ManagerCandidatesPage() {
     queryKey: ["manager-candidates", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.from("candidates").select("*").order("created_at", { ascending: true });
+      const { data, error } = await supabase.from("candidates").select("*").order("created_at", { ascending: true }).order("id", { ascending: true });
       if (error) throw error;
       return data as Candidate[];
     },
@@ -768,20 +769,26 @@ function ManagerCandidatesPage() {
         return filters.age.some((range) => { const [min, max] = range.split("-").map(Number); return age >= min && age <= max; });
       });
     }
-    list = [...list].sort((a, b) =>
-      filters.sort === "newest"
+    list = [...list].sort((a, b) => {
+      const cmp = filters.sort === "newest"
         ? b.created_at.localeCompare(a.created_at)
-        : a.created_at.localeCompare(b.created_at),
-    );
+        : a.created_at.localeCompare(b.created_at);
+      return cmp !== 0 ? cmp : a.id.localeCompare(b.id);
+    });
     return list;
   }, [candidates, tab, passport, filters]);
 
   const saveMut = useMutation({
     mutationFn: async () => {
       const fullName = [form.first_name, form.last_name].filter(Boolean).join(" ").trim() || "Unknown";
+      const validEntries = form.experience === "Yes"
+        ? expEntries.filter(e => e.country === "Other" ? e.customCountry.trim() : e.country)
+        : [];
       const payload = {
         ...form,
         full_name: fullName,
+        experience_country: validEntries.map(e => e.country === "Other" ? e.customCountry.trim() : e.country).join("|") || null,
+        experience_years: validEntries.map(e => e.years).join("|") || null,
         dob: form.dob || null,
         photo_url: form.photo_url || null,
         full_photo_url: form.full_photo_url || null,
@@ -964,6 +971,7 @@ function ManagerCandidatesPage() {
     const nextCode = `C-${String(max + 1).padStart(4, "0")}`;
     setEditing(null);
     setForm({ ...initialForm, status: tab, candidate_code: nextCode });
+    setExpEntries([{ country: "", customCountry: "", years: "" }]);
     setOpen(true);
   };
 
@@ -1016,6 +1024,13 @@ function ManagerCandidatesPage() {
       video_url: c.video_url ?? "",
       availability_type: (() => { const v = c.availability_type ?? "Available"; return v.charAt(0).toUpperCase() + v.slice(1); })(),
     });
+    const countries = (c.experience_country ?? "").split("|").filter(Boolean);
+    const years = (c.experience_years ?? "").split("|");
+    if (countries.length > 0) {
+      setExpEntries(countries.map((ct, i) => ({ country: ct, customCountry: "", years: years[i] ?? "" })));
+    } else {
+      setExpEntries([{ country: "", customCountry: "", years: "" }]);
+    }
     setOpen(true);
   };
 
@@ -1486,12 +1501,73 @@ function ManagerCandidatesPage() {
                 <FormSelect label="Spoken Languages" value={form.spoken_languages} onChange={(v) => setForm({ ...form, spoken_languages: v })} options={["Poor", "Little", "Fair", "Good"]} />
                 <FormSelect label="English Level" value={form.english_level} onChange={(v) => setForm({ ...form, english_level: v })} options={["Poor", "Little", "Fair", "Good"]} />
                 <FormSelect label="Arabic Level" value={form.arabic_level} onChange={(v) => setForm({ ...form, arabic_level: v })} options={["Poor", "Little", "Fair", "Good"]} />
-                <FormSelect label="Work Experience *" value={form.experience} onChange={(v) => setForm({ ...form, experience: v, experience_country: v !== "Yes" ? "" : form.experience_country, experience_years: v !== "Yes" ? "" : form.experience_years })} options={["Yes", "No", "None"]} />
+                <FormSelect label="Work Experience *" value={form.experience} onChange={(v) => {
+                  setForm({ ...form, experience: v });
+                  if (v !== "Yes") setExpEntries([{ country: "", customCountry: "", years: "" }]);
+                }} options={["Yes", "No", "None"]} />
               </div>
               {form.experience === "Yes" && (
-                <div className="grid grid-cols-2 gap-3 mt-3">
-                  <FormSelect label="Experience Country" value={form.experience_country} onChange={(v) => setForm({ ...form, experience_country: v })} options={assignCountries.map((c) => c.name)} />
-                  <FormInput label="Years of Experience" type="number" value={form.experience_years} onChange={(v) => setForm({ ...form, experience_years: v })} placeholder="e.g. 3" />
+                <div className="mt-3 space-y-2">
+                  {expEntries.map((entry, i) => (
+                    <div key={i} className="grid grid-cols-2 gap-3 items-start">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Experience Country</Label>
+                        <Select value={entry.country || undefined} onValueChange={(v) => {
+                          const updated = [...expEntries];
+                          updated[i] = { ...updated[i], country: v, customCountry: v !== "Other" ? "" : updated[i].customCountry };
+                          setExpEntries(updated);
+                        }}>
+                          <SelectTrigger className="rounded-none h-9"><SelectValue placeholder="—" /></SelectTrigger>
+                          <SelectContent>
+                            {assignCountries.map((c) => <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>)}
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {entry.country === "Other" && (
+                          <input
+                            type="text"
+                            className="mt-1 w-full h-9 border border-input rounded-none px-3 text-sm bg-background"
+                            placeholder="Enter country name"
+                            value={entry.customCountry}
+                            onChange={(e) => {
+                              const updated = [...expEntries];
+                              updated[i] = { ...updated[i], customCountry: e.target.value };
+                              setExpEntries(updated);
+                            }}
+                          />
+                        )}
+                      </div>
+                      <div className="flex gap-2 items-start">
+                        <div className="flex-1 space-y-1.5">
+                          <Label className="text-xs">Years of Experience</Label>
+                          <Select value={entry.years || undefined} onValueChange={(v) => {
+                            const updated = [...expEntries];
+                            updated[i] = { ...updated[i], years: v };
+                            setExpEntries(updated);
+                          }}>
+                            <SelectTrigger className="rounded-none h-9"><SelectValue placeholder="—" /></SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 20 }, (_, j) => String(j + 1)).map((y) => (
+                                <SelectItem key={y} value={y}>{y} {y === "1" ? "year" : "years"}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {expEntries.length > 1 && (
+                          <button type="button" onClick={() => setExpEntries(expEntries.filter((_, idx) => idx !== i))} className="mt-6 p-1 text-muted-foreground hover:text-destructive transition-colors">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setExpEntries([...expEntries, { country: "", customCountry: "", years: "" }])}
+                    className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors mt-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Experience
+                  </button>
                 </div>
               )}
             </FormSection>
@@ -2350,10 +2426,20 @@ function CandidateCard({
     { label: "MEDICAL STATUS", value: candidate.medical_status ?? "", edit: "select", field: "medical_status", options: MEDICAL_OPTIONS },
     { label: "MEDICAL DATE", value: candidate.medical_date ?? "", edit: "date", field: "medical_date", display: candidate.medical_date && candidate.medical_status === "Fit" ? `${Math.max(1, Math.floor((Date.now() - new Date(candidate.medical_date + "T00:00:00").getTime()) / 86400000))} days ago` : undefined },
     { label: "EXPERIENCE", value: candidate.experience ?? "—" },
-    ...(candidate.experience === "Yes" ? [
-      { label: "EXPERIENCE COUNTRY", value: candidate.experience_country ?? "—" },
-      { label: "EXPERIENCE YEARS", value: candidate.experience_years ?? "—" },
-    ] : []),
+    ...(candidate.experience === "Yes" ? (() => {
+      const countries = (candidate.experience_country ?? "").split("|").filter(Boolean);
+      const years = (candidate.experience_years ?? "").split("|");
+      if (countries.length <= 1) {
+        return [
+          { label: "EXPERIENCE COUNTRY", value: candidate.experience_country ?? "—" },
+          { label: "EXPERIENCE YEARS", value: candidate.experience_years ?? "—" },
+        ];
+      }
+      return countries.map((c, i) => ({
+        label: `EXPERIENCE ${i + 1}`,
+        value: `${c}${years[i] ? ` · ${years[i]} yr${years[i] === "1" ? "" : "s"}` : ""}`,
+      }));
+    })() : []),
     { label: "AVAILABILITY", value: (() => { const v = candidate.availability_type ?? "available"; return v.charAt(0).toUpperCase() + v.slice(1); })(), edit: "select", field: "availability_type", options: ["Available", "Private", "Unavailable"] },
 
     { label: "SELECTED BY", value: candidate.selected_by ?? "", edit: "select", field: "selected_by", options: agencyOptions },
