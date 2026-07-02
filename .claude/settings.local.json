@@ -103,7 +103,8 @@
       "Bash(Select-String -Pattern \"pizzip|jszip|docx|piz\")",
       "Bash(bun -e ' *)",
       "PowerShell(cd C:\\\\Project\\\\flowpath-suite; bunx tsc --noEmit 2>&1 | Where-Object { $_ -match \"docx-fill|error TS\" } | Select-Object -First 20)",
-      "PowerShell(cd C:\\\\Project\\\\flowpath-suite; bunx tsc --noEmit 2>&1 | Where-Object { $_ -match \"error TS\" } | Select-Object -First 15)"
+      "PowerShell(cd C:\\\\Project\\\\flowpath-suite; bunx tsc --noEmit 2>&1 | Where-Object { $_ -match \"error TS\" } | Select-Object -First 15)",
+      "PowerShell(cd C:\\\\Project\\\\flowpath-suite; bunx tsc --noEmit 2>&1 | Where-Object { $_ -match \"error TS\" } | Select-Object -First 20)"
     ]
   },
   "enableAllProjectMcpServers": true,

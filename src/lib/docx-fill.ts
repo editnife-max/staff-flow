@@ -251,10 +251,11 @@ function xmlEscAttr(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
 }
 
-// Normalize label text: collapse whitespace, strip non-breaking spaces, uppercase,
+// Normalize label text: decode XML entities, collapse whitespace, uppercase,
 // strip trailing punctuation (":", ".") and abbreviation dots ("No. " → "NO ").
 function normLabel(s: string) {
   return s
+    .replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"')
     .replace(/[   ]/g, " ")  // normalize non-breaking/ideographic spaces
     .replace(/\s+/g, " ")
     .trim()
@@ -320,44 +321,6 @@ function outerCellEnd(xml: string, cellStart: number): number {
   return xml.indexOf("</w:tc>", cellStart); // fallback
 }
 
-// Renames every label cell whose text matches `oldLabel` to `newLabel` in-place.
-// Preserves all cell formatting (<w:tcPr>, run properties, etc.) — only the text nodes change.
-function renameLabel(xml: string, oldLabel: string, newLabel: string): string {
-  const normTarget = normLabel(oldLabel);
-  let pos = 0;
-  while (pos < xml.length) {
-    const cellStart = nextCell(xml, pos);
-    if (cellStart === -1) break;
-    const cellEnd = outerCellEnd(xml, cellStart);
-    if (cellEnd === -1) break;
-    if (normLabel(cellText(xml, cellStart, cellEnd)) === normTarget) {
-      let first = true;
-      const newCell = xml.slice(cellStart, cellEnd + 7).replace(
-        /<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g,
-        (_, attrs) => {
-          if (first) { first = false; return `<w:t${attrs ?? ""}>${xmlEsc(newLabel)}</w:t>`; }
-          return `<w:t${attrs ?? ""}></w:t>`;
-        },
-      );
-      xml = xml.slice(0, cellStart) + newCell + xml.slice(cellEnd + 7);
-      pos = cellStart + newCell.length;
-    } else {
-      pos = cellEnd + 7;
-    }
-  }
-  return xml;
-}
-
-// Label aliases: template cells that use a non-standard label text but should
-// be treated as a different standard label for filling purposes.
-// The rename happens BEFORE the fill pass so fillField sees the canonical label.
-const LABEL_ALIASES: [string, string][] = [
-  ["Non-Muslim",  "Height"],
-  ["Non Muslim",  "Height"],
-  ["NON-MUSLIM",  "Height"],
-  ["NON MUSLIM",  "Height"],
-];
-
 // Adds bold to every run in a cell's XML and strips explicit color overrides
 // (so red/colored template text becomes default black after fill).
 // Strips existing <w:b> / <w:bCs> first to avoid duplicates, then injects
@@ -388,6 +351,79 @@ function centerAlignCell(cellXml: string): string {
   // Handle paragraphs that have no <w:pPr> at all: add one after <w:p ...>
   result = result.replace(/(<w:p(?:\s[^>]*)?>)(?!\s*<w:pPr)/g,
     (_, openTag) => openTag + '<w:pPr><w:jc w:val="center"/></w:pPr>');
+  return result;
+}
+
+// Fills the 3 value cells that precede an anchor label cell in the same row.
+// Used for the Jawa template's Row-3/Row-4 layout where Religion, Height, Weight
+// labels are in Row 3 but their values are in Row 4 — immediately before "Monthly Salary".
+// cells[anchorIndex - 3] = religion, [anchorIndex - 2] = height, [anchorIndex - 1] = weight.
+function fillJawaSpecialRow(
+  xml: string,
+  religion: string,
+  height: string,
+  weight: string,
+  opts?: { bold?: boolean },
+): string {
+  const ANCHOR = "MONTHLY SALARY";
+  let anchorStart = -1;
+  let p = 0;
+  while (p < xml.length) {
+    const cs = nextCell(xml, p);
+    if (cs === -1) break;
+    const ce = outerCellEnd(xml, cs);
+    if (ce === -1) break;
+    if (normLabel(cellText(xml, cs, ce)) === ANCHOR) { anchorStart = cs; break; }
+    p = ce + 7;
+  }
+  if (anchorStart === -1) return xml;
+
+  const trStart = xml.lastIndexOf("<w:tr", anchorStart);
+  if (trStart === -1) return xml;
+  const trc = xml[trStart + 5];
+  if (trc !== ">" && trc !== " " && trc !== "\n" && trc !== "\t") return xml;
+
+  const cells: Array<{ start: number; end: number }> = [];
+  p = trStart;
+  while (p < anchorStart) {
+    const cs = nextCell(xml, p);
+    if (cs === -1 || cs >= anchorStart) break;
+    const ce = outerCellEnd(xml, cs);
+    if (ce === -1) break;
+    cells.push({ start: cs, end: ce });
+    p = ce + 7;
+  }
+
+  const targets: [number, string][] = [
+    [cells.length - 3, religion],
+    [cells.length - 2, height],
+    [cells.length - 1, weight],
+  ];
+
+  let result = xml;
+  for (const [idx, value] of [...targets].reverse()) {
+    if (idx < 0 || idx >= cells.length || !value) continue;
+    const { start: cs, end: ce } = cells[idx];
+    let first = true;
+    let newCell = result.slice(cs, ce + 7).replace(
+      /<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g,
+      (_, attrs) => {
+        if (first) {
+          first = false;
+          return `<w:t${value.includes(" ") ? ' xml:space="preserve"' : (attrs ?? "")}>${xmlEsc(value)}</w:t>`;
+        }
+        return `<w:t${attrs ?? ""}></w:t>`;
+      },
+    );
+    if (first) {
+      const pEnd = newCell.indexOf("</w:p>");
+      if (pEnd !== -1)
+        newCell = newCell.slice(0, pEnd) + `<w:r><w:t${value.includes(" ") ? ' xml:space="preserve"' : ""}>${xmlEsc(value)}</w:t></w:r>` + newCell.slice(pEnd);
+    }
+    if (opts?.bold) newCell = boldifyCell(newCell);
+    newCell = centerAlignCell(newCell);
+    result = result.slice(0, cs) + newCell + result.slice(ce + 7);
+  }
   return result;
 }
 
@@ -959,12 +995,6 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
   if (!entry) throw new Error("word/document.xml missing");
   let xml = new TextDecoder("utf-8").decode(entry.asUint8Array());
 
-  // Rename non-standard label cells to their canonical equivalents before filling.
-  // e.g. templates that use "Non-Muslim" where the label should read "Height".
-  for (const [oldLbl, newLbl] of LABEL_ALIASES) {
-    xml = renameLabel(xml, oldLbl, newLbl);
-  }
-
   // Use Claude's label mapping if the template has metadata; otherwise fall back to standard labels
   const meta = (template.metadata as TemplateMetadata | null | undefined);
   const fieldPairs: [string, string][] =
@@ -973,9 +1003,23 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
       : CV_FIELD_MAP(c);
 
   const fillOpts = template.name?.toLowerCase().includes("tadbeer") ? { bold: true } : undefined;
+  const isJawa = template.name?.toLowerCase().includes("jawa");
 
+  // Jawa template: Religion, Height, Weight labels are in one row but their values
+  // are in the next row — fill them positionally before the standard label pass runs
+  // (which would otherwise corrupt the label cells by treating them as value cells).
+  if (isJawa) {
+    const h = c.height != null ? `${c.height} cm` : "";
+    const w = c.weight != null ? `${c.weight} kg` : "";
+    xml = fillJawaSpecialRow(xml, c.religion ?? "", h, w, fillOpts);
+  }
+
+  // Standard label-based fill; skip Jawa's positionally-filled fields to avoid
+  // the label cells (Religion / Height / Weight) being treated as value targets.
+  const jawaSkip = isJawa ? new Set(["RELIGION", "HEIGHT", "WEIGHT"]) : null;
   for (const [label, value] of fieldPairs) {
     if (!value) continue;
+    if (jawaSkip?.has(normLabel(label))) continue;
     xml = fillField(xml, label, value, fillOpts);
   }
 
