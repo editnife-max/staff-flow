@@ -441,6 +441,105 @@ function fillJawaSpecialRow(
   return result;
 }
 
+// Fills the Monaco "Previous Employment Abroad / خبرة خارج البلاد" section.
+// Anchors on "دولة" to find the label row (COUNTRY دولة | POSITION موضع | YEAR سنة),
+// then fills the data row below at the same column indices.
+// Only fills for experienced candidates; leaves empty for first-timers.
+function fillMonacoPreviousEmployment(xml: string, c: Candidate, opts?: { bold?: boolean }): string {
+  const exp = (c.experience ?? "").trim().toUpperCase();
+  const isFirstTime = !exp || exp.includes("FIRST") || exp.includes("NO EXPER") || exp === "NONE" || exp === "NO";
+  if (isFirstTime) return xml;
+
+  // Find the label row by anchoring on "دولة"
+  let anchorPos = -1;
+  let p = 0;
+  while (p < xml.length) {
+    const cs = nextCell(xml, p);
+    if (cs === -1) break;
+    const ce = outerCellEnd(xml, cs);
+    if (ce === -1) break;
+    if (cellText(xml, cs, ce).trim() === "دولة") { anchorPos = cs; break; }
+    p = ce + 7;
+  }
+  if (anchorPos === -1) return xml;
+
+  const labelRowStart = xml.lastIndexOf("<w:tr", anchorPos);
+  if (labelRowStart === -1) return xml;
+  { const ch = xml[labelRowStart + 5]; if (ch !== ">" && ch !== " " && ch !== "\n" && ch !== "\t") return xml; }
+  const labelRowEnd = xml.indexOf("</w:tr>", labelRowStart);
+  if (labelRowEnd === -1) return xml;
+
+  // Collect label-row cells and identify column index for COUNTRY, POSITION, YEAR
+  const labelCells: Array<{ start: number; end: number; text: string }> = [];
+  let rp = labelRowStart;
+  while (rp < labelRowEnd) {
+    const cs = nextCell(xml, rp);
+    if (cs === -1 || cs >= labelRowEnd) break;
+    const ce = outerCellEnd(xml, cs);
+    if (ce === -1) break;
+    labelCells.push({ start: cs, end: ce, text: cellText(xml, cs, ce).trim() });
+    rp = ce + 7;
+  }
+
+  let countryIdx = -1, positionIdx = -1, yearIdx = -1;
+  for (let i = 0; i < labelCells.length; i++) {
+    const n = normLabel(labelCells[i].text);
+    const t = labelCells[i].text;
+    if (countryIdx  === -1 && (n === "COUNTRY"  || t === "دولة")) countryIdx  = i;
+    if (positionIdx === -1 && (n === "POSITION" || n === "PROFESSION" || t === "موضع")) positionIdx = i;
+    if (yearIdx     === -1 && (n === "YEAR"     || n === "YEARS"     || t === "سنة"))  yearIdx     = i;
+  }
+
+  // Data row immediately follows the label row
+  const nextTrStart = xml.indexOf("<w:tr", labelRowEnd + 7);
+  const nextTrEnd   = nextTrStart !== -1 ? xml.indexOf("</w:tr>", nextTrStart) : -1;
+  if (nextTrStart === -1 || nextTrEnd === -1) return xml;
+
+  const dataCells: Array<{ start: number; end: number }> = [];
+  rp = nextTrStart;
+  while (rp < nextTrEnd) {
+    const cs = nextCell(xml, rp);
+    if (cs === -1 || cs >= nextTrEnd) break;
+    const ce = outerCellEnd(xml, cs);
+    if (ce === -1) break;
+    dataCells.push({ start: cs, end: ce });
+    rp = ce + 7;
+  }
+
+  type Change = { start: number; end: number; value: string };
+  const changes: Change[] = [];
+
+  const push = (idx: number, value: string) => {
+    if (idx >= 0 && idx < dataCells.length && value)
+      changes.push({ start: dataCells[idx].start, end: dataCells[idx].end, value });
+  };
+  push(countryIdx,  c.experience_country ?? "");
+  push(positionIdx, c.occupation         ?? "");
+  push(yearIdx,     c.experience_years   ?? "");
+
+  changes.sort((a, b) => b.start - a.start);
+
+  let result = xml;
+  for (const { start: cs, end: ce, value } of changes) {
+    let first = true;
+    let newCell = result.slice(cs, ce + 7).replace(
+      /<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g,
+      (_, attrs) => {
+        if (first) { first = false; return `<w:t${value.includes(" ") ? ' xml:space="preserve"' : (attrs ?? "")}>${xmlEsc(value)}</w:t>`; }
+        return `<w:t${attrs ?? ""}></w:t>`;
+      },
+    );
+    if (first) {
+      const pEnd = newCell.indexOf("</w:p>");
+      if (pEnd !== -1)
+        newCell = newCell.slice(0, pEnd) + `<w:r><w:t${value.includes(" ") ? ' xml:space="preserve"' : ""}>${xmlEsc(value)}</w:t></w:r>` + newCell.slice(pEnd);
+    }
+    if (opts?.bold) newCell = boldifyCell(newCell);
+    result = result.slice(0, cs) + newCell + result.slice(ce + 7);
+  }
+  return result;
+}
+
 // Fixes the Jawa template's "Previous Employment Abroad" section.
 // Runs AFTER all standard field fills so it has the final say on those cells:
 //   - Rewrites header cells at col-index 1 → "Position", col-index 2 → "City, County"
@@ -1385,6 +1484,8 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
     for (const lbl of ["NATIONALITY", "NATIONAL", "CITIZEN", "CITIZENSHIP", "NATIONALITY OF EMPLOYEE", "EMPLOYEE NATIONALITY"]) {
       xml = fillField(xml, lbl, nat, { bold: true });
     }
+    // Fill "Previous Employment Abroad" section (COUNTRY / POSITION / YEAR columns)
+    xml = fillMonacoPreviousEmployment(xml, c, { bold: true });
   }
 
   // Skill checkboxes: write bold "Yes" only for skills the candidate actually has
