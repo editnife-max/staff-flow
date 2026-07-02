@@ -1173,6 +1173,15 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
     xml = fillFieldBefore(xml, label, value, fillOpts);
   }
 
+  // Monaco nationality: the template may use a label variant not caught above.
+  // Try all common forms so the cell is always filled regardless of exact wording.
+  if (tplName.includes("monaco")) {
+    const nat = c.country || "Ethiopia";
+    for (const lbl of ["NATIONALITY", "NATIONAL", "CITIZEN", "CITIZENSHIP", "NATIONALITY OF EMPLOYEE", "EMPLOYEE NATIONALITY"]) {
+      xml = fillField(xml, lbl, nat, { bold: true });
+    }
+  }
+
   const relsPath  = "word/_rels/document.xml.rels";
   const relsEntry = zip.file(relsPath);
   let relsXml = relsEntry
