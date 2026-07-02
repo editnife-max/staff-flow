@@ -485,9 +485,9 @@ function fillMonacoPreviousEmployment(xml: string, c: Candidate, opts?: { bold?:
   for (let i = 0; i < labelCells.length; i++) {
     const n = normLabel(labelCells[i].text);
     const t = labelCells[i].text;
-    if (countryIdx  === -1 && (n === "COUNTRY"  || t === "دولة")) countryIdx  = i;
-    if (positionIdx === -1 && (n === "POSITION" || n === "PROFESSION" || t === "موضع")) positionIdx = i;
-    if (yearIdx     === -1 && (n === "YEAR"     || n === "YEARS"     || t === "سنة"))  yearIdx     = i;
+    if (countryIdx  === -1 && (n === "COUNTRY"  || n.includes("COUNTRY")  || t.includes("دولة"))) countryIdx  = i;
+    if (positionIdx === -1 && (n === "POSITION" || n.includes("POSITION") || n.includes("PROFESSION") || t.includes("موضع"))) positionIdx = i;
+    if (yearIdx     === -1 && (n === "YEAR"     || n.includes("YEAR")     || t.includes("سنة")))  yearIdx     = i;
   }
 
   // Data row immediately follows the label row
