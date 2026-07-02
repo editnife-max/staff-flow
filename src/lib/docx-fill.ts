@@ -450,24 +450,26 @@ function fillMonacoPreviousEmployment(xml: string, c: Candidate, opts?: { bold?:
   const isFirstTime = !exp || exp.includes("FIRST") || exp.includes("NO EXPER") || exp === "NONE" || exp === "NO";
   if (isFirstTime) return xml;
 
-  // Find the label row by anchoring on "دولة"
-  let anchorPos = -1;
+  // Find the label row that contains BOTH "COUNTRY"/"دولة" AND "موضع"/"سنة"
+  // (scanning full rows avoids false-positives from a standalone "دولة" cell elsewhere)
+  let labelRowStart = -1, labelRowEnd = -1;
   let p = 0;
   while (p < xml.length) {
-    const cs = nextCell(xml, p);
-    if (cs === -1) break;
-    const ce = outerCellEnd(xml, cs);
-    if (ce === -1) break;
-    if (cellText(xml, cs, ce).trim() === "دولة") { anchorPos = cs; break; }
-    p = ce + 7;
+    const trIdx = xml.indexOf("<w:tr", p);
+    if (trIdx === -1) break;
+    const ch = xml[trIdx + 5];
+    if (ch !== ">" && ch !== " " && ch !== "\n" && ch !== "\t") { p = trIdx + 5; continue; }
+    const trEnd = xml.indexOf("</w:tr>", trIdx);
+    if (trEnd === -1) break;
+    const rowText = xml.slice(trIdx, trEnd);
+    if (rowText.includes("دولة") && (rowText.includes("موضع") || rowText.includes("سنة"))) {
+      labelRowStart = trIdx;
+      labelRowEnd   = trEnd;
+      break;
+    }
+    p = trEnd + 7;
   }
-  if (anchorPos === -1) return xml;
-
-  const labelRowStart = xml.lastIndexOf("<w:tr", anchorPos);
   if (labelRowStart === -1) return xml;
-  { const ch = xml[labelRowStart + 5]; if (ch !== ">" && ch !== " " && ch !== "\n" && ch !== "\t") return xml; }
-  const labelRowEnd = xml.indexOf("</w:tr>", labelRowStart);
-  if (labelRowEnd === -1) return xml;
 
   // Collect label-row cells and identify column index for COUNTRY, POSITION, YEAR
   const labelCells: Array<{ start: number; end: number; text: string }> = [];
@@ -485,9 +487,9 @@ function fillMonacoPreviousEmployment(xml: string, c: Candidate, opts?: { bold?:
   for (let i = 0; i < labelCells.length; i++) {
     const n = normLabel(labelCells[i].text);
     const t = labelCells[i].text;
-    if (countryIdx  === -1 && (n === "COUNTRY"  || n.includes("COUNTRY")  || t.includes("دولة"))) countryIdx  = i;
-    if (positionIdx === -1 && (n === "POSITION" || n.includes("POSITION") || n.includes("PROFESSION") || t.includes("موضع"))) positionIdx = i;
-    if (yearIdx     === -1 && (n === "YEAR"     || n.includes("YEAR")     || t.includes("سنة")))  yearIdx     = i;
+    if (countryIdx  === -1 && (n.includes("COUNTRY")  || t.includes("دولة"))) countryIdx  = i;
+    if (positionIdx === -1 && (n.includes("POSITION") || n.includes("PROFESSION") || t.includes("موضع"))) positionIdx = i;
+    if (yearIdx     === -1 && (n.includes("YEAR")     || t.includes("سنة")))  yearIdx     = i;
   }
 
   // Data row immediately follows the label row
@@ -513,9 +515,9 @@ function fillMonacoPreviousEmployment(xml: string, c: Candidate, opts?: { bold?:
     if (idx >= 0 && idx < dataCells.length && value)
       changes.push({ start: dataCells[idx].start, end: dataCells[idx].end, value });
   };
-  push(countryIdx,  c.experience_country ?? "");
-  push(positionIdx, c.occupation         ?? "");
-  push(yearIdx,     c.experience_years   ?? "");
+  push(countryIdx,  c.experience_country             ?? "");
+  push(positionIdx, c.occupation || "House Maid");
+  push(yearIdx,     c.experience_years              ?? "");
 
   changes.sort((a, b) => b.start - a.start);
 
