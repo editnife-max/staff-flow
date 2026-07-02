@@ -18,12 +18,14 @@ interface TemplateMetadata {
   imageCells?: Array<{ label: string; purpose: "photo" | "fullphoto" | "passport" }>;
 }
 
-// Returns "1200" for experienced candidates, "" for first-timers (keeps template default).
+// Returns "1200" for experienced candidates, "1000" for first-timers / unknown.
+// TADBEER already has "1000" hardcoded in its template cell, so writing "1000" is a no-op there.
+// Monaco's cell is empty, so "1000" fills it for first-timers (matching TADBEER's visual result).
 function deriveSalary(c: Candidate): string {
   const exp = (c.experience ?? "").trim().toUpperCase();
-  if (!exp) return "";
+  if (!exp) return "1000";
   const isFirstTime = exp.includes("FIRST") || exp.includes("NO EXPER") || exp === "NONE" || exp === "NO";
-  return isFirstTime ? "" : "1200";
+  return isFirstTime ? "1000" : "1200";
 }
 
 function getCandidateFieldValue(c: Candidate, field: string): string {
@@ -190,6 +192,14 @@ export const CV_FIELD_MAP = (c: Candidate): [string, string][] => [
   ["COUNTRY",                c.experience_country                           ?? ""],
   ["HIGHEST EDUCATIONAL LEVEL", c.education                                 ?? ""],
   ["DATE OF BIRTH & AGE",    (c.dob ?? "") + ((c.age != null ? String(c.age) : computeAge(c.dob)) ? " " + (c.age != null ? String(c.age) : computeAge(c.dob)) : "")],
+  // ── Monaco household-skills checkboxes (always YES for domestic-worker role) ─
+  ["ARAB COOKING",           "YES"],
+  ["COOKING",                "YES"],
+  ["CLEANING",               "YES"],
+  ["WASHING",                "YES"],
+  ["BABY SITTING",           "YES"],
+  ["BABYSITTING",            "YES"],
+  ["IRONING",                "YES"],
 ];
 
 // ── Arabic value translations ─────────────────────────────────────────────────
@@ -1014,8 +1024,11 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
       ? Object.entries(meta.fieldMap).map(([lbl, std]) => [lbl, getCandidateFieldValue(c, std)])
       : CV_FIELD_MAP(c);
 
-  const fillOpts = template.name?.toLowerCase().includes("tadbeer") ? { bold: true } : undefined;
-  const isJawa = template.name?.toLowerCase().includes("jawa");
+  const tplName = template.name?.toLowerCase() ?? "";
+  // TADBEER & Monaco value cells carry red <w:color> in their pPr/rPr; boldifyCell
+  // strips that color (and adds bold) so filled values render black, not red.
+  const fillOpts = (tplName.includes("tadbeer") || tplName.includes("monaco")) ? { bold: true } : undefined;
+  const isJawa = tplName.includes("jawa");
 
   // Jawa template: Religion, Height, Weight labels are in one row but their values
   // are in the next row — fill them positionally before the standard label pass runs

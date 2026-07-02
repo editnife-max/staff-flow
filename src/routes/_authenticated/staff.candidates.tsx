@@ -2239,6 +2239,10 @@ function CandidateCard({
     { label: "MEDICAL STATUS", value: candidate.medical_status ?? "", edit: "select", field: "medical_status", options: MEDICAL_OPTIONS },
     { label: "MEDICAL DATE", value: candidate.medical_date ?? "", edit: "date", field: "medical_date", display: candidate.medical_date && candidate.medical_status === "Fit" ? `${Math.max(1, Math.floor((Date.now() - new Date(candidate.medical_date + "T00:00:00").getTime()) / 86400000))} days ago` : undefined },
     { label: "EXPERIENCE", value: candidate.experience ?? "—" },
+    ...(candidate.experience === "Yes" ? [
+      { label: "EXPERIENCE COUNTRY", value: candidate.experience_country ?? "—" },
+      { label: "EXPERIENCE YEARS", value: candidate.experience_years ?? "—" },
+    ] : []),
     { label: "AVAILABILITY", value: (() => { const v = candidate.availability_type ?? "available"; return v.charAt(0).toUpperCase() + v.slice(1); })(), edit: "select", field: "availability_type", options: ["Available", "Private", "Unavailable"] },
 
     { label: "SELECTED BY", value: candidate.selected_by ?? "", edit: "select", field: "selected_by", options: agencyOptions },
