@@ -177,6 +177,61 @@ export const CV_FIELD_MAP = (c: Candidate): [string, string][] => [
   ["DATE OF BIRTH & AGE",    (c.dob ?? "") + ((c.age != null ? String(c.age) : computeAge(c.dob)) ? " " + (c.age != null ? String(c.age) : computeAge(c.dob)) : "")],
 ];
 
+// ── Arabic value translations ─────────────────────────────────────────────────
+const AR_OCCUPATION: Record<string, string> = {
+  "HOUSEMAID": "عاملة منزلية", "HOUSE MAID": "عاملة منزلية",
+  "DOMESTIC WORKER": "عاملة منزلية", "HOUSEKEEPER": "عاملة منزلية",
+  "COOK": "طباخة", "BABY SITTER": "مربية أطفال", "BABYSITTER": "مربية أطفال",
+  "NURSE": "ممرضة", "CAREGIVER": "مقدمة رعاية", "CLEANER": "عاملة نظافة",
+  "DRIVER": "سائق", "GARDENER": "بستاني",
+};
+const AR_RELIGION: Record<string, string> = {
+  "MUSLIM": "مسلمة", "ISLAM": "مسلمة",
+  "CHRISTIAN": "مسيحية", "CHRISTIANITY": "مسيحية",
+  "HINDU": "هندوسية", "BUDDHIST": "بوذية",
+};
+const AR_MARITAL: Record<string, string> = {
+  "MARRIED": "متزوجة", "SINGLE": "عزباء",
+  "DIVORCED": "مطلقة", "WIDOWED": "أرملة", "WIDOW": "أرملة",
+};
+const AR_EDUCATION: Record<string, string> = {
+  "PRIMARY": "إبتدائي", "ELEMENTARY": "إبتدائي",
+  "SECONDARY": "ثانوي", "HIGH SCHOOL": "ثانوي",
+  "UNIVERSITY": "جامعي", "BACHELOR": "جامعي",
+  "DIPLOMA": "دبلوم", "ILLITERATE": "أمية", "NO EDUCATION": "أمية",
+  "MIDDLE": "متوسط", "JUNIOR": "متوسط",
+};
+const AR_EXPERIENCE: Record<string, string> = {
+  "FIRST TIME": "لم يسبق لها العمل", "NO EXPERIENCE": "لم يسبق لها العمل",
+  "EXPERIENCED": "لديها خبرة",
+};
+const AR_LEVEL: Record<string, string> = {
+  "EXCELLENT": "ممتاز", "VERY GOOD": "جيد جداً", "GOOD": "جيد",
+  "FAIR": "مقبول", "AVERAGE": "مقبول", "POOR": "ضعيف",
+  "BASIC": "ضعيف", "NONE": "لا يوجد", "NO": "لا يوجد",
+};
+
+function toArabic(value: string | null | undefined, map: Record<string, string>): string {
+  if (!value) return "";
+  return map[value.trim().toUpperCase()] ?? "";
+}
+
+// CV_ARABIC_FIELD_MAP: RTL label cells whose value cell is BEFORE them in XML order.
+// Processed with fillFieldBefore() so the cell immediately preceding the label is filled.
+export const CV_ARABIC_FIELD_MAP = (c: Candidate): [string, string][] => [
+  ["المهنة",             toArabic(c.occupation,     AR_OCCUPATION)],
+  ["الخبرة",             toArabic(c.experience,     AR_EXPERIENCE)],
+  ["اللغة العربية",      c.arabic_level                          ?? ""],
+  ["الديانة",            toArabic(c.religion,       AR_RELIGION)],
+  ["الدرجة التعليمية",   toArabic(c.education,      AR_EDUCATION)],
+  ["الحالة الاجتماعية",  toArabic(c.marital_status, AR_MARITAL)],
+  ["عدد الأطفال",        c.children != null ? String(c.children) : ""],
+  ["الوزن",              c.weight   != null ? `${c.weight} kg`   : ""],
+  ["الطول",              c.height   != null ? `${c.height} cm`   : ""],
+  ["العمر",              c.age      != null ? String(c.age)      : computeAge(c.dob)],
+  ["تاريخ الميلاد",      c.dob                                   ?? ""],
+];
+
 function computeAge(dob: string | null | undefined): string {
   if (!dob) return "";
   const birth = new Date(dob);
@@ -352,6 +407,51 @@ function fillField(xml: string, label: string, value: string): string {
       return xml.slice(0, nStart) + newCell + xml.slice(nEnd + 7);
     }
 
+    pos = cellEnd + 7;
+  }
+  return xml;
+}
+
+// Fills the cell IMMEDIATELY BEFORE the label cell with the given value.
+// Used for RTL (Arabic) label cells where [value cell] comes before [label cell]
+// in the XML cell order (opposite of standard LTR fillField).
+function fillFieldBefore(xml: string, label: string, value: string): string {
+  const normTarget = normLabel(label);
+  let pos = 0;
+  let prevStart = -1;
+  let prevEnd = -1;
+  while (pos < xml.length) {
+    const cellStart = nextCell(xml, pos);
+    if (cellStart === -1) break;
+    const cellEnd = outerCellEnd(xml, cellStart);
+    if (cellEnd === -1) break;
+
+    if (normLabel(cellText(xml, cellStart, cellEnd)) === normTarget && prevStart !== -1) {
+      const spaceAttr = value.includes(" ") ? ' xml:space="preserve"' : "";
+      let first = true;
+      let newCell = xml.slice(prevStart, prevEnd + 7).replace(
+        /<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g,
+        (_, attrs) => {
+          if (first) {
+            first = false;
+            return `<w:t${value.includes(" ") ? ' xml:space="preserve"' : (attrs ?? "")}>${xmlEsc(value)}</w:t>`;
+          }
+          return `<w:t${attrs ?? ""}></w:t>`;
+        },
+      );
+      if (first) {
+        const pEnd = newCell.indexOf("</w:p>");
+        if (pEnd !== -1) {
+          newCell = newCell.slice(0, pEnd)
+            + `<w:r><w:t${spaceAttr}>${xmlEsc(value)}</w:t></w:r>`
+            + newCell.slice(pEnd);
+        }
+      }
+      return xml.slice(0, prevStart) + newCell + xml.slice(prevEnd + 7);
+    }
+
+    prevStart = cellStart;
+    prevEnd = cellEnd;
     pos = cellEnd + 7;
   }
   return xml;
@@ -803,6 +903,12 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
   for (const [label, value] of fieldPairs) {
     if (!value) continue;
     xml = fillField(xml, label, value);
+  }
+
+  // Secondary pass: fill Arabic RTL value cells (cell before the Arabic label)
+  for (const [label, value] of CV_ARABIC_FIELD_MAP(c)) {
+    if (!value) continue;
+    xml = fillFieldBefore(xml, label, value);
   }
 
   const relsPath  = "word/_rels/document.xml.rels";
