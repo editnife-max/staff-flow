@@ -358,13 +358,15 @@ const LABEL_ALIASES: [string, string][] = [
   ["NON MUSLIM",  "Height"],
 ];
 
-// Adds bold to every run in a cell's XML.
+// Adds bold to every run in a cell's XML and strips explicit color overrides
+// (so red/colored template text becomes default black after fill).
 // Strips existing <w:b> / <w:bCs> first to avoid duplicates, then injects
 // them before every </w:rPr>. Also handles runs that have no <w:rPr> at all.
 function boldifyCell(cellXml: string): string {
   let result = cellXml
     .replace(/<w:b\b[^/]*\/>/g, "")
-    .replace(/<w:bCs\b[^/]*\/>/g, "");
+    .replace(/<w:bCs\b[^/]*\/>/g, "")
+    .replace(/<w:color\b[^/]*\/>/g, "");
   result = result.replace(/<\/w:rPr>/g, "<w:b/><w:bCs/></w:rPr>");
   result = result.replace(/(<w:r(?:\s[^>]*)?>)(?!\s*<w:rPr)/g,
     (_, openTag) => `${openTag}<w:rPr><w:b/><w:bCs/></w:rPr>`);
@@ -372,13 +374,15 @@ function boldifyCell(cellXml: string): string {
 }
 
 // Applies center-alignment to every paragraph in a cell's XML.
-// Removes any existing <w:jc> alignment, then inserts <w:jc w:val="center"/>
-// before each </w:pPr>. For paragraphs that lack <w:pPr>, inserts one.
+// Removes any existing <w:jc> alignment and <w:ind> indentation (which would
+// offset center-aligned text), then inserts <w:jc w:val="center"/> before
+// each </w:pPr>. For paragraphs that lack <w:pPr>, inserts one.
 function centerAlignCell(cellXml: string): string {
-  // Remove existing <w:jc .../> (self-closing) and <w:jc>...</w:jc> (element form)
+  // Remove existing <w:jc .../> and <w:ind .../> self-closing elements
   let result = cellXml
     .replace(/<w:jc\b[^/]*\/>/g, "")
-    .replace(/<w:jc\b[\s\S]*?<\/w:jc>/g, "");
+    .replace(/<w:jc\b[\s\S]*?<\/w:jc>/g, "")
+    .replace(/<w:ind\b[^/]*\/>/g, "");
   // Inject center alignment before every </w:pPr>
   result = result.replace(/<\/w:pPr>/g, '<w:jc w:val="center"/></w:pPr>');
   // Handle paragraphs that have no <w:pPr> at all: add one after <w:p ...>
