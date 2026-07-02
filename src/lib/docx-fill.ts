@@ -516,7 +516,7 @@ function fillMonacoPreviousEmployment(xml: string, c: Candidate, opts?: { bold?:
       changes.push({ start: dataCells[idx].start, end: dataCells[idx].end, value });
   };
   push(countryIdx,  c.experience_country             ?? "");
-  push(positionIdx, c.occupation || "House Maid");
+  push(positionIdx, "House Maid");
   push(yearIdx,     c.experience_years              ?? "");
 
   changes.sort((a, b) => b.start - a.start);
