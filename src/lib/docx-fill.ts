@@ -1007,6 +1007,20 @@ function liveExtractImageSlots(docXml: string, relsXml: string): LiveSlot[] {
   return slots;
 }
 
+// Scans document.xml for the highest numeric id= value used in any drawing element
+// (<wp:docPr>, <pic:cNvPr>, etc.) so we can start our injected IDs above that ceiling
+// and guarantee uniqueness. Word mobile / Word Online reject documents with duplicate IDs.
+function scanMaxDrawingId(xml: string): number {
+  let max = 0;
+  const re = /\bid="(\d+)"/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(xml)) !== null) {
+    const n = parseInt(m[1], 10);
+    if (n > max) max = n;
+  }
+  return max;
+}
+
 export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedPassport = true): Promise<Uint8Array> {
   const res = await fetch(template.file_url, { mode: "cors" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1016,6 +1030,10 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
   const entry = zip.file("word/document.xml");
   if (!entry) throw new Error("word/document.xml missing");
   let xml = new TextDecoder("utf-8").decode(entry.asUint8Array());
+
+  // Allocate drawing IDs above the template's existing ceiling so we never produce
+  // duplicate id= values — duplicate IDs cause Word mobile / Word Online to reject the file.
+  let nextPicId = scanMaxDrawingId(xml) + 1;
 
   // Use Claude's label mapping if the template has metadata; otherwise fall back to standard labels
   const meta = (template.metadata as TemplateMetadata | null | undefined);
@@ -1135,7 +1153,7 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
   if (metaImageCells.length > 0) {
     // Metadata path: Claude identified the exact placeholder cells at upload time.
     // Each cell.label IS the cell to replace (not adjacent), so use replaceImageCell.
-    let picId = 50;
+    let picId = nextPicId; nextPicId += metaImageCells.length + 1;
     for (const cell of metaImageCells) {
       if (cell.purpose === "passport") continue; // always a dedicated page, never in-cell
       const src =
@@ -1184,15 +1202,15 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
           ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
         }
         const d = await bytesToDims(img.bytes);
-        xml = replaceImageCellContaining(xml, "FULL SIZE PHOTO",    rId, d.w, d.h, 71);
-        xml = replaceImageCellContaining(xml, "FULL SIZE PICTURE",  rId, d.w, d.h, 72);
-        xml = replaceImageCellContaining(xml, "FULL BODY PHOTO",    rId, d.w, d.h, 73);
-        xml = replaceImageCellContaining(xml, "FULL BODY PICTURE",  rId, d.w, d.h, 74);
-        xml = replaceImageCellContaining(xml, "FULL LENGTH PHOTO",  rId, d.w, d.h, 75);
-        xml = replaceImageCellContaining(xml, "FULL LENGTH",        rId, d.w, d.h, 76);
-        xml = replaceImageCellContaining(xml, "WHOLE BODY",         rId, d.w, d.h, 77);
-        xml = replaceImageCellContaining(xml, "BODY PHOTO",         rId, d.w, d.h, 78);
-        xml = replaceImageCellContaining(xml, "FULL PHOTO",         rId, d.w, d.h, 79);
+        xml = replaceImageCellContaining(xml, "FULL SIZE PHOTO",    rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "FULL SIZE PICTURE",  rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "FULL BODY PHOTO",    rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "FULL BODY PICTURE",  rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "FULL LENGTH PHOTO",  rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "FULL LENGTH",        rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "WHOLE BODY",         rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "BODY PHOTO",         rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "FULL PHOTO",         rId, d.w, d.h, nextPicId++);
       }
     }
     // Passport-size photo — runs after full variants so generic "PHOTO" doesn't steal those cells
@@ -1210,10 +1228,10 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
           ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
         }
         const d = await bytesToDims(img.bytes);
-        xml = replaceImageCellContaining(xml, "4X4",         rId, d.w, d.h, 80);
-        xml = replaceImageCellContaining(xml, "PHOTOGRAPH",  rId, d.w, d.h, 81);
-        xml = replaceImageCellContaining(xml, "PICTURE",     rId, d.w, d.h, 82);
-        xml = replaceImageCellContaining(xml, "PHOTO",       rId, d.w, d.h, 70);
+        xml = replaceImageCellContaining(xml, "4X4",         rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "PHOTOGRAPH",  rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "PICTURE",     rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "PHOTO",       rId, d.w, d.h, nextPicId++);
       }
     }
     // Passport scan is never placed in a cell — always appended as a dedicated page below.
@@ -1243,6 +1261,7 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
       const cyEmu = Math.round(dims.h * scale);
       // Single paragraph with <w:pageBreakBefore/> — forces this paragraph to start
       // on a new page without emitting a separate blank page-break paragraph.
+      const passportPicId = nextPicId++;
       const passportContent = [
         `<w:p><w:pPr>`,
         `<w:pageBreakBefore/>`,
@@ -1252,12 +1271,12 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
         `<wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" distT="0" distB="0" distL="0" distR="0">`,
         `<wp:extent cx="${cxEmu}" cy="${cyEmu}"/>`,
         `<wp:effectExtent l="0" t="0" r="0" b="0"/>`,
-        `<wp:docPr id="99" name="PASSPORT SCAN"/>`,
+        `<wp:docPr id="${passportPicId}" name="PASSPORT SCAN"/>`,
         `<wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr>`,
         `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">`,
         `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">`,
         `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">`,
-        `<pic:nvPicPr><pic:cNvPr id="99" name="PASSPORT SCAN"/><pic:cNvPicPr/></pic:nvPicPr>`,
+        `<pic:nvPicPr><pic:cNvPr id="${passportPicId}" name="PASSPORT SCAN"/><pic:cNvPicPr/></pic:nvPicPr>`,
         `<pic:blipFill><a:blip r:embed="${rId}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>`,
         `<a:stretch><a:fillRect/></a:stretch></pic:blipFill>`,
         `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cxEmu}" cy="${cyEmu}"/></a:xfrm>`,
@@ -1326,7 +1345,7 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
   if (ctXml) zip.file(ctPath, new TextEncoder().encode(ctXml));
 
   zip.file("word/document.xml", new TextEncoder().encode(xml));
-  const result = zip.generate({ type: "uint8array" });
+  const result = zip.generate({ type: "uint8array", compression: "DEFLATE", compressionOptions: { level: 6 } });
   validateDocxBytes(result);
   return result;
 }
