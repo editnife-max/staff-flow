@@ -1021,6 +1021,103 @@ function scanMaxDrawingId(xml: string): number {
   return max;
 }
 
+// Level keywords that appear as row labels in checkbox-style language tables.
+const LEVEL_KEYWORDS = new Set([
+  "POOR", "LITTLE", "FAIR", "GOOD", "FLUENT", "EXCELLENT",
+  "VERY GOOD", "AVERAGE", "BASIC", "BEGINNER", "INTERMEDIATE",
+  "ADVANCED", "NATIVE", "VERY POOR",
+]);
+
+// Clears template-default checkmarks (e.g. "YES", "•") from language-level checkbox
+// rows and puts "√" in the cell that matches the candidate's actual level.
+// Must run BEFORE fillField so value cells are still at their original (empty/short)
+// template content — not yet filled with a level keyword by fillField, which would
+// otherwise look identical to a real level-name label cell.
+function fillLevelCheckboxes(xml: string, c: Candidate): string {
+  // Content that a legitimate checkmark cell may contain pre-fill
+  const CHECK_VALUES = new Set(["", "YES", "NO", "√", "✓", "•", "·", "X", "x", "O", "-", "/"]);
+
+  interface LevelRow { levelName: string; checkStart: number; checkEnd: number; }
+  interface LevelGroup { lang: "english" | "arabic" | "spoken" | "unknown"; rows: LevelRow[]; }
+
+  const groups: LevelGroup[] = [];
+  let currentGroup: LevelGroup | null = null;
+
+  let pos = 0;
+  while (pos < xml.length) {
+    const cellStart = nextCell(xml, pos);
+    if (cellStart === -1) break;
+    const cellEnd = outerCellEnd(xml, cellStart);
+    if (cellEnd === -1) break;
+
+    const norm = normLabel(cellText(xml, cellStart, cellEnd));
+
+    if (norm === "ENGLISH" || norm === "ENGLISH LANGUAGE" || norm === "ENGLISH LEVEL") {
+      currentGroup = { lang: "english", rows: [] };
+      groups.push(currentGroup);
+    } else if (norm === "ARABIC" || norm === "ARABIC LANGUAGE" || norm === "ARABIC LEVEL") {
+      currentGroup = { lang: "arabic", rows: [] };
+      groups.push(currentGroup);
+    } else if (norm === "SPOKEN LANGUAGES" || norm === "LANGUAGES" || norm === "SPOKEN") {
+      currentGroup = { lang: "spoken", rows: [] };
+      groups.push(currentGroup);
+    } else if (LEVEL_KEYWORDS.has(norm)) {
+      const nStart = nextCell(xml, cellEnd + 7);
+      if (nStart !== -1) {
+        const nEnd = outerCellEnd(xml, nStart);
+        if (nEnd !== -1) {
+          const nextRaw = cellText(xml, nStart, nEnd).trim();
+          // Only accept the adjacent cell as a checkmark if its content looks like one —
+          // empty, "YES", "•", etc. Prevents real field cells from being wiped.
+          if (CHECK_VALUES.has(nextRaw) && !/[؀-ۿ]/.test(nextRaw)) {
+            if (!currentGroup) {
+              currentGroup = { lang: "unknown", rows: [] };
+              groups.push(currentGroup);
+            }
+            currentGroup.rows.push({ levelName: norm, checkStart: nStart, checkEnd: nEnd });
+          }
+        }
+      }
+    }
+
+    pos = cellEnd + 7;
+  }
+
+  if (groups.length === 0) return xml;
+
+  const allRows: Array<LevelRow & { targetLevel: string }> = [];
+  for (const group of groups) {
+    const targetLevel =
+      group.lang === "arabic" ? (c.arabic_level    ?? "").trim().toUpperCase() :
+      group.lang === "spoken" ? (c.spoken_languages ?? "").trim().toUpperCase() :
+      /* english / unknown */   (c.english_level   ?? "").trim().toUpperCase();
+    for (const row of group.rows) allRows.push({ ...row, targetLevel });
+  }
+
+  // Reverse order so earlier offsets stay valid as we splice
+  allRows.sort((a, b) => b.checkStart - a.checkStart);
+
+  for (const { levelName, checkStart, checkEnd, targetLevel } of allRows) {
+    const newValue = levelName === targetLevel ? "√" : "";
+    let first = true;
+    let newCell = xml.slice(checkStart, checkEnd + 7).replace(
+      /<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g,
+      (_, attrs) => {
+        if (first) { first = false; return `<w:t${attrs ?? ""}>${xmlEsc(newValue)}</w:t>`; }
+        return `<w:t${attrs ?? ""}></w:t>`;
+      },
+    );
+    if (first && newValue) {
+      const pEnd = newCell.indexOf("</w:p>");
+      if (pEnd !== -1)
+        newCell = newCell.slice(0, pEnd) + `<w:r><w:t>${xmlEsc(newValue)}</w:t></w:r>` + newCell.slice(pEnd);
+    }
+    xml = xml.slice(0, checkStart) + newCell + xml.slice(checkEnd + 7);
+  }
+
+  return xml;
+}
+
 export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedPassport = true): Promise<Uint8Array> {
   const res = await fetch(template.file_url, { mode: "cors" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1047,6 +1144,10 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
   // strips that color (and adds bold) so filled values render black, not red.
   const fillOpts = (tplName.includes("tadbeer") || tplName.includes("monaco")) ? { bold: true } : undefined;
   const isJawa = tplName.includes("jawa");
+
+  // Clear template-default checkmarks and place "√" next to the candidate's actual
+  // level. Runs FIRST so value cells are still empty (not yet filled by fillField).
+  xml = fillLevelCheckboxes(xml, c);
 
   // Jawa template: Religion, Height, Weight labels are in one row but their values
   // are in the next row — fill them positionally before the standard label pass runs
