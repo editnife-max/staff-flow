@@ -1035,7 +1035,7 @@ const LEVEL_KEYWORDS = new Set([
 // otherwise look identical to a real level-name label cell.
 function fillLevelCheckboxes(xml: string, c: Candidate): string {
   // Content that a legitimate checkmark cell may contain pre-fill
-  const CHECK_VALUES = new Set(["", "YES", "NO", "√", "✓", "•", "·", "X", "x", "O", "-", "/"]);
+  const CHECK_VALUES = new Set(["", "YES", "NO", "Yes", "No", "√", "✓", "•", "·", "X", "x", "O", "-", "/"]);
 
   interface LevelRow { levelName: string; checkStart: number; checkEnd: number; }
   interface LevelGroup { lang: "english" | "arabic" | "spoken" | "unknown"; rows: LevelRow[]; }
@@ -1098,7 +1098,7 @@ function fillLevelCheckboxes(xml: string, c: Candidate): string {
   allRows.sort((a, b) => b.checkStart - a.checkStart);
 
   for (const { levelName, checkStart, checkEnd, targetLevel } of allRows) {
-    const newValue = levelName === targetLevel ? "√" : "";
+    const newValue = targetLevel && levelName === targetLevel ? "Yes" : "No";
     let first = true;
     let newCell = xml.slice(checkStart, checkEnd + 7).replace(
       /<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g,
