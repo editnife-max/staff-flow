@@ -148,6 +148,9 @@ export const CV_FIELD_MAP = (c: Candidate): [string, string][] => [
   ["YEARS OF EXPERIENCE",    c.experience_years                             ?? ""],
   ["PERIOD",                 c.experience_years                             ?? ""],
   ["MONTHLY SALARY",         deriveSalary(c)],
+  ["SALARY",                 deriveSalary(c)],
+  ["REMARKS",                c.notes ?? c.remark                           ?? ""],
+  ["REMARKS: REMARKS",       c.notes ?? c.remark                           ?? ""],
   ["GENDER",                 c.gender                                       ?? ""],
   ["MUSANED",                c.musaned_status                               ?? ""],
   ["MUSANED STATUS",         c.musaned_status                               ?? ""],
@@ -169,7 +172,7 @@ export const CV_FIELD_MAP = (c: Candidate): [string, string][] => [
   ["PASSPORT NUMBER",        c.passport_number                              ?? ""],
   ["PROFESSION",             c.occupation                                   ?? ""],
   ["POSITION APPLIED",       c.occupation                                   ?? ""],
-  ["POST APPLIED FOR",       c.occupation                                   ?? ""],
+  ["POST APPLIED FOR",       "House Maid"],
   ["DATE OF EXP",            c.passport_expiry_date                         ?? ""],
   ["ENGLISH LANGUAGE",       c.english_level                                ?? ""],
   ["EDUCATIONAL QUALIFICATION", c.education                                 ?? ""],
@@ -349,18 +352,15 @@ function boldifyCell(cellXml: string): string {
 }
 
 // Applies center-alignment to every paragraph in a cell's XML.
-// Removes any existing <w:jc> alignment and <w:ind> indentation (which would
-// offset center-aligned text), then inserts <w:jc w:val="center"/> before
-// each </w:pPr>. For paragraphs that lack <w:pPr>, inserts one.
+// Removes any existing <w:jc> alignment, then inserts <w:jc w:val="center"/>
+// before each </w:pPr>. Preserves <w:ind> so the template's original right-side
+// exclusion zone (e.g. w:right="1150" in TADBEER) shifts the centre point left,
+// keeping text at its intended visual position rather than dead-centred.
 function centerAlignCell(cellXml: string): string {
-  // Remove existing <w:jc .../> and <w:ind .../> self-closing elements
   let result = cellXml
     .replace(/<w:jc\b[^/]*\/>/g, "")
-    .replace(/<w:jc\b[\s\S]*?<\/w:jc>/g, "")
-    .replace(/<w:ind\b[^/]*\/>/g, "");
-  // Inject center alignment before every </w:pPr>
+    .replace(/<w:jc\b[\s\S]*?<\/w:jc>/g, "");
   result = result.replace(/<\/w:pPr>/g, '<w:jc w:val="center"/></w:pPr>');
-  // Handle paragraphs that have no <w:pPr> at all: add one after <w:p ...>
   result = result.replace(/(<w:p(?:\s[^>]*)?>)(?!\s*<w:pPr)/g,
     (_, openTag) => openTag + '<w:pPr><w:jc w:val="center"/></w:pPr>');
   return result;
