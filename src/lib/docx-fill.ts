@@ -358,6 +358,22 @@ const LABEL_ALIASES: [string, string][] = [
   ["NON MUSLIM",  "Height"],
 ];
 
+// Applies center-alignment to every paragraph in a cell's XML.
+// Removes any existing <w:jc> alignment, then inserts <w:jc w:val="center"/>
+// before each </w:pPr>. For paragraphs that lack <w:pPr>, inserts one.
+function centerAlignCell(cellXml: string): string {
+  // Remove existing <w:jc .../> (self-closing) and <w:jc>...</w:jc> (element form)
+  let result = cellXml
+    .replace(/<w:jc\b[^/]*\/>/g, "")
+    .replace(/<w:jc\b[\s\S]*?<\/w:jc>/g, "");
+  // Inject center alignment before every </w:pPr>
+  result = result.replace(/<\/w:pPr>/g, '<w:jc w:val="center"/></w:pPr>');
+  // Handle paragraphs that have no <w:pPr> at all: add one after <w:p ...>
+  result = result.replace(/(<w:p(?:\s[^>]*)?>)(?!\s*<w:pPr)/g,
+    (_, openTag) => openTag + '<w:pPr><w:jc w:val="center"/></w:pPr>');
+  return result;
+}
+
 function fillField(xml: string, label: string, value: string): string {
   const normTarget = normLabel(label);
   let pos = 0;
@@ -404,6 +420,7 @@ function fillField(xml: string, label: string, value: string): string {
             + newCell.slice(pEnd);
         }
       }
+      newCell = centerAlignCell(newCell);
       return xml.slice(0, nStart) + newCell + xml.slice(nEnd + 7);
     }
 
@@ -447,6 +464,7 @@ function fillFieldBefore(xml: string, label: string, value: string): string {
             + newCell.slice(pEnd);
         }
       }
+      newCell = centerAlignCell(newCell);
       return xml.slice(0, prevStart) + newCell + xml.slice(prevEnd + 7);
     }
 
