@@ -18,6 +18,14 @@ interface TemplateMetadata {
   imageCells?: Array<{ label: string; purpose: "photo" | "fullphoto" | "passport" }>;
 }
 
+// Returns "1200" for experienced candidates, "" for first-timers (keeps template default).
+function deriveSalary(c: Candidate): string {
+  const exp = (c.experience ?? "").trim().toUpperCase();
+  if (!exp) return "";
+  const isFirstTime = exp.includes("FIRST") || exp.includes("NO EXPER") || exp === "NONE" || exp === "NO";
+  return isFirstTime ? "" : "1200";
+}
+
 function getCandidateFieldValue(c: Candidate, field: string): string {
   const m: Record<string, string> = {
     FULL_NAME:            c.full_name                              ?? "",
@@ -77,6 +85,8 @@ function getCandidateFieldValue(c: Candidate, field: string): string {
     SPOKEN_LANGUAGES:     c.spoken_languages                      ?? "",
     COC_AGENCY_NAME:      c.coc_agency_name                       ?? "",
     EMERGENCY_CONTACT:    c.emergency_contact                     ?? "",
+    MONTHLY_SALARY:       deriveSalary(c),
+    PERIOD:               c.experience_years                      ?? "",
   };
   return m[field] ?? "";
 }
@@ -136,6 +146,8 @@ export const CV_FIELD_MAP = (c: Candidate): [string, string][] => [
   ["GOING COUNTRY",          c.destination_country                          ?? ""],
   ["EXPERIENCE YEARS",       c.experience_years                             ?? ""],
   ["YEARS OF EXPERIENCE",    c.experience_years                             ?? ""],
+  ["PERIOD",                 c.experience_years                             ?? ""],
+  ["MONTHLY SALARY",         deriveSalary(c)],
   ["GENDER",                 c.gender                                       ?? ""],
   ["MUSANED",                c.musaned_status                               ?? ""],
   ["MUSANED STATUS",         c.musaned_status                               ?? ""],
