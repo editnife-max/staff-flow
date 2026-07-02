@@ -358,6 +358,19 @@ const LABEL_ALIASES: [string, string][] = [
   ["NON MUSLIM",  "Height"],
 ];
 
+// Adds bold to every run in a cell's XML.
+// Strips existing <w:b> / <w:bCs> first to avoid duplicates, then injects
+// them before every </w:rPr>. Also handles runs that have no <w:rPr> at all.
+function boldifyCell(cellXml: string): string {
+  let result = cellXml
+    .replace(/<w:b\b[^/]*\/>/g, "")
+    .replace(/<w:bCs\b[^/]*\/>/g, "");
+  result = result.replace(/<\/w:rPr>/g, "<w:b/><w:bCs/></w:rPr>");
+  result = result.replace(/(<w:r(?:\s[^>]*)?>)(?!\s*<w:rPr)/g,
+    (_, openTag) => `${openTag}<w:rPr><w:b/><w:bCs/></w:rPr>`);
+  return result;
+}
+
 // Applies center-alignment to every paragraph in a cell's XML.
 // Removes any existing <w:jc> alignment, then inserts <w:jc w:val="center"/>
 // before each </w:pPr>. For paragraphs that lack <w:pPr>, inserts one.
@@ -374,7 +387,7 @@ function centerAlignCell(cellXml: string): string {
   return result;
 }
 
-function fillField(xml: string, label: string, value: string): string {
+function fillField(xml: string, label: string, value: string, opts?: { bold?: boolean }): string {
   const normTarget = normLabel(label);
   let pos = 0;
   while (pos < xml.length) {
@@ -420,6 +433,7 @@ function fillField(xml: string, label: string, value: string): string {
             + newCell.slice(pEnd);
         }
       }
+      if (opts?.bold) newCell = boldifyCell(newCell);
       newCell = centerAlignCell(newCell);
       return xml.slice(0, nStart) + newCell + xml.slice(nEnd + 7);
     }
@@ -432,7 +446,7 @@ function fillField(xml: string, label: string, value: string): string {
 // Fills the cell IMMEDIATELY BEFORE the label cell with the given value.
 // Used for RTL (Arabic) label cells where [value cell] comes before [label cell]
 // in the XML cell order (opposite of standard LTR fillField).
-function fillFieldBefore(xml: string, label: string, value: string): string {
+function fillFieldBefore(xml: string, label: string, value: string, opts?: { bold?: boolean }): string {
   const normTarget = normLabel(label);
   let pos = 0;
   let prevStart = -1;
@@ -464,6 +478,7 @@ function fillFieldBefore(xml: string, label: string, value: string): string {
             + newCell.slice(pEnd);
         }
       }
+      if (opts?.bold) newCell = boldifyCell(newCell);
       newCell = centerAlignCell(newCell);
       return xml.slice(0, prevStart) + newCell + xml.slice(prevEnd + 7);
     }
@@ -918,15 +933,17 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
       ? Object.entries(meta.fieldMap).map(([lbl, std]) => [lbl, getCandidateFieldValue(c, std)])
       : CV_FIELD_MAP(c);
 
+  const fillOpts = template.name?.toLowerCase().includes("tadbeer") ? { bold: true } : undefined;
+
   for (const [label, value] of fieldPairs) {
     if (!value) continue;
-    xml = fillField(xml, label, value);
+    xml = fillField(xml, label, value, fillOpts);
   }
 
   // Secondary pass: fill Arabic RTL value cells (cell before the Arabic label)
   for (const [label, value] of CV_ARABIC_FIELD_MAP(c)) {
     if (!value) continue;
-    xml = fillFieldBefore(xml, label, value);
+    xml = fillFieldBefore(xml, label, value, fillOpts);
   }
 
   const relsPath  = "word/_rels/document.xml.rels";
