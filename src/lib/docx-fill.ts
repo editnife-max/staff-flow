@@ -823,6 +823,41 @@ function fixInlineDrawingSize(xml: string, rId: string, newCx: number, newCy: nu
   return xml;
 }
 
+// Resizes an inline drawing (r:embed=rId) to fill its enclosing <w:tc> cell.
+// Walks back from the r:embed occurrence to find the nearest containing cell,
+// measures cx from cell width and cy from row/nested-table height, then
+// calls fixInlineDrawingSize with those dimensions. Returns the new xml and
+// the resolved (cx, cy) — both are 0 when no cell/inline drawing was found.
+function fitDrawingToCell(xml: string, rId: string): { xml: string; cx: number; cy: number } {
+  const embedTag = `r:embed="${rId}"`;
+  const embedPos = xml.indexOf(embedTag);
+  if (embedPos === -1) return { xml, cx: 0, cy: 0 };
+
+  let searchBack = embedPos;
+  while (searchBack > 0) {
+    const tcPos = xml.lastIndexOf("<w:tc", searchBack - 1);
+    if (tcPos === -1) break;
+    const ch = xml[tcPos + 5];
+    if (ch === ">" || ch === " " || ch === "\n" || ch === "\t") {
+      const cellEnd = outerCellEnd(xml, tcPos);
+      if (cellEnd !== -1 && cellEnd + 7 > embedPos) {
+        const cellSlice = xml.slice(tcPos, cellEnd + 7);
+        const tblW  = resolveTableWidth(xml, tcPos);
+        const cx    = resolveCellWidth(cellSlice, tblW);
+        const cellH = resolveCellHeight(xml, tcPos, cellEnd);
+        const nestedH = resolveNestedTableHeight(cellSlice);
+        const cy    = nestedH > 0 ? nestedH : cellH;
+        if (cx > 0 && cy > 0) {
+          return { xml: fixInlineDrawingSize(xml, rId, cx, cy), cx, cy };
+        }
+      }
+      break;
+    }
+    searchBack = tcPos;
+  }
+  return { xml, cx: 0, cy: 0 };
+}
+
 // ── Live image-slot detection ─────────────────────────────────────────────────
 // Scans ANY DOCX document.xml at export time — no pre-stored metadata needed.
 // Uses depth-counted traversal so nested structures (WPG anchors → wps:txbx →
@@ -988,21 +1023,29 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
       ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
     }
 
-    // 4 & 5 only apply when rendering via docx-preview (PDF path, embedPassport=false).
-    // For direct DOCX downloads (embedPassport=true) Word handles WPG natively — these
-    // transformations strip structure that Word validates, corrupting the file.
-    if (!embedPassport) {
-      // 4. Unwrap WPG anchor groups → plain <wp:inline> so docx-preview can render them.
-      if (slot.inWpgAnchor)
-        xml = simplifyWpgAnchorForRId(xml, slot.rId, slot.cx, slot.cy);
+    // 4. Unwrap WPG anchor groups → plain <wp:inline> so docx-preview can render them.
+    // Only applies to PDF path — for DOCX downloads Word handles WPG natively and
+    // unwrapping strips structure Word validates, corrupting the file.
+    if (!embedPassport && slot.inWpgAnchor)
+      xml = simplifyWpgAnchorForRId(xml, slot.rId, slot.cx, slot.cy);
 
-      // 5. Cap drawings that overflow the A4 printable area (~6.5" × 9.5" in EMU).
-      //    Some templates declare fullphoto slots at 11"×17" — they overflow docx-preview's
-      //    794 px container and vanish. Scaling to A4 makes them visible and fills the page.
+    // 5. Fit the inline drawing to its container cell dimensions.
+    //    Applies to both DOCX and PDF paths (only affects <wp:inline> drawings;
+    //    WPG anchors kept intact for Word are untouched since fixInlineDrawingSize
+    //    only rewrites <wp:inline> blocks).
+    const fitted = fitDrawingToCell(xml, slot.rId);
+    xml = fitted.xml;
+
+    // 6. Cap drawings that still overflow the A4 printable area (~6.5"×9.5" in EMU).
+    //    Uses cell dims when fitDrawingToCell succeeded; falls back to slot dims.
+    //    PDF path only — Word scales DOCX drawings natively.
+    if (!embedPassport) {
       const MAX_CX = 5_942_700, MAX_CY = 8_687_100;
-      if (slot.cx > MAX_CX || slot.cy > MAX_CY) {
-        const scale = Math.min(MAX_CX / slot.cx, MAX_CY / slot.cy);
-        xml = fixInlineDrawingSize(xml, slot.rId, Math.round(slot.cx * scale), Math.round(slot.cy * scale));
+      const baseCx = fitted.cx > 0 ? fitted.cx : slot.cx;
+      const baseCy = fitted.cy > 0 ? fitted.cy : slot.cy;
+      if (baseCx > MAX_CX || baseCy > MAX_CY) {
+        const scale = Math.min(MAX_CX / baseCx, MAX_CY / baseCy);
+        xml = fixInlineDrawingSize(xml, slot.rId, Math.round(baseCx * scale), Math.round(baseCy * scale));
       }
     }
   };
