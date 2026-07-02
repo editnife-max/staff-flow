@@ -500,8 +500,12 @@ function fillJawaPreviousEmployment(xml: string, c: Candidate, opts?: { bold?: b
       changes.push({ start: headerCells[idx].start, end: headerCells[idx].end, value: label });
   }
 
-  // Fill data row
-  const dataValues = [c.experience_years ?? "", c.occupation ?? "", c.experience_country ?? ""];
+  // Fill data row:
+  //   col 0 = experience_years (Period)
+  //   col 1 = occupation in English (Position)
+  //   col 2 = occupation in Arabic — e.g. "عاملة منزلية" for House Maid
+  const arabicOccupation = toArabic(c.occupation, AR_OCCUPATION) || c.occupation || "";
+  const dataValues = [c.experience_years ?? "", c.occupation ?? "", arabicOccupation];
   for (let i = 0; i < Math.min(dataValues.length, dataCells.length); i++) {
     if (dataValues[i])
       changes.push({ start: dataCells[i].start, end: dataCells[i].end, value: dataValues[i] });
