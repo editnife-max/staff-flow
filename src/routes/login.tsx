@@ -28,12 +28,27 @@ function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setSubmitting(false);
+    const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
+      setSubmitting(false);
       toast.error(error.message);
       return;
     }
+    // Block access if the account has no role assigned
+    const userId = signInData.user?.id;
+    if (userId) {
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId);
+      if (!roleData || roleData.length === 0) {
+        await supabase.auth.signOut();
+        setSubmitting(false);
+        toast.error("Your account has been deactivated. Contact your administrator.");
+        return;
+      }
+    }
+    setSubmitting(false);
     toast.success("Welcome back!");
     navigate({ to: "/dashboard" });
   };

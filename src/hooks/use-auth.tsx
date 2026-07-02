@@ -1,8 +1,13 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useCallback, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 export type AppRole = "admin" | "manager" | "staff" | "agency";
+
+const ROLE_PRIORITY: AppRole[] = ["admin", "manager", "staff", "agency"];
+const INACTIVITY_TIMEOUT = 60 * 60 * 1000; // 1 hour
+const ROLE_POLL_INTERVAL = 2 * 60 * 1000;  // 2 minutes
 
 interface AuthCtx {
   session: Session | null;
@@ -19,24 +24,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const ROLE_PRIORITY: AppRole[] = ["admin", "manager", "staff", "agency"];
+  const doSignOut = useCallback(async () => {
+    await supabase.auth.signOut();
+  }, []);
 
-  const fetchRole = async (userId: string) => {
-    const { data } = await supabase
+  // showRevokedToast=true only during periodic polling (not on initial page load)
+  const fetchRole = useCallback(async (userId: string, showRevokedToast = false): Promise<AppRole | null> => {
+    const { data, error } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", userId);
+    if (error) return null; // Don't sign out on transient network errors
     const roles = (data ?? []).map((r) => r.role as AppRole);
     const resolved = ROLE_PRIORITY.find((r) => roles.includes(r)) ?? null;
     setRole(resolved);
-  };
+    if (resolved === null) {
+      if (showRevokedToast) toast.error("Your account access has been revoked.");
+      await supabase.auth.signOut();
+    }
+    return resolved;
+  }, []);
+
+  // Inactivity auto-logout: reset timer on any user interaction
+  const resetInactivityTimer = useCallback(() => {
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    inactivityTimer.current = setTimeout(async () => {
+      toast.info("You were signed out due to inactivity.");
+      await doSignOut();
+    }, INACTIVITY_TIMEOUT);
+  }, [doSignOut]);
+
+  // Attach inactivity listeners only while a session is active
+  useEffect(() => {
+    if (!session) {
+      if (inactivityTimer.current) {
+        clearTimeout(inactivityTimer.current);
+        inactivityTimer.current = null;
+      }
+      return;
+    }
+    const events = ["mousemove", "mousedown", "keydown", "scroll", "touchstart", "click"] as const;
+    events.forEach((e) => window.addEventListener(e, resetInactivityTimer, { passive: true }));
+    resetInactivityTimer();
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, resetInactivityTimer));
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    };
+  }, [session, resetInactivityTimer]);
+
+  // Poll role every 2 minutes to detect deletion while logged in
+  useEffect(() => {
+    if (!session?.user) return;
+    const id = setInterval(() => fetchRole(session.user.id, true), ROLE_POLL_INTERVAL);
+    return () => clearInterval(id);
+  }, [session, fetchRole]);
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => {
       setSession(s);
       if (s?.user) {
-        // Defer to avoid deadlock
+        // Defer to avoid Supabase client deadlock
         setTimeout(() => fetchRole(s.user.id), 0);
       } else {
         setRole(null);
@@ -57,9 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: session?.user ?? null,
         role,
         loading,
-        signOut: async () => {
-          await supabase.auth.signOut();
-        },
+        signOut: doSignOut,
         refreshRole: async () => {
           if (session?.user) await fetchRole(session.user.id);
         },

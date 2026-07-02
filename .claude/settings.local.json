@@ -100,7 +100,8 @@
       "Bash(Write-Output \"created\")",
       "PowerShell(\\(Get-Content \"C:\\\\Project\\\\flowpath-suite\\\\src\\\\components\\\\action-dialog.tsx\" | Measure-Object -Line\\).Lines)",
       "Bash(Get-Content \"C:\\\\Project\\\\flowpath-suite\\\\package.json\")",
-      "Bash(Select-String -Pattern \"pizzip|jszip|docx|piz\")"
+      "Bash(Select-String -Pattern \"pizzip|jszip|docx|piz\")",
+      "Bash(bun -e ' *)"
     ]
   },
   "enableAllProjectMcpServers": true,
