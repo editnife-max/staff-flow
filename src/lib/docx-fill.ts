@@ -268,10 +268,19 @@ function xmlEscAttr(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
 }
 
+// Matches Arabic text regardless of encoding — standard Arabic block (U+0600-U+06FF),
+// Arabic Extended (U+0750-U+077F), and Arabic Presentation Forms (U+FB50-U+FDFF,
+// U+FE70-U+FEFF). Many DOCX templates store Arabic in presentation-form code points
+// (shaped letter variants), so we must cover both ranges everywhere we detect Arabic.
+const ARABIC_RE = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
+
 // Normalize label text: decode XML entities, collapse whitespace, uppercase,
 // strip trailing punctuation (":", ".") and abbreviation dots ("No. " → "NO ").
+// NFKC normalization converts Arabic presentation forms (e.g. ﻟ→ل, ﺗ→ت) so that
+// templates using shaped letter code points still match our label maps.
 function normLabel(s: string) {
   return s
+    .normalize("NFKC")
     .replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"')
     .replace(/[   ]/g, " ")  // normalize non-breaking/ideographic spaces
     .replace(/\s+/g, " ")
@@ -656,7 +665,7 @@ function fillField(xml: string, label: string, value: string, opts?: { bold?: bo
 
       // If the next cell is an Arabic label cell, skip it and use the one after.
       // Handles templates with [English Label] | [Arabic Label] | [Value].
-      if (/[؀-ۿ]/.test(cellText(xml, nStart, nEnd))) {
+      if (ARABIC_RE.test(cellText(xml, nStart, nEnd))) {
         const s2 = nextCell(xml, nEnd + 7);
         if (s2 !== -1) {
           const e2 = outerCellEnd(xml, s2);
@@ -1259,7 +1268,7 @@ function fillLevelCheckboxes(xml: string, c: Candidate): string {
           const nextRaw = cellText(xml, nStart, nEnd).trim();
           // Only accept the adjacent cell as a checkmark if its content looks like one —
           // empty, "YES", "•", etc. Prevents real field cells from being wiped.
-          if (CHECK_VALUES.has(nextRaw) && !/[؀-ۿ]/.test(nextRaw)) {
+          if (CHECK_VALUES.has(nextRaw) && !ARABIC_RE.test(nextRaw)) {
             if (!currentGroup) {
               currentGroup = { lang: "unknown", rows: [] };
               groups.push(currentGroup);
@@ -1274,7 +1283,7 @@ function fillLevelCheckboxes(xml: string, c: Candidate): string {
               if (arChkE !== -1 && CHECK_VALUES.has(cellText(xml, arChkS, arChkE).trim())) {
                 const arLblS = nextCell(xml, arChkE + 7);
                 const arLblE = arLblS !== -1 ? outerCellEnd(xml, arLblS) : -1;
-                if (arLblE !== -1 && /[؀-ۿ]/.test(cellText(xml, arLblS, arLblE)))
+                if (arLblE !== -1 && ARABIC_RE.test(cellText(xml, arLblS, arLblE)))
                   currentGroup.rows.push({ levelName: norm, checkStart: arChkS, checkEnd: arChkE });
               }
             }
@@ -1354,6 +1363,9 @@ function fillSkillCheckboxes(xml: string, candidateSkills: string | null | undef
     "الطبخ":          ["COOKING", "COOK"],
     "رعاية الأطفال":  ["CHILD CARE", "CHILDCARE", "BABYSITTING", "BABY SITTING"],
     "رعاية المسنين":  ["ELDERLY CARE", "ELDER CARE", "ELDERLY"],
+    // TADBEER uses "جليسة أطفال" (babysitter) — with and without space between words
+    "جليسة أطفال":   ["BABY SITTING", "BABYSITTING", "BABYSITTER", "CHILD CARE", "CHILDCARE"],
+    "جليسةأطفال":    ["BABY SITTING", "BABYSITTING", "BABYSITTER", "CHILD CARE", "CHILDCARE"],
   };
 
   const skillsUpper = (candidateSkills ?? "").toUpperCase();
@@ -1394,7 +1406,7 @@ function fillSkillCheckboxes(xml: string, candidateSkills: string | null | undef
         const ne = outerCellEnd(xml, ns);
         if (ne !== -1) {
           const nextRaw = cellText(xml, ns, ne).trim();
-          if (CHECK_VALUES.has(nextRaw) && !/[؀-ۿ]/.test(nextRaw))
+          if (CHECK_VALUES.has(nextRaw) && !ARABIC_RE.test(nextRaw))
             hits.push({ start: ns, end: ne, isYes: hasSkill(SKILL_ALIASES[norm]) });
         }
       }
@@ -1412,9 +1424,9 @@ function fillSkillCheckboxes(xml: string, candidateSkills: string | null | undef
     if (ce === -1) break;
     const raw  = cellText(xml, cs, ce);
     const norm = normLabel(raw);
-    if (/[؀-ۿ]/.test(raw) && norm in AR_SKILL_ALIASES && prevStart !== -1) {
+    if (ARABIC_RE.test(raw) && norm in AR_SKILL_ALIASES && prevStart !== -1) {
       const prevRaw = cellText(xml, prevStart, prevEnd).trim();
-      if (CHECK_VALUES.has(prevRaw) && !/[؀-ۿ]/.test(prevRaw))
+      if (CHECK_VALUES.has(prevRaw) && !ARABIC_RE.test(prevRaw))
         hits.push({ start: prevStart, end: prevEnd, isYes: hasSkill(AR_SKILL_ALIASES[norm]) });
     }
     prevStart = cs;
