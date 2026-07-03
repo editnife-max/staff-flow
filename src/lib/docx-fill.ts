@@ -227,28 +227,6 @@ const AR_LEVEL: Record<string, string> = {
   "FAIR": "مقبول", "AVERAGE": "مقبول", "POOR": "ضعيف",
   "BASIC": "ضعيف", "NONE": "لا يوجد", "NO": "لا يوجد",
 };
-const AR_COUNTRY: Record<string, string> = {
-  "PHILIPPINES":   "جمهورية الفلبين",
-  "ETHIOPIA":      "إثيوبيا",
-  "SRI LANKA":     "سريلانكا",
-  "INDONESIA":     "إندونيسيا",
-  "INDIA":         "الهند",
-  "KENYA":         "كينيا",
-  "UGANDA":        "أوغندا",
-  "GHANA":         "غانا",
-  "NEPAL":         "نيبال",
-  "BANGLADESH":    "بنغلاديش",
-  "MYANMAR":       "ميانمار",
-  "VIETNAM":       "فيتنام",
-  "CAMEROON":      "الكاميرون",
-  "NIGERIA":       "نيجيريا",
-  "MADAGASCAR":    "مدغشقر",
-  "TANZANIA":      "تنزانيا",
-  "ERITREA":       "إريتريا",
-  "SOMALIA":       "الصومال",
-  "ZIMBABWE":      "زيمبابوي",
-  "ZAMBIA":        "زامبيا",
-};
 
 function toArabic(value: string | null | undefined, map: Record<string, string>): string {
   if (!value) return "";
@@ -638,83 +616,6 @@ function fillJawaPreviousEmployment(xml: string, c: Candidate, opts?: { bold?: b
   }
 
   // Apply in reverse offset order so earlier positions stay valid
-  changes.sort((a, b) => b.start - a.start);
-
-  let result = xml;
-  for (const { start: cs, end: ce, value } of changes) {
-    let first = true;
-    let newCell = result.slice(cs, ce + 7).replace(
-      /<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g,
-      (_, attrs) => {
-        if (first) { first = false; return `<w:t${value.includes(" ") ? ' xml:space="preserve"' : (attrs ?? "")}>${xmlEsc(value)}</w:t>`; }
-        return `<w:t${attrs ?? ""}></w:t>`;
-      },
-    );
-    if (first) {
-      const pEnd = newCell.indexOf("</w:p>");
-      if (pEnd !== -1)
-        newCell = newCell.slice(0, pEnd) + `<w:r><w:t${value.includes(" ") ? ' xml:space="preserve"' : ""}>${xmlEsc(value)}</w:t></w:r>` + newCell.slice(pEnd);
-    }
-    if (opts?.bold) newCell = boldifyCell(newCell);
-    result = result.slice(0, cs) + newCell + result.slice(ce + 7);
-  }
-  return result;
-}
-
-// Fills the "cv format n" template's nationality rows.
-// The NATIONALITY label sits in cell[2] of its row; the Arabic translation of the
-// country goes in cell[0] of that same row, and the English country name goes in
-// cell[0] of the row immediately below.
-function fillCvFormatNNationality(xml: string, c: Candidate, opts?: { bold?: boolean }): string {
-  const country = (c.country ?? "").trim();
-  if (!country) return xml;
-
-  // Find the cell whose text is exactly "NATIONALITY"
-  let natCellStart = -1;
-  let p = 0;
-  while (p < xml.length) {
-    const cs = nextCell(xml, p);
-    if (cs === -1) break;
-    const ce = outerCellEnd(xml, cs);
-    if (ce === -1) break;
-    if (normLabel(cellText(xml, cs, ce)) === "NATIONALITY") { natCellStart = cs; break; }
-    p = ce + 7;
-  }
-  if (natCellStart === -1) return xml;
-
-  const rowStart = xml.lastIndexOf("<w:tr", natCellStart);
-  if (rowStart === -1) return xml;
-  { const ch = xml[rowStart + 5]; if (ch !== ">" && ch !== " " && ch !== "\n" && ch !== "\t") return xml; }
-  const rowEnd = xml.indexOf("</w:tr>", rowStart);
-  if (rowEnd === -1) return xml;
-
-  function getCells(src: string, rs: number, re: number) {
-    const cells: Array<{ start: number; end: number }> = [];
-    let rp = rs;
-    while (rp < re) {
-      const cs = nextCell(src, rp);
-      if (cs === -1 || cs >= re) break;
-      const ce = outerCellEnd(src, cs);
-      if (ce === -1) break;
-      cells.push({ start: cs, end: ce });
-      rp = ce + 7;
-    }
-    return cells;
-  }
-
-  const rowCells = getCells(xml, rowStart, rowEnd);
-
-  const nextTrStart = xml.indexOf("<w:tr", rowEnd + 7);
-  const nextTrEnd   = nextTrStart !== -1 ? xml.indexOf("</w:tr>", nextTrStart) : -1;
-  const nextCells   = nextTrStart !== -1 && nextTrEnd !== -1 ? getCells(xml, nextTrStart, nextTrEnd) : [];
-
-  type Change = { start: number; end: number; value: string };
-  const changes: Change[] = [];
-
-  const arCountry = AR_COUNTRY[country.toUpperCase()] ?? country;
-  if (rowCells.length > 0)  changes.push({ start: rowCells[0].start,  end: rowCells[0].end,  value: arCountry });
-  if (nextCells.length > 0) changes.push({ start: nextCells[0].start, end: nextCells[0].end, value: country });
-
   changes.sort((a, b) => b.start - a.start);
 
   let result = xml;
@@ -1591,11 +1492,6 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
     // Fill "Previous Employment Abroad" section (COUNTRY / POSITION / YEAR columns)
     xml = fillMonacoPreviousEmployment(xml, c, { bold: true });
   }
-
-  // cv format n: NATIONALITY label is in cell[2]; Arabic country → cell[0] of same row,
-  // English country → cell[0] of the row below.
-  const isCvFormatN = tplName.includes("format n") || tplName.includes("format-n");
-  if (isCvFormatN) xml = fillCvFormatNNationality(xml, c);
 
   // Skill checkboxes: write bold "Yes" only for skills the candidate actually has
   // (parsed from c.skills), blank for all others. Also strips template-default ✓/-.
