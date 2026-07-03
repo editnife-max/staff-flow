@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import type { Candidate, CvTemplate } from "@/lib/docx-fill";
 import { buildFilledDocx } from "@/lib/docx-fill";
-import { docxBytesToPdf, downloadDocx, canvasToPdf } from "@/lib/pdf-export";
+import { docxBytesToPdf, docxBytesToPdfPrint, downloadDocx, canvasToPdf } from "@/lib/pdf-export";
 import { candidateToCanvas } from "@/components/cv-preview";
 
 export type { CvTemplate, Candidate };
@@ -179,7 +179,8 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
             const isDocx = matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
             if (isDocx) {
               const bytes = await buildFilledDocx(matchedTemplate, preview!, false);
-              await docxBytesToPdf(bytes, `${preview!.full_name} — ${currentType.label}.pdf`, preview!.passport_scan_url ?? undefined);
+              toast.info("Print dialog opening — select 'Save as PDF' to download");
+              await docxBytesToPdfPrint(bytes, `${preview!.full_name} — ${currentType.label}.pdf`, preview!.passport_scan_url ?? undefined);
             } else {
               const canvas = await candidateToCanvas(preview!, matchedTemplate);
               await canvasToPdf(canvas, `${preview!.full_name} — ${currentType.label}.pdf`, preview!.passport_scan_url ?? undefined);

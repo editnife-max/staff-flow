@@ -3,6 +3,97 @@ import html2canvas from "html2canvas";
 import { renderAsync as docxRenderAsync } from "docx-preview";
 import { fetchImgBytes, bytesToDims } from "@/lib/docx-fill";
 
+// Single-candidate PDF via the browser's native print engine (iframe + window.print()).
+// Produces the same quality as Word's "Save as PDF" — vector text, exact A4 size,
+// proper pagination — with none of the rasterisation artifacts of html2canvas.
+// The user sees the browser print dialog; they choose "Save as PDF" and the filename
+// is pre-filled from the iframe's document.title.
+export async function docxBytesToPdfPrint(
+  bytes: Uint8Array,
+  filename: string,
+  passportUrl?: string,
+  skipPassportPage = false,
+): Promise<void> {
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;left:-9999px;top:0;width:794px;height:1123px;border:0;visibility:hidden;";
+  document.body.appendChild(iframe);
+
+  const blobUrls: string[] = [];
+
+  return new Promise<void>((resolve, reject) => {
+    const cleanup = () => {
+      blobUrls.forEach((u) => { try { URL.revokeObjectURL(u); } catch {} });
+      try { document.body.removeChild(iframe); } catch {}
+      resolve();
+    };
+
+    (async () => {
+      try {
+        const iDoc = iframe.contentDocument!;
+        const iWin = iframe.contentWindow!;
+
+        iDoc.title = filename;
+
+        const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+        await docxRenderAsync(buf, iDoc.body, undefined, {
+          className: "docx-pdf-render",
+          inWrapper: true,
+          ignoreHeight: true,
+        });
+
+        // Inject print overrides AFTER docx-preview so our !important rules win
+        const style = iDoc.createElement("style");
+        style.textContent = `
+          @page { margin: 0; size: A4 portrait; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+          .docx-wrapper { padding: 0 !important; margin: 0 !important; background: #fff !important; }
+          .docx-wrapper > section.docx { box-shadow: none !important; margin: 0 !important; }
+          .docx-wrapper > section.docx:not(:last-of-type) { break-after: page; page-break-after: always; }
+          .cv-passport-page { break-before: page; page-break-before: always; width: 210mm; height: 297mm;
+            display: flex; align-items: center; justify-content: center; background: #fff; }
+          .cv-passport-page img { max-width: 74%; max-height: 74%; object-fit: contain; }
+        `;
+        iDoc.head.appendChild(style);
+
+        if (!skipPassportPage && passportUrl) {
+          const img = await fetchImgBytes(passportUrl);
+          if (img) {
+            const blob = new Blob([img.bytes as BlobPart], {
+              type: img.ext === "png" ? "image/png" : "image/jpeg",
+            });
+            const blobUrl = URL.createObjectURL(blob);
+            blobUrls.push(blobUrl);
+            const pageDiv = iDoc.createElement("div");
+            pageDiv.className = "cv-passport-page";
+            const imgEl = iDoc.createElement("img");
+            imgEl.src = blobUrl;
+            await new Promise<void>((r) => {
+              imgEl.onload = () => r();
+              imgEl.onerror = () => r();
+              setTimeout(r, 3000);
+            });
+            pageDiv.appendChild(imgEl);
+            iDoc.body.appendChild(pageDiv);
+          }
+        }
+
+        // Give images / fonts inside docx-preview time to fully render
+        await new Promise<void>((r) => setTimeout(r, 1000));
+
+        // Safety net: clean up if afterprint never fires (e.g. dialog left open for 10 min)
+        const fallback = setTimeout(cleanup, 10 * 60 * 1000);
+        iWin.addEventListener("afterprint", () => { clearTimeout(fallback); cleanup(); }, { once: true });
+
+        iWin.print();
+      } catch (e) {
+        cleanup();
+        reject(e);
+      }
+    })();
+  });
+}
+
 export async function docxBytesToPdf(bytes: Uint8Array, filename: string, passportUrl?: string, skipPassportPage = false) {
   const container = document.createElement("div");
   container.style.cssText = "position:absolute;top:0;left:-9999px;width:794px;background:#fff;overflow:visible;";
