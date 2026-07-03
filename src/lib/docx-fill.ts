@@ -1265,6 +1265,19 @@ function fillLevelCheckboxes(xml: string, c: Candidate): string {
               groups.push(currentGroup);
             }
             currentGroup.rows.push({ levelName: norm, checkStart: nStart, checkEnd: nEnd });
+
+            // Bilingual templates (e.g. TADBEER): [EN_level][EN_check][AR_check][AR_label]
+            // Detect the Arabic-side checkbox and clear/fill it with the same logic.
+            const arChkS = nextCell(xml, nEnd + 7);
+            if (arChkS !== -1) {
+              const arChkE = outerCellEnd(xml, arChkS);
+              if (arChkE !== -1 && CHECK_VALUES.has(cellText(xml, arChkS, arChkE).trim())) {
+                const arLblS = nextCell(xml, arChkE + 7);
+                const arLblE = arLblS !== -1 ? outerCellEnd(xml, arLblS) : -1;
+                if (arLblE !== -1 && /[؀-ۿ]/.test(cellText(xml, arLblS, arLblE)))
+                  currentGroup.rows.push({ levelName: norm, checkStart: arChkS, checkEnd: arChkE });
+              }
+            }
           }
         }
       }
@@ -1288,7 +1301,7 @@ function fillLevelCheckboxes(xml: string, c: Candidate): string {
   allRows.sort((a, b) => b.checkStart - a.checkStart);
 
   for (const { levelName, checkStart, checkEnd, targetLevel } of allRows) {
-    const newValue = targetLevel && levelName === targetLevel ? "Yes" : "No";
+    const newValue = targetLevel && levelName === targetLevel ? "Yes" : "";
     let first = true;
     let newCell = xml.slice(checkStart, checkEnd + 7).replace(
       /<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g,
