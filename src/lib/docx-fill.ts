@@ -1486,6 +1486,10 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
     for (const lbl of ["NATIONALITY", "NATIONAL", "CITIZEN", "CITIZENSHIP", "NATIONALITY OF EMPLOYEE", "EMPLOYEE NATIONALITY"]) {
       xml = fillField(xml, lbl, nat, { bold: true });
     }
+    // "Position Applied" label → always "House Maid" regardless of occupation field
+    for (const lbl of ["POSITION APPLIED", "POSITION APPLIED FOR", "POST APPLIED", "POST APPLIED FOR"]) {
+      xml = fillField(xml, lbl, "House Maid", { bold: true });
+    }
     // Fill "Previous Employment Abroad" section (COUNTRY / POSITION / YEAR columns)
     xml = fillMonacoPreviousEmployment(xml, c, { bold: true });
   }
