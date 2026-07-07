@@ -173,12 +173,12 @@ export const CV_FIELD_MAP = (c: Candidate): [string, string][] => [
   ["NAME IN FULL", c.full_name ?? ""],
   ["PASSPORT NO", c.passport_number ?? ""],
   ["PASSPORT NUMBER", c.passport_number ?? ""],
-  ["PROFESSION", c.occupation ?? ""],
-  ["POSITION APPLIED", c.occupation ?? ""],
+  ["PROFESSION", toEnglish(c.occupation, EN_OCCUPATION)],
+  ["POSITION APPLIED", toEnglish(c.occupation, EN_OCCUPATION)],
   ["POST APPLIED FOR", "House Maid"],
   ["DATE OF EXP", c.passport_expiry_date ?? ""],
-  ["ENGLISH LANGUAGE", c.english_level ?? ""],
-  ["EDUCATIONAL QUALIFICATION", c.education ?? ""],
+  ["ENGLISH LANGUAGE", toEnglish(c.english_level, EN_LEVEL)],
+  ["EDUCATIONAL QUALIFICATION", toEnglish(c.education, EN_EDUCATION)],
   ["NO OF KIDS", c.children != null ? String(c.children) : ""],
   ["NO OF CHILDREN", c.children != null ? String(c.children) : ""],
   ["PERMANENT ADDRESS", c.living_town ?? ""],
@@ -191,7 +191,7 @@ export const CV_FIELD_MAP = (c: Candidate): [string, string][] => [
   ["CONTACT NO", c.narrative_phone ?? c.emergency_contact ?? ""],
   ["HOUSE MAID MOB", c.narrative_phone ?? c.emergency_contact ?? ""],
   ["COUNTRY", c.experience_country ?? ""],
-  ["HIGHEST EDUCATIONAL LEVEL", c.education ?? ""],
+  ["HIGHEST EDUCATIONAL LEVEL", toEnglish(c.education, EN_EDUCATION)],
   [
     "DATE OF BIRTH & AGE",
     (c.dob ?? "") +
@@ -202,7 +202,72 @@ export const CV_FIELD_MAP = (c: Candidate): [string, string][] => [
 ];
 
 // ── Arabic value translations ─────────────────────────────────────────────────
-const EN_OCCUPATION: Record<string, string> = {
+const AR_OCCUPATION: Record<string, string> = {
+  HOUSEMAID: "عاملة منزلية",
+  "HOUSE MAID": "عاملة منزلية",
+  "DOMESTIC WORKER": "عاملة منزلية",
+  HOUSEKEEPER: "عاملة منزلية",
+  COOK: "طباخة",
+  "BABY SITTER": "مربية أطفال",
+  BABYSITTER: "مربية أطفال",
+  NURSE: "ممرضة",
+  CAREGIVER: "مقدمة رعاية",
+  CLEANER: "عاملة نظافة",
+  DRIVER: "سائق",
+  GARDENER: "بستاني",
+};
+const AR_RELIGION: Record<string, string> = {
+  MUSLIM: "مسلمة",
+  ISLAM: "مسلمة",
+  CHRISTIAN: "مسيحية",
+  CHRISTIANITY: "مسيحية",
+  HINDU: "هندوسية",
+  BUDDHIST: "بوذية",
+};
+const AR_MARITAL: Record<string, string> = {
+  MARRIED: "متزوجة",
+  SINGLE: "عزباء",
+  DIVORCED: "مطلقة",
+  WIDOWED: "أرملة",
+  WIDOW: "أرملة",
+};
+const AR_EDUCATION: Record<string, string> = {
+  PRIMARY: "إبتدائي",
+  ELEMENTARY: "إبتدائي",
+  SECONDARY: "ثانوي",
+  "HIGH SCHOOL": "ثانوي",
+  UNIVERSITY: "جامعي",
+  BACHELOR: "جامعي",
+  DIPLOMA: "دبلوم",
+  ILLITERATE: "أمية",
+  "NO EDUCATION": "أمية",
+  MIDDLE: "متوسط",
+  JUNIOR: "متوسط",
+};
+const AR_EXPERIENCE: Record<string, string> = {
+  "FIRST TIME": "لم يسبق لها العمل",
+  "NO EXPERIENCE": "لم يسبق لها العمل",
+  EXPERIENCED: "لديها خبرة",
+};
+const AR_LEVEL: Record<string, string> = {
+  EXCELLENT: "ممتاز",
+  "VERY GOOD": "جيد جداً",
+  GOOD: "جيد",
+  FAIR: "مقبول",
+  AVERAGE: "مقبول",
+  POOR: "ضعيف",
+  BASIC: "ضعيف",
+  NONE: "لا يوجد",
+  NO: "لا يوجد",
+};
+
+function toArabic(value: string | null | undefined, map: Record<string, string>): string {
+  if (!value) return "";
+  const trimmed = value.trim();
+  return map[trimmed.toUpperCase()] ?? map[trimmed] ?? trimmed;
+}
+
+export const EN_OCCUPATION: Record<string, string> = {
   HOUSEMAID: "House Maid",
   "HOUSE MAID": "House Maid",
   "عاملة منزلية": "House Maid",
@@ -224,7 +289,7 @@ const EN_OCCUPATION: Record<string, string> = {
   GARDENER: "Gardener",
   بستاني: "Gardener",
 };
-const EN_RELIGION: Record<string, string> = {
+export const EN_RELIGION: Record<string, string> = {
   MUSLIM: "Muslim",
   ISLAM: "Muslim",
   مسلمة: "Muslim",
@@ -238,7 +303,7 @@ const EN_RELIGION: Record<string, string> = {
   "NON-MUSLIM": "Non-Muslim",
   "NON MUSLIM": "Non-Muslim",
 };
-const EN_MARITAL: Record<string, string> = {
+export const EN_MARITAL: Record<string, string> = {
   MARRIED: "Married",
   متزوجة: "Married",
   SINGLE: "Single",
@@ -249,7 +314,7 @@ const EN_MARITAL: Record<string, string> = {
   WIDOW: "Widowed",
   أرملة: "Widowed",
 };
-const EN_EDUCATION: Record<string, string> = {
+export const EN_EDUCATION: Record<string, string> = {
   PRIMARY: "Primary",
   ELEMENTARY: "Primary",
   إبتدائي: "Primary",
@@ -269,14 +334,14 @@ const EN_EDUCATION: Record<string, string> = {
   JUNIOR: "Middle",
   متوسط: "Middle",
 };
-const EN_EXPERIENCE: Record<string, string> = {
+export const EN_EXPERIENCE: Record<string, string> = {
   "FIRST TIME": "First Time",
   "NO EXPERIENCE": "No Experience",
   "لم يسبق لها العمل": "First Time",
   EXPERIENCED: "Experienced",
   "لديها خبرة": "Experienced",
 };
-const EN_LEVEL: Record<string, string> = {
+export const EN_LEVEL: Record<string, string> = {
   EXCELLENT: "Excellent",
   ممتاز: "Excellent",
   "VERY GOOD": "Very Good",
@@ -294,7 +359,7 @@ const EN_LEVEL: Record<string, string> = {
   "لا يوجد": "None",
 };
 
-function toEnglish(value: string | null | undefined, map: Record<string, string>): string {
+export function toEnglish(value: string | null | undefined, map: Record<string, string>): string {
   if (!value) return "";
   const trimmed = value.trim();
   return map[trimmed] ?? map[trimmed.toUpperCase()] ?? trimmed;
@@ -303,12 +368,12 @@ function toEnglish(value: string | null | undefined, map: Record<string, string>
 // CV_ARABIC_FIELD_MAP: RTL label cells whose value cell is BEFORE them in XML order.
 // Processed with fillFieldBefore() so the cell immediately preceding the label is filled.
 export const CV_ARABIC_FIELD_MAP = (c: Candidate): [string, string][] => [
-  ["المهنة", toEnglish(c.occupation, EN_OCCUPATION)],
-  ["الخبرة", toEnglish(c.experience, EN_EXPERIENCE)],
-  ["اللغة العربية", toEnglish(c.arabic_level, EN_LEVEL)],
-  ["الديانة", toEnglish(c.religion, EN_RELIGION)],
-  ["الدرجة التعليمية", toEnglish(c.education, EN_EDUCATION)],
-  ["الحالة الاجتماعية", toEnglish(c.marital_status, EN_MARITAL)],
+  ["المهنة", toArabic(c.occupation, AR_OCCUPATION)],
+  ["الخبرة", toArabic(c.experience, AR_EXPERIENCE)],
+  ["اللغة العربية", c.arabic_level ?? ""],
+  ["الديانة", toArabic(c.religion, AR_RELIGION)],
+  ["الدرجة التعليمية", toArabic(c.education, AR_EDUCATION)],
+  ["الحالة الاجتماعية", toArabic(c.marital_status, AR_MARITAL)],
   ["عدد الأطفال", c.children != null ? String(c.children) : ""],
   ["الوزن", c.weight != null ? `${c.weight} kg` : ""],
   ["الطول", c.height != null ? `${c.height} cm` : ""],
@@ -852,6 +917,16 @@ function fillFieldBefore(
     if (cellEnd === -1) break;
 
     if (normLabel(cellText(xml, cellStart, cellEnd)) === normTarget && prevStart !== -1) {
+      // Guard: if the previous cell contains non-Arabic, non-empty text it is an
+      // English label cell (layout [EN Label] | [AR Label] | [Value]).
+      // fillField already handled that value cell by skipping the Arabic label,
+      // so we must NOT overwrite the English label with an Arabic value here.
+      const prevText = cellText(xml, prevStart, prevEnd).trim();
+      if (prevText.length > 0 && !ARABIC_RE.test(prevText)) {
+        pos = cellEnd + 7;
+        continue;
+      }
+
       const spaceAttr = value.includes(" ") ? ' xml:space="preserve"' : "";
       let first = true;
       let newCell = xml
