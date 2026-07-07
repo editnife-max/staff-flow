@@ -3,6 +3,47 @@ import html2canvas from "html2canvas";
 import { renderAsync as docxRenderAsync } from "docx-preview";
 import { fetchImgBytes, bytesToDims } from "@/lib/docx-fill";
 
+// ---------------------------------------------------------------------------
+// Cloudmersive DOCX → PDF
+// Uses the Cloudmersive Document Conversion API for converting DOCX to PDF.
+// ---------------------------------------------------------------------------
+export async function convertDocxToPdfViaCloudmersive(
+  bytes: Uint8Array,
+  filename: string,
+): Promise<void> {
+  const apiKey = import.meta.env.VITE_CLOUDMERSIVE_API_KEY as string;
+  if (!apiKey) throw new Error("VITE_CLOUDMERSIVE_API_KEY is not set");
+
+  const formData = new FormData();
+  const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+  const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+  formData.append('inputFile', blob, filename.replace(/\.pdf$/i, ".docx"));
+
+  const response = await fetch("https://api.cloudmersive.com/convert/docx/to/pdf", {
+    method: 'POST',
+    headers: {
+      "Apikey": apiKey
+    },
+    body: formData
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Cloudmersive conversion failed (${response.status}): ${text}`);
+  }
+
+  // Cloudmersive returns the binary PDF file directly in the response
+  const pdfBlob = await response.blob();
+  const blobUrl = URL.createObjectURL(pdfBlob);
+  const a = document.createElement("a");
+  a.href = blobUrl;
+  a.download = filename.endsWith(".pdf") ? filename : `${filename}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 30_000);
+}
+
 // Single-candidate PDF via the browser's native print engine (iframe + window.print()).
 // Produces the same quality as Word's "Save as PDF" — vector text, exact A4 size,
 // proper pagination — with none of the rasterisation artifacts of html2canvas.
