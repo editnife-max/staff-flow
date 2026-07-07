@@ -2,7 +2,7 @@ import PizZip from "pizzip";
 import type { Database } from "@/integrations/supabase/types";
 
 export type CvTemplate = Database["public"]["Tables"]["cv_templates"]["Row"];
-export type Candidate  = Database["public"]["Tables"]["candidates"]["Row"];
+export type Candidate = Database["public"]["Tables"]["candidates"]["Row"];
 
 // Metadata stored by optimizeCvTemplate: Claude's field mapping + image slot positions
 interface TemplateMetadata {
@@ -24,229 +24,296 @@ interface TemplateMetadata {
 function deriveSalary(c: Candidate): string {
   const exp = (c.experience ?? "").trim().toUpperCase();
   if (!exp) return "1000";
-  const isFirstTime = exp.includes("FIRST") || exp.includes("NO EXPER") || exp === "NONE" || exp === "NO";
+  const isFirstTime =
+    exp.includes("FIRST") || exp.includes("NO EXPER") || exp === "NONE" || exp === "NO";
   return isFirstTime ? "1000" : "1200";
 }
 
 function getCandidateFieldValue(c: Candidate, field: string): string {
   const m: Record<string, string> = {
-    FULL_NAME:            c.full_name                              ?? "",
-    POSITION:             c.occupation                            ?? "",
-    PASSPORT_NUMBER:      c.passport_number                       ?? "",
-    PASSPORT_ISSUE_DATE:  c.passport_issue_date                   ?? "",
-    PASSPORT_EXPIRY_DATE: c.passport_expiry_date                  ?? "",
-    PLACE_OF_ISSUE:       c.place_of_issue ?? c.country           ?? "",
-    ENGLISH_LEVEL:        c.english_level                         ?? "",
-    ARABIC_LEVEL:         c.arabic_level                          ?? "",
-    EXPERIENCE:           c.experience                            ?? "",
-    NATIONALITY:          c.country                               ?? "",
-    RELIGION:             c.religion                              ?? "",
-    DATE_OF_BIRTH:        c.dob                                   ?? "",
-    PLACE_OF_BIRTH:       c.birth_place                           ?? "",
-    LIVING_TOWN:          c.living_town                           ?? "",
-    AGE:                  c.age      != null ? String(c.age)      : computeAge(c.dob),
-    MARITAL_STATUS:       c.marital_status                        ?? "",
-    CHILDREN:             c.children != null ? String(c.children) : "",
-    EDUCATION:            c.education                             ?? "",
-    WEIGHT:               c.weight   != null ? `${c.weight} kg`   : "",
-    HEIGHT:               c.height   != null ? `${c.height} cm`   : "",
-    REMARK:               c.notes ?? c.remark                    ?? "",
-    LABOUR_ID:            c.labour_id                             ?? "",
-    NARRATIVE:            c.narrative                             ?? "",
-    MEDICAL_STATUS:       c.medical_status                        ?? "",
-    TASHEER_DATE:         c.tasheer_date                          ?? "",
-    TASHEER_STATUS:       c.tasheer_status                        ?? "",
-    NARRATIVE_PHONE:      c.narrative_phone                       ?? "",
-    COC_STATUS:           c.coc_status                            ?? "",
-    TICKET_STATUS:        c.ticket_status                         ?? "",
-    TICKET_DATE:          c.ticket_date                           ?? "",
-    LMIS_STATUS:          c.lmis_status                           ?? "",
-    WOKALA_STATUS:        c.wokala_status                         ?? "",
-    COC_PHONE:            c.coc_agency_phone                      ?? "",
-    CV_SENT_TO:           c.cv_sent_to                            ?? "",
-    CV_SENT_DATE:         c.cv_sent_date                          ?? "",
-    MEDICAL_DAYS:         c.medical_days                          ?? "",
-    EXPERIENCE_COUNTRY:   c.experience_country                    ?? "",
-    VISA_STATUS:          c.visa_status                           ?? "",
-    SELECTED_BY:          c.selected_by                           ?? "",
-    OFFICE:               c.office                                ?? "",
-    EMBASSY_DATE:         c.embassy_date                          ?? "",
-    ARRIVAL_CITY:         c.arrival_city                          ?? "",
-    INSURANCE_STATUS:     c.insurance_status                      ?? "",
-    INSURANCE_DATE:       c.insurance_date                        ?? "",
-    MEDICAL_DATE:         c.medical_date                          ?? "",
-    CONTRACT_DATE:        c.contract_date                         ?? "",
-    DESTINATION_COUNTRY:  c.destination_country                   ?? "",
-    EXPERIENCE_YEARS:     c.experience_years                      ?? "",
-    GENDER:               c.gender                                ?? "",
-    MUSANED_STATUS:       c.musaned_status                        ?? "",
-    PASSPORT_STATUS:      c.passport_status                       ?? "",
-    SERIAL_NUMBER:        c.serial_number ?? c.candidate_code     ?? "",
-    CANDIDATE_CODE:       c.candidate_code ?? c.serial_number     ?? "",
-    SKILLS:               c.skills                                ?? "",
-    SPOKEN_LANGUAGES:     c.spoken_languages                      ?? "",
-    COC_AGENCY_NAME:      c.coc_agency_name                       ?? "",
-    EMERGENCY_CONTACT:    c.emergency_contact                     ?? "",
-    MONTHLY_SALARY:       deriveSalary(c),
-    PERIOD:               c.experience_years                      ?? "",
+    FULL_NAME: c.full_name ?? "",
+    POSITION: toEnglish(c.occupation, EN_OCCUPATION),
+    PASSPORT_NUMBER: c.passport_number ?? "",
+    PASSPORT_ISSUE_DATE: c.passport_issue_date ?? "",
+    PASSPORT_EXPIRY_DATE: c.passport_expiry_date ?? "",
+    PLACE_OF_ISSUE: c.place_of_issue ?? c.country ?? "",
+    ENGLISH_LEVEL: toEnglish(c.english_level, EN_LEVEL),
+    ARABIC_LEVEL: toEnglish(c.arabic_level, EN_LEVEL),
+    EXPERIENCE: toEnglish(c.experience, EN_EXPERIENCE),
+    NATIONALITY: c.country ?? "",
+    RELIGION: toEnglish(c.religion, EN_RELIGION),
+    DATE_OF_BIRTH: c.dob ?? "",
+    PLACE_OF_BIRTH: c.birth_place ?? "",
+    LIVING_TOWN: c.living_town ?? "",
+    AGE: c.age != null ? String(c.age) : computeAge(c.dob),
+    MARITAL_STATUS: toEnglish(c.marital_status, EN_MARITAL),
+    CHILDREN: c.children != null ? String(c.children) : "",
+    EDUCATION: toEnglish(c.education, EN_EDUCATION),
+    WEIGHT: c.weight != null ? `${c.weight} kg` : "",
+    HEIGHT: c.height != null ? `${c.height} cm` : "",
+    REMARK: c.notes ?? c.remark ?? "",
+    LABOUR_ID: c.labour_id ?? "",
+    NARRATIVE: c.narrative ?? "",
+    MEDICAL_STATUS: c.medical_status ?? "",
+    TASHEER_DATE: c.tasheer_date ?? "",
+    TASHEER_STATUS: c.tasheer_status ?? "",
+    NARRATIVE_PHONE: c.narrative_phone ?? "",
+    COC_STATUS: c.coc_status ?? "",
+    TICKET_STATUS: c.ticket_status ?? "",
+    TICKET_DATE: c.ticket_date ?? "",
+    LMIS_STATUS: c.lmis_status ?? "",
+    WOKALA_STATUS: c.wokala_status ?? "",
+    COC_PHONE: c.coc_agency_phone ?? "",
+    CV_SENT_TO: c.cv_sent_to ?? "",
+    CV_SENT_DATE: c.cv_sent_date ?? "",
+    MEDICAL_DAYS: c.medical_days ?? "",
+    EXPERIENCE_COUNTRY: c.experience_country ?? "",
+    VISA_STATUS: c.visa_status ?? "",
+    SELECTED_BY: c.selected_by ?? "",
+    OFFICE: c.office ?? "",
+    EMBASSY_DATE: c.embassy_date ?? "",
+    ARRIVAL_CITY: c.arrival_city ?? "",
+    INSURANCE_STATUS: c.insurance_status ?? "",
+    INSURANCE_DATE: c.insurance_date ?? "",
+    MEDICAL_DATE: c.medical_date ?? "",
+    CONTRACT_DATE: c.contract_date ?? "",
+    DESTINATION_COUNTRY: c.destination_country ?? "",
+    EXPERIENCE_YEARS: c.experience_years ?? "",
+    GENDER: c.gender ?? "",
+    MUSANED_STATUS: c.musaned_status ?? "",
+    PASSPORT_STATUS: c.passport_status ?? "",
+    SERIAL_NUMBER: c.serial_number ?? c.candidate_code ?? "",
+    CANDIDATE_CODE: c.candidate_code ?? c.serial_number ?? "",
+    SKILLS: c.skills ?? "",
+    SPOKEN_LANGUAGES: c.spoken_languages ?? "",
+    COC_AGENCY_NAME: c.coc_agency_name ?? "",
+    EMERGENCY_CONTACT: c.emergency_contact ?? "",
+    MONTHLY_SALARY: deriveSalary(c),
+    PERIOD: c.experience_years ?? "",
   };
   return m[field] ?? "";
 }
 
 export const CV_FIELD_MAP = (c: Candidate): [string, string][] => [
-  ["FULL NAME",          c.full_name                                        ?? ""],
-  ["POSITION",           c.occupation                                       ?? ""],
-  ["NUMBER",             c.passport_number                                  ?? ""],
-  ["DATE OF ISSUE",      c.passport_issue_date                              ?? ""],
-  ["DATE OF EXPIRY",     c.passport_expiry_date                             ?? ""],
-  ["PLACE OF ISSUE",     c.place_of_issue ?? c.country                     ?? ""],
-  ["ENGLISH",            c.english_level                                    ?? ""],
-  ["ARABIC",             c.arabic_level                                     ?? ""],
-  ["EDUCATION",          c.education                                        ?? ""],
-  ["EXPERIENCE",         c.experience                                       ?? ""],
-  ["NATIONALITY",        c.country                                          ?? ""],
-  ["RELIGION",           c.religion                                         ?? ""],
-  ["DATE OF BIRTH",      c.dob                                             ?? ""],
-  ["PLACE OF BIRTH",     c.birth_place                                      ?? ""],
-  ["LIVING TOWN",        c.living_town                                      ?? ""],
-  ["AGE",                c.age      != null ? String(c.age)                 : computeAge(c.dob)],
-  ["MARITAL STATUS",     c.marital_status                                   ?? ""],
-  ["CHILDREN",           c.children != null ? String(c.children)            : ""],
-  ["WEIGHT",             c.weight   != null ? `${c.weight} kg`              : ""],
-  ["HEIGHT",             c.height   != null ? `${c.height} cm`              : ""],
-  ["REMARK",             c.notes ?? c.remark                               ?? ""],
-  ["LABOUR ID",          c.labour_id                                        ?? ""],
-  ["NARRATIVE",          c.narrative                                        ?? ""],
-  ["MEDICAL STATUS",     c.medical_status                                   ?? ""],
-  ["TASHEER DATE",       c.tasheer_date                                     ?? ""],
-  ["TASHEER",            c.tasheer_status                                   ?? ""],
-  ["NARRATIVE PHONE",    c.narrative_phone                                  ?? ""],
-  ["COC STATUS",         c.coc_status                                       ?? ""],
-  ["TICKET",             c.ticket_status                                    ?? ""],
-  ["TICKET DATE",        c.ticket_date                                      ?? ""],
-  ["KUWAIT TICKET DATE", c.ticket_date                                      ?? ""],
-  ["SAUDI TICKET DATE",  c.ticket_date                                      ?? ""],
-  ["LMIS",               c.lmis_status                                      ?? ""],
-  ["WOKALA",             c.wokala_status                                    ?? ""],
-  ["COC PHONE",          c.coc_agency_phone                                 ?? ""],
-  ["CV SENT TO",         c.cv_sent_to                                       ?? ""],
-  ["CV SENT DATE",       c.cv_sent_date                                     ?? ""],
-  ["MEDICAL DAYS",       c.medical_days                                     ?? ""],
-  ["EXPERIENCE OUTSIDE", c.experience_country                               ?? ""],
-  ["VISA STATUS",        c.visa_status                                      ?? ""],
-  ["SELECTED BY",        c.selected_by                                      ?? ""],
-  ["INSIDE OFFICE",      c.office                                           ?? ""],
-  ["EMBASSY DATE",           c.embassy_date                                 ?? ""],
-  ["ARRIVAL CITY",           c.arrival_city                                 ?? ""],
-  ["INSURANCE",              c.insurance_status                             ?? ""],
-  ["INSURANCE STATUS",       c.insurance_status                             ?? ""],
-  ["INSURANCE DATE",         c.insurance_date                               ?? ""],
-  ["MEDICAL DATE",           c.medical_date                                 ?? ""],
-  ["CONTRACT DATE",          c.contract_date                                ?? ""],
-  ["DESTINATION COUNTRY",    c.destination_country                          ?? ""],
-  ["COUNTRY OF WORK",        c.destination_country                          ?? ""],
-  ["GOING COUNTRY",          c.destination_country                          ?? ""],
-  ["EXPERIENCE YEARS",       c.experience_years                             ?? ""],
-  ["YEARS OF EXPERIENCE",    c.experience_years                             ?? ""],
-  ["PERIOD",                 c.experience_years                             ?? ""],
-  ["MONTHLY SALARY",         deriveSalary(c)],
-  ["SALARY",                 deriveSalary(c)],
-  ["REMARKS",                c.notes ?? c.remark                           ?? ""],
-  ["REMARKS: REMARKS",       c.notes ?? c.remark                           ?? ""],
-  ["GENDER",                 c.gender                                       ?? ""],
-  ["MUSANED",                c.musaned_status                               ?? ""],
-  ["MUSANED STATUS",         c.musaned_status                               ?? ""],
-  ["PASSPORT STATUS",        c.passport_status                              ?? ""],
-  ["SERIAL NUMBER",          c.serial_number ?? c.candidate_code            ?? ""],
-  ["SERIAL NO",              c.serial_number ?? c.candidate_code            ?? ""],
-  ["CANDIDATE CODE",         c.candidate_code ?? c.serial_number            ?? ""],
-  ["CODE",                   c.candidate_code ?? c.serial_number            ?? ""],
-  ["SKILLS",                 c.skills                                       ?? ""],
-  ["SPOKEN LANGUAGES",       c.spoken_languages                             ?? ""],
-  ["LANGUAGES",              c.spoken_languages                             ?? ""],
-  ["COC AGENCY",             c.coc_agency_name                              ?? ""],
-  ["COC AGENCY NAME",        c.coc_agency_name                              ?? ""],
-  ["EMERGENCY CONTACT",      c.emergency_contact                            ?? ""],
+  ["FULL NAME", c.full_name ?? ""],
+  ["POSITION", toEnglish(c.occupation, EN_OCCUPATION)],
+  ["NUMBER", c.passport_number ?? ""],
+  ["DATE OF ISSUE", c.passport_issue_date ?? ""],
+  ["DATE OF EXPIRY", c.passport_expiry_date ?? ""],
+  ["PLACE OF ISSUE", c.place_of_issue ?? c.country ?? ""],
+  ["ENGLISH", toEnglish(c.english_level, EN_LEVEL)],
+  ["ARABIC", toEnglish(c.arabic_level, EN_LEVEL)],
+  ["EDUCATION", toEnglish(c.education, EN_EDUCATION)],
+  ["EXPERIENCE", toEnglish(c.experience, EN_EXPERIENCE)],
+  ["NATIONALITY", c.country ?? ""],
+  ["RELIGION", toEnglish(c.religion, EN_RELIGION)],
+  ["DATE OF BIRTH", c.dob ?? ""],
+  ["PLACE OF BIRTH", c.birth_place ?? ""],
+  ["LIVING TOWN", c.living_town ?? ""],
+  ["AGE", c.age != null ? String(c.age) : computeAge(c.dob)],
+  ["MARITAL STATUS", toEnglish(c.marital_status, EN_MARITAL)],
+  ["CHILDREN", c.children != null ? String(c.children) : ""],
+  ["WEIGHT", c.weight != null ? `${c.weight} kg` : ""],
+  ["HEIGHT", c.height != null ? `${c.height} cm` : ""],
+  ["REMARK", c.notes ?? c.remark ?? ""],
+  ["LABOUR ID", c.labour_id ?? ""],
+  ["NARRATIVE", c.narrative ?? ""],
+  ["MEDICAL STATUS", c.medical_status ?? ""],
+  ["TASHEER DATE", c.tasheer_date ?? ""],
+  ["TASHEER", c.tasheer_status ?? ""],
+  ["NARRATIVE PHONE", c.narrative_phone ?? ""],
+  ["COC STATUS", c.coc_status ?? ""],
+  ["TICKET", c.ticket_status ?? ""],
+  ["TICKET DATE", c.ticket_date ?? ""],
+  ["KUWAIT TICKET DATE", c.ticket_date ?? ""],
+  ["SAUDI TICKET DATE", c.ticket_date ?? ""],
+  ["LMIS", c.lmis_status ?? ""],
+  ["WOKALA", c.wokala_status ?? ""],
+  ["COC PHONE", c.coc_agency_phone ?? ""],
+  ["CV SENT TO", c.cv_sent_to ?? ""],
+  ["CV SENT DATE", c.cv_sent_date ?? ""],
+  ["MEDICAL DAYS", c.medical_days ?? ""],
+  ["EXPERIENCE OUTSIDE", c.experience_country ?? ""],
+  ["VISA STATUS", c.visa_status ?? ""],
+  ["SELECTED BY", c.selected_by ?? ""],
+  ["INSIDE OFFICE", c.office ?? ""],
+  ["EMBASSY DATE", c.embassy_date ?? ""],
+  ["ARRIVAL CITY", c.arrival_city ?? ""],
+  ["INSURANCE", c.insurance_status ?? ""],
+  ["INSURANCE STATUS", c.insurance_status ?? ""],
+  ["INSURANCE DATE", c.insurance_date ?? ""],
+  ["MEDICAL DATE", c.medical_date ?? ""],
+  ["CONTRACT DATE", c.contract_date ?? ""],
+  ["DESTINATION COUNTRY", c.destination_country ?? ""],
+  ["COUNTRY OF WORK", c.destination_country ?? ""],
+  ["GOING COUNTRY", c.destination_country ?? ""],
+  ["EXPERIENCE YEARS", c.experience_years ?? ""],
+  ["YEARS OF EXPERIENCE", c.experience_years ?? ""],
+  ["PERIOD", c.experience_years ?? ""],
+  ["MONTHLY SALARY", deriveSalary(c)],
+  ["SALARY", deriveSalary(c)],
+  ["REMARKS", c.notes ?? c.remark ?? ""],
+  ["REMARKS: REMARKS", c.notes ?? c.remark ?? ""],
+  ["GENDER", c.gender ?? ""],
+  ["MUSANED", c.musaned_status ?? ""],
+  ["MUSANED STATUS", c.musaned_status ?? ""],
+  ["PASSPORT STATUS", c.passport_status ?? ""],
+  ["SERIAL NUMBER", c.serial_number ?? c.candidate_code ?? ""],
+  ["SERIAL NO", c.serial_number ?? c.candidate_code ?? ""],
+  ["CANDIDATE CODE", c.candidate_code ?? c.serial_number ?? ""],
+  ["CODE", c.candidate_code ?? c.serial_number ?? ""],
+  ["SKILLS", c.skills ?? ""],
+  ["SPOKEN LANGUAGES", c.spoken_languages ?? ""],
+  ["LANGUAGES", c.spoken_languages ?? ""],
+  ["COC AGENCY", c.coc_agency_name ?? ""],
+  ["COC AGENCY NAME", c.coc_agency_name ?? ""],
+  ["EMERGENCY CONTACT", c.emergency_contact ?? ""],
   // ── Label variants found in the 4 seeded templates ───────────────────────
-  ["NAME",                   c.full_name                                    ?? ""],
-  ["NAME IN FULL",           c.full_name                                    ?? ""],
-  ["PASSPORT NO",            c.passport_number                              ?? ""],
-  ["PASSPORT NUMBER",        c.passport_number                              ?? ""],
-  ["PROFESSION",             c.occupation                                   ?? ""],
-  ["POSITION APPLIED",       c.occupation                                   ?? ""],
-  ["POST APPLIED FOR",       "House Maid"],
-  ["DATE OF EXP",            c.passport_expiry_date                         ?? ""],
-  ["ENGLISH LANGUAGE",       c.english_level                                ?? ""],
-  ["EDUCATIONAL QUALIFICATION", c.education                                 ?? ""],
-  ["NO OF KIDS",             c.children != null ? String(c.children)        : ""],
-  ["NO OF CHILDREN",         c.children != null ? String(c.children)        : ""],
-  ["PERMANENT ADDRESS",      c.living_town                                  ?? ""],
-  ["ADDRESS",                c.living_town                                  ?? ""],
-  ["ADRESS",                 c.living_town                                  ?? ""],
-  ["NOTES",                  c.notes ?? c.remark                           ?? ""],
-  ["NOTE",                   c.notes ?? c.remark                           ?? ""],
-  ["REF NO",                 c.serial_number ?? c.candidate_code            ?? ""],
-  ["REG NO",                 c.serial_number ?? c.candidate_code            ?? ""],
-  ["CONTACT NO",             c.narrative_phone ?? c.emergency_contact       ?? ""],
-  ["HOUSE MAID MOB",         c.narrative_phone ?? c.emergency_contact       ?? ""],
-  ["COUNTRY",                c.experience_country                           ?? ""],
-  ["HIGHEST EDUCATIONAL LEVEL", c.education                                 ?? ""],
-  ["DATE OF BIRTH & AGE",    (c.dob ?? "") + ((c.age != null ? String(c.age) : computeAge(c.dob)) ? " " + (c.age != null ? String(c.age) : computeAge(c.dob)) : "")],
+  ["NAME", c.full_name ?? ""],
+  ["NAME IN FULL", c.full_name ?? ""],
+  ["PASSPORT NO", c.passport_number ?? ""],
+  ["PASSPORT NUMBER", c.passport_number ?? ""],
+  ["PROFESSION", c.occupation ?? ""],
+  ["POSITION APPLIED", c.occupation ?? ""],
+  ["POST APPLIED FOR", "House Maid"],
+  ["DATE OF EXP", c.passport_expiry_date ?? ""],
+  ["ENGLISH LANGUAGE", c.english_level ?? ""],
+  ["EDUCATIONAL QUALIFICATION", c.education ?? ""],
+  ["NO OF KIDS", c.children != null ? String(c.children) : ""],
+  ["NO OF CHILDREN", c.children != null ? String(c.children) : ""],
+  ["PERMANENT ADDRESS", c.living_town ?? ""],
+  ["ADDRESS", c.living_town ?? ""],
+  ["ADRESS", c.living_town ?? ""],
+  ["NOTES", c.notes ?? c.remark ?? ""],
+  ["NOTE", c.notes ?? c.remark ?? ""],
+  ["REF NO", c.serial_number ?? c.candidate_code ?? ""],
+  ["REG NO", c.serial_number ?? c.candidate_code ?? ""],
+  ["CONTACT NO", c.narrative_phone ?? c.emergency_contact ?? ""],
+  ["HOUSE MAID MOB", c.narrative_phone ?? c.emergency_contact ?? ""],
+  ["COUNTRY", c.experience_country ?? ""],
+  ["HIGHEST EDUCATIONAL LEVEL", c.education ?? ""],
+  [
+    "DATE OF BIRTH & AGE",
+    (c.dob ?? "") +
+      ((c.age != null ? String(c.age) : computeAge(c.dob))
+        ? " " + (c.age != null ? String(c.age) : computeAge(c.dob))
+        : ""),
+  ],
 ];
 
 // ── Arabic value translations ─────────────────────────────────────────────────
-const AR_OCCUPATION: Record<string, string> = {
-  "HOUSEMAID": "عاملة منزلية", "HOUSE MAID": "عاملة منزلية",
-  "DOMESTIC WORKER": "عاملة منزلية", "HOUSEKEEPER": "عاملة منزلية",
-  "COOK": "طباخة", "BABY SITTER": "مربية أطفال", "BABYSITTER": "مربية أطفال",
-  "NURSE": "ممرضة", "CAREGIVER": "مقدمة رعاية", "CLEANER": "عاملة نظافة",
-  "DRIVER": "سائق", "GARDENER": "بستاني",
+const EN_OCCUPATION: Record<string, string> = {
+  HOUSEMAID: "House Maid",
+  "HOUSE MAID": "House Maid",
+  "عاملة منزلية": "House Maid",
+  "DOMESTIC WORKER": "House Maid",
+  HOUSEKEEPER: "House Maid",
+  COOK: "Cook",
+  طباخة: "Cook",
+  "BABY SITTER": "Baby Sitter",
+  BABYSITTER: "Baby Sitter",
+  "مربية أطفال": "Baby Sitter",
+  NURSE: "Nurse",
+  ممرضة: "Nurse",
+  CAREGIVER: "Caregiver",
+  "مقدمة رعاية": "Caregiver",
+  CLEANER: "Cleaner",
+  "عاملة نظافة": "Cleaner",
+  DRIVER: "Driver",
+  سائق: "Driver",
+  GARDENER: "Gardener",
+  بستاني: "Gardener",
 };
-const AR_RELIGION: Record<string, string> = {
-  "MUSLIM": "مسلمة", "ISLAM": "مسلمة",
-  "CHRISTIAN": "مسيحية", "CHRISTIANITY": "مسيحية",
-  "HINDU": "هندوسية", "BUDDHIST": "بوذية",
+const EN_RELIGION: Record<string, string> = {
+  MUSLIM: "Muslim",
+  ISLAM: "Muslim",
+  مسلمة: "Muslim",
+  CHRISTIAN: "Christian",
+  CHRISTIANITY: "Christian",
+  مسيحية: "Christian",
+  HINDU: "Hindu",
+  هندوسية: "Hindu",
+  BUDDHIST: "Buddhist",
+  بوذية: "Buddhist",
+  "NON-MUSLIM": "Non-Muslim",
+  "NON MUSLIM": "Non-Muslim",
 };
-const AR_MARITAL: Record<string, string> = {
-  "MARRIED": "متزوجة", "SINGLE": "عزباء",
-  "DIVORCED": "مطلقة", "WIDOWED": "أرملة", "WIDOW": "أرملة",
+const EN_MARITAL: Record<string, string> = {
+  MARRIED: "Married",
+  متزوجة: "Married",
+  SINGLE: "Single",
+  عزباء: "Single",
+  DIVORCED: "Divorced",
+  مطلقة: "Divorced",
+  WIDOWED: "Widowed",
+  WIDOW: "Widowed",
+  أرملة: "Widowed",
 };
-const AR_EDUCATION: Record<string, string> = {
-  "PRIMARY": "إبتدائي", "ELEMENTARY": "إبتدائي",
-  "SECONDARY": "ثانوي", "HIGH SCHOOL": "ثانوي",
-  "UNIVERSITY": "جامعي", "BACHELOR": "جامعي",
-  "DIPLOMA": "دبلوم", "ILLITERATE": "أمية", "NO EDUCATION": "أمية",
-  "MIDDLE": "متوسط", "JUNIOR": "متوسط",
+const EN_EDUCATION: Record<string, string> = {
+  PRIMARY: "Primary",
+  ELEMENTARY: "Primary",
+  إبتدائي: "Primary",
+  ابتدائي: "Primary",
+  SECONDARY: "Secondary",
+  "HIGH SCHOOL": "Secondary",
+  ثانوي: "Secondary",
+  UNIVERSITY: "University",
+  BACHELOR: "University",
+  جامعي: "University",
+  DIPLOMA: "Diploma",
+  دبلوم: "Diploma",
+  ILLITERATE: "Illiterate",
+  "NO EDUCATION": "Illiterate",
+  أمية: "Illiterate",
+  MIDDLE: "Middle",
+  JUNIOR: "Middle",
+  متوسط: "Middle",
 };
-const AR_EXPERIENCE: Record<string, string> = {
-  "FIRST TIME": "لم يسبق لها العمل", "NO EXPERIENCE": "لم يسبق لها العمل",
-  "EXPERIENCED": "لديها خبرة",
+const EN_EXPERIENCE: Record<string, string> = {
+  "FIRST TIME": "First Time",
+  "NO EXPERIENCE": "No Experience",
+  "لم يسبق لها العمل": "First Time",
+  EXPERIENCED: "Experienced",
+  "لديها خبرة": "Experienced",
 };
-const AR_LEVEL: Record<string, string> = {
-  "EXCELLENT": "ممتاز", "VERY GOOD": "جيد جداً", "GOOD": "جيد",
-  "FAIR": "مقبول", "AVERAGE": "مقبول", "POOR": "ضعيف",
-  "BASIC": "ضعيف", "NONE": "لا يوجد", "NO": "لا يوجد",
+const EN_LEVEL: Record<string, string> = {
+  EXCELLENT: "Excellent",
+  ممتاز: "Excellent",
+  "VERY GOOD": "Very Good",
+  "جيد جداً": "Very Good",
+  GOOD: "Good",
+  جيد: "Good",
+  FAIR: "Fair",
+  AVERAGE: "Fair",
+  مقبول: "Fair",
+  POOR: "Poor",
+  BASIC: "Poor",
+  ضعيف: "Poor",
+  NONE: "None",
+  NO: "None",
+  "لا يوجد": "None",
 };
 
-function toArabic(value: string | null | undefined, map: Record<string, string>): string {
+function toEnglish(value: string | null | undefined, map: Record<string, string>): string {
   if (!value) return "";
-  return map[value.trim().toUpperCase()] ?? "";
+  const trimmed = value.trim();
+  return map[trimmed] ?? map[trimmed.toUpperCase()] ?? trimmed;
 }
 
 // CV_ARABIC_FIELD_MAP: RTL label cells whose value cell is BEFORE them in XML order.
 // Processed with fillFieldBefore() so the cell immediately preceding the label is filled.
 export const CV_ARABIC_FIELD_MAP = (c: Candidate): [string, string][] => [
-  ["المهنة",             toArabic(c.occupation,     AR_OCCUPATION)],
-  ["الخبرة",             toArabic(c.experience,     AR_EXPERIENCE)],
-  ["اللغة العربية",      c.arabic_level                          ?? ""],
-  ["الديانة",            toArabic(c.religion,       AR_RELIGION)],
-  ["الدرجة التعليمية",   toArabic(c.education,      AR_EDUCATION)],
-  ["الحالة الاجتماعية",  toArabic(c.marital_status, AR_MARITAL)],
-  ["عدد الأطفال",        c.children != null ? String(c.children) : ""],
-  ["الوزن",              c.weight   != null ? `${c.weight} kg`   : ""],
-  ["الطول",              c.height   != null ? `${c.height} cm`   : ""],
-  ["العمر",              c.age      != null ? String(c.age)      : computeAge(c.dob)],
-  ["تاريخ الميلاد",      c.dob                                   ?? ""],
+  ["المهنة", toEnglish(c.occupation, EN_OCCUPATION)],
+  ["الخبرة", toEnglish(c.experience, EN_EXPERIENCE)],
+  ["اللغة العربية", toEnglish(c.arabic_level, EN_LEVEL)],
+  ["الديانة", toEnglish(c.religion, EN_RELIGION)],
+  ["الدرجة التعليمية", toEnglish(c.education, EN_EDUCATION)],
+  ["الحالة الاجتماعية", toEnglish(c.marital_status, EN_MARITAL)],
+  ["عدد الأطفال", c.children != null ? String(c.children) : ""],
+  ["الوزن", c.weight != null ? `${c.weight} kg` : ""],
+  ["الطول", c.height != null ? `${c.height} cm` : ""],
+  ["العمر", c.age != null ? String(c.age) : computeAge(c.dob)],
+  ["تاريخ الميلاد", c.dob ?? ""],
 ];
 
 function computeAge(dob: string | null | undefined): string {
@@ -261,11 +328,20 @@ function computeAge(dob: string | null | undefined): string {
 }
 
 function xmlEsc(s: string) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function xmlEscAttr(s: string) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 }
 
 // Matches Arabic text regardless of encoding — standard Arabic block (U+0600-U+06FF),
@@ -281,13 +357,16 @@ const ARABIC_RE = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
 function normLabel(s: string) {
   return s
     .normalize("NFKC")
-    .replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"')
-    .replace(/[   ]/g, " ")  // normalize non-breaking/ideographic spaces
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/[   ]/g, " ") // normalize non-breaking/ideographic spaces
     .replace(/\s+/g, " ")
     .trim()
     .toUpperCase()
     .replace(/\.\s+/g, " ") // "No. " → "NO ", "Jan. " → "JAN "
-    .replace(/[.:]+$/, "")  // strip trailing ":", ".", ".:", etc.
+    .replace(/[.:]+$/, "") // strip trailing ":", ".", ".:", etc.
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -300,7 +379,10 @@ function cellText(xml: string, from: number, to: number): string {
     if (idx === -1 || idx >= to) break;
     // Skip <w:tbl>, <w:tr>, <w:tc*> — only match <w:t> and <w:t<space>
     const ch = xml[idx + 4];
-    if (ch !== ">" && ch !== " " && ch !== "\n" && ch !== "\t") { p = idx + 1; continue; }
+    if (ch !== ">" && ch !== " " && ch !== "\n" && ch !== "\t") {
+      p = idx + 1;
+      continue;
+    }
     const gt = xml.indexOf(">", idx);
     if (gt === -1 || gt >= to) break;
     const close = xml.indexOf("</w:t>", gt + 1);
@@ -331,7 +413,7 @@ function outerCellEnd(xml: string, cellStart: number): number {
   let depth = 1;
   let scan = cellStart + 5;
   while (depth > 0 && scan < xml.length) {
-    const nextOpen  = xml.indexOf("<w:tc",  scan);
+    const nextOpen = xml.indexOf("<w:tc", scan);
     const nextClose = xml.indexOf("</w:tc>", scan);
     if (nextClose === -1) break;
     if (nextOpen !== -1 && nextOpen < nextClose) {
@@ -357,8 +439,10 @@ function boldifyCell(cellXml: string): string {
     .replace(/<w:bCs\b[^/]*\/>/g, "")
     .replace(/<w:color\b[^/]*\/>/g, "");
   result = result.replace(/<\/w:rPr>/g, "<w:b/><w:bCs/></w:rPr>");
-  result = result.replace(/(<w:r(?:\s[^>]*)?>)(?!\s*<w:rPr)/g,
-    (_, openTag) => `${openTag}<w:rPr><w:b/><w:bCs/></w:rPr>`);
+  result = result.replace(
+    /(<w:r(?:\s[^>]*)?>)(?!\s*<w:rPr)/g,
+    (_, openTag) => `${openTag}<w:rPr><w:b/><w:bCs/></w:rPr>`,
+  );
   return result;
 }
 
@@ -368,12 +452,12 @@ function boldifyCell(cellXml: string): string {
 // exclusion zone (e.g. w:right="1150" in TADBEER) shifts the centre point left,
 // keeping text at its intended visual position rather than dead-centred.
 function centerAlignCell(cellXml: string): string {
-  let result = cellXml
-    .replace(/<w:jc\b[^/]*\/>/g, "")
-    .replace(/<w:jc\b[\s\S]*?<\/w:jc>/g, "");
+  let result = cellXml.replace(/<w:jc\b[^/]*\/>/g, "").replace(/<w:jc\b[\s\S]*?<\/w:jc>/g, "");
   result = result.replace(/<\/w:pPr>/g, '<w:jc w:val="center"/></w:pPr>');
-  result = result.replace(/(<w:p(?:\s[^>]*)?>)(?!\s*<w:pPr)/g,
-    (_, openTag) => openTag + '<w:pPr><w:jc w:val="center"/></w:pPr>');
+  result = result.replace(
+    /(<w:p(?:\s[^>]*)?>)(?!\s*<w:pPr)/g,
+    (_, openTag) => openTag + '<w:pPr><w:jc w:val="center"/></w:pPr>',
+  );
   return result;
 }
 
@@ -396,7 +480,10 @@ function fillJawaSpecialRow(
     if (cs === -1) break;
     const ce = outerCellEnd(xml, cs);
     if (ce === -1) break;
-    if (normLabel(cellText(xml, cs, ce)) === ANCHOR) { anchorStart = cs; break; }
+    if (normLabel(cellText(xml, cs, ce)) === ANCHOR) {
+      anchorStart = cs;
+      break;
+    }
     p = ce + 7;
   }
   if (anchorStart === -1) return xml;
@@ -428,20 +515,20 @@ function fillJawaSpecialRow(
     if (idx < 0 || idx >= cells.length || !value) continue;
     const { start: cs, end: ce } = cells[idx];
     let first = true;
-    let newCell = result.slice(cs, ce + 7).replace(
-      /<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g,
-      (_, attrs) => {
-        if (first) {
-          first = false;
-          return `<w:t${value.includes(" ") ? ' xml:space="preserve"' : (attrs ?? "")}>${xmlEsc(value)}</w:t>`;
-        }
-        return `<w:t${attrs ?? ""}></w:t>`;
-      },
-    );
+    let newCell = result.slice(cs, ce + 7).replace(/<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g, (_, attrs) => {
+      if (first) {
+        first = false;
+        return `<w:t${value.includes(" ") ? ' xml:space="preserve"' : (attrs ?? "")}>${xmlEsc(value)}</w:t>`;
+      }
+      return `<w:t${attrs ?? ""}></w:t>`;
+    });
     if (first) {
       const pEnd = newCell.indexOf("</w:p>");
       if (pEnd !== -1)
-        newCell = newCell.slice(0, pEnd) + `<w:r><w:t${value.includes(" ") ? ' xml:space="preserve"' : ""}>${xmlEsc(value)}</w:t></w:r>` + newCell.slice(pEnd);
+        newCell =
+          newCell.slice(0, pEnd) +
+          `<w:r><w:t${value.includes(" ") ? ' xml:space="preserve"' : ""}>${xmlEsc(value)}</w:t></w:r>` +
+          newCell.slice(pEnd);
     }
     if (opts?.bold) newCell = boldifyCell(newCell);
     newCell = centerAlignCell(newCell);
@@ -454,26 +541,35 @@ function fillJawaSpecialRow(
 // Anchors on "دولة" to find the label row (COUNTRY دولة | POSITION موضع | YEAR سنة),
 // then fills the data row below at the same column indices.
 // Only fills for experienced candidates; leaves empty for first-timers.
-function fillMonacoPreviousEmployment(xml: string, c: Candidate, opts?: { bold?: boolean }): string {
+function fillMonacoPreviousEmployment(
+  xml: string,
+  c: Candidate,
+  opts?: { bold?: boolean },
+): string {
   const exp = (c.experience ?? "").trim().toUpperCase();
-  const isFirstTime = !exp || exp.includes("FIRST") || exp.includes("NO EXPER") || exp === "NONE" || exp === "NO";
+  const isFirstTime =
+    !exp || exp.includes("FIRST") || exp.includes("NO EXPER") || exp === "NONE" || exp === "NO";
   if (isFirstTime) return xml;
 
   // Find the label row that contains BOTH "COUNTRY"/"دولة" AND "موضع"/"سنة"
   // (scanning full rows avoids false-positives from a standalone "دولة" cell elsewhere)
-  let labelRowStart = -1, labelRowEnd = -1;
+  let labelRowStart = -1,
+    labelRowEnd = -1;
   let p = 0;
   while (p < xml.length) {
     const trIdx = xml.indexOf("<w:tr", p);
     if (trIdx === -1) break;
     const ch = xml[trIdx + 5];
-    if (ch !== ">" && ch !== " " && ch !== "\n" && ch !== "\t") { p = trIdx + 5; continue; }
+    if (ch !== ">" && ch !== " " && ch !== "\n" && ch !== "\t") {
+      p = trIdx + 5;
+      continue;
+    }
     const trEnd = xml.indexOf("</w:tr>", trIdx);
     if (trEnd === -1) break;
     const rowText = xml.slice(trIdx, trEnd);
     if (rowText.includes("دولة") && (rowText.includes("موضع") || rowText.includes("سنة"))) {
       labelRowStart = trIdx;
-      labelRowEnd   = trEnd;
+      labelRowEnd = trEnd;
       break;
     }
     p = trEnd + 7;
@@ -492,18 +588,24 @@ function fillMonacoPreviousEmployment(xml: string, c: Candidate, opts?: { bold?:
     rp = ce + 7;
   }
 
-  let countryIdx = -1, positionIdx = -1, yearIdx = -1;
+  let countryIdx = -1,
+    positionIdx = -1,
+    yearIdx = -1;
   for (let i = 0; i < labelCells.length; i++) {
     const n = normLabel(labelCells[i].text);
     const t = labelCells[i].text;
-    if (countryIdx  === -1 && (n.includes("COUNTRY")  || t.includes("دولة"))) countryIdx  = i;
-    if (positionIdx === -1 && (n.includes("POSITION") || n.includes("PROFESSION") || t.includes("موضع"))) positionIdx = i;
-    if (yearIdx     === -1 && (n.includes("YEAR")     || t.includes("سنة")))  yearIdx     = i;
+    if (countryIdx === -1 && (n.includes("COUNTRY") || t.includes("دولة"))) countryIdx = i;
+    if (
+      positionIdx === -1 &&
+      (n.includes("POSITION") || n.includes("PROFESSION") || t.includes("موضع"))
+    )
+      positionIdx = i;
+    if (yearIdx === -1 && (n.includes("YEAR") || t.includes("سنة"))) yearIdx = i;
   }
 
   // Data row immediately follows the label row
   const nextTrStart = xml.indexOf("<w:tr", labelRowEnd + 7);
-  const nextTrEnd   = nextTrStart !== -1 ? xml.indexOf("</w:tr>", nextTrStart) : -1;
+  const nextTrEnd = nextTrStart !== -1 ? xml.indexOf("</w:tr>", nextTrStart) : -1;
   if (nextTrStart === -1 || nextTrEnd === -1) return xml;
 
   const dataCells: Array<{ start: number; end: number }> = [];
@@ -524,26 +626,29 @@ function fillMonacoPreviousEmployment(xml: string, c: Candidate, opts?: { bold?:
     if (idx >= 0 && idx < dataCells.length && value)
       changes.push({ start: dataCells[idx].start, end: dataCells[idx].end, value });
   };
-  push(countryIdx,  c.experience_country             ?? "");
+  push(countryIdx, c.experience_country ?? "");
   push(positionIdx, "House Maid");
-  push(yearIdx,     c.experience_years              ?? "");
+  push(yearIdx, c.experience_years ?? "");
 
   changes.sort((a, b) => b.start - a.start);
 
   let result = xml;
   for (const { start: cs, end: ce, value } of changes) {
     let first = true;
-    let newCell = result.slice(cs, ce + 7).replace(
-      /<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g,
-      (_, attrs) => {
-        if (first) { first = false; return `<w:t${value.includes(" ") ? ' xml:space="preserve"' : (attrs ?? "")}>${xmlEsc(value)}</w:t>`; }
-        return `<w:t${attrs ?? ""}></w:t>`;
-      },
-    );
+    let newCell = result.slice(cs, ce + 7).replace(/<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g, (_, attrs) => {
+      if (first) {
+        first = false;
+        return `<w:t${value.includes(" ") ? ' xml:space="preserve"' : (attrs ?? "")}>${xmlEsc(value)}</w:t>`;
+      }
+      return `<w:t${attrs ?? ""}></w:t>`;
+    });
     if (first) {
       const pEnd = newCell.indexOf("</w:p>");
       if (pEnd !== -1)
-        newCell = newCell.slice(0, pEnd) + `<w:r><w:t${value.includes(" ") ? ' xml:space="preserve"' : ""}>${xmlEsc(value)}</w:t></w:r>` + newCell.slice(pEnd);
+        newCell =
+          newCell.slice(0, pEnd) +
+          `<w:r><w:t${value.includes(" ") ? ' xml:space="preserve"' : ""}>${xmlEsc(value)}</w:t></w:r>` +
+          newCell.slice(pEnd);
     }
     if (opts?.bold) newCell = boldifyCell(newCell);
     result = result.slice(0, cs) + newCell + result.slice(ce + 7);
@@ -565,14 +670,20 @@ function fillJawaPreviousEmployment(xml: string, c: Candidate, opts?: { bold?: b
     if (cs === -1) break;
     const ce = outerCellEnd(xml, cs);
     if (ce === -1) break;
-    if (cellText(xml, cs, ce).includes("الفترة")) { arabicCellPos = cs; break; }
+    if (cellText(xml, cs, ce).includes("الفترة")) {
+      arabicCellPos = cs;
+      break;
+    }
     p = ce + 7;
   }
   if (arabicCellPos === -1) return xml;
 
   const arabicRowStart = xml.lastIndexOf("<w:tr", arabicCellPos);
   if (arabicRowStart === -1) return xml;
-  { const ch = xml[arabicRowStart + 5]; if (ch !== ">" && ch !== " " && ch !== "\n" && ch !== "\t") return xml; }
+  {
+    const ch = xml[arabicRowStart + 5];
+    if (ch !== ">" && ch !== " " && ch !== "\n" && ch !== "\t") return xml;
+  }
   const arabicRowEnd = xml.indexOf("</w:tr>", arabicRowStart);
   if (arabicRowEnd === -1) return xml;
 
@@ -591,20 +702,24 @@ function fillJawaPreviousEmployment(xml: string, c: Candidate, opts?: { bold?: b
   }
 
   // Previous row = column header row (Period | 2 | Phone No.)
-  const prevTrEnd   = xml.lastIndexOf("</w:tr>", arabicRowStart - 1);
+  const prevTrEnd = xml.lastIndexOf("</w:tr>", arabicRowStart - 1);
   const prevTrStart = prevTrEnd !== -1 ? xml.lastIndexOf("<w:tr", prevTrEnd) : -1;
   const headerCells = prevTrStart !== -1 ? getCells(xml, prevTrStart, prevTrEnd) : [];
 
   // Next row = data row
   const nextTrStart = xml.indexOf("<w:tr", arabicRowEnd + 7);
-  const nextTrEnd   = nextTrStart !== -1 ? xml.indexOf("</w:tr>", nextTrStart) : -1;
-  const dataCells   = nextTrStart !== -1 && nextTrEnd !== -1 ? getCells(xml, nextTrStart, nextTrEnd) : [];
+  const nextTrEnd = nextTrStart !== -1 ? xml.indexOf("</w:tr>", nextTrStart) : -1;
+  const dataCells =
+    nextTrStart !== -1 && nextTrEnd !== -1 ? getCells(xml, nextTrStart, nextTrEnd) : [];
 
   type Change = { start: number; end: number; value: string };
   const changes: Change[] = [];
 
   // Fix header cells: index 1 → "Position", index 2 → "City, County"
-  const headerFixes: [number, string][] = [[1, "Position"], [2, "City, County"]];
+  const headerFixes: [number, string][] = [
+    [1, "Position"],
+    [2, "City, County"],
+  ];
   for (const [idx, label] of headerFixes) {
     if (idx < headerCells.length)
       changes.push({ start: headerCells[idx].start, end: headerCells[idx].end, value: label });
@@ -615,7 +730,8 @@ function fillJawaPreviousEmployment(xml: string, c: Candidate, opts?: { bold?: b
   //   col 1 = "House Maid"      (Position / الوظيفة) — always hardcoded, same as Monaco
   //   col 2 = experience_country (البلد المدينة) — same as Monaco's COUNTRY column
   const exp = (c.experience ?? "").trim().toUpperCase();
-  const isFirstTime = !exp || exp.includes("FIRST") || exp.includes("NO EXPER") || exp === "NONE" || exp === "NO";
+  const isFirstTime =
+    !exp || exp.includes("FIRST") || exp.includes("NO EXPER") || exp === "NONE" || exp === "NO";
   if (!isFirstTime) {
     const dataValues = [c.experience_years ?? "", "House Maid", c.experience_country ?? ""];
     for (let i = 0; i < Math.min(dataValues.length, dataCells.length); i++) {
@@ -630,17 +746,20 @@ function fillJawaPreviousEmployment(xml: string, c: Candidate, opts?: { bold?: b
   let result = xml;
   for (const { start: cs, end: ce, value } of changes) {
     let first = true;
-    let newCell = result.slice(cs, ce + 7).replace(
-      /<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g,
-      (_, attrs) => {
-        if (first) { first = false; return `<w:t${value.includes(" ") ? ' xml:space="preserve"' : (attrs ?? "")}>${xmlEsc(value)}</w:t>`; }
-        return `<w:t${attrs ?? ""}></w:t>`;
-      },
-    );
+    let newCell = result.slice(cs, ce + 7).replace(/<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g, (_, attrs) => {
+      if (first) {
+        first = false;
+        return `<w:t${value.includes(" ") ? ' xml:space="preserve"' : (attrs ?? "")}>${xmlEsc(value)}</w:t>`;
+      }
+      return `<w:t${attrs ?? ""}></w:t>`;
+    });
     if (first) {
       const pEnd = newCell.indexOf("</w:p>");
       if (pEnd !== -1)
-        newCell = newCell.slice(0, pEnd) + `<w:r><w:t${value.includes(" ") ? ' xml:space="preserve"' : ""}>${xmlEsc(value)}</w:t></w:r>` + newCell.slice(pEnd);
+        newCell =
+          newCell.slice(0, pEnd) +
+          `<w:r><w:t${value.includes(" ") ? ' xml:space="preserve"' : ""}>${xmlEsc(value)}</w:t></w:r>` +
+          newCell.slice(pEnd);
     }
     if (opts?.bold) newCell = boldifyCell(newCell);
     result = result.slice(0, cs) + newCell + result.slice(ce + 7);
@@ -659,9 +778,15 @@ function fillField(xml: string, label: string, value: string, opts?: { bold?: bo
 
     if (normLabel(cellText(xml, cellStart, cellEnd)) === normTarget) {
       let nStart = nextCell(xml, cellEnd + 7);
-      if (nStart === -1) { pos = cellEnd + 7; continue; }
+      if (nStart === -1) {
+        pos = cellEnd + 7;
+        continue;
+      }
       let nEnd = outerCellEnd(xml, nStart);
-      if (nEnd === -1) { pos = cellEnd + 7; continue; }
+      if (nEnd === -1) {
+        pos = cellEnd + 7;
+        continue;
+      }
 
       // If the next cell is an Arabic label cell, skip it and use the one after.
       // Handles templates with [English Label] | [Arabic Label] | [Value].
@@ -669,29 +794,32 @@ function fillField(xml: string, label: string, value: string, opts?: { bold?: bo
         const s2 = nextCell(xml, nEnd + 7);
         if (s2 !== -1) {
           const e2 = outerCellEnd(xml, s2);
-          if (e2 !== -1) { nStart = s2; nEnd = e2; }
+          if (e2 !== -1) {
+            nStart = s2;
+            nEnd = e2;
+          }
         }
       }
 
       const spaceAttr = value.includes(" ") ? ' xml:space="preserve"' : "";
       let first = true;
-      let newCell = xml.slice(nStart, nEnd + 7).replace(
-        /<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g,
-        (_, attrs) => {
+      let newCell = xml
+        .slice(nStart, nEnd + 7)
+        .replace(/<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g, (_, attrs) => {
           if (first) {
             first = false;
             return `<w:t${value.includes(" ") ? ' xml:space="preserve"' : (attrs ?? "")}>${xmlEsc(value)}</w:t>`;
           }
           return `<w:t${attrs ?? ""}></w:t>`;
-        },
-      );
+        });
       // If the value cell had no <w:t> at all, inject a run into the first paragraph
       if (first) {
         const pEnd = newCell.indexOf("</w:p>");
         if (pEnd !== -1) {
-          newCell = newCell.slice(0, pEnd)
-            + `<w:r><w:t${spaceAttr}>${xmlEsc(value)}</w:t></w:r>`
-            + newCell.slice(pEnd);
+          newCell =
+            newCell.slice(0, pEnd) +
+            `<w:r><w:t${spaceAttr}>${xmlEsc(value)}</w:t></w:r>` +
+            newCell.slice(pEnd);
         }
       }
       if (opts?.bold) newCell = boldifyCell(newCell);
@@ -707,7 +835,12 @@ function fillField(xml: string, label: string, value: string, opts?: { bold?: bo
 // Fills the cell IMMEDIATELY BEFORE the label cell with the given value.
 // Used for RTL (Arabic) label cells where [value cell] comes before [label cell]
 // in the XML cell order (opposite of standard LTR fillField).
-function fillFieldBefore(xml: string, label: string, value: string, opts?: { bold?: boolean }): string {
+function fillFieldBefore(
+  xml: string,
+  label: string,
+  value: string,
+  opts?: { bold?: boolean },
+): string {
   const normTarget = normLabel(label);
   let pos = 0;
   let prevStart = -1;
@@ -721,22 +854,22 @@ function fillFieldBefore(xml: string, label: string, value: string, opts?: { bol
     if (normLabel(cellText(xml, cellStart, cellEnd)) === normTarget && prevStart !== -1) {
       const spaceAttr = value.includes(" ") ? ' xml:space="preserve"' : "";
       let first = true;
-      let newCell = xml.slice(prevStart, prevEnd + 7).replace(
-        /<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g,
-        (_, attrs) => {
+      let newCell = xml
+        .slice(prevStart, prevEnd + 7)
+        .replace(/<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g, (_, attrs) => {
           if (first) {
             first = false;
             return `<w:t${value.includes(" ") ? ' xml:space="preserve"' : (attrs ?? "")}>${xmlEsc(value)}</w:t>`;
           }
           return `<w:t${attrs ?? ""}></w:t>`;
-        },
-      );
+        });
       if (first) {
         const pEnd = newCell.indexOf("</w:p>");
         if (pEnd !== -1) {
-          newCell = newCell.slice(0, pEnd)
-            + `<w:r><w:t${spaceAttr}>${xmlEsc(value)}</w:t></w:r>`
-            + newCell.slice(pEnd);
+          newCell =
+            newCell.slice(0, pEnd) +
+            `<w:r><w:t${spaceAttr}>${xmlEsc(value)}</w:t></w:r>` +
+            newCell.slice(pEnd);
         }
       }
       if (opts?.bold) newCell = boldifyCell(newCell);
@@ -761,8 +894,8 @@ function resolveTableWidth(xml: string, from: number): number {
   const prEnd = xml.indexOf("</w:tblPr>", start);
   const slice = xml.slice(start, prEnd > -1 ? prEnd + 10 : start + 3000);
   const attrs = /<w:tblW\b([^/]*)\/?>/.exec(slice)?.[1] ?? "";
-  const w     = parseInt(/\bw:w="(\d+)"/.exec(attrs)?.[1] ?? "0");
-  const t     = /\bw:type="([^"]+)"/.exec(attrs)?.[1] ?? "";
+  const w = parseInt(/\bw:w="(\d+)"/.exec(attrs)?.[1] ?? "0");
+  const t = /\bw:type="([^"]+)"/.exec(attrs)?.[1] ?? "";
   return t === "dxa" && w > 0
     ? Math.round((w / 1440) * 914400)
     : Math.round((9360 / 1440) * 914400); // A4/Letter printable width fallback
@@ -785,12 +918,12 @@ function resolveNestedTableHeight(cellSlice: string): number {
 // Resolve the cell's declared width in EMU, handling dxa and pct units.
 function resolveCellWidth(cellSlice: string, tblWidthEmu: number): number {
   const attrs = /<w:tcW\b([^/]*)\/?>/.exec(cellSlice)?.[1] ?? "";
-  const w     = parseInt(/\bw:w="(\d+)"/.exec(attrs)?.[1] ?? "0");
-  const t     = /\bw:type="([^"]+)"/.exec(attrs)?.[1] ?? "";
+  const w = parseInt(/\bw:w="(\d+)"/.exec(attrs)?.[1] ?? "0");
+  const t = /\bw:type="([^"]+)"/.exec(attrs)?.[1] ?? "";
   if (t === "dxa" && w > 0) return Math.round((w / 1440) * 914400);
   // pct values are in fiftieths of a percent (5000 = 100%)
   if (t === "pct" && w > 0) return Math.round(tblWidthEmu * (w / 5000));
-  return Math.round(tblWidthEmu * 0.30); // fallback: ~30% of table width
+  return Math.round(tblWidthEmu * 0.3); // fallback: ~30% of table width
 }
 
 // Return the total declared height in EMU of a (potentially merged) cell by
@@ -798,12 +931,12 @@ function resolveCellWidth(cellSlice: string, tblWidthEmu: number): number {
 // so the caller can fall back to proportional sizing.
 function resolveCellHeight(xml: string, cellStart: number, cellEnd: number): number {
   const cellSlice = xml.slice(cellStart, cellEnd + 7);
-  const trStart   = xml.lastIndexOf("<w:tr", cellStart);
+  const trStart = xml.lastIndexOf("<w:tr", cellStart);
   if (trStart === -1) return 0;
 
-  const firstTrPr  = xml.slice(trStart, cellStart);
+  const firstTrPr = xml.slice(trStart, cellStart);
   const firstAttrs = /<w:trHeight\b([^/]*)\/?>/.exec(firstTrPr)?.[1] ?? "";
-  const firstH     = parseInt(/\bw:val="(\d+)"/.exec(firstAttrs)?.[1] ?? "0");
+  const firstH = parseInt(/\bw:val="(\d+)"/.exec(firstAttrs)?.[1] ?? "0");
 
   // Non-merged cell — return just this row's height
   if (!/<w:vMerge\b/.test(cellSlice)) {
@@ -811,24 +944,30 @@ function resolveCellHeight(xml: string, cellStart: number, cellEnd: number): num
   }
 
   // Merged cell: determine column index then accumulate continuation rows
-  let colIdx = 0, p = xml.indexOf("<w:tc", trStart);
+  let colIdx = 0,
+    p = xml.indexOf("<w:tc", trStart);
   while (p !== -1 && p < cellStart) {
     const ch = xml[p + 5];
     if (ch === ">" || ch === " " || ch === "\n" || ch === "\t") colIdx++;
     p = xml.indexOf("<w:tc", p + 1);
   }
 
-  let total    = firstH;
+  let total = firstH;
   let curTrEnd = xml.indexOf("</w:tr>", trStart);
 
   while (curTrEnd !== -1) {
     const nextTrStart = xml.indexOf("<w:tr", curTrEnd + 7);
     if (nextTrStart === -1) break;
-    const nextTrEnd   = xml.indexOf("</w:tr>", nextTrStart);
-    const nextTrSlice = xml.slice(nextTrStart, nextTrEnd > -1 ? nextTrEnd + 7 : nextTrStart + 20_000);
+    const nextTrEnd = xml.indexOf("</w:tr>", nextTrStart);
+    const nextTrSlice = xml.slice(
+      nextTrStart,
+      nextTrEnd > -1 ? nextTrEnd + 7 : nextTrStart + 20_000,
+    );
 
     // Find the cell at our column index and check for merge continuation
-    let ci = 0, cp = 0, isContinuation = false;
+    let ci = 0,
+      cp = 0,
+      isContinuation = false;
     while (true) {
       const idx = nextTrSlice.indexOf("<w:tc", cp);
       if (idx === -1) break;
@@ -876,19 +1015,22 @@ function replaceImageCell(
     if (normLabel(cellText(xml, cellStart, cellEnd)) === normTarget) {
       const cellSlice = xml.slice(cellStart, cellEnd + 7);
 
-      const tblW  = resolveTableWidth(xml, cellStart);
-      let cxEmu   = resolveCellWidth(cellSlice, tblW);
-      const cellH   = resolveCellHeight(xml, cellStart, cellEnd);
+      const tblW = resolveTableWidth(xml, cellStart);
+      let cxEmu = resolveCellWidth(cellSlice, tblW);
+      const cellH = resolveCellHeight(xml, cellStart, cellEnd);
       const nestedH = resolveNestedTableHeight(cellSlice);
 
       // Priority: nested-table height (photo cells that embed a nested table to set
       // visual height) → outer row accumulated height → proportional to image.
       // The image is stretched to fill cx × cy via <a:stretch><a:fillRect/></a:stretch>.
-      const cyEmu = nestedH > 0
-        ? nestedH
-        : (cellH > 0
-          ? cellH
-          : (naturalW > 0 ? Math.round(cxEmu * (naturalH / naturalW)) : cxEmu));
+      const cyEmu =
+        nestedH > 0
+          ? nestedH
+          : cellH > 0
+            ? cellH
+            : naturalW > 0
+              ? Math.round(cxEmu * (naturalH / naturalW))
+              : cxEmu;
 
       const tcPrMatch = cellSlice.match(/<w:tcPr[\s\S]*?<\/w:tcPr>/);
       const tcPr = tcPrWithZeroMargins(tcPrMatch ? tcPrMatch[0] : "");
@@ -922,15 +1064,18 @@ function replaceImageCellContaining(
     if (cellEnd === -1) break;
     if (normLabel(cellText(xml, cellStart, cellEnd)).includes(normSub)) {
       const cellSlice = xml.slice(cellStart, cellEnd + 7);
-      const tblW  = resolveTableWidth(xml, cellStart);
-      let cxEmu   = resolveCellWidth(cellSlice, tblW);
-      const cellH   = resolveCellHeight(xml, cellStart, cellEnd);
+      const tblW = resolveTableWidth(xml, cellStart);
+      let cxEmu = resolveCellWidth(cellSlice, tblW);
+      const cellH = resolveCellHeight(xml, cellStart, cellEnd);
       const nestedH = resolveNestedTableHeight(cellSlice);
-      const cyEmu   = nestedH > 0
-        ? nestedH
-        : (cellH > 0
-          ? cellH
-          : (naturalW > 0 ? Math.round(cxEmu * (naturalH / naturalW)) : cxEmu));
+      const cyEmu =
+        nestedH > 0
+          ? nestedH
+          : cellH > 0
+            ? cellH
+            : naturalW > 0
+              ? Math.round(cxEmu * (naturalH / naturalW))
+              : cxEmu;
       const tcPrMatch = cellSlice.match(/<w:tcPr[\s\S]*?<\/w:tcPr>/);
       const tcPr = tcPrWithZeroMargins(tcPrMatch ? tcPrMatch[0] : "");
       const newCell = `<w:tc>${tcPr}${inlineDrawingXml(rId, substring, picId, cxEmu, cyEmu)}</w:tc>`;
@@ -941,21 +1086,29 @@ function replaceImageCellContaining(
   return xml;
 }
 
-export async function fetchImgBytes(src: string): Promise<{ bytes: Uint8Array; ext: string } | null> {
+export async function fetchImgBytes(
+  src: string,
+): Promise<{ bytes: Uint8Array; ext: string } | null> {
   try {
     const r = await fetch(src, { mode: "cors" });
     if (!r.ok) return null;
     const mime = r.headers.get("content-type") ?? "";
-    const ext  = mime.includes("png") ? "png" : "jpg";
+    const ext = mime.includes("png") ? "png" : "jpg";
     return { bytes: new Uint8Array(await r.arrayBuffer()), ext };
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 export async function bytesToDims(bytes: Uint8Array): Promise<{ w: number; h: number }> {
   const url = URL.createObjectURL(new Blob([bytes as BlobPart]));
   try {
     const img = new Image();
-    await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = rej; img.src = url; });
+    await new Promise<void>((res, rej) => {
+      img.onload = () => res();
+      img.onerror = rej;
+      img.src = url;
+    });
     return { w: img.naturalWidth || 300, h: img.naturalHeight || 400 };
   } finally {
     URL.revokeObjectURL(url);
@@ -971,7 +1124,13 @@ function tcPrWithZeroMargins(tcPr: string): string {
   return tcPr.replace("</w:tcPr>", `${zeroMar}</w:tcPr>`);
 }
 
-function inlineDrawingXml(rId: string, name: string, picId: number, cxEmu: number, cyEmu: number): string {
+function inlineDrawingXml(
+  rId: string,
+  name: string,
+  picId: number,
+  cxEmu: number,
+  cyEmu: number,
+): string {
   return [
     `<w:p><w:pPr>`,
     `<w:jc w:val="left"/>`,
@@ -1012,22 +1171,34 @@ function simplifyWpgAnchorForRId(xml: string, rId: string, cx: number, cy: numbe
     const anchorStart = xml.indexOf("<wp:anchor", pos);
     if (anchorStart === -1) break;
 
-    let depth = 1, scan = anchorStart + 10;
+    let depth = 1,
+      scan = anchorStart + 10;
     while (depth > 0 && scan < xml.length) {
-      const nxOpen  = xml.indexOf("<wp:anchor",   scan);
+      const nxOpen = xml.indexOf("<wp:anchor", scan);
       const nxClose = xml.indexOf("</wp:anchor>", scan);
-      if (nxClose === -1) { scan = xml.length; break; }
-      if (nxOpen !== -1 && nxOpen < nxClose) { depth++; scan = nxOpen + 10; }
-      else                                    { depth--; scan = nxClose + 12; }
+      if (nxClose === -1) {
+        scan = xml.length;
+        break;
+      }
+      if (nxOpen !== -1 && nxOpen < nxClose) {
+        depth++;
+        scan = nxOpen + 10;
+      } else {
+        depth--;
+        scan = nxClose + 12;
+      }
     }
-    if (depth !== 0) { pos = anchorStart + 1; continue; }
+    if (depth !== 0) {
+      pos = anchorStart + 1;
+      continue;
+    }
     const anchorEnd = scan;
 
     const block = xml.slice(anchorStart, anchorEnd);
     if (block.includes("wpg:wgp") && block.includes(embedTag)) {
       const attrStr = /<wp:docPr\b([^>]*)\/?>/.exec(block)?.[1] ?? "";
-      const picId   = parseInt(/\bid="(\d+)"/.exec(attrStr)?.[1] ?? "98");
-      const name    = /\bname="([^"]*)"/.exec(attrStr)?.[1] ?? "Photo";
+      const picId = parseInt(/\bid="(\d+)"/.exec(attrStr)?.[1] ?? "98");
+      const name = /\bname="([^"]*)"/.exec(attrStr)?.[1] ?? "Photo";
       const wpInline = [
         `<wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"`,
         ` distT="0" distB="0" distL="0" distR="0">`,
@@ -1103,11 +1274,11 @@ function fitDrawingToCell(xml: string, rId: string): { xml: string; cx: number; 
       const cellEnd = outerCellEnd(xml, tcPos);
       if (cellEnd !== -1 && cellEnd + 7 > embedPos) {
         const cellSlice = xml.slice(tcPos, cellEnd + 7);
-        const tblW  = resolveTableWidth(xml, tcPos);
-        const cx    = resolveCellWidth(cellSlice, tblW);
+        const tblW = resolveTableWidth(xml, tcPos);
+        const cx = resolveCellWidth(cellSlice, tblW);
         const cellH = resolveCellHeight(xml, tcPos, cellEnd);
         const nestedH = resolveNestedTableHeight(cellSlice);
-        const cy    = nestedH > 0 ? nestedH : cellH;
+        const cy = nestedH > 0 ? nestedH : cellH;
         if (cx > 0 && cy > 0) {
           return { xml: fixInlineDrawingSize(xml, rId, cx, cy), cx, cy };
         }
@@ -1128,7 +1299,10 @@ function fitDrawingToCell(xml: string, rId: string): { xml: string; cx: number; 
 //   portrait + wide cx    → "fullphoto" (full-body)
 //   landscape             → "passport"  (company logo, header strip — skipped at inject time)
 interface LiveSlot {
-  rId: string; target: string; cx: number; cy: number;
+  rId: string;
+  target: string;
+  cx: number;
+  cy: number;
   purpose: "photo" | "fullphoto" | "passport" | "unknown";
   inWpgAnchor: boolean; // true → WPG group anchor; needs unwrapping before docx-preview renders it
 }
@@ -1138,15 +1312,15 @@ function liveExtractImageSlots(docXml: string, relsXml: string): LiveSlot[] {
   const relRe = /<Relationship\b[^>]*\/>/g;
   let rm: RegExpExecArray | null;
   while ((rm = relRe.exec(relsXml)) !== null) {
-    const id     = /\bId="([^"]+)"/.exec(rm[0])?.[1];
-    const type   = /\bType="([^"]+)"/.exec(rm[0])?.[1] ?? "";
+    const id = /\bId="([^"]+)"/.exec(rm[0])?.[1];
+    const type = /\bType="([^"]+)"/.exec(rm[0])?.[1] ?? "";
     const target = /\bTarget="([^"]+)"/.exec(rm[0])?.[1];
     if (id && target && type.endsWith("/image")) relMap.set(id, target);
   }
   if (relMap.size === 0) return [];
 
   const slots: LiveSlot[] = [];
-  const seen  = new Set<string>();
+  const seen = new Set<string>();
   let pos = 0;
 
   while (pos < docXml.length) {
@@ -1154,14 +1328,21 @@ function liveExtractImageSlots(docXml: string, relsXml: string): LiveSlot[] {
     if (drawStart === -1) break;
     // Guard: must be <w:drawing> or <w:drawing<space>, not <w:drawingXyz>
     const dc = docXml[drawStart + 10];
-    if (dc !== ">" && dc !== " " && dc !== "\n" && dc !== "\t") { pos = drawStart + 1; continue; }
+    if (dc !== ">" && dc !== " " && dc !== "\n" && dc !== "\t") {
+      pos = drawStart + 1;
+      continue;
+    }
 
     // Depth-count to find the matching </w:drawing>
-    let depth = 1, scan = drawStart + 10;
+    let depth = 1,
+      scan = drawStart + 10;
     while (depth > 0 && scan < docXml.length) {
-      const nxOpen  = docXml.indexOf("<w:drawing",   scan);
+      const nxOpen = docXml.indexOf("<w:drawing", scan);
       const nxClose = docXml.indexOf("</w:drawing>", scan);
-      if (nxClose === -1) { scan = docXml.length; break; }
+      if (nxClose === -1) {
+        scan = docXml.length;
+        break;
+      }
       if (nxOpen !== -1 && nxOpen < nxClose) {
         const nc = docXml[nxOpen + 10];
         if (nc === ">" || nc === " " || nc === "\n" || nc === "\t") depth++;
@@ -1171,34 +1352,47 @@ function liveExtractImageSlots(docXml: string, relsXml: string): LiveSlot[] {
         scan = nxClose + 12;
       }
     }
-    if (depth !== 0) { pos = drawStart + 1; continue; }
+    if (depth !== 0) {
+      pos = drawStart + 1;
+      continue;
+    }
     const drawEnd = scan;
 
     const block = docXml.slice(drawStart, drawEnd);
-    const rId   = /\br:embed="([^"]+)"/.exec(block)?.[1];
-    if (!rId || seen.has(rId)) { pos = drawEnd; continue; }
+    const rId = /\br:embed="([^"]+)"/.exec(block)?.[1];
+    if (!rId || seen.has(rId)) {
+      pos = drawEnd;
+      continue;
+    }
     const target = relMap.get(rId);
-    if (!target)               { pos = drawEnd; continue; }
+    if (!target) {
+      pos = drawEnd;
+      continue;
+    }
     seen.add(rId);
 
     const inWpgAnchor = block.includes("<wp:anchor") && block.includes("wpg:wgp");
 
     // For WPG-wrapped drawings use the outer anchor extent (the designer's intended footprint).
     // For plain anchors/inlines, the first <wp:extent> is the display size.
-    let cx = 0, cy = 0;
+    let cx = 0,
+      cy = 0;
     const extSrc = inWpgAnchor ? block.slice(block.indexOf("<wp:anchor")) : block;
     const extAttrs = /<wp:extent\b([^/]*)\/?>/.exec(extSrc)?.[1] ?? "";
     cx = parseInt(/\bcx="(\d+)"/.exec(extAttrs)?.[1] ?? "0");
     cy = parseInt(/\bcy="(\d+)"/.exec(extAttrs)?.[1] ?? "0");
 
     // Skip placeholders too small to be photos (decorative icons, bullets, tiny logos)
-    if (!cx || !cy || cx < 400_000 || cy < 400_000) { pos = drawEnd; continue; }
+    if (!cx || !cy || cx < 400_000 || cy < 400_000) {
+      pos = drawEnd;
+      continue;
+    }
 
     // Classify by portrait vs landscape and physical width
     let purpose: LiveSlot["purpose"];
-    if (cy > cx)          purpose = cx > 4_500_000 ? "fullphoto" : "photo";
+    if (cy > cx) purpose = cx > 4_500_000 ? "fullphoto" : "photo";
     else if (cx > cy * 1.2) purpose = "passport";
-    else                   purpose = "unknown";
+    else purpose = "unknown";
 
     slots.push({ rId, target, cx, cy, purpose, inWpgAnchor });
     pos = drawEnd;
@@ -1222,22 +1416,55 @@ function scanMaxDrawingId(xml: string): number {
 
 // Level keywords that appear as row labels in checkbox-style language tables.
 const LEVEL_KEYWORDS = new Set([
-  "POOR", "LITTLE", "FAIR", "GOOD", "FLUENT", "EXCELLENT",
-  "VERY GOOD", "AVERAGE", "BASIC", "BEGINNER", "INTERMEDIATE",
-  "ADVANCED", "NATIVE", "VERY POOR",
+  "POOR",
+  "LITTLE",
+  "FAIR",
+  "GOOD",
+  "FLUENT",
+  "EXCELLENT",
+  "VERY GOOD",
+  "AVERAGE",
+  "BASIC",
+  "BEGINNER",
+  "INTERMEDIATE",
+  "ADVANCED",
+  "NATIVE",
+  "VERY POOR",
 ]);
 
 // Clears template-default checkmarks (e.g. "YES", "•") from language-level checkbox
-// rows and puts "√" in the cell that matches the candidate's actual level.
+// rows and puts a checkmark in the cell that matches the candidate's actual level.
 // Must run BEFORE fillField so value cells are still at their original (empty/short)
 // template content — not yet filled with a level keyword by fillField, which would
 // otherwise look identical to a real level-name label cell.
 function fillLevelCheckboxes(xml: string, c: Candidate): string {
   // Content that a legitimate checkmark cell may contain pre-fill
-  const CHECK_VALUES = new Set(["", "YES", "NO", "Yes", "No", "√", "✓", "•", "·", "X", "x", "O", "-", "/"]);
+  const CHECK_VALUES = new Set([
+    "",
+    "YES",
+    "NO",
+    "Yes",
+    "No",
+    "√",
+    "✓",
+    "•",
+    "·",
+    "X",
+    "x",
+    "O",
+    "-",
+    "/",
+  ]);
 
-  interface LevelRow { levelName: string; checkStart: number; checkEnd: number; }
-  interface LevelGroup { lang: "english" | "arabic" | "spoken" | "unknown"; rows: LevelRow[]; }
+  interface LevelRow {
+    levelName: string;
+    checkStart: number;
+    checkEnd: number;
+  }
+  interface LevelGroup {
+    lang: "english" | "arabic" | "spoken" | "unknown";
+    rows: LevelRow[];
+  }
 
   const groups: LevelGroup[] = [];
   let currentGroup: LevelGroup | null = null;
@@ -1300,9 +1527,11 @@ function fillLevelCheckboxes(xml: string, c: Candidate): string {
   const allRows: Array<LevelRow & { targetLevel: string }> = [];
   for (const group of groups) {
     const targetLevel =
-      group.lang === "arabic" ? (c.arabic_level    ?? "").trim().toUpperCase() :
-      group.lang === "spoken" ? (c.spoken_languages ?? "").trim().toUpperCase() :
-      /* english / unknown */   (c.english_level   ?? "").trim().toUpperCase();
+      group.lang === "arabic"
+        ? (c.arabic_level ?? "").trim().toUpperCase()
+        : group.lang === "spoken"
+          ? (c.spoken_languages ?? "").trim().toUpperCase()
+          : /* english / unknown */ (c.english_level ?? "").trim().toUpperCase();
     for (const row of group.rows) allRows.push({ ...row, targetLevel });
   }
 
@@ -1310,19 +1539,24 @@ function fillLevelCheckboxes(xml: string, c: Candidate): string {
   allRows.sort((a, b) => b.checkStart - a.checkStart);
 
   for (const { levelName, checkStart, checkEnd, targetLevel } of allRows) {
-    const newValue = targetLevel && levelName === targetLevel ? "Yes" : "";
+    const newValue = targetLevel && levelName === targetLevel ? "✓" : "";
     let first = true;
-    let newCell = xml.slice(checkStart, checkEnd + 7).replace(
-      /<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g,
-      (_, attrs) => {
-        if (first) { first = false; return `<w:t${attrs ?? ""}>${xmlEsc(newValue)}</w:t>`; }
+    let newCell = xml
+      .slice(checkStart, checkEnd + 7)
+      .replace(/<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g, (_, attrs) => {
+        if (first) {
+          first = false;
+          return `<w:t${attrs ?? ""}>${xmlEsc(newValue)}</w:t>`;
+        }
         return `<w:t${attrs ?? ""}></w:t>`;
-      },
-    );
+      });
     if (first && newValue) {
       const pEnd = newCell.indexOf("</w:p>");
       if (pEnd !== -1)
-        newCell = newCell.slice(0, pEnd) + `<w:r><w:t>${xmlEsc(newValue)}</w:t></w:r>` + newCell.slice(pEnd);
+        newCell =
+          newCell.slice(0, pEnd) +
+          `<w:r><w:t>${xmlEsc(newValue)}</w:t></w:r>` +
+          newCell.slice(pEnd);
     }
     xml = xml.slice(0, checkStart) + newCell + xml.slice(checkEnd + 7);
   }
@@ -1337,48 +1571,61 @@ function fillLevelCheckboxes(xml: string, c: Candidate): string {
 function fillSkillCheckboxes(xml: string, candidateSkills: string | null | undefined): string {
   // Map each normalised template label to the keywords we look for in c.skills
   const SKILL_ALIASES: Record<string, string[]> = {
-    "COOKING":        ["COOKING", "COOK"],
-    "ARAB COOKING":   ["COOKING", "COOK", "ARAB COOKING"],
-    "CLEANING":       ["CLEANING", "CLEAN"],
-    "WASHING":        ["WASHING", "WASH", "LAUNDRY"],
-    "IRONING":        ["IRONING", "IRON"],
-    "BABYSITTING":    ["BABYSITTING", "BABY SITTING", "BABYSITTER"],
-    "BABY SITTING":   ["BABYSITTING", "BABY SITTING", "BABYSITTER"],
-    "BABYSITTER":     ["BABYSITTING", "BABY SITTING", "BABYSITTER"],
-    "BABY CARE":      ["BABY CARE", "BABYSITTING", "BABY SITTING"],
-    "CHILD CARE":     ["CHILD CARE", "CHILDCARE", "CHILDCARING"],
-    "CHILDCARE":      ["CHILD CARE", "CHILDCARE", "CHILDCARING"],
-    "CHILDREN CARE":  ["CHILDREN CARE", "CHILD CARE", "CHILDCARE"],
-    "ELDERLY CARE":   ["ELDERLY CARE", "ELDER CARE", "ELDERLY"],
-    "ELDERLYCARE":    ["ELDERLY CARE", "ELDER CARE", "ELDERLY"],
-    "ELDER CARE":     ["ELDER CARE", "ELDERLY CARE", "ELDERLY"],
-    "HOUSEKEEPING":   ["HOUSEKEEPING", "HOUSE KEEPING"],
-    "HOUSE KEEPING":  ["HOUSEKEEPING", "HOUSE KEEPING"],
+    COOKING: ["COOKING", "COOK"],
+    "ARAB COOKING": ["COOKING", "COOK", "ARAB COOKING"],
+    CLEANING: ["CLEANING", "CLEAN"],
+    WASHING: ["WASHING", "WASH", "LAUNDRY"],
+    IRONING: ["IRONING", "IRON"],
+    BABYSITTING: ["BABYSITTING", "BABY SITTING", "BABYSITTER"],
+    "BABY SITTING": ["BABYSITTING", "BABY SITTING", "BABYSITTER"],
+    BABYSITTER: ["BABYSITTING", "BABY SITTING", "BABYSITTER"],
+    "BABY CARE": ["BABY CARE", "BABYSITTING", "BABY SITTING"],
+    "CHILD CARE": ["CHILD CARE", "CHILDCARE", "CHILDCARING"],
+    CHILDCARE: ["CHILD CARE", "CHILDCARE", "CHILDCARING"],
+    "CHILDREN CARE": ["CHILDREN CARE", "CHILD CARE", "CHILDCARE"],
+    "ELDERLY CARE": ["ELDERLY CARE", "ELDER CARE", "ELDERLY"],
+    ELDERLYCARE: ["ELDERLY CARE", "ELDER CARE", "ELDERLY"],
+    "ELDER CARE": ["ELDER CARE", "ELDERLY CARE", "ELDERLY"],
+    HOUSEKEEPING: ["HOUSEKEEPING", "HOUSE KEEPING"],
+    "HOUSE KEEPING": ["HOUSEKEEPING", "HOUSE KEEPING"],
   };
   // Arabic labels mapped to the same keyword lists
   const AR_SKILL_ALIASES: Record<string, string[]> = {
-    "التنظيف":        ["CLEANING", "CLEAN"],
-    "الكي":           ["IRONING", "IRON"],
-    "الغسيل":         ["WASHING", "WASH", "LAUNDRY"],
-    "الطبخ":          ["COOKING", "COOK"],
-    "رعاية الأطفال":  ["CHILD CARE", "CHILDCARE", "BABYSITTING", "BABY SITTING"],
-    "رعاية المسنين":  ["ELDERLY CARE", "ELDER CARE", "ELDERLY"],
+    التنظيف: ["CLEANING", "CLEAN"],
+    الكي: ["IRONING", "IRON"],
+    الغسيل: ["WASHING", "WASH", "LAUNDRY"],
+    الطبخ: ["COOKING", "COOK"],
+    "رعاية الأطفال": ["CHILD CARE", "CHILDCARE", "BABYSITTING", "BABY SITTING"],
+    "رعاية المسنين": ["ELDERLY CARE", "ELDER CARE", "ELDERLY"],
     // TADBEER uses "جليسة أطفال" (babysitter) — with and without space between words
-    "جليسة أطفال":   ["BABY SITTING", "BABYSITTING", "BABYSITTER", "CHILD CARE", "CHILDCARE"],
-    "جليسةأطفال":    ["BABY SITTING", "BABYSITTING", "BABYSITTER", "CHILD CARE", "CHILDCARE"],
+    "جليسة أطفال": ["BABY SITTING", "BABYSITTING", "BABYSITTER", "CHILD CARE", "CHILDCARE"],
+    جليسةأطفال: ["BABY SITTING", "BABYSITTING", "BABYSITTER", "CHILD CARE", "CHILDCARE"],
   };
 
   const skillsUpper = (candidateSkills ?? "").toUpperCase();
 
   function hasSkill(keywords: string[]): boolean {
-    return keywords.some(k => skillsUpper.includes(k.toUpperCase()));
+    return keywords.some((k) => skillsUpper.includes(k.toUpperCase()));
   }
 
   const CHECK_VALUES = new Set([
-    "", "YES", "NO", "Yes", "No", "√", "✓", "•", "·", "X", "x", "O", "-", "/",
+    "",
+    "YES",
+    "NO",
+    "Yes",
+    "No",
+    "√",
+    "✓",
+    "•",
+    "·",
+    "X",
+    "x",
+    "O",
+    "-",
+    "/",
   ]);
 
-  const boldRun  = `<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Yes</w:t></w:r>`;
+  const boldRun = `<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>✓</w:t></w:r>`;
   const emptyRun = `<w:r><w:t></w:t></w:r>`;
 
   function replaceCell(cellSlice: string, isYes: boolean): string {
@@ -1416,13 +1663,14 @@ function fillSkillCheckboxes(xml: string, candidateSkills: string | null | undef
 
   // Arabic: checkmark cell is immediately BEFORE the Arabic skill label
   pos = 0;
-  let prevStart = -1, prevEnd = -1;
+  let prevStart = -1,
+    prevEnd = -1;
   while (pos < xml.length) {
     const cs = nextCell(xml, pos);
     if (cs === -1) break;
     const ce = outerCellEnd(xml, cs);
     if (ce === -1) break;
-    const raw  = cellText(xml, cs, ce);
+    const raw = cellText(xml, cs, ce);
     const norm = normLabel(raw);
     if (ARABIC_RE.test(raw) && norm in AR_SKILL_ALIASES && prevStart !== -1) {
       const prevRaw = cellText(xml, prevStart, prevEnd).trim();
@@ -1430,13 +1678,17 @@ function fillSkillCheckboxes(xml: string, candidateSkills: string | null | undef
         hits.push({ start: prevStart, end: prevEnd, isYes: hasSkill(AR_SKILL_ALIASES[norm]) });
     }
     prevStart = cs;
-    prevEnd   = ce;
+    prevEnd = ce;
     pos = ce + 7;
   }
 
   // Deduplicate, then apply in reverse offset order
   const seen = new Set<number>();
-  const unique = hits.filter(h => { if (seen.has(h.start)) return false; seen.add(h.start); return true; });
+  const unique = hits.filter((h) => {
+    if (seen.has(h.start)) return false;
+    seen.add(h.start);
+    return true;
+  });
   unique.sort((a, b) => b.start - a.start);
   for (const { start, end, isYes } of unique)
     xml = xml.slice(0, start) + replaceCell(xml.slice(start, end + 7), isYes) + xml.slice(end + 7);
@@ -1444,12 +1696,16 @@ function fillSkillCheckboxes(xml: string, candidateSkills: string | null | undef
   return xml;
 }
 
-export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedPassport = true): Promise<Uint8Array> {
+export async function buildFilledDocx(
+  template: CvTemplate,
+  c: Candidate,
+  embedPassport = true,
+): Promise<Uint8Array> {
   const res = await fetch(template.file_url, { mode: "cors" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const buf = await res.arrayBuffer();
   if (buf.byteLength < 100) throw new Error("Template file is empty");
-  const zip   = new PizZip(buf);
+  const zip = new PizZip(buf);
   const entry = zip.file("word/document.xml");
   if (!entry) throw new Error("word/document.xml missing");
   let xml = new TextDecoder("utf-8").decode(entry.asUint8Array());
@@ -1459,7 +1715,7 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
   let nextPicId = scanMaxDrawingId(xml) + 1;
 
   // Use Claude's label mapping if the template has metadata; otherwise fall back to standard labels
-  const meta = (template.metadata as TemplateMetadata | null | undefined);
+  const meta = template.metadata as TemplateMetadata | null | undefined;
   const fieldPairs: [string, string][] =
     meta?.fieldMap && Object.keys(meta.fieldMap).length > 0
       ? Object.entries(meta.fieldMap).map(([lbl, std]) => [lbl, getCandidateFieldValue(c, std)])
@@ -1468,7 +1724,8 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
   const tplName = template.name?.toLowerCase() ?? "";
   // TADBEER & Monaco value cells carry red <w:color> in their pPr/rPr; boldifyCell
   // strips that color (and adds bold) so filled values render black, not red.
-  const fillOpts = (tplName.includes("tadbeer") || tplName.includes("monaco")) ? { bold: true } : undefined;
+  const fillOpts =
+    tplName.includes("tadbeer") || tplName.includes("monaco") ? { bold: true } : undefined;
   const isJawa = tplName.includes("jawa");
 
   // Clear template-default checkmarks and place "√" next to the candidate's actual
@@ -1507,11 +1764,23 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
   // Try all common forms so the cell is always filled regardless of exact wording.
   if (tplName.includes("monaco")) {
     const nat = c.country || "Ethiopia";
-    for (const lbl of ["NATIONALITY", "NATIONAL", "CITIZEN", "CITIZENSHIP", "NATIONALITY OF EMPLOYEE", "EMPLOYEE NATIONALITY"]) {
+    for (const lbl of [
+      "NATIONALITY",
+      "NATIONAL",
+      "CITIZEN",
+      "CITIZENSHIP",
+      "NATIONALITY OF EMPLOYEE",
+      "EMPLOYEE NATIONALITY",
+    ]) {
       xml = fillField(xml, lbl, nat, { bold: true });
     }
     // "Position Applied" label → always "House Maid" regardless of occupation field
-    for (const lbl of ["POSITION APPLIED", "POSITION APPLIED FOR", "POST APPLIED", "POST APPLIED FOR"]) {
+    for (const lbl of [
+      "POSITION APPLIED",
+      "POSITION APPLIED FOR",
+      "POST APPLIED",
+      "POST APPLIED FOR",
+    ]) {
       xml = fillField(xml, lbl, "House Maid", { bold: true });
     }
     // Fill "Previous Employment Abroad" section (COUNTRY / POSITION / YEAR columns)
@@ -1522,13 +1791,13 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
   // (parsed from c.skills), blank for all others. Also strips template-default ✓/-.
   xml = fillSkillCheckboxes(xml, c.skills);
 
-  const relsPath  = "word/_rels/document.xml.rels";
+  const relsPath = "word/_rels/document.xml.rels";
   const relsEntry = zip.file(relsPath);
   let relsXml = relsEntry
     ? new TextDecoder().decode(relsEntry.asUint8Array())
     : `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`;
 
-  const ctPath  = "[Content_Types].xml";
+  const ctPath = "[Content_Types].xml";
   const ctEntry = zip.file(ctPath);
   let ctXml = ctEntry ? new TextDecoder().decode(ctEntry.asUint8Array()) : "";
 
@@ -1537,31 +1806,33 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
   // text boxes, plain anchors, and inline drawings — any structure any template uses).
   // Inject the candidate's photo/fullphoto, then auto-normalize the drawing so
   // docx-preview renders it correctly regardless of the original template structure.
-  const liveSlots    = liveExtractImageSlots(xml, relsXml);
-  const livePhoto     = liveSlots.find(s => s.purpose === "photo");
-  const liveFullPhoto = liveSlots.find(s => s.purpose === "fullphoto");
+  const liveSlots = liveExtractImageSlots(xml, relsXml);
+  const livePhoto = liveSlots.find((s) => s.purpose === "photo");
+  const liveFullPhoto = liveSlots.find((s) => s.purpose === "fullphoto");
 
   const injectPhotoSlot = async (slot: LiveSlot, src: string) => {
     const img = await fetchImgBytes(src);
     if (!img) return;
 
     // 1. Swap the image file in the zip
-    const base    = slot.target.replace(/[^/]*$/, "");
+    const base = slot.target.replace(/[^/]*$/, "");
     const newFile = `${base}cv_${slot.purpose}_${slot.rId}.${img.ext}`;
     if (zip.file(`word/${slot.target}`)) zip.remove(`word/${slot.target}`);
     zip.file(`word/${newFile}`, img.bytes);
 
     // 2. Point the relationship to the new file
     const esc = slot.rId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    relsXml = relsXml.replace(
-      new RegExp(`<Relationship\\b[^>]*\\bId="${esc}"[^>]*/>`),
-      (el) => el.replace(/\bTarget="[^"]*"/, `Target="${newFile}"`),
+    relsXml = relsXml.replace(new RegExp(`<Relationship\\b[^>]*\\bId="${esc}"[^>]*/>`), (el) =>
+      el.replace(/\bTarget="[^"]*"/, `Target="${newFile}"`),
     );
 
     // 3. Register new extension in [Content_Types].xml if needed
     if (ctXml && !ctXml.includes(`Extension="${img.ext}"`)) {
       const mime = img.ext === "png" ? "image/png" : "image/jpeg";
-      ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
+      ctXml = ctXml.replace(
+        "</Types>",
+        `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`,
+      );
     }
 
     // 4. Unwrap WPG anchor groups → plain <wp:inline> so docx-preview can render them.
@@ -1581,12 +1852,18 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
     //    Uses cell dims when fitDrawingToCell succeeded; falls back to slot dims.
     //    PDF path only — Word scales DOCX drawings natively.
     if (!embedPassport) {
-      const MAX_CX = 5_942_700, MAX_CY = 8_687_100;
+      const MAX_CX = 5_942_700,
+        MAX_CY = 8_687_100;
       const baseCx = fitted.cx > 0 ? fitted.cx : slot.cx;
       const baseCy = fitted.cy > 0 ? fitted.cy : slot.cy;
       if (baseCx > MAX_CX || baseCy > MAX_CY) {
         const scale = Math.min(MAX_CX / baseCx, MAX_CY / baseCy);
-        xml = fixInlineDrawingSize(xml, slot.rId, Math.round(baseCx * scale), Math.round(baseCy * scale));
+        xml = fixInlineDrawingSize(
+          xml,
+          slot.rId,
+          Math.round(baseCx * scale),
+          Math.round(baseCy * scale),
+        );
       }
     }
   };
@@ -1603,24 +1880,31 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
   if (metaImageCells.length > 0) {
     // Metadata path: Claude identified the exact placeholder cells at upload time.
     // Each cell.label IS the cell to replace (not adjacent), so use replaceImageCell.
-    let picId = nextPicId; nextPicId += metaImageCells.length + 1;
+    let picId = nextPicId;
+    nextPicId += metaImageCells.length + 1;
     for (const cell of metaImageCells) {
       if (cell.purpose === "passport") continue; // always a dedicated page, never in-cell
       const src =
-        cell.purpose === "fullphoto" ? (c.full_photo_url ?? c.photo_url) :
-        /* photo */                    (c.photo_url ?? c.full_photo_url);
+        cell.purpose === "fullphoto"
+          ? (c.full_photo_url ?? c.photo_url)
+          : /* photo */ (c.photo_url ?? c.full_photo_url);
       if (!src) continue;
       const img = await fetchImgBytes(src);
       if (!img) continue;
-      const rId   = `rIdCell_${cell.purpose}_${picId}`;
+      const rId = `rIdCell_${cell.purpose}_${picId}`;
       const fname = `media/cv_cell_${cell.purpose}_${picId}.${img.ext}`;
       zip.file(`word/${fname}`, img.bytes);
       if (!relsXml.includes(`Id="${rId}"`))
-        relsXml = relsXml.replace("</Relationships>",
-          `<Relationship Id="${rId}" Type="${IMG_REL}" Target="${fname}"/></Relationships>`);
+        relsXml = relsXml.replace(
+          "</Relationships>",
+          `<Relationship Id="${rId}" Type="${IMG_REL}" Target="${fname}"/></Relationships>`,
+        );
       if (ctXml && !ctXml.includes(`Extension="${img.ext}"`)) {
         const mime = img.ext === "png" ? "image/png" : "image/jpeg";
-        ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
+        ctXml = ctXml.replace(
+          "</Types>",
+          `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`,
+        );
       }
       const dims = await bytesToDims(img.bytes);
       // Exact match first; fall back to contains for Arabic/English mixed cells
@@ -1642,25 +1926,31 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
     if (fullPhotoSrc) {
       const img = await fetchImgBytes(fullPhotoSrc);
       if (img) {
-        const rId   = "rIdCvFullPhotoCell";
+        const rId = "rIdCvFullPhotoCell";
         const fname = `media/cv_fullphoto_cell.${img.ext}`;
         zip.file(`word/${fname}`, img.bytes);
         if (!relsXml.includes(`Id="${rId}"`))
-          relsXml = relsXml.replace("</Relationships>", `<Relationship Id="${rId}" Type="${IMG_REL}" Target="${fname}"/></Relationships>`);
+          relsXml = relsXml.replace(
+            "</Relationships>",
+            `<Relationship Id="${rId}" Type="${IMG_REL}" Target="${fname}"/></Relationships>`,
+          );
         if (ctXml && !ctXml.includes(`Extension="${img.ext}"`)) {
           const mime = img.ext === "png" ? "image/png" : "image/jpeg";
-          ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
+          ctXml = ctXml.replace(
+            "</Types>",
+            `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`,
+          );
         }
         const d = await bytesToDims(img.bytes);
-        xml = replaceImageCellContaining(xml, "FULL SIZE PHOTO",    rId, d.w, d.h, nextPicId++);
-        xml = replaceImageCellContaining(xml, "FULL SIZE PICTURE",  rId, d.w, d.h, nextPicId++);
-        xml = replaceImageCellContaining(xml, "FULL BODY PHOTO",    rId, d.w, d.h, nextPicId++);
-        xml = replaceImageCellContaining(xml, "FULL BODY PICTURE",  rId, d.w, d.h, nextPicId++);
-        xml = replaceImageCellContaining(xml, "FULL LENGTH PHOTO",  rId, d.w, d.h, nextPicId++);
-        xml = replaceImageCellContaining(xml, "FULL LENGTH",        rId, d.w, d.h, nextPicId++);
-        xml = replaceImageCellContaining(xml, "WHOLE BODY",         rId, d.w, d.h, nextPicId++);
-        xml = replaceImageCellContaining(xml, "BODY PHOTO",         rId, d.w, d.h, nextPicId++);
-        xml = replaceImageCellContaining(xml, "FULL PHOTO",         rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "FULL SIZE PHOTO", rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "FULL SIZE PICTURE", rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "FULL BODY PHOTO", rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "FULL BODY PICTURE", rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "FULL LENGTH PHOTO", rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "FULL LENGTH", rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "WHOLE BODY", rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "BODY PHOTO", rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "FULL PHOTO", rId, d.w, d.h, nextPicId++);
       }
     }
     // Passport-size photo — runs after full variants so generic "PHOTO" doesn't steal those cells
@@ -1668,20 +1958,26 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
     if (photoSrc) {
       const img = await fetchImgBytes(photoSrc);
       if (img) {
-        const rId   = "rIdCvPhotoCell";
+        const rId = "rIdCvPhotoCell";
         const fname = `media/cv_photo_cell.${img.ext}`;
         zip.file(`word/${fname}`, img.bytes);
         if (!relsXml.includes(`Id="${rId}"`))
-          relsXml = relsXml.replace("</Relationships>", `<Relationship Id="${rId}" Type="${IMG_REL}" Target="${fname}"/></Relationships>`);
+          relsXml = relsXml.replace(
+            "</Relationships>",
+            `<Relationship Id="${rId}" Type="${IMG_REL}" Target="${fname}"/></Relationships>`,
+          );
         if (ctXml && !ctXml.includes(`Extension="${img.ext}"`)) {
           const mime = img.ext === "png" ? "image/png" : "image/jpeg";
-          ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
+          ctXml = ctXml.replace(
+            "</Types>",
+            `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`,
+          );
         }
         const d = await bytesToDims(img.bytes);
-        xml = replaceImageCellContaining(xml, "4X4",         rId, d.w, d.h, nextPicId++);
-        xml = replaceImageCellContaining(xml, "PHOTOGRAPH",  rId, d.w, d.h, nextPicId++);
-        xml = replaceImageCellContaining(xml, "PICTURE",     rId, d.w, d.h, nextPicId++);
-        xml = replaceImageCellContaining(xml, "PHOTO",       rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "4X4", rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "PHOTOGRAPH", rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "PICTURE", rId, d.w, d.h, nextPicId++);
+        xml = replaceImageCellContaining(xml, "PHOTO", rId, d.w, d.h, nextPicId++);
       }
     }
     // Passport scan is never placed in a cell — always appended as a dedicated page below.
@@ -1692,20 +1988,25 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
   if (embedPassport && c.passport_scan_url) {
     const img = await fetchImgBytes(c.passport_scan_url);
     if (img) {
-      const rId   = "rIdCvPassportP2";
+      const rId = "rIdCvPassportP2";
       const fname = `media/cv_passport_p2.${img.ext}`;
       zip.file(`word/${fname}`, img.bytes);
       if (!relsXml.includes(`Id="${rId}"`))
-        relsXml = relsXml.replace("</Relationships>",
-          `<Relationship Id="${rId}" Type="${IMG_REL}" Target="${fname}"/></Relationships>`);
+        relsXml = relsXml.replace(
+          "</Relationships>",
+          `<Relationship Id="${rId}" Type="${IMG_REL}" Target="${fname}"/></Relationships>`,
+        );
       if (ctXml && !ctXml.includes(`Extension="${img.ext}"`)) {
         const mime = img.ext === "png" ? "image/png" : "image/jpeg";
-        ctXml = ctXml.replace("</Types>", `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`);
+        ctXml = ctXml.replace(
+          "</Types>",
+          `<Default Extension="${img.ext}" ContentType="${mime}"/></Types>`,
+        );
       }
-      const dims  = await bytesToDims(img.bytes);
+      const dims = await bytesToDims(img.bytes);
       // 60% of A4 printable width/height in EMU
-      const maxW  = Math.round(9360 / 1440 * 914400 * 0.60);
-      const maxH  = Math.round(12240 / 1440 * 914400 * 0.60);
+      const maxW = Math.round((9360 / 1440) * 914400 * 0.6);
+      const maxH = Math.round((12240 / 1440) * 914400 * 0.6);
       const scale = Math.min(maxW / dims.w, maxH / dims.h);
       const cxEmu = Math.round(dims.w * scale);
       const cyEmu = Math.round(dims.h * scale);
@@ -1735,11 +2036,12 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
         `</w:drawing></w:r></w:p>`,
       ].join("");
       // Find insertion point: just before the body-level <w:sectPr>.
-      const bodyPos        = xml.lastIndexOf("</w:body>");
+      const bodyPos = xml.lastIndexOf("</w:body>");
       const sectPrClosePos = xml.lastIndexOf("</w:sectPr>");
-      const sectPrOpenPos  = sectPrClosePos !== -1 && sectPrClosePos < bodyPos
-        ? xml.lastIndexOf("<w:sectPr", sectPrClosePos)
-        : -1;
+      const sectPrOpenPos =
+        sectPrClosePos !== -1 && sectPrClosePos < bodyPos
+          ? xml.lastIndexOf("<w:sectPr", sectPrClosePos)
+          : -1;
       const insertAt = sectPrOpenPos !== -1 ? sectPrOpenPos : bodyPos;
 
       let beforeInsert = xml.slice(0, insertAt);
@@ -1747,7 +2049,7 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
       // Returns true when the slice has balanced <w:tc> open/close counts,
       // meaning we are at body level and not mid-way through a table cell.
       const atBodyLevel = (slice: string): boolean => {
-        const opens  = (slice.match(/<w:tc[\s>]/g) ?? []).length;
+        const opens = (slice.match(/<w:tc[\s>]/g) ?? []).length;
         const closes = (slice.match(/<\/w:tc>/g) ?? []).length;
         return opens === closes;
       };
@@ -1795,7 +2097,11 @@ export async function buildFilledDocx(template: CvTemplate, c: Candidate, embedP
   if (ctXml) zip.file(ctPath, new TextEncoder().encode(ctXml));
 
   zip.file("word/document.xml", new TextEncoder().encode(xml));
-  const result = zip.generate({ type: "uint8array", compression: "DEFLATE", compressionOptions: { level: 6 } });
+  const result = zip.generate({
+    type: "uint8array",
+    compression: "DEFLATE",
+    compressionOptions: { level: 6 },
+  });
   validateDocxBytes(result);
   return result;
 }
@@ -1814,8 +2120,10 @@ function validateDocxBytes(bytes: Uint8Array): void {
   }
 
   const docEntry = zip.file("word/document.xml");
-  if (!docEntry) throw new Error("DOCX validation: word/document.xml is missing from the generated archive");
-  if (!zip.file("[Content_Types].xml")) throw new Error("DOCX validation: [Content_Types].xml is missing from the generated archive");
+  if (!docEntry)
+    throw new Error("DOCX validation: word/document.xml is missing from the generated archive");
+  if (!zip.file("[Content_Types].xml"))
+    throw new Error("DOCX validation: [Content_Types].xml is missing from the generated archive");
 
   const docXml = new TextDecoder("utf-8").decode(docEntry.asUint8Array());
 
@@ -1837,8 +2145,12 @@ function validateDocxBytes(bytes: Uint8Array): void {
     while ((m = embedRe.exec(docXml)) !== null) {
       const rId = m[1];
       if (!relsXml.includes(`Id="${rId}"`)) {
-        console.error(`[DOCX validation] r:embed="${rId}" has no matching relationship in document.xml.rels`);
-        throw new Error(`DOCX validation: r:embed="${rId}" in document.xml has no matching entry in document.xml.rels — the image reference is broken`);
+        console.error(
+          `[DOCX validation] r:embed="${rId}" has no matching relationship in document.xml.rels`,
+        );
+        throw new Error(
+          `DOCX validation: r:embed="${rId}" in document.xml has no matching entry in document.xml.rels — the image reference is broken`,
+        );
       }
     }
   }
@@ -1850,6 +2162,5 @@ function validateDocxBytes(bytes: Uint8Array): void {
 export function templateHasPassport(template: CvTemplate): boolean {
   const meta = template.metadata as TemplateMetadata | null | undefined;
   // Only imageCells (body cells) count — imageSlots can be in a DOCX header and would repeat.
-  return !!(meta?.imageCells?.some((c) => c.purpose === "passport"));
+  return !!meta?.imageCells?.some((c) => c.purpose === "passport");
 }
-
