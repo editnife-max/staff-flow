@@ -1087,12 +1087,18 @@ function StaffDashboard() {
   const daysSince = (d: string) =>
     Math.floor((today.getTime() - new Date(d + "T00:00:00").getTime()) / 86_400_000);
 
-  const noMedical5Days = candidates.filter((c) =>
-    c.status === "processing" && !c.medical_status && c.contract_date && daysSince(c.contract_date) >= 5
-  );
-  const noTasheer10Days = candidates.filter((c) =>
-    c.status === "processing" && !c.tasheer_status && c.contract_date && daysSince(c.contract_date) >= 10
-  );
+  const processingRef = (c: Candidate) =>
+    c.contract_date ?? c.created_at?.split("T")[0] ?? null;
+  const noMedical5Days = candidates.filter((c) => {
+    if (c.status !== "processing" || (c.medical_status && c.medical_status.trim() !== "")) return false;
+    const ref = processingRef(c);
+    return !!ref && daysSince(ref) >= 5;
+  });
+  const noTasheer10Days = candidates.filter((c) => {
+    if (c.status !== "processing" || (c.tasheer_status && c.tasheer_status.trim() !== "")) return false;
+    const ref = processingRef(c);
+    return !!ref && daysSince(ref) >= 10;
+  });
 
   return (
     <div className="space-y-6 mx-[79.6px]">
