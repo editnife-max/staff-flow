@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import type { Candidate, CvTemplate } from "@/lib/docx-fill";
 import { buildFilledDocx } from "@/lib/docx-fill";
-import { docxBytesToPdf, docxBytesToPdfPrint, downloadDocx, canvasToPdf } from "@/lib/pdf-export";
+import { docxBytesToPdf, docxBytesToPdfPrint, downloadDocx, canvasToPdf, convertDocxToPdfViaCloudmersive } from "@/lib/pdf-export";
 import { candidateToCanvas } from "@/components/cv-preview";
 
 export type { CvTemplate, Candidate };
@@ -75,6 +75,20 @@ export const SORT_FIELDS = [
 interface ActionDialogProps {
   candidates: Candidate[];
   onClose: () => void;
+}
+
+/** Returns a Windows-safe 12-hr datetime string, e.g. "2026-07-07 09-08 PM" */
+function fileTimestamp(): string {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm   = String(d.getMonth() + 1).padStart(2, "0");
+  const dd   = String(d.getDate()).padStart(2, "0");
+  let   h    = d.getHours();
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+  const hh  = String(h).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd} ${hh}-${min} ${ampm}`;
 }
 
 export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
@@ -142,12 +156,12 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
         toast.info(`Generating ${candidates.length} DOCX files — please wait…`);
         for (const c of sortedCandidates) {
           const bytes = await buildFilledDocx(matchedTemplate, c);
-          downloadDocx(bytes, `${c.full_name} — ${currentType.label}.docx`);
+          downloadDocx(bytes, `${c.full_name} — ${currentType.label} ${fileTimestamp()}.docx`);
         }
         toast.success(`${candidates.length} DOCX files downloaded`);
       } else {
         const bytes = await buildFilledDocx(matchedTemplate, preview);
-        downloadDocx(bytes, `${preview.full_name} — ${currentType.label}.docx`);
+        downloadDocx(bytes, `${preview.full_name} — ${currentType.label} ${fileTimestamp()}.docx`);
         toast.success(`${currentType.label} DOCX downloaded`);
       }
     } catch (e: any) {
@@ -163,14 +177,14 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
     try {
       if (isCV) {
         if (isBulk) {
-          toast.info(`Generating ${candidates.length} PDFs — please wait…`);
+          toast.info(`Generating ${candidates.length} PDFs via Cloudmersive — please wait…`);
           for (const c of sortedCandidates) {
             if (isDocxTemplate) {
-              const bytes = await buildFilledDocx(matchedTemplate!, c, false);
-              await docxBytesToPdf(bytes, `${c.full_name} — ${currentType.label}.pdf`, c.passport_scan_url ?? undefined);
+              const bytes = await buildFilledDocx(matchedTemplate!, c);
+              await convertDocxToPdfViaCloudmersive(bytes, `${c.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`);
             } else {
               const canvas = await candidateToCanvas(c, matchedTemplate);
-              await canvasToPdf(canvas, `${c.full_name} — ${currentType.label}.pdf`, c.passport_scan_url ?? undefined);
+              await canvasToPdf(canvas, `${c.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`, c.passport_scan_url ?? undefined);
             }
           }
           toast.success(`${candidates.length} PDFs downloaded`);
@@ -178,19 +192,19 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
           if (matchedTemplate) {
             const isDocx = matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
             if (isDocx) {
-              const bytes = await buildFilledDocx(matchedTemplate, preview!, false);
-              toast.info("Print dialog opening — select 'Save as PDF' to download");
-              await docxBytesToPdfPrint(bytes, `${preview!.full_name} — ${currentType.label}.pdf`, preview!.passport_scan_url ?? undefined);
+              const bytes = await buildFilledDocx(matchedTemplate, preview!);
+              toast.info("Converting to PDF via Cloudmersive — please wait…");
+              await convertDocxToPdfViaCloudmersive(bytes, `${preview!.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`);
             } else {
               const canvas = await candidateToCanvas(preview!, matchedTemplate);
-              await canvasToPdf(canvas, `${preview!.full_name} — ${currentType.label}.pdf`, preview!.passport_scan_url ?? undefined);
+              await canvasToPdf(canvas, `${preview!.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`, preview!.passport_scan_url ?? undefined);
             }
             toast.success(`${currentType.label} downloaded`);
           } else {
             if (downloadType !== "normal-cv")
               toast.info(`No template for "${currentType.label}" — using Normal CV format.`);
             const canvas = await candidateToCanvas(preview!, null);
-            await canvasToPdf(canvas, `${preview!.full_name} — ${currentType.label}.pdf`, preview!.passport_scan_url ?? undefined);
+            await canvasToPdf(canvas, `${preview!.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`, preview!.passport_scan_url ?? undefined);
             toast.success(`${currentType.label} downloaded`);
           }
         }
@@ -221,7 +235,8 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
         const { default: html2canvas } = await import("html2canvas");
         const canvas = await html2canvas(tableEl, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
         document.body.removeChild(tableEl);
-        const fileName = isBulk ? `${candidates.length} Candidates — Summary.pdf` : `${preview!.full_name} — Summary.pdf`;
+        const ts = fileTimestamp();
+        const fileName = isBulk ? `${candidates.length} Candidates — Summary ${ts}.pdf` : `${preview!.full_name} — Summary ${ts}.pdf`;
         await canvasToPdf(canvas, fileName);
         toast.success("Summary PDF downloaded");
 
@@ -247,8 +262,8 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
         const url  = URL.createObjectURL(blob);
         const a = document.createElement("a");
         const fileName = isBulk
-          ? `${candidates.length} Candidates — ${currentType.label}.xlsx`
-          : `${preview!.full_name} — ${currentType.label}.xlsx`;
+          ? `${candidates.length} Candidates — ${currentType.label} ${fileTimestamp()}.xlsx`
+          : `${preview!.full_name} — ${currentType.label} ${fileTimestamp()}.xlsx`;
         a.href = url; a.download = fileName;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 30_000);
