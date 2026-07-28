@@ -21,7 +21,6 @@ export const DOWNLOAD_TYPES = [
   { id: "summary-pdf",  label: "Download Summary (PDF)",    group: "export" as const },
   { id: "excel",        label: "Download Excel",            group: "export" as const },
   { id: "excel-ticket", label: "Download Excel for Ticket", group: "export" as const },
-  { id: "normal-cv",    label: "Normal CV",                 group: "cv"     as const },
 ];
 
 export const EXPORT_COLUMNS: { key: keyof Candidate; label: string }[] = [
@@ -201,8 +200,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
             }
             toast.success(`${currentType.label} downloaded`);
           } else {
-            if (downloadType !== "normal-cv")
-              toast.info(`No template for "${currentType.label}" — using Normal CV format.`);
+            toast.info(`No template for "${currentType.label}" — using Normal CV format.`);
             const canvas = await candidateToCanvas(preview!, null);
             await canvasToPdf(canvas, `${preview!.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`, preview!.passport_scan_url ?? undefined);
             toast.success(`${currentType.label} downloaded`);
@@ -394,7 +392,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
         {/* Footer */}
         <div className="px-6 py-3 border-t shrink-0 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            {isCV && downloadType !== "normal-cv" && !matchedTemplate && (
+            {isCV && !matchedTemplate && (
               <p className="text-xs text-muted-foreground">
                 No template for &ldquo;{currentType.label}&rdquo; — will download as Normal CV format.
               </p>
