@@ -2255,7 +2255,7 @@ function CandidateCard({
     { label: "AVAILABILITY", value: (() => { const v = candidate.availability_type ?? "available"; return v.charAt(0).toUpperCase() + v.slice(1); })(), edit: "select", field: "availability_type", options: ["Available", "Private", "Unavailable"] },
 
     { label: "SELECTED BY", value: candidate.selected_by ?? "", edit: "select", field: "selected_by", options: agencyOptions },
-    { label: "CONTRACT DATE", value: candidate.contract_date ?? "", edit: "date", field: "contract_date", showDays: true },
+    { label: "CONTRACT DATE", value: candidate.contract_date ? (() => { const d = new Date(candidate.contract_date + "T00:00:00"); const days = Math.floor((Date.now() - d.getTime()) / 86_400_000); return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) + ` (${days} day${days !== 1 ? "s" : ""})`; })() : "" },
     { label: "CV SENT TO", value: candidate.cv_sent_to ?? "", edit: "select", field: "cv_sent_to", options: agencyOptions },
     { label: "CV SENT DATE", value: candidate.cv_sent_date ? new Date(candidate.cv_sent_date).toLocaleDateString() : "—" },
     { label: "NARRATIVE", value: candidate.narrative ?? "", edit: "text", field: "narrative", long: true },
@@ -3088,8 +3088,16 @@ function ProcessingCard({
                           const days = Math.max(1, Math.floor((Date.now() - d.getTime()) / 86400000));
                           return <>{`${dd}/${mm}/${yyyy}`}<br /><span className="text-muted-foreground text-xs">({days} days ago)</span></>;
                         })()}</span>
+                      ) : col.key === "contract_date" ? (
+                        <span className="px-1 py-0.5 min-w-[60px] block">
+                          {strVal ? (() => {
+                            const fmt = new Date(strVal + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" });
+                            const days = Math.floor((Date.now() - new Date(strVal + "T00:00:00").getTime()) / 86_400_000);
+                            return <>{fmt}<span className="block text-[11px] text-muted-foreground leading-none mt-0.5">({days} day{days !== 1 ? "s" : ""})</span></>;
+                          })() : <span className="text-muted-foreground">—</span>}
+                        </span>
                       ) : (
-                        <InlineDate value={strVal} showDays={col.key === "contract_date"} onSave={(v) => handleColUpdate(col.key, v)} />
+                        <InlineDate value={strVal} showDays={false} onSave={(v) => handleColUpdate(col.key, v)} />
                       )
                     ) : col.type === "select" ? (
                       col.key === "unfilled_lmis" ? (
