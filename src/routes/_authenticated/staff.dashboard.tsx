@@ -1087,6 +1087,13 @@ function StaffDashboard() {
   const daysSince = (d: string) =>
     Math.floor((today.getTime() - new Date(d + "T00:00:00").getTime()) / 86_400_000);
 
+  const noMedical5Days = candidates.filter((c) =>
+    c.status === "processing" && !c.medical_status && c.contract_date && daysSince(c.contract_date) >= 5
+  );
+  const noTasheer10Days = candidates.filter((c) =>
+    c.status === "processing" && !c.tasheer_status && c.contract_date && daysSince(c.contract_date) >= 10
+  );
+
   return (
     <div className="space-y-6 mx-[79.6px]">
       <div className="flex items-center justify-between">
@@ -1121,8 +1128,43 @@ function StaffDashboard() {
       </div>
 
       {/* Alert sections */}
-      {(cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || cvOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0) && (
+      {(cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || cvOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0 || noMedical5Days.length > 0 || noTasheer10Days.length > 0) && (
         <div className="space-y-2">
+          <AlertSection icon={Stethoscope} title="No Medical — 5+ Days in Processing" iconColor="text-red-600 dark:text-red-400" pillKey="medical" candidates={noMedical5Days} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            exportCols={[...BASE, { key: "contract_date", label: "Contract Date" }, { key: "office", label: "Office" }, { key: "selected_by", label: "Selected By" }]}
+            renderBadge={(c) => c.contract_date ? (
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">
+                {daysSince(c.contract_date)}d
+              </span>
+            ) : null}
+            renderCardAction={(c) => (
+              <div className="flex gap-1">
+                <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={() => {
+                    handleUpdateField(c.id, "medical_status", "Fit");
+                    handleUpdateField(c.id, "medical_date", new Date().toISOString().split("T")[0]);
+                  }}>
+                  Fit
+                </Button>
+                <Button size="sm" variant="outline" className="h-6 text-[12px] px-2 rounded-none text-red-600 border-red-300 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
+                  onClick={() => handleUpdateField(c.id, "status", "canceled")}>
+                  Cancel
+                </Button>
+              </div>
+            )} />
+          <AlertSection icon={AlertTriangle} title="No Tasheer — 10+ Days in Processing" iconColor="text-violet-600 dark:text-violet-400" pillKey="tasheer" candidates={noTasheer10Days} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+            exportCols={[...BASE, { key: "contract_date", label: "Contract Date" }, { key: "office", label: "Office" }, { key: "selected_by", label: "Selected By" }]}
+            renderBadge={(c) => c.contract_date ? (
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
+                {daysSince(c.contract_date)}d
+              </span>
+            ) : null}
+            renderCardAction={(c) => (
+              <Button size="sm" variant="outline" className="h-6 text-[12px] px-2 rounded-none text-red-600 border-red-300 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
+                onClick={() => handleUpdateField(c.id, "status", "canceled")}>
+                Suggest Cancel
+              </Button>
+            )} />
           <AlertSection icon={FileCheck} title="COC — No" iconColor="text-orange-600 dark:text-orange-400" pillKey="coc" candidates={cocNo} onUpdateField={handleUpdateField} countryOptions={countryOptions}
             exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "coc_booked_date", label: "COC Booking Date" }, { key: "labour_id", label: "Labour ID" }, { key: "office", label: "Office" }, { key: "narrative", label: "Narrative" }, { key: "narrative_phone", label: "Narrative Phone" }]}
             renderBadge={(c) => (
