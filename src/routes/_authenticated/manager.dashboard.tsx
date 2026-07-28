@@ -694,12 +694,20 @@ function ManagerDashboard() {
   const processingRef = (c: Candidate) =>
     c.contract_date ?? c.created_at?.split("T")[0] ?? null;
   const noMedical5Days = candidates.filter((c) => {
-    if (c.status !== "processing" || (c.medical_status && c.medical_status.trim() !== "")) return false;
+    if (c.status !== "processing") return false;
+    const medNo = c.medical_status === "No";
+    const medEmpty = !c.medical_status || c.medical_status.trim() === "";
+    if (!medNo && !medEmpty) return false;
+    if (medNo) return true;
     const ref = processingRef(c);
     return !!ref && daysSince(ref) >= 5;
   });
   const noTasheer10Days = candidates.filter((c) => {
-    if (c.status !== "processing" || (c.tasheer_status && c.tasheer_status.trim() !== "")) return false;
+    if (c.status !== "processing") return false;
+    const tasheerNo = c.tasheer_status === "No";
+    const tasheerEmpty = !c.tasheer_status || c.tasheer_status.trim() === "";
+    if (!tasheerNo && !tasheerEmpty) return false;
+    if (tasheerNo) return true;
     const ref = processingRef(c);
     return !!ref && daysSince(ref) >= 10;
   });
