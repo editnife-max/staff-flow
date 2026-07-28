@@ -667,8 +667,16 @@ function StaffCandidatesPage() {
 
   const filtered = useMemo(() => {
     let list = candidates.filter((c) => c.status === tab);
-    // Processing tab handles its own filtering inside ProcessingTable
-    if (tab === "processing") return list;
+    if (tab === "processing") {
+      return [...list].sort((a, b) => {
+        const ad = a.contract_date ?? "";
+        const bd = b.contract_date ?? "";
+        const byCd = bd.localeCompare(ad);
+        if (byCd !== 0) return byCd;
+        const byCreated = b.created_at.localeCompare(a.created_at);
+        return byCreated !== 0 ? byCreated : a.id.localeCompare(b.id);
+      });
+    }
     if (passport) {
       const q = passport.toLowerCase();
       
