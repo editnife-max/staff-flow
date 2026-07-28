@@ -1878,9 +1878,12 @@ function CandidateCardList({
     }
   }, [candidates]);
 
+  const matchesCountry = (c: Candidate, country: string) =>
+    c.destination_country === country || c.musaned_status === country;
+
   const filtered = useMemo(() => {
     let list = candidates;
-    if (activeCountryTab !== "all") list = list.filter((c) => c.musaned_status === activeCountryTab);
+    if (activeCountryTab !== "all") list = list.filter((c) => matchesCountry(c, activeCountryTab));
     if (activeOfficeTab !== "all") list = list.filter((c) => c.office === activeOfficeTab);
     return list;
   }, [candidates, activeCountryTab, activeOfficeTab]);
@@ -1909,7 +1912,7 @@ function CandidateCardList({
                 All ({candidates.length})
               </button>
               {countryMeta.map((c) => {
-                const count = candidates.filter((cand) => cand.musaned_status === c.name).length;
+                const count = candidates.filter((cand) => matchesCountry(cand, c.name)).length;
                 return (
                   <button key={c.name} type="button"
                     onClick={() => { setActiveCountryTab(activeCountryTab === c.name ? "all" : c.name); setActiveOfficeTab("all"); }}
@@ -1937,7 +1940,7 @@ function CandidateCardList({
                 All offices
               </button>
               {(officesByCountry[activeCountryTab] ?? []).map((office) => {
-                const count = candidates.filter((c) => c.musaned_status === activeCountryTab && c.office === office).length;
+                const count = candidates.filter((c) => matchesCountry(c, activeCountryTab) && c.office === office).length;
                 return (
                   <button key={office} type="button"
                     onClick={() => setActiveOfficeTab(activeOfficeTab === office ? "all" : office)}
