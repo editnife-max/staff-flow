@@ -2638,6 +2638,7 @@ function CandidateCard({
 }
 
 const INITIAL_PROC_FILTERS = {
+  sort:             "newest",
   narrative:        [] as string[],
   medical_status:   [] as string[],
   coc_status:       [] as string[],
@@ -2718,7 +2719,9 @@ function ProcessingTable({
     ];
   }, [countryMeta]);
 
-  const activeCount = Object.values(procFilters).filter((v) => Array.isArray(v) ? v.length > 0 : v !== "all").length;
+  const activeCount = Object.entries(procFilters).filter(([k, v]) =>
+    k !== "sort" && (Array.isArray(v) ? v.length > 0 : v !== "all")
+  ).length;
 
   const narrativeOpts = useMemo(() =>
     Array.from(new Set(candidates.map((c) => (c.narrative as string | null) ?? "").filter(Boolean))).sort(),
@@ -2748,8 +2751,17 @@ function ProcessingTable({
     if (f.ticket_status.length > 0)    list = list.filter((c) => f.ticket_status.includes(c.ticket_status ?? ""));
     if (f.arrival_city.length > 0)     list = list.filter((c) => f.arrival_city.includes(c.arrival_city ?? ""));
     if (f.selected_by.length > 0)      list = list.filter((c) => f.selected_by.includes(c.selected_by ?? ""));
-    return list;
-  }, [candidates, activeCountryTab, activeOfficeTab, search, f.narrative, f.medical_status, f.coc_status, f.tasheer_status, f.wokala_status,
+    return [...list].sort((a, b) => {
+      const ad = a.contract_date ?? "";
+      const bd = b.contract_date ?? "";
+      const byCd = f.sort === "oldest" ? ad.localeCompare(bd) : bd.localeCompare(ad);
+      if (byCd !== 0) return byCd;
+      const byCreated = f.sort === "oldest"
+        ? a.created_at.localeCompare(b.created_at)
+        : b.created_at.localeCompare(a.created_at);
+      return byCreated !== 0 ? byCreated : a.id.localeCompare(b.id);
+    });
+  }, [candidates, activeCountryTab, activeOfficeTab, search, f.sort, f.narrative, f.medical_status, f.coc_status, f.tasheer_status, f.wokala_status,
       f.visa_status, f.insurance_status, f.unfilled_lmis, f.lmis_status,
       f.ticket_status, f.arrival_city, f.selected_by]);
 
@@ -2847,6 +2859,9 @@ function ProcessingTable({
           </div>
           {showFilters && (
             <div className="mt-3 flex flex-wrap gap-5">
+              <FilterSelect value={f.sort} onChange={(v) => setProcFilters((p) => ({ ...p, sort: v }))}
+                icon={ArrowUpDown}
+                options={[{ value: "newest", label: "Date (Newest)" }, { value: "oldest", label: "Date (Oldest)" }]} />
               <MultiFilterSelect placeholder="Narrative" values={f.narrative} onChange={setMulti("narrative")} options={[{ value: "", label: "Not Selected" }, ...narrativeOpts.map((o) => ({ value: o, label: o }))]} />
               <MultiFilterSelect placeholder="Medical" values={f.medical_status} onChange={setMulti("medical_status")} options={[{ value: "", label: "Not Selected" }, ...MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))]} />
               <MultiFilterSelect placeholder="COC" values={f.coc_status} onChange={setMulti("coc_status")} options={[{ value: "", label: "Not Selected" }, ...COC_OPTIONS.map((o) => ({ value: o, label: o }))]} />
