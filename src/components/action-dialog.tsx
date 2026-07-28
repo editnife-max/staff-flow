@@ -104,7 +104,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
     },
   });
 
-  const [downloadType, setDownloadType] = useState("normal-cv");
+  const [downloadType, setDownloadType] = useState("summary-pdf");
   const [sortBy,       setSortBy]       = useState("full_name");
   const [sortDir,      setSortDir]      = useState<"asc" | "desc">("asc");
   const [selectedCols, setSelectedCols] = useState<Set<string>>(new Set(DEFAULT_EXPORT_COLS));
@@ -127,9 +127,9 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
     ...templates.map((t) => ({ id: t.id, label: t.name, group: "cv" as const })),
   ];
 
-  const currentType     = allDownloadTypes.find((t) => t.id === downloadType) ?? DOWNLOAD_TYPES[3];
+  const currentType     = allDownloadTypes.find((t) => t.id === downloadType) ?? DOWNLOAD_TYPES[0];
   const isCV            = currentType.group === "cv";
-  const matchedTemplate = isCV && downloadType !== "normal-cv"
+  const matchedTemplate = isCV
     ? templates.find((t) => t.id === downloadType) ?? null
     : null;
   const isDocxTemplate  = !!matchedTemplate && matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
@@ -200,7 +200,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
             }
             toast.success(`${currentType.label} downloaded`);
           } else {
-            toast.info(`No template for "${currentType.label}" — using Normal CV format.`);
+            toast.info(`No template found for "${currentType.label}" — downloading basic CV.`);
             const canvas = await candidateToCanvas(preview!, null);
             await canvasToPdf(canvas, `${preview!.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`, preview!.passport_scan_url ?? undefined);
             toast.success(`${currentType.label} downloaded`);
@@ -394,7 +394,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
           <div className="flex items-center gap-3">
             {isCV && !matchedTemplate && (
               <p className="text-xs text-muted-foreground">
-                No template for &ldquo;{currentType.label}&rdquo; — will download as Normal CV format.
+                No template found for &ldquo;{currentType.label}&rdquo; — will download as basic CV.
               </p>
             )}
           </div>
