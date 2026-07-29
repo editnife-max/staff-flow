@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useState, useEffect, useRef } from "react";
 import {
@@ -504,6 +504,7 @@ function AlertSection({
 function ManagerDashboard() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["dashboard-candidates", user?.id],
@@ -770,7 +771,10 @@ function ManagerDashboard() {
                   Fit
                 </Button>
                 <Button size="sm" variant="outline" className="h-6 text-[12px] px-2 rounded-none text-red-600 border-red-300 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
-                  onClick={() => handleUpdateField(c.id, "status", "canceled")}>
+                  onClick={() => {
+                    handleUpdateField(c.id, "status", "canceled");
+                    navigate({ to: "/manager/candidates", search: { tab: "canceled" } });
+                  }}>
                   Cancel
                 </Button>
               </div>
@@ -785,7 +789,10 @@ function ManagerDashboard() {
             ) : null}
             renderCardAction={(c) => (
               <Button size="sm" variant="outline" className="h-6 text-[12px] px-2 rounded-none text-red-600 border-red-300 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
-                onClick={() => handleUpdateField(c.id, "status", "canceled")}>
+                onClick={() => {
+                  handleUpdateField(c.id, "status", "canceled");
+                  navigate({ to: "/manager/candidates", search: { tab: "canceled" } });
+                }}>
                 Suggest Cancel
               </Button>
             )} />

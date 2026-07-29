@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { z } from "zod";
 import { ActionDialog } from "@/components/action-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -44,6 +45,7 @@ type Candidate = Database["public"]["Tables"]["candidates"]["Row"] & {
 
 export const Route = createFileRoute("/_authenticated/manager/candidates")({
   head: () => ({ meta: [{ title: "Candidates — Staff-Flow" }] }),
+  validateSearch: z.object({ tab: z.enum(["available", "processing", "arrived", "returned", "canceled"]).optional() }),
   component: ManagerCandidatesPage,
 });
 
@@ -394,6 +396,7 @@ function ManagerCandidatesPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const { tab: tabParam } = Route.useSearch();
   const upsert = useServerFn(upsertCandidate);
   const remove = useServerFn(deleteCandidate);
   const bulkDel    = useServerFn(bulkDeleteCandidates);
@@ -406,7 +409,8 @@ function ManagerCandidatesPage() {
   const clearSelection = () => setSelected(new Set());
   const [actionCandidates, setActionCandidates] = useState<Candidate[]>([]);
 
-  const [tab, setTab] = useState<Status>("available");
+  const [tab, setTab] = useState<Status>(tabParam ?? "available");
+  useEffect(() => { if (tabParam) setTab(tabParam); }, [tabParam]);
   const [passport, setPassport] = useState("");
   const [showFilters, setShowFilters] = useState(true);
   const [showSearch, setShowSearch] = useState(false);
