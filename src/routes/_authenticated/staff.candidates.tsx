@@ -31,7 +31,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   upsertCandidate, deleteCandidate, updateCandidateField,
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff, bulkUpdateField,
-  bulkImportCandidates,
+  bulkImportCandidates, nextCandidateCode,
 } from "@/lib/candidates.functions";
 import { UserCheck, X, Download, Play } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
@@ -423,12 +423,13 @@ function StaffCandidatesPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const upsert = useServerFn(upsertCandidate);
-  const remove = useServerFn(deleteCandidate);
-  const bulkDel = useServerFn(bulkDeleteCandidates);
-  const bulkStatus = useServerFn(bulkUpdateStatus);
-  const bulkAssign = useServerFn(bulkAssignStaff);
-  const bulkField = useServerFn(bulkUpdateField);
+  const upsert      = useServerFn(upsertCandidate);
+  const remove      = useServerFn(deleteCandidate);
+  const bulkDel     = useServerFn(bulkDeleteCandidates);
+  const bulkStatus  = useServerFn(bulkUpdateStatus);
+  const bulkAssign  = useServerFn(bulkAssignStaff);
+  const bulkField   = useServerFn(bulkUpdateField);
+  const getNextCode = useServerFn(nextCandidateCode);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const toggleSelect = (id: string) =>
     setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -898,16 +899,16 @@ function StaffCandidatesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const openCreate = () => {
-    let max = 0;
-    for (const c of candidates) {
-      const m = (c.candidate_code ?? "").match(/(\d+)$/);
-      if (m) max = Math.max(max, parseInt(m[1], 10));
-    }
-    const nextCode = `C-${String(max + 1).padStart(4, "0")}`;
+  const openCreate = async () => {
     setEditing(null);
-    setForm({ ...initialForm, status: tab, candidate_code: nextCode });
+    setForm({ ...initialForm, status: tab, candidate_code: "" });
     setOpen(true);
+    try {
+      const { code } = await getNextCode({});
+      setForm((prev) => ({ ...prev, candidate_code: code }));
+    } catch {
+      // Server will auto-assign on save; leave field empty
+    }
   };
   const openEdit = (c: Candidate) => {
     setEditing(c);

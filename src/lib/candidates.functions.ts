@@ -120,6 +120,15 @@ async function resolveManagerId(userId: string): Promise<string> {
   throw new Response("No manager scope", { status: 403 });
 }
 
+export const nextCandidateCode = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    const { data, error } = await (supabaseAdmin as any).rpc("next_candidate_code", { p_manager_id: managerId });
+    if (error) throw new Error(error.message);
+    return { code: data as string };
+  });
+
 export const upsertCandidate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
@@ -195,10 +204,20 @@ export const upsertCandidate = createServerFn({ method: "POST" })
         .maybeSingle();
       if (profile?.full_name) createdByName = profile.full_name.trim().split(/\s+/)[0];
     }
+    // Auto-generate a unique, ever-increasing candidate code if one wasn't supplied
+    let candidateCode = data.data.candidate_code?.trim() || null;
+    if (!candidateCode) {
+      const { data: codeData, error: codeErr } = await (supabaseAdmin as any)
+        .rpc("next_candidate_code", { p_manager_id: managerId });
+      if (codeErr) throw new Error(codeErr.message);
+      candidateCode = codeData as string;
+    }
+
     const { data: row, error } = await supabaseAdmin
       .from("candidates")
       .insert({
         ...autoCountryPatch(data.data),
+        candidate_code: candidateCode,
         manager_id: managerId,
         created_by_user_id: context.userId,
         created_by_name: createdByName,
