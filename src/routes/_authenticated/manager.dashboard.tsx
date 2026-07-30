@@ -592,6 +592,7 @@ function ManagerDashboard() {
         fieldMut.mutate({ id, field: "ticket_status", value: "Ready" });
       else if (value !== "Issued" && c?.ticket_status === "Ready")
         fieldMut.mutate({ id, field: "ticket_status", value: null });
+      if (!value) fieldMut.mutate({ id, field: "embassy_date", value: null });
       if (value === "Sent to Embassy" && (c as any)?.embassy_date)
         setEmbassyOverwrite(id);
     }

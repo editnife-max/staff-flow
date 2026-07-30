@@ -3248,6 +3248,7 @@ function ProcessingCard({
     }
     onUpdateField(colKey, value);
     if (colKey === "medical_status" && value === "Fit") onUpdateField("lmis_status", "Not tested");
+    if (colKey === "visa_status" && !value) onUpdateField("embassy_date", null);
     if (colKey === "visa_status" && value === "Sent to Embassy" && (candidate as any).embassy_date)
       setEmbassyOverwriteOpen(true);
   }
