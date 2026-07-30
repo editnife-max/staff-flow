@@ -438,7 +438,6 @@ function StaffCandidatesPage() {
 
   const [tab, setTab] = useState<Status>("available");
   const [passport, setPassport] = useState("");
-  const [showFilters, setShowFilters] = useState(true);
   const [filters, setFilters] = useState(initialFilters);
   const activeCount = Object.entries(filters).filter(([k, v]) =>
     k !== "sort" && (Array.isArray(v) ? v.length > 0 : v && v !== "all")
@@ -999,20 +998,14 @@ function StaffCandidatesPage() {
       {tab !== "processing" && <Card className="rounded-none">
         <CardContent className="p-4">
           <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={() => setShowFilters((s) => !s)}
-              className="flex items-center gap-2 text-xs font-bold text-foreground hover:text-primary transition-colors"
-            >
+            <div className="flex items-center gap-2">
               <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
-              Filters
               {activeCount > 0 && (
                 <span className="rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
                   {activeCount}
                 </span>
               )}
-              {showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            </button>
+            </div>
             <Button
               size="sm"
               variant="ghost"
@@ -1023,8 +1016,6 @@ function StaffCandidatesPage() {
               <RotateCcw className="h-3.5 w-3.5" /> Reset
             </Button>
           </div>
-          {showFilters && (
-          <>
           <div className="mt-3 flex flex-wrap items-center gap-5">
             <FilterSelect value={filters.sort} onChange={(v) => setFilters({ ...filters, sort: v })}
               icon={ArrowUpDown}
@@ -1081,8 +1072,6 @@ function StaffCandidatesPage() {
               />
             </div>
           </div>
-          </>
-          )}
           <div className="mt-2 text-xs text-muted-foreground">
             <span className="font-semibold text-foreground">{filtered.length}</span> candidate{filtered.length !== 1 ? "s" : ""} found
           </div>
@@ -2437,7 +2426,6 @@ function ProcessingTable({
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set(["destination_country", "office"]));
   const [showColPicker, setShowColPicker] = useState(false);
-  const [showFilters, setShowFilters] = useState(true);
   const [search, setSearch] = useState("");
   const [procFilters, setProcFilters] = useState(INITIAL_PROC_FILTERS);
   const [activeCountryTab, setActiveCountryTab] = useState("all");
@@ -2577,23 +2565,19 @@ function ProcessingTable({
       {<Card className="rounded-none">
         <CardContent className="p-3">
           <div className="flex items-center justify-between gap-2">
-            <button type="button" onClick={() => setShowFilters((s) => !s)}
-              className="flex items-center gap-2 text-xs font-bold text-foreground hover:text-primary transition-colors">
+            <div className="flex items-center gap-2">
               <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
-              Filters
               {activeCount > 0 && (
                 <span className="rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
                   {activeCount}
                 </span>
               )}
-              {showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            </button>
+            </div>
             <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs font-bold text-black ml-auto"
-              onClick={() => { setProcFilters(INITIAL_PROC_FILTERS); setSearch(""); setShowSearch(false); }} disabled={activeCount === 0 && !search}>
+              onClick={() => { setProcFilters(INITIAL_PROC_FILTERS); setSearch(""); }} disabled={activeCount === 0 && !search}>
               <RotateCcw className="h-3.5 w-3.5" /> Reset
             </Button>
           </div>
-          {showFilters && (
             <div className="mt-3 flex flex-wrap items-center gap-5">
               <FilterSelect value={f.sort} onChange={(v) => setProcFilters((p) => ({ ...p, sort: v }))}
                 icon={ArrowUpDown}
@@ -2632,7 +2616,6 @@ function ProcessingTable({
                 />
               </div>
             </div>
-          )}
           <div className="mt-2 text-xs text-muted-foreground">
             <span className="font-semibold text-foreground">{filteredCandidates.length}</span> candidate{filteredCandidates.length !== 1 ? "s" : ""} found
           </div>
