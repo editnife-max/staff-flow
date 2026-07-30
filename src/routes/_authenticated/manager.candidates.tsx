@@ -2197,70 +2197,7 @@ function CandidateCardList({
   );
 }
 
-type VideoKind = "video" | "youtube" | "gdrive";
-function detectVideo(url: string): { kind: VideoKind; embedSrc: string } {
-  const yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-  if (yt) return { kind: "youtube", embedSrc: `https://www.youtube.com/embed/${yt[1]}?autoplay=1&rel=0` };
-  const gd = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
-  if (gd) return { kind: "gdrive", embedSrc: `https://drive.google.com/file/d/${gd[1]}/view` };
-  return { kind: "video", embedSrc: url };
-}
-
-function VideoPlayDialog({ url, onClose }: { url: string; onClose: () => void }) {
-  const { kind, embedSrc } = detectVideo(url);
-  const handleDownload = async () => {
-    try {
-      const res = await fetch(url);
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      const ext = url.split("?")[0].split(".").pop() ?? "mp4";
-      a.download = `video.${ext}`;
-      a.click();
-      URL.revokeObjectURL(blobUrl);
-    } catch {
-      window.open(url, "_blank");
-    }
-  };
-  return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-2xl rounded-none p-0 overflow-hidden">
-        {kind === "youtube" ? (
-          <div className="w-full bg-black" style={{ aspectRatio: "16/9" }}>
-            <iframe
-              src={embedSrc}
-              className="w-full h-full border-0"
-              allow="autoplay; fullscreen; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
-        ) : kind === "gdrive" ? (
-          <div className="flex flex-col items-center justify-center gap-4 bg-black text-white p-10" style={{ aspectRatio: "16/9" }}>
-            <p className="text-sm text-gray-300">Google Drive videos cannot be embedded here.</p>
-            <Button onClick={() => window.open(embedSrc, "_blank")} className="gap-2">
-              Open in Google Drive
-            </Button>
-          </div>
-        ) : (
-          <div className="w-full bg-black" style={{ aspectRatio: "16/9" }}>
-            <video key={url} src={url} controls autoPlay playsInline className="w-full h-full" />
-          </div>
-        )}
-        {kind === "video" && (
-          <div className="flex justify-end gap-2 p-3">
-            <Button size="sm" variant="outline" className="rounded-none gap-1 text-xs" onClick={handleDownload}>
-              <Download className="h-3 w-3" /> Download
-            </Button>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function VideoCell({ url, onSave }: { url: string | null; onSave: (v: string | null) => void }) {
-  const [playOpen, setPlayOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(url ?? "");
 
@@ -2289,8 +2226,7 @@ function VideoCell({ url, onSave }: { url: string | null; onSave: (v: string | n
         const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = blobUrl;
-        const ext = url.split("?")[0].split(".").pop() ?? "mp4";
-        a.download = `video.${ext}`;
+        a.download = "video.mp4";
         a.click();
         URL.revokeObjectURL(blobUrl);
       } catch {
@@ -2300,7 +2236,7 @@ function VideoCell({ url, onSave }: { url: string | null; onSave: (v: string | n
     return (
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-1.5">
-          <button type="button" onClick={() => setPlayOpen(true)}
+          <button type="button" onClick={() => window.open(url, "_blank")}
             className="flex items-center gap-0.5 text-[11px] text-primary hover:underline font-medium">
             <Play className="h-3 w-3 fill-current" /> Play
           </button>
@@ -2313,7 +2249,6 @@ function VideoCell({ url, onSave }: { url: string | null; onSave: (v: string | n
           className="text-[10px] text-muted-foreground hover:underline text-left">
           Change
         </button>
-        {playOpen && <VideoPlayDialog url={url} onClose={() => setPlayOpen(false)} />}
       </div>
     );
   }
