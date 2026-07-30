@@ -1117,6 +1117,7 @@ function StaffDashboard() {
   });
 
   return (
+    <>
     <div className="space-y-6 mx-[79.6px]">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold tracking-tight">Dashboard</h1>
@@ -1427,5 +1428,6 @@ function StaffDashboard() {
         </Dialog>
       ) : null;
     })()}
+    </>
   );
 }

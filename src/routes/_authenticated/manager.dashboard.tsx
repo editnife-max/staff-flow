@@ -729,6 +729,7 @@ function ManagerDashboard() {
     lmisDraftImported.length > 0 || noMedical5Days.length > 0 || noTasheer10Days.length > 0;
 
   return (
+    <>
     <div className="space-y-6 mx-[79.6px]">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold tracking-tight">Dashboard</h1>
@@ -1038,5 +1039,6 @@ function ManagerDashboard() {
         </Dialog>
       ) : null;
     })()}
+    </>
   );
 }
