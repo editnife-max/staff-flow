@@ -935,8 +935,6 @@ function StaffDashboard() {
     },
   });
 
-  const [embassyOverwrite, setEmbassyOverwrite] = useState<string | null>(null);
-
   const fieldMut = useMutation({
     mutationFn: async (input: { id: string; field: string; value: string | null }) =>
       updateFieldFn({ data: input as never }),
@@ -985,12 +983,6 @@ function StaffDashboard() {
         fieldMut.mutate({ id, field: "ticket_status", value: "Ready" });
       else if (value !== "Issued" && c?.ticket_status === "Ready")
         fieldMut.mutate({ id, field: "ticket_status", value: null });
-      if (value === "Sent to Embassy") {
-        if (!(c as any)?.embassy_date)
-          fieldMut.mutate({ id, field: "embassy_date", value: new Date().toISOString().split("T")[0] });
-        else
-          setEmbassyOverwrite(id);
-      }
     }
   };
 
@@ -1407,27 +1399,6 @@ function StaffDashboard() {
         </div>
       )}
     </div>
-    {embassyOverwrite && (() => {
-      const c = candidates.find((c) => c.id === embassyOverwrite);
-      return c ? (
-        <Dialog open onOpenChange={(o) => { if (!o) setEmbassyOverwrite(null); }}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader><DialogTitle>Overwrite Embassy Date?</DialogTitle></DialogHeader>
-            <p className="text-sm text-muted-foreground">
-              Embassy date for <strong>{c.full_name}</strong> is already set to{" "}
-              <strong>{new Date((c as any).embassy_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</strong>.
-              Replace with today's date?
-            </p>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setEmbassyOverwrite(null)}>No, keep existing</Button>
-              <Button onClick={() => { fieldMut.mutate({ id: embassyOverwrite, field: "embassy_date", value: new Date().toISOString().split("T")[0] }); setEmbassyOverwrite(null); }}>
-                Yes, update to today
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      ) : null;
-    })()}
     </>
   );
 }
