@@ -2192,23 +2192,19 @@ function VideoCell({ url, onSave, candidateName }: { url: string | null; onSave:
       ? `https://drive.google.com/uc?export=download&id=${gdMatch[1]}`
       : url;
 
-    const handleDownload = async () => {
+    const handleDownload = () => {
       if (gdMatch) {
         window.open(downloadUrl, "_blank");
         return;
       }
-      try {
-        const res = await fetch(url);
-        const blob = await res.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = blobUrl;
-        a.download = fileName;
-        a.click();
-        URL.revokeObjectURL(blobUrl);
-      } catch {
-        window.open(url, "_blank");
-      }
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     };
     return (
       <div className="flex flex-col gap-0.5">
