@@ -33,7 +33,7 @@ import {
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff, bulkUpdateField,
   bulkImportCandidates, nextCandidateCode,
 } from "@/lib/candidates.functions";
-import { UserCheck, X, Download, Play } from "lucide-react";
+import { UserCheck, X, Download, Play, Undo2 } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import * as XLSX from "xlsx";
 
@@ -1346,6 +1346,17 @@ function StaffCandidatesPage() {
           }
           onUpdateField={handleCocAwareUpdate}
           onReturn={tab === "arrived" ? (id) => fieldMut.mutate({ id, field: "status", value: "returned" }) : undefined}
+          onUndo={
+            (tab === "arrived" || tab === "returned" || tab === "canceled")
+              ? (id, c) => {
+                  const prev =
+                    tab === "arrived" ? "processing" :
+                    tab === "returned" ? "arrived" :
+                    (c as any).visa_status ? "processing" : "available";
+                  fieldMut.mutate({ id, field: "status", value: prev });
+                }
+              : undefined
+          }
           countryMeta={countryMeta}
           officesByCountry={officesByCountry}
           agencyOptions={agencyOptions}
@@ -1819,7 +1830,7 @@ type EditableField =
   | "availability_type" | "video_url";
 
 function CandidateCardList({
-  candidates, selected, onToggleSelect, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn,
+  candidates, selected, onToggleSelect, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo,
   countryMeta, officesByCountry, agencyOptions, agencyPhones,
 }: {
   candidates: Candidate[];
@@ -1831,6 +1842,7 @@ function CandidateCardList({
   onUpdateField: (id: string, field: string, value: string | null) => void;
   cancelMode?: boolean;
   onReturn?: (id: string) => void;
+  onUndo?: (id: string, c: Candidate) => void;
   countryMeta: Array<{ name: string; flag: string }>;
   officesByCountry: Record<string, string[]>;
   agencyOptions: string[];
@@ -2039,6 +2051,7 @@ function CandidateCardList({
                   onDelete={() => onDelete(c.id)}
                   onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
                   onReturn={onReturn ? () => onReturn(c.id) : undefined}
+                  onUndo={onUndo ? () => onUndo(c.id, c) : undefined}
                   agencyOptions={agencyOptions}
                   agencyPhones={agencyPhones}
                   countryOptions={countryOptions}
@@ -2204,7 +2217,7 @@ function VideoCell({ url, onSave }: { url: string | null; onSave: (v: string | n
 }
 
 function CandidateCard({
-  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, agencyOptions, agencyPhones, countryOptions,
+  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo, agencyOptions, agencyPhones, countryOptions,
 }: {
   candidate: Candidate;
   selected: boolean;
@@ -2217,6 +2230,7 @@ function CandidateCard({
   onDelete: () => void;
   onUpdateField: (field: EditableField, value: string | null) => void;
   onReturn?: () => void;
+  onUndo?: () => void;
   agencyOptions: string[];
   agencyPhones: Record<string, string>;
   countryOptions: string[];
@@ -2383,6 +2397,11 @@ function CandidateCard({
             <button onClick={onEdit} className="text-xs text-primary hover:underline">Edit</button>
             {onReturn && (
               <button onClick={() => setReturnOpen(true)} className="text-xs text-orange-600 hover:underline">Return</button>
+            )}
+            {onUndo && (
+              <button onClick={onUndo} className="text-xs text-emerald-600 hover:underline flex items-center gap-1">
+                <Undo2 className="h-3 w-3" /> Undo
+              </button>
             )}
             <button
               onClick={() => cancelMode ? setCancelOpen(true) : onDelete()}
