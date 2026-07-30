@@ -396,14 +396,6 @@ function LmisUploadButton({ candidate, onUpdate }: {
 }
 
 // ─── Alert section ───────────────────────────────────────────────────────────
-const STATUS_PILL: Record<string, string> = {
-  available:  "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
-  processing: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
-  arrived:    "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
-  canceled:   "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
-  returned:   "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300",
-};
-
 function AlertSection({
   icon: Icon, title, iconColor, pillKey, candidates, getNote, renderBadge, exportCols, onUpdateField, renderCardAction,
 }: {
@@ -421,20 +413,16 @@ function AlertSection({
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [statusFilter, setStatusFilter] = useState("all");
   const listRef = useRef<HTMLDivElement>(null);
   if (candidates.length === 0) return null;
-
-  const statuses = Array.from(new Set(candidates.map((c) => c.status)));
-  const filtered = statusFilter === "all" ? candidates : candidates.filter((c) => c.status === statusFilter);
-  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const paginated = candidates.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <>
       <button
         type="button"
         className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-background border border-border hover:bg-muted/50 transition-colors rounded-none"
-        onClick={() => { setOpen(true); setPage(1); setStatusFilter("all"); }}
+        onClick={() => { setOpen(true); setPage(1); }}
       >
         <div className="flex items-center gap-3">
           <Icon className={cn("h-4 w-4 shrink-0", iconColor)} />
@@ -456,7 +444,7 @@ function AlertSection({
         </div>
       </button>
 
-      <Dialog open={open} onOpenChange={(o) => { if (!o) { setOpen(false); setStatusFilter("all"); } }}>
+      <Dialog open={open} onOpenChange={(o) => { if (!o) setOpen(false); }}>
         <DialogContent className="max-w-lg rounded-none">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -464,27 +452,6 @@ function AlertSection({
               {title} ({candidates.length})
             </DialogTitle>
           </DialogHeader>
-          {statuses.length > 1 && (
-            <div className="flex flex-wrap gap-1.5 -mt-1 pb-1 border-b border-border">
-              <button type="button"
-                onClick={() => { setStatusFilter("all"); setPage(1); }}
-                className={cn("text-xs px-2 py-0.5 rounded-none border transition-colors",
-                  statusFilter === "all" ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted/60")}>
-                All ({candidates.length})
-              </button>
-              {statuses.map((st) => {
-                const cnt = candidates.filter((c) => c.status === st).length;
-                return (
-                  <button key={st} type="button"
-                    onClick={() => { setStatusFilter(st); setPage(1); }}
-                    className={cn("text-xs px-2 py-0.5 rounded-none border capitalize transition-colors",
-                      statusFilter === st ? "bg-primary text-primary-foreground border-primary" : cn("border-transparent", STATUS_PILL[st] ?? "bg-zinc-100 text-zinc-700"))}>
-                    {st} ({cnt})
-                  </button>
-                );
-              })}
-            </div>
-          )}
           <div ref={listRef} className="max-h-[50vh] overflow-y-auto divide-y divide-border">
             {paginated.map((c) => (
               <div key={c.id} className="flex items-center gap-3 py-3">
@@ -511,14 +478,14 @@ function AlertSection({
             ))}
           </div>
           <PaginationBar
-            total={filtered.length} page={page} pageSize={pageSize}
+            total={candidates.length} page={page} pageSize={pageSize}
             onPage={setPage}
             onPageSize={(s) => { setPageSize(s); setPage(1); }}
             onBackToTop={() => listRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
           />
           <div className="pt-2 flex items-center justify-between">
             <Button size="sm" variant="outline" className="rounded-none text-xs gap-1 text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-900/20"
-              onClick={() => downloadCandidatesExcel(filtered, title, exportCols)}>
+              onClick={() => downloadCandidatesExcel(candidates, title, exportCols)}>
               <FileSpreadsheet className="h-3.5 w-3.5" /> Download Excel
             </Button>
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
