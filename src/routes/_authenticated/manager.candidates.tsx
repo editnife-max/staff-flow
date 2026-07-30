@@ -2197,16 +2197,17 @@ function CandidateCardList({
   );
 }
 
-function getVideoEmbed(url: string): { type: "video" | "iframe"; src: string } {
+type VideoKind = "video" | "youtube" | "gdrive";
+function detectVideo(url: string): { kind: VideoKind; embedSrc: string } {
   const yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-  if (yt) return { type: "iframe", src: `https://www.youtube.com/embed/${yt[1]}?autoplay=1&rel=0` };
+  if (yt) return { kind: "youtube", embedSrc: `https://www.youtube.com/embed/${yt[1]}?autoplay=1&rel=0` };
   const gd = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
-  if (gd) return { type: "iframe", src: `https://drive.google.com/file/d/${gd[1]}/preview` };
-  return { type: "video", src: url };
+  if (gd) return { kind: "gdrive", embedSrc: `https://drive.google.com/file/d/${gd[1]}/view` };
+  return { kind: "video", embedSrc: url };
 }
 
 function VideoPlayDialog({ url, onClose }: { url: string; onClose: () => void }) {
-  const embed = getVideoEmbed(url);
+  const { kind, embedSrc } = detectVideo(url);
   const handleDownload = async () => {
     try {
       const res = await fetch(url);
@@ -2225,19 +2226,28 @@ function VideoPlayDialog({ url, onClose }: { url: string; onClose: () => void })
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-2xl rounded-none p-0 overflow-hidden">
-        <div className="relative w-full bg-black" style={{ aspectRatio: "16/9" }}>
-          {embed.type === "iframe" ? (
+        {kind === "youtube" ? (
+          <div className="w-full bg-black" style={{ aspectRatio: "16/9" }}>
             <iframe
-              src={embed.src}
+              src={embedSrc}
               className="w-full h-full border-0"
               allow="autoplay; fullscreen; picture-in-picture"
               allowFullScreen
             />
-          ) : (
+          </div>
+        ) : kind === "gdrive" ? (
+          <div className="flex flex-col items-center justify-center gap-4 bg-black text-white p-10" style={{ aspectRatio: "16/9" }}>
+            <p className="text-sm text-gray-300">Google Drive videos cannot be embedded here.</p>
+            <Button onClick={() => window.open(embedSrc, "_blank")} className="gap-2">
+              Open in Google Drive
+            </Button>
+          </div>
+        ) : (
+          <div className="w-full bg-black" style={{ aspectRatio: "16/9" }}>
             <video key={url} src={url} controls autoPlay playsInline className="w-full h-full" />
-          )}
-        </div>
-        {embed.type === "video" && (
+          </div>
+        )}
+        {kind === "video" && (
           <div className="flex justify-end gap-2 p-3">
             <Button size="sm" variant="outline" className="rounded-none gap-1 text-xs" onClick={handleDownload}>
               <Download className="h-3 w-3" /> Download
