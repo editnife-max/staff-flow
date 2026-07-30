@@ -2197,8 +2197,12 @@ function CandidateCardList({
   );
 }
 
-function VideoCell({ url, onSave }: { url: string | null; onSave: (v: string | null) => void }) {
-  const [playing, setPlaying] = useState(false);
+function VideoCell({ url, onSave, playing, onPlay }: {
+  url: string | null;
+  onSave: (v: string | null) => void;
+  playing?: boolean;
+  onPlay?: () => void;
+}) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(url ?? "");
 
@@ -2238,7 +2242,7 @@ function VideoCell({ url, onSave }: { url: string | null; onSave: (v: string | n
     return (
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-1.5">
-          <button type="button" onClick={() => setPlaying((p) => !p)}
+          <button type="button" onClick={onPlay}
             className="flex items-center gap-0.5 text-[11px] text-primary hover:underline font-medium">
             <Play className="h-3 w-3 fill-current" /> {playing ? "Close" : "Play"}
           </button>
@@ -2251,17 +2255,6 @@ function VideoCell({ url, onSave }: { url: string | null; onSave: (v: string | n
           className="text-[10px] text-muted-foreground hover:underline text-left">
           Change
         </button>
-        {playing && (
-          <div className="mt-1" style={{ width: 220, zIndex: 10, position: "relative" }}>
-            <video
-              src={url}
-              controls
-              autoPlay
-              className="w-full rounded-sm bg-black"
-              style={{ maxHeight: 160 }}
-            />
-          </div>
-        )}
       </div>
     );
   }
@@ -2404,6 +2397,7 @@ function CandidateCard({
   const [medDateOpen, setMedDateOpen] = useState(false);
   const [pendingMedDate, setPendingMedDate] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [videoPlaying, setVideoPlaying] = useState(false);
   const statusKey = (["available","processing","arrived","canceled","returned"].includes(candidate.status ?? "")
     ? candidate.status : "available") as Status;
 
@@ -2503,7 +2497,12 @@ function CandidateCard({
                 return (
                   <div key="VIDEO" className="shrink-0 w-[90px]">
                     <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">VIDEO</div>
-                    <VideoCell url={candidate.video_url ?? null} onSave={(v) => onUpdateField("video_url", v)} />
+                    <VideoCell
+                      url={candidate.video_url ?? null}
+                      onSave={(v) => onUpdateField("video_url", v)}
+                      playing={videoPlaying}
+                      onPlay={() => setVideoPlaying((p) => !p)}
+                    />
                   </div>
                 );
               }
@@ -2592,6 +2591,18 @@ function CandidateCard({
             </button>
           </div>
         </div>
+        {videoPlaying && candidate.video_url && (
+          <div className="border-t border-border px-4 pb-3 pt-2">
+            <video
+              key={candidate.video_url}
+              src={candidate.video_url}
+              controls
+              autoPlay
+              className="w-full rounded-sm bg-black"
+              style={{ maxHeight: 260 }}
+            />
+          </div>
+        )}
       </div>
       {cancelOpen && (
         <CancelReasonDialog
