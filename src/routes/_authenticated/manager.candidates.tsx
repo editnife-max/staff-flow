@@ -2227,11 +2227,7 @@ function VideoCell({ url, onSave, candidateName }: { url: string | null; onSave:
 
     const handleDownload = async () => {
       if (gdMatch) {
-        const a = document.createElement("a");
-        a.href = downloadUrl;
-        a.download = fileName;
-        a.target = "_blank";
-        a.click();
+        window.open(downloadUrl, "_blank");
         return;
       }
       try {
