@@ -3367,6 +3367,18 @@ function ProcessingCard({
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
+                      ) : col.key === "visa_status" && strVal === "Sent to Embassy" ? (
+                        <div>
+                          <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
+                          {(candidate as any).embassy_date && (
+                            <div className="mt-1">
+                              <div className="text-[9px] font-semibold tracking-wider text-violet-600 dark:text-violet-400 uppercase">Embassy Date</div>
+                              <div className="text-[11px] text-foreground">
+                                {new Date((candidate as any).embassy_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       ) : (
                         <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
                       )
