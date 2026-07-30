@@ -678,11 +678,12 @@ function ManagerCandidatesPage() {
     // Visa arrived → set status to arrived
     if (field === "visa_status" && value === "Arrived KSA")
       fieldMut.mutate({ id, field: "status", value: "arrived" });
-    // Tasheer No/unselected → clear wokala, tasheer date, visa status
+    // Tasheer No/unselected → clear wokala, tasheer date, visa status, embassy date
     if (field === "tasheer_status" && (value === "No" || !value)) {
       fieldMut.mutate({ id, field: "wokala_status", value: null });
       fieldMut.mutate({ id, field: "tasheer_date", value: null });
       fieldMut.mutate({ id, field: "visa_status", value: null });
+      fieldMut.mutate({ id, field: "embassy_date", value: null });
     }
     // Tasheer Done + Wokala Paid → Visa "Ready for embassy"
     if (field === "tasheer_status" && value === "Done" && current()?.wokala_status === "Paid")

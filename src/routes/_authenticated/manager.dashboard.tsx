@@ -568,6 +568,7 @@ function ManagerDashboard() {
       fieldMut.mutate({ id, field: "wokala_status", value: null });
       fieldMut.mutate({ id, field: "tasheer_date", value: null });
       fieldMut.mutate({ id, field: "visa_status", value: null });
+      fieldMut.mutate({ id, field: "embassy_date", value: null });
     }
     if (field === "tasheer_status" && value === "Done") {
       const c = candidates.find((c) => c.id === id);

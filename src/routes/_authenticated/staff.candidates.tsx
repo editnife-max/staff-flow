@@ -608,6 +608,7 @@ function StaffCandidatesPage() {
       fieldMut.mutate({ id, field: "wokala_status", value: null });
       fieldMut.mutate({ id, field: "tasheer_date", value: null });
       fieldMut.mutate({ id, field: "visa_status", value: null });
+      fieldMut.mutate({ id, field: "embassy_date", value: null });
     }
     // Tasheer Done + Wokala Paid → Visa "Ready for embassy"
     if (field === "tasheer_status" && value === "Done") {
@@ -1261,6 +1262,7 @@ function StaffCandidatesPage() {
               fieldMut.mutate({ id, field: "wokala_status", value: null });
               fieldMut.mutate({ id, field: "tasheer_date", value: null });
               fieldMut.mutate({ id, field: "visa_status", value: null });
+              fieldMut.mutate({ id, field: "embassy_date", value: null });
             }
             // Tasheer Done + Wokala Paid → Visa "Ready for embassy"
             if (field === "tasheer_status" && value === "Done") {
