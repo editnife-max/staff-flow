@@ -2114,43 +2114,8 @@ function CandidateCardList({
   );
 }
 
-function VideoPlayDialog({ url, onClose }: { url: string; onClose: () => void }) {
-  const handleDownload = async () => {
-    try {
-      const res = await fetch(url);
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      const ext = url.split("?")[0].split(".").pop() ?? "mp4";
-      a.download = `video.${ext}`;
-      a.click();
-      URL.revokeObjectURL(blobUrl);
-    } catch {
-      window.open(url, "_blank");
-    }
-  };
-  return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-2xl rounded-none">
-        <DialogHeader>
-          <DialogTitle className="text-base">Video</DialogTitle>
-        </DialogHeader>
-        <div className="relative w-full aspect-video bg-black overflow-hidden">
-          <video src={url} controls autoPlay className="w-full h-full" />
-        </div>
-        <div className="flex justify-end gap-2 pt-1">
-          <Button size="sm" variant="outline" className="rounded-none gap-1 text-xs" onClick={handleDownload}>
-            <Download className="h-3 w-3" /> Download
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function VideoCell({ url, onSave }: { url: string | null; onSave: (v: string | null) => void }) {
-  const [playOpen, setPlayOpen] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(url ?? "");
 
@@ -2190,9 +2155,9 @@ function VideoCell({ url, onSave }: { url: string | null; onSave: (v: string | n
     return (
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-1.5">
-          <button type="button" onClick={() => setPlayOpen(true)}
+          <button type="button" onClick={() => setPlaying((p) => !p)}
             className="flex items-center gap-0.5 text-[11px] text-primary hover:underline font-medium">
-            <Play className="h-3 w-3 fill-current" /> Play
+            <Play className="h-3 w-3 fill-current" /> {playing ? "Close" : "Play"}
           </button>
           <button type="button" onClick={handleDownload}
             className="flex items-center gap-0.5 text-[11px] text-muted-foreground hover:text-foreground">
@@ -2203,7 +2168,17 @@ function VideoCell({ url, onSave }: { url: string | null; onSave: (v: string | n
           className="text-[10px] text-muted-foreground hover:underline text-left">
           Change
         </button>
-        {playOpen && <VideoPlayDialog url={url} onClose={() => setPlayOpen(false)} />}
+        {playing && (
+          <div className="mt-1" style={{ width: 220, zIndex: 10, position: "relative" }}>
+            <video
+              src={url}
+              controls
+              autoPlay
+              className="w-full rounded-sm bg-black"
+              style={{ maxHeight: 160 }}
+            />
+          </div>
+        )}
       </div>
     );
   }
