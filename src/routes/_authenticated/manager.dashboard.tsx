@@ -500,6 +500,55 @@ function AlertSection({
   );
 }
 
+// ─── Stat card with alert-category filter ───────────────────────────────────
+type AlertFilter = { key: string; label: string; ids: Set<string> };
+
+function StatCard({ s, candidates, alertFilters }: {
+  s: typeof STATUS_CONFIG[0];
+  candidates: Candidate[];
+  alertFilters: AlertFilter[];
+}) {
+  const [filter, setFilter] = useState("all");
+  const base = candidates.filter((c) => c.status === s.key);
+  const options = alertFilters
+    .map((af) => ({ ...af, count: base.filter((c) => af.ids.has(c.id)).length }))
+    .filter((af) => af.count > 0);
+  const count = filter === "all"
+    ? base.length
+    : (options.find((o) => o.key === filter)?.count ?? base.length);
+  const Icon = s.icon;
+  return (
+    <div className={cn("flex flex-col gap-1.5 px-3 py-2.5 rounded-none", s.bg)}>
+      <div className="flex items-center gap-2.5">
+        <div className={cn("h-7 w-7 rounded-none grid place-items-center shrink-0", s.icon_bg)}>
+          <Icon className={cn("h-3.5 w-3.5", s.icon_color)} />
+        </div>
+        <div className="min-w-0">
+          <div className="flex items-baseline gap-1">
+            <span className={cn("text-lg font-bold leading-tight", s.value_color)}>{count}</span>
+            {filter !== "all" && (
+              <span className="text-[11px] text-foreground/50 font-normal">/{base.length}</span>
+            )}
+          </div>
+          <p className="text-[11px] text-foreground/70 font-medium truncate">{s.label}</p>
+        </div>
+      </div>
+      {options.length > 0 && (
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="h-5 text-[10px] border border-border/50 bg-background/50 rounded-none px-1 outline-none cursor-pointer w-full"
+        >
+          <option value="all">All ({base.length})</option>
+          {options.map((o) => (
+            <option key={o.key} value={o.key}>{o.label} ({o.count})</option>
+          ))}
+        </select>
+      )}
+    </div>
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 function ManagerDashboard() {
   const { user } = useAuth();
@@ -613,15 +662,6 @@ function ManagerDashboard() {
     }
   }, [candidates]);
 
-  const total = candidates.length;
-  const counts = {
-    available:  candidates.filter((c) => c.status === "available").length,
-    processing: candidates.filter((c) => c.status === "processing").length,
-    arrived:    candidates.filter((c) => c.status === "arrived").length,
-    canceled:   candidates.filter((c) => c.status === "canceled").length,
-    returned:   candidates.filter((c) => c.status === "returned").length,
-  };
-
   const staffStats = staffList
     .map((s) => {
       const assigned  = candidates.filter((c) => (c as any).assigned_staff_id === s.id);
@@ -717,6 +757,29 @@ function ManagerDashboard() {
     return !!ref && daysSince(ref) >= 10;
   });
 
+  const alertFilters: AlertFilter[] = [
+    { key: "cocNo",             label: "COC — No",                     ids: new Set(cocNo.map((c) => c.id)) },
+    { key: "cocPlaced",         label: "COC — Placed",                 ids: new Set(cocPlaced.map((c) => c.id)) },
+    { key: "medicalNotFit",     label: "Medical — Not Fit",            ids: new Set(medicalNotFit.map((c) => c.id)) },
+    { key: "cocDoneNotFit",     label: "COC Done — Medical Not Fit",   ids: new Set(cocDoneNotFit.map((c) => c.id)) },
+    { key: "medicalExpired",    label: "Medical — Expired",            ids: new Set(medicalExpired.map((c) => c.id)) },
+    { key: "unfilledLmis",      label: "LMIS File",                    ids: new Set(unfilledLmis.map((c) => c.id)) },
+    { key: "ticketNotBooked",   label: "Ticket Not Booked 20+ Days",   ids: new Set(ticketNotBooked.map((c) => c.id)) },
+    { key: "ticketReady",       label: "Ticket Ready",                 ids: new Set(ticketReady.map((c) => c.id)) },
+    { key: "arrivalCity",       label: "Arrival City Not Set",         ids: new Set(arrivalCityMissing.map((c) => c.id)) },
+    { key: "embassyPending",    label: "Embassy — Pending",            ids: new Set(embassyPending.map((c) => c.id)) },
+    { key: "visaReady",         label: "Ready for Embassy",            ids: new Set(visaReady.map((c) => c.id)) },
+    { key: "visaReturned",      label: "Visa Returned",                ids: new Set(visaReturned.map((c) => c.id)) },
+    { key: "tasheerOverdue",    label: "Tasheer Overdue",              ids: new Set(tasheerOverdue.map((c) => c.id)) },
+    { key: "tasheerUnpaid",     label: "Tasheer Done — Wokala Unpaid", ids: new Set(tasheerDoneWokalaUnpaid.map((c) => c.id)) },
+    { key: "tasheerReady",      label: "Tasheer — Ready",              ids: new Set(passportNotAccepted.map((c) => c.id)) },
+    { key: "cvOverdue",         label: "CV Sent — No Selection",       ids: new Set(cvOverdue.map((c) => c.id)) },
+    { key: "fitLmis",           label: "Medical Fit — LMIS Not Tested",ids: new Set(fitLmisNotTested.map((c) => c.id)) },
+    { key: "lmisDraft",         label: "LMIS Draft / Imported",        ids: new Set(lmisDraftImported.map((c) => c.id)) },
+    { key: "noMedical5d",       label: "No Medical — 5+ Days",         ids: new Set(noMedical5Days.map((c) => c.id)) },
+    { key: "noTasheer10d",      label: "No Tasheer — 10+ Days",        ids: new Set(noTasheer10Days.map((c) => c.id)) },
+  ];
+
   const hasAlerts = cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 ||
     cocDoneNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 ||
     ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 ||
@@ -739,21 +802,9 @@ function ManagerDashboard() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-3 lg:grid-cols-5 gap-2">
-        {STATUS_CONFIG.map((s) => {
-          const count = counts[s.key];
-          const Icon = s.icon;
-          return (
-            <div key={s.key} className={cn("flex items-center gap-2.5 px-3 py-2.5 rounded-none", s.bg)}>
-              <div className={cn("h-7 w-7 rounded-none grid place-items-center shrink-0", s.icon_bg)}>
-                <Icon className={cn("h-3.5 w-3.5", s.icon_color)} />
-              </div>
-              <div className="min-w-0">
-                <span className={cn("text-lg font-bold leading-tight", s.value_color)}>{count}</span>
-                <p className="text-[11px] text-foreground/70 font-medium truncate">{s.label}</p>
-              </div>
-            </div>
-          );
-        })}
+        {STATUS_CONFIG.map((s) => (
+          <StatCard key={s.key} s={s} candidates={candidates} alertFilters={alertFilters} />
+        ))}
       </div>
 
       {/* Alert sections */}
