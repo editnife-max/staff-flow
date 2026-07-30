@@ -117,6 +117,7 @@ const ALERT_PILL: Record<string, string> = {
   cvoverdue:  "bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300",
   fitlmis:    "bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300",
   arrival:    "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300",
+  weekly:     "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
 };
 
 // ─── Inline components ───────────────────────────────────────────────────────
@@ -1089,6 +1090,16 @@ function StaffDashboard() {
     const days = Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000);
     return days >= managerCvThreshold;
   });
+  const weeklyAdded = candidates.filter((c) => {
+    if (!c.created_at) return false;
+    const days = Math.floor((today.getTime() - new Date(c.created_at).getTime()) / 86_400_000);
+    return days < 7;
+  });
+  const weeklyDeployments = candidates.filter((c) => {
+    if (c.status !== "arrived" || !c.ticket_date) return false;
+    const days = Math.floor((today.getTime() - new Date(c.ticket_date + "T00:00:00").getTime()) / 86_400_000);
+    return days >= 0 && days < 7;
+  });
   const daysSince = (d: string) =>
     Math.floor((today.getTime() - new Date(d + "T00:00:00").getTime()) / 86_400_000);
 
@@ -1147,13 +1158,13 @@ function StaffDashboard() {
       </div>
 
       {/* Alert sections */}
-      {(cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || cvOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0 || noMedical5Days.length > 0 || noTasheer10Days.length > 0) && (
+      {(cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || noMedical5Days.length > 0 || noTasheer10Days.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || cvOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0 || weeklyAdded.length > 0 || weeklyDeployments.length > 0) && (
         <div className="space-y-5">
 
-          {/* Warnings */}
-          {(noMedical5Days.length > 0 || noTasheer10Days.length > 0) && (
+          {/* COMPLIANCE & RECRUITMENT */}
+          {(noMedical5Days.length > 0 || noTasheer10Days.length > 0 || cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0) && (
             <div className="space-y-1.5">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Warnings</p>
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Compliance & Recruitment</p>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 items-start">
                 <AlertSection icon={Stethoscope} title="Warning No Medical — 5+ Days in Processing" iconColor="text-red-600 dark:text-red-400" pillKey="medical" candidates={noMedical5Days} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "contract_date", label: "Contract Date" }, { key: "office", label: "Office" }, { key: "selected_by", label: "Selected By" }]}
@@ -1190,15 +1201,6 @@ function StaffDashboard() {
                       Suggest Cancel
                     </Button>
                   )} />
-              </div>
-            </div>
-          )}
-
-          {/* COC */}
-          {(cocNo.length > 0 || cocPlaced.length > 0) && (
-            <div className="space-y-1.5">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">COC</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 items-start">
                 <AlertSection icon={FileCheck} title="COC — No" iconColor="text-orange-600 dark:text-orange-400" pillKey="coc" candidates={cocNo} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "coc_booked_date", label: "COC Booking Date" }, { key: "labour_id", label: "Labour ID" }, { key: "office", label: "Office" }, { key: "narrative", label: "Narrative" }, { key: "narrative_phone", label: "Narrative Phone" }]}
                   renderBadge={(c) => (
@@ -1231,15 +1233,6 @@ function StaffDashboard() {
                       if (date) handleUpdateField(c.id, "coc_booked_date", date);
                     }} />
                   )} />
-              </div>
-            </div>
-          )}
-
-          {/* Medical */}
-          {(medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0) && (
-            <div className="space-y-1.5">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Medical</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 items-start">
                 <AlertSection icon={Stethoscope} title="Medical — Not Fit" iconColor="text-red-600 dark:text-red-400" pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }, { key: "coc_status", label: "COC Status" }, { key: "office", label: "Office" }]}
                   renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">{c.medical_status}</span>}
@@ -1270,73 +1263,10 @@ function StaffDashboard() {
             </div>
           )}
 
-          {/* LMIS */}
-          {(unfilledLmis.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0) && (
+          {/* LOGISTICS & DEPLOYMENT */}
+          {(ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerOverdue.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || weeklyAdded.length > 0 || weeklyDeployments.length > 0) && (
             <div className="space-y-1.5">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">LMIS</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 items-start">
-                <AlertSection icon={ClipboardList} title="LMIS file" iconColor="text-amber-600 dark:text-amber-400" pillKey="lmis" candidates={unfilledLmis} onUpdateField={handleUpdateField} countryOptions={countryOptions}
-                  exportCols={[...BASE, { key: "lmis_status", label: "LMIS Status" }, { key: "unfilled_lmis", label: "Unfilled LMIS" }, { key: "labour_id", label: "Labour ID" }]}
-                  renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{c.unfilled_lmis}</span>}
-                  renderCardAction={(c) => (
-                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
-                      onClick={() => handleUpdateField(c.id, "unfilled_lmis", "")}>Mark Done</Button>
-                  )} />
-                <AlertSection icon={Stethoscope} title="Medical Fit — LMIS Not Tested" iconColor="text-teal-600 dark:text-teal-400" pillKey="fitlmis" candidates={fitLmisNotTested} onUpdateField={handleUpdateField} countryOptions={countryOptions}
-                  exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }, { key: "coc_status", label: "COC Status" }, { key: "lmis_status", label: "LMIS" }]}
-                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">Not Tested</span>}
-                  renderCardAction={(c) => (
-                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
-                      onClick={() => handleUpdateField(c.id, "lmis_status", "Imported")}>Start LMIS</Button>
-                  )} />
-                <AlertSection icon={Upload} title="LMIS Draft / Imported — Upload Files" iconColor="text-indigo-600 dark:text-indigo-400" pillKey="lmis" candidates={lmisDraftImported} onUpdateField={handleUpdateField} countryOptions={countryOptions}
-                  exportCols={[...BASE, { key: "lmis_status", label: "LMIS Status" }, { key: "labour_id", label: "Labour ID" }, { key: "unfilled_lmis", label: "Unfilled LMIS" }]}
-                  renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">{c.lmis_status}</span>}
-                  renderCardAction={(c) => (
-                    <LmisUploadButton candidate={c} onUpdate={(field, value) => handleUpdateField(c.id, field as any, value)} />
-                  )} />
-              </div>
-            </div>
-          )}
-
-          {/* Tasheer */}
-          {(tasheerOverdue.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0) && (
-            <div className="space-y-1.5">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Tasheer</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 items-start">
-                <AlertSection icon={AlertTriangle} title="Tasheer Overdue — Booked Date Passed" iconColor="text-amber-600 dark:text-amber-400" pillKey="tasheer" candidates={tasheerOverdue} onUpdateField={handleUpdateField} countryOptions={countryOptions}
-                  exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }]}
-                  renderBadge={(c) => c.tasheer_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{daysSince(c.tasheer_date)}d overdue</span> : null}
-                  renderCardAction={(c) => (
-                    <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
-                      onClick={() => handleUpdateField(c.id, "tasheer_status", "Done")}>Done</Button>
-                  )} />
-                <AlertSection icon={AlertTriangle} title="Tasheer Done — Wokala Unpaid" iconColor="text-violet-600 dark:text-violet-400" pillKey="tasheer" candidates={tasheerDoneWokalaUnpaid} onUpdateField={handleUpdateField} countryOptions={countryOptions}
-                  exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }, { key: "narrative_phone", label: "Narrative Phone" }]}
-                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Unpaid</span>}
-                  renderCardAction={(c) => (
-                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
-                      onClick={() => handleUpdateField(c.id, "wokala_status", "Paid")}>Mark Paid</Button>
-                  )} />
-                <AlertSection icon={XCircle} title="Tasheer — Ready" iconColor="text-red-600 dark:text-red-400" pillKey="tasheer" candidates={passportNotAccepted} onUpdateField={handleUpdateField} countryOptions={countryOptions}
-                  exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "passport_number", label: "Passport No." }, { key: "office", label: "Office" }]}
-                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">Ready</span>}
-                  renderCardAction={(c) => (
-                    <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
-                      onClick={() => {
-                        handleUpdateField(c.id, "passport_accepted", "true");
-                        handleUpdateField(c.id, "tasheer_status", "Done");
-                        handleUpdateField(c.id, "visa_status", "Ready for embassy");
-                      }}>Yes</Button>
-                  )} />
-              </div>
-            </div>
-          )}
-
-          {/* Ticket / Travel */}
-          {(ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0) && (
-            <div className="space-y-1.5">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Ticket / Travel</p>
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Logistics & Deployment</p>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 items-start">
                 <AlertSection icon={Ticket} title="Ticket Not Booked — Over 20 Days" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketNotBooked} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "ticket_status", label: "Ticket" }, { key: "contract_date", label: "Contract Date" }, { key: "arrival_city", label: "Arrival City" }, { key: "office", label: "Office" }]}
@@ -1364,15 +1294,6 @@ function StaffDashboard() {
                       </SelectContent>
                     </Select>
                   )} />
-              </div>
-            </div>
-          )}
-
-          {/* Embassy / Visa */}
-          {(embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0) && (
-            <div className="space-y-1.5">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Embassy / Visa</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 items-start">
                 <AlertSection icon={Landmark} title="Embassy Visa — Pending" iconColor="text-sky-600 dark:text-sky-400" pillKey="embassy" candidates={embassyPending} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "tasheer_status", label: "Tasheer" }, { key: "embassy_date", label: "Embassy Date" }, { key: "processing_notes", label: "Notes" }]}
                   renderBadge={(c) => c.processing_notes ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300 max-w-[120px] truncate block">{c.processing_notes}</span> : null}
@@ -1394,14 +1315,45 @@ function StaffDashboard() {
                     <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
                       onClick={() => handleUpdateField(c.id, "visa_status", "Waiting Replacement")}>Replacement</Button>
                   )} />
+                <AlertSection icon={AlertTriangle} title="Tasheer Overdue — Booked Date Passed" iconColor="text-amber-600 dark:text-amber-400" pillKey="tasheer" candidates={tasheerOverdue} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+                  exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }]}
+                  renderBadge={(c) => c.tasheer_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{daysSince(c.tasheer_date)}d overdue</span> : null}
+                  renderCardAction={(c) => (
+                    <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={() => handleUpdateField(c.id, "tasheer_status", "Done")}>Done</Button>
+                  )} />
+                <AlertSection icon={AlertTriangle} title="Tasheer Done — Wokala Unpaid" iconColor="text-violet-600 dark:text-violet-400" pillKey="tasheer" candidates={tasheerDoneWokalaUnpaid} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+                  exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }, { key: "narrative_phone", label: "Narrative Phone" }]}
+                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Unpaid</span>}
+                  renderCardAction={(c) => (
+                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                      onClick={() => handleUpdateField(c.id, "wokala_status", "Paid")}>Mark Paid</Button>
+                  )} />
+                <AlertSection icon={XCircle} title="Tasheer — Ready" iconColor="text-red-600 dark:text-red-400" pillKey="tasheer" candidates={passportNotAccepted} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+                  exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "passport_number", label: "Passport No." }, { key: "office", label: "Office" }]}
+                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">Ready</span>}
+                  renderCardAction={(c) => (
+                    <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={() => {
+                        handleUpdateField(c.id, "passport_accepted", "true");
+                        handleUpdateField(c.id, "tasheer_status", "Done");
+                        handleUpdateField(c.id, "visa_status", "Ready for embassy");
+                      }}>Yes</Button>
+                  )} />
+                <AlertSection icon={UserPlus} title="Weekly Candidates Added" iconColor="text-blue-600 dark:text-blue-400" pillKey="weekly" candidates={weeklyAdded} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+                  exportCols={[...BASE, { key: "created_at", label: "Added Date" }, { key: "office", label: "Office" }, { key: "selected_by", label: "Selected By" }]}
+                  renderBadge={(c) => c.created_at ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">{daysSince(c.created_at.split("T")[0])}d ago</span> : null} />
+                <AlertSection icon={TrendingUp} title="Weekly Deployments" iconColor="text-emerald-600 dark:text-emerald-400" pillKey="visaready" candidates={weeklyDeployments} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+                  exportCols={[...BASE, { key: "ticket_date", label: "Ticket Date" }, { key: "arrival_city", label: "Arrival City" }, { key: "musaned_status", label: "Country" }]}
+                  renderBadge={(c) => c.ticket_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">{daysSince(c.ticket_date)}d ago</span> : null} />
               </div>
             </div>
           )}
 
-          {/* CV */}
-          {cvOverdue.length > 0 && (
+          {/* DATA & MISC */}
+          {(cvOverdue.length > 0 || unfilledLmis.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0) && (
             <div className="space-y-1.5">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">CV</p>
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5">Data & Misc</p>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 items-start">
                 <AlertSection icon={Send} title="CV Sent — No Selection" iconColor="text-teal-600 dark:text-teal-400" pillKey="cvoverdue" candidates={cvOverdue} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "cv_sent_to", label: "CV Sent To" }, { key: "cv_sent_date", label: "CV Sent Date" }, { key: "musaned_status", label: "Country" }]}
@@ -1409,6 +1361,26 @@ function StaffDashboard() {
                   renderCardAction={(c) => (
                     <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
                       onClick={() => handleUpdateField(c.id, "cv_sent_to", null)}>Recall CV</Button>
+                  )} />
+                <AlertSection icon={ClipboardList} title="LMIS file" iconColor="text-amber-600 dark:text-amber-400" pillKey="lmis" candidates={unfilledLmis} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+                  exportCols={[...BASE, { key: "lmis_status", label: "LMIS Status" }, { key: "unfilled_lmis", label: "Unfilled LMIS" }, { key: "labour_id", label: "Labour ID" }]}
+                  renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{c.unfilled_lmis}</span>}
+                  renderCardAction={(c) => (
+                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                      onClick={() => handleUpdateField(c.id, "unfilled_lmis", "")}>Mark Done</Button>
+                  )} />
+                <AlertSection icon={Stethoscope} title="Medical Fit — LMIS Not Tested" iconColor="text-teal-600 dark:text-teal-400" pillKey="fitlmis" candidates={fitLmisNotTested} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+                  exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }, { key: "coc_status", label: "COC Status" }, { key: "lmis_status", label: "LMIS" }]}
+                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">Not Tested</span>}
+                  renderCardAction={(c) => (
+                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                      onClick={() => handleUpdateField(c.id, "lmis_status", "Imported")}>Start LMIS</Button>
+                  )} />
+                <AlertSection icon={Upload} title="LMIS Draft / Imported — Upload Files" iconColor="text-indigo-600 dark:text-indigo-400" pillKey="lmis" candidates={lmisDraftImported} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+                  exportCols={[...BASE, { key: "lmis_status", label: "LMIS Status" }, { key: "labour_id", label: "Labour ID" }, { key: "unfilled_lmis", label: "Unfilled LMIS" }]}
+                  renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">{c.lmis_status}</span>}
+                  renderCardAction={(c) => (
+                    <LmisUploadButton candidate={c} onUpdate={(field, value) => handleUpdateField(c.id, field as any, value)} />
                   )} />
               </div>
             </div>
