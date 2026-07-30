@@ -3054,6 +3054,8 @@ function ProcessingCard({
     }
     onUpdateField(colKey, value);
     if (colKey === "medical_status" && value === "Fit") onUpdateField("lmis_status", "Not tested");
+    if (colKey === "visa_status" && value === "Sent to Embassy" && !(candidate as any).embassy_date)
+      onUpdateField("embassy_date", new Date().toISOString().split("T")[0]);
   }
 
   return (
