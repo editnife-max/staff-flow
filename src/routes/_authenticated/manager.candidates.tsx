@@ -2197,12 +2197,60 @@ function CandidateCardList({
   );
 }
 
-function VideoCell({ url, onSave, playing, onPlay }: {
-  url: string | null;
-  onSave: (v: string | null) => void;
-  playing?: boolean;
-  onPlay?: () => void;
-}) {
+function getVideoEmbed(url: string): { type: "video" | "iframe"; src: string } {
+  const yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  if (yt) return { type: "iframe", src: `https://www.youtube.com/embed/${yt[1]}?autoplay=1&rel=0` };
+  const gd = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
+  if (gd) return { type: "iframe", src: `https://drive.google.com/file/d/${gd[1]}/preview` };
+  return { type: "video", src: url };
+}
+
+function VideoPlayDialog({ url, onClose }: { url: string; onClose: () => void }) {
+  const embed = getVideoEmbed(url);
+  const handleDownload = async () => {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      const ext = url.split("?")[0].split(".").pop() ?? "mp4";
+      a.download = `video.${ext}`;
+      a.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      window.open(url, "_blank");
+    }
+  };
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-2xl rounded-none p-0 overflow-hidden">
+        <div className="relative w-full bg-black" style={{ aspectRatio: "16/9" }}>
+          {embed.type === "iframe" ? (
+            <iframe
+              src={embed.src}
+              className="w-full h-full border-0"
+              allow="autoplay; fullscreen; picture-in-picture"
+              allowFullScreen
+            />
+          ) : (
+            <video key={url} src={url} controls autoPlay playsInline className="w-full h-full" />
+          )}
+        </div>
+        {embed.type === "video" && (
+          <div className="flex justify-end gap-2 p-3">
+            <Button size="sm" variant="outline" className="rounded-none gap-1 text-xs" onClick={handleDownload}>
+              <Download className="h-3 w-3" /> Download
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function VideoCell({ url, onSave }: { url: string | null; onSave: (v: string | null) => void }) {
+  const [playOpen, setPlayOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(url ?? "");
 
@@ -2242,9 +2290,9 @@ function VideoCell({ url, onSave, playing, onPlay }: {
     return (
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-1.5">
-          <button type="button" onClick={onPlay}
+          <button type="button" onClick={() => setPlayOpen(true)}
             className="flex items-center gap-0.5 text-[11px] text-primary hover:underline font-medium">
-            <Play className="h-3 w-3 fill-current" /> {playing ? "Close" : "Play"}
+            <Play className="h-3 w-3 fill-current" /> Play
           </button>
           <button type="button" onClick={handleDownload}
             className="flex items-center gap-0.5 text-[11px] text-muted-foreground hover:text-foreground">
@@ -2255,6 +2303,7 @@ function VideoCell({ url, onSave, playing, onPlay }: {
           className="text-[10px] text-muted-foreground hover:underline text-left">
           Change
         </button>
+        {playOpen && <VideoPlayDialog url={url} onClose={() => setPlayOpen(false)} />}
       </div>
     );
   }
@@ -2397,7 +2446,6 @@ function CandidateCard({
   const [medDateOpen, setMedDateOpen] = useState(false);
   const [pendingMedDate, setPendingMedDate] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [videoPlaying, setVideoPlaying] = useState(false);
   const statusKey = (["available","processing","arrived","canceled","returned"].includes(candidate.status ?? "")
     ? candidate.status : "available") as Status;
 
@@ -2497,12 +2545,7 @@ function CandidateCard({
                 return (
                   <div key="VIDEO" className="shrink-0 w-[90px]">
                     <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">VIDEO</div>
-                    <VideoCell
-                      url={candidate.video_url ?? null}
-                      onSave={(v) => onUpdateField("video_url", v)}
-                      playing={videoPlaying}
-                      onPlay={() => setVideoPlaying((p) => !p)}
-                    />
+                    <VideoCell url={candidate.video_url ?? null} onSave={(v) => onUpdateField("video_url", v)} />
                   </div>
                 );
               }
@@ -2591,18 +2634,6 @@ function CandidateCard({
             </button>
           </div>
         </div>
-        {videoPlaying && candidate.video_url && (
-          <div className="border-t border-border px-4 pb-3 pt-2">
-            <video
-              key={candidate.video_url}
-              src={candidate.video_url}
-              controls
-              autoPlay
-              className="w-full rounded-sm bg-black"
-              style={{ maxHeight: 260 }}
-            />
-          </div>
-        )}
       </div>
       {cancelOpen && (
         <CancelReasonDialog
