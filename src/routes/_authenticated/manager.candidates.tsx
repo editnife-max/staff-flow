@@ -9,7 +9,7 @@ import {
   SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight,
   ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
-  Globe, Send, Activity, ClipboardPaste, Upload, ImageIcon, UserPlus, AlertTriangle, Table2, Plus,
+  Globe, Send, Activity, ClipboardPaste, Upload, ImageIcon, UserPlus, AlertTriangle, Table2, Plus, Loader2,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -2167,6 +2167,7 @@ function CandidateCardList({
 function VideoCell({ url, onSave, candidateName }: { url: string | null; onSave: (v: string | null) => void; candidateName: string }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(url ?? "");
+  const [dlLoading, setDlLoading] = useState(false);
 
   if (editing) {
     return (
@@ -2192,19 +2193,29 @@ function VideoCell({ url, onSave, candidateName }: { url: string | null; onSave:
       ? `https://drive.google.com/uc?export=download&id=${gdMatch[1]}`
       : url;
 
-    const handleDownload = () => {
+    const handleDownload = async () => {
       if (gdMatch) {
         window.open(downloadUrl, "_blank");
         return;
       }
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      a.target = "_blank";
-      a.rel = "noopener noreferrer";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      if (dlLoading) return;
+      setDlLoading(true);
+      try {
+        const res = await fetch(url);
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+      } catch {
+        window.open(url, "_blank");
+      } finally {
+        setDlLoading(false);
+      }
     };
     return (
       <div className="flex flex-col gap-0.5">
@@ -2213,9 +2224,9 @@ function VideoCell({ url, onSave, candidateName }: { url: string | null; onSave:
             className="flex items-center gap-0.5 text-[11px] text-primary hover:underline font-medium">
             <Play className="h-3 w-3 fill-current" /> Play
           </button>
-          <button type="button" onClick={handleDownload}
-            className="flex items-center gap-0.5 text-[11px] text-muted-foreground hover:text-foreground">
-            <Download className="h-3 w-3" />
+          <button type="button" onClick={handleDownload} disabled={dlLoading}
+            className="flex items-center gap-0.5 text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50">
+            {dlLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
           </button>
         </div>
         <button type="button" onClick={() => { setDraft(url); setEditing(true); }}
