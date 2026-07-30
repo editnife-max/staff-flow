@@ -2114,7 +2114,7 @@ function CandidateCardList({
   );
 }
 
-function VideoCell({ url, onSave }: { url: string | null; onSave: (v: string | null) => void }) {
+function VideoCell({ url, onSave, candidateName }: { url: string | null; onSave: (v: string | null) => void; candidateName: string }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(url ?? "");
 
@@ -2136,14 +2136,28 @@ function VideoCell({ url, onSave }: { url: string | null; onSave: (v: string | n
   }
 
   if (url) {
+    const fileName = `${candidateName}.mp4`;
+    const gdMatch = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
+    const downloadUrl = gdMatch
+      ? `https://drive.google.com/uc?export=download&id=${gdMatch[1]}`
+      : url;
+
     const handleDownload = async () => {
+      if (gdMatch) {
+        const a = document.createElement("a");
+        a.href = downloadUrl;
+        a.download = fileName;
+        a.target = "_blank";
+        a.click();
+        return;
+      }
       try {
         const res = await fetch(url);
         const blob = await res.blob();
         const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = blobUrl;
-        a.download = "video.mp4";
+        a.download = fileName;
         a.click();
         URL.revokeObjectURL(blobUrl);
       } catch {
@@ -2287,7 +2301,7 @@ function CandidateCard({
                 return (
                   <div key="VIDEO" className="shrink-0 w-[90px]">
                     <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">VIDEO</div>
-                    <VideoCell url={candidate.video_url ?? null} onSave={(v) => onUpdateField("video_url", v)} />
+                    <VideoCell url={candidate.video_url ?? null} onSave={(v) => onUpdateField("video_url", v)} candidateName={candidate.full_name} />
                   </div>
                 );
               }
