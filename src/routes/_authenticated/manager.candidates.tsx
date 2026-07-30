@@ -3196,6 +3196,7 @@ function ProcessingCard({
   const [cocPlacedPhone, setCocPlacedPhone] = useState("");
   const [lmisFilesOpen, setLmisFilesOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [embassyOverwriteOpen, setEmbassyOverwriteOpen] = useState(false);
 
   function handleColUpdate(colKey: string, value: string | null) {
     if (colKey === "coc_status" && value === "Placed") {
@@ -3248,8 +3249,12 @@ function ProcessingCard({
     }
     onUpdateField(colKey, value);
     if (colKey === "medical_status" && value === "Fit") onUpdateField("lmis_status", "Not tested");
-    if (colKey === "visa_status" && value === "Sent to Embassy" && !(candidate as any).embassy_date)
-      onUpdateField("embassy_date", new Date().toISOString().split("T")[0]);
+    if (colKey === "visa_status" && value === "Sent to Embassy") {
+      if (!(candidate as any).embassy_date)
+        onUpdateField("embassy_date", new Date().toISOString().split("T")[0]);
+      else
+        setEmbassyOverwriteOpen(true);
+    }
   }
 
   return (
@@ -3563,6 +3568,24 @@ function ProcessingCard({
       open={historyOpen}
       onClose={() => setHistoryOpen(false)}
     />
+    {embassyOverwriteOpen && (
+      <Dialog open onOpenChange={(o) => { if (!o) setEmbassyOverwriteOpen(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Overwrite Embassy Date?</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Embassy date is already set to{" "}
+            <strong>{new Date((candidate as any).embassy_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</strong>.
+            Replace with today's date?
+          </p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEmbassyOverwriteOpen(false)}>No, keep existing</Button>
+            <Button onClick={() => { onUpdateField("embassy_date", new Date().toISOString().split("T")[0]); setEmbassyOverwriteOpen(false); }}>
+              Yes, update to today
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )}
     </>
   );
 }
