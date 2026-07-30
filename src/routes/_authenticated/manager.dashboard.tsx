@@ -593,8 +593,13 @@ function ManagerDashboard() {
       else if (value !== "Issued" && c?.ticket_status === "Ready")
         fieldMut.mutate({ id, field: "ticket_status", value: null });
       if (!value) fieldMut.mutate({ id, field: "embassy_date", value: null });
-      if (value === "Sent to Embassy" && (c as any)?.embassy_date)
-        setEmbassyOverwrite(id);
+      if (value === "Sent to Embassy") {
+        if ((c as any)?.embassy_date) {
+          setEmbassyOverwrite(id);
+        } else {
+          fieldMut.mutate({ id, field: "embassy_date", value: new Date().toISOString().split("T")[0] });
+        }
+      }
     }
   };
 
