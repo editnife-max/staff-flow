@@ -109,7 +109,12 @@
       "Bash(node *)",
       "Bash(bun *)",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('bin:', d.get\\('bin'\\)\\); print\\('main:', d.get\\('main'\\)\\); print\\('version:', d.get\\('version'\\)\\)\")",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('version:', d.get\\('version'\\)\\); print\\('main:', d.get\\('main'\\)\\); print\\('exports:', list\\(d.get\\('exports', {}\\).keys\\(\\)\\)[:10]\\)\")"
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('version:', d.get\\('version'\\)\\); print\\('main:', d.get\\('main'\\)\\); print\\('exports:', list\\(d.get\\('exports', {}\\).keys\\(\\)\\)[:10]\\)\")",
+      "Bash(where bun *)",
+      "Bash(export PATH=\"$HOME/.bun/bin:$PATH\")",
+      "Bash(\"/c/Program Files/Volta/node.exe\" --version)",
+      "Bash(export PATH=\"/c/Program Files/Volta:$HOME/.bun/bin:$PATH\")",
+      "PowerShell(Start-Process \"http://localhost:5174\")"
     ]
   },
   "enableAllProjectMcpServers": true,
