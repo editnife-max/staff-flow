@@ -594,7 +594,7 @@ function StaffCandidatesPage() {
     fieldMut.mutate({ id, field, value });
     // When contract_date is first set, prompt for LMIS files needed
     if (field === "contract_date" && value) {
-      const c = candidates.find((c) => c.id === id);
+      const c = qc.getQueryData<Candidate[]>(["staff-candidates", user?.id])?.find((c) => c.id === id);
       if (c && !c.unfilled_lmis) { setLmisNeededId(id); setLmisNeededSel([]); }
     }
     if (field === "selected_by" && value) {
