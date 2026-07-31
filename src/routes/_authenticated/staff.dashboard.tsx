@@ -1080,7 +1080,7 @@ function StaffDashboard() {
   const passportNotAccepted = candidates.filter(
     (c) => c.status === "processing" && c.tasheer_status === "Ready",
   );
-  const fitLmisNotTested = candidates.filter((c) => c.medical_status === "Fit" && c.coc_status === "Done" && (!c.lmis_status || c.lmis_status === "Not tested"));
+  const fitLmisNotTested = candidates.filter((c) => c.status !== "arrived" && c.medical_status === "Fit" && c.coc_status === "Done" && (!c.lmis_status || c.lmis_status === "Not tested"));
   const lmisDraftImported = candidates.filter((c) => c.lmis_status === "Draft" || c.lmis_status === "Imported");
   const ticketReady = candidates.filter((c) => c.ticket_status === "Ready");
   const arrivalCityMissing = candidates.filter((c) => c.status === "processing" && !c.arrival_city);

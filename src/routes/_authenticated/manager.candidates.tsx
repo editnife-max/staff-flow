@@ -428,6 +428,8 @@ function ManagerCandidatesPage() {
   const [cocPlacedPending, setCocPlacedPending] = useState<{ id: string } | null>(null);
   const [cocPlacedName, setCocPlacedName] = useState("");
   const [cocPlacedPhone, setCocPlacedPhone] = useState("");
+  const [lmisNeededId, setLmisNeededId] = useState<string | null>(null);
+  const [lmisNeededSel, setLmisNeededSel] = useState<string[]>([]);
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["manager-candidates", user?.id],
@@ -663,8 +665,14 @@ function ManagerCandidatesPage() {
   const handleUpdateField = useCallback((id: string, field: string, value: string | null) => {
     fieldMut.mutate({ id, field, value });
     const current = () => qc.getQueryData<Candidate[]>(["manager-candidates", user?.id])?.find((c) => c.id === id);
+    // When contract_date is first set, prompt for LMIS files needed
+    if (field === "contract_date" && value) {
+      const c = candidates.find((c) => c.id === id);
+      if (c && !c.unfilled_lmis) { setLmisNeededId(id); setLmisNeededSel([]); }
+    }
     if (field === "selected_by" && value) {
       const c = current();
+      if (c && !c.contract_date && !c.unfilled_lmis) { setLmisNeededId(id); setLmisNeededSel([]); }
       const fill = resolveSelectedBy(value);
       if (fill.destination_country && !c?.destination_country)
         fieldMut.mutate({ id, field: "destination_country", value: fill.destination_country });
@@ -1720,6 +1728,47 @@ function ManagerCandidatesPage() {
       )}
       {actionCandidates.length > 0 && (
         <ActionDialog candidates={actionCandidates} onClose={() => setActionCandidates([])} />
+      )}
+
+      {/* LMIS files needed prompt */}
+      {lmisNeededId && (
+        <Dialog open onOpenChange={(o) => { if (!o) setLmisNeededId(null); }}>
+          <DialogContent className="max-w-sm rounded-none">
+            <DialogHeader>
+              <DialogTitle>LMIS Files Required?</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">Which LMIS files are needed for this candidate?</p>
+            <div className="flex flex-col gap-2 pt-1">
+              {UNFILLED_LMIS_OPTIONS.map((opt) => (
+                <label key={opt} className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-primary"
+                    checked={lmisNeededSel.includes(opt)}
+                    onChange={(e) =>
+                      setLmisNeededSel((prev) =>
+                        e.target.checked ? [...prev, opt] : prev.filter((x) => x !== opt)
+                      )
+                    }
+                  />
+                  <span className="text-sm font-medium">{opt}</span>
+                </label>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setLmisNeededId(null)}>Skip</Button>
+              <Button
+                onClick={() => {
+                  if (lmisNeededSel.length > 0)
+                    fieldMut.mutate({ id: lmisNeededId, field: "unfilled_lmis", value: lmisNeededSel.join(", ") });
+                  setLmisNeededId(null);
+                }}
+              >
+                Confirm
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Tasheer Done — passport accepted dialog */}
