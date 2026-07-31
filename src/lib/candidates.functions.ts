@@ -213,6 +213,21 @@ export const upsertCandidate = createServerFn({ method: "POST" })
       candidateCode = codeData as string;
     }
 
+    // Duplicate passport number check
+    if (data.data.passport_number?.trim()) {
+      const { data: existing } = await supabaseAdmin
+        .from("candidates")
+        .select("id, full_name, candidate_code")
+        .eq("manager_id", managerId)
+        .ilike("passport_number", data.data.passport_number.trim())
+        .limit(1)
+        .maybeSingle();
+      if (existing) {
+        const label = (existing as any).candidate_code ?? (existing as any).full_name ?? "existing record";
+        throw new Error(`Duplicate passport number — already registered as ${label}`);
+      }
+    }
+
     const { data: row, error } = await supabaseAdmin
       .from("candidates")
       .insert({

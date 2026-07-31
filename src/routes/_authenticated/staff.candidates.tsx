@@ -1608,6 +1608,16 @@ function StaffCandidatesPage() {
                 if (!form.passport_status || !form.medical_status || !form.coc_status || !form.musaned_status) {
                   toast.error("Passport Status, Medical Status, COC Status and Country are required"); return;
                 }
+                if (!editing) {
+                  const passportNum = form.passport_number?.trim().toUpperCase();
+                  if (passportNum) {
+                    const dup = candidates.find((c) => c.passport_number?.trim().toUpperCase() === passportNum);
+                    if (dup) {
+                      toast.error(`Passport number already exists — ${dup.full_name} (${dup.candidate_code ?? dup.passport_number}) is already registered`);
+                      return;
+                    }
+                  }
+                }
                 saveMut.mutate();
               }}
               disabled={saveMut.isPending}
