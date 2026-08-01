@@ -715,7 +715,7 @@ function StaffCandidatesPage() {
       list = list.filter((c) => {
         const hasVideo = !!(c.video_url && (c.video_url as string).trim() !== "");
         if (filters.video.includes("yes") && hasVideo) return true;
-        if ((filters.video.includes("no") || filters.video.includes("blank")) && !hasVideo) return true;
+        if (filters.video.includes("no") && !hasVideo) return true;
         return false;
       });
     }
@@ -1079,7 +1079,6 @@ function StaffCandidatesPage() {
                   options={[
                     { value: "yes", label: "Yes" },
                     { value: "no", label: "No" },
-                    { value: "blank", label: "Blank" },
                   ]} />
               </>
             ) : (
