@@ -766,7 +766,7 @@ function ManagerDashboard() {
           {(noMedical5Days.length > 0 || noTasheer10Days.length > 0 || cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0) && (
             <div className="border border-border rounded-none overflow-hidden">
               <div className="px-3 py-2 bg-muted/20 border-b border-border">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Compliance & Recruitment</p>
+                <p className="text-sm font-bold text-foreground uppercase tracking-widest">Compliance & Recruitment</p>
               </div>
               <div className="divide-y divide-border">
                 <AlertSection icon={Stethoscope} title="Warning No Medical — 5+ Days in Processing" iconColor="text-red-600 dark:text-red-400" pillKey="medical" candidates={noMedical5Days} onUpdateField={handleUpdateField}
@@ -885,7 +885,7 @@ function ManagerDashboard() {
           {(ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerOverdue.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0) && (
             <div className="border border-border rounded-none overflow-hidden">
               <div className="px-3 py-2 bg-muted/20 border-b border-border">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Logistics & Deployment</p>
+                <p className="text-sm font-bold text-foreground uppercase tracking-widest">Logistics & Deployment</p>
               </div>
               <div className="divide-y divide-border">
                 <AlertSection icon={Ticket} title="Ticket Not Booked — Over 20 Days" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketNotBooked} onUpdateField={handleUpdateField}
@@ -988,7 +988,7 @@ function ManagerDashboard() {
           {(cvOverdue.length > 0 || unfilledLmis.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0) && (
             <div className="border border-border rounded-none overflow-hidden">
               <div className="px-3 py-2 bg-muted/20 border-b border-border">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Data & Misc</p>
+                <p className="text-sm font-bold text-foreground uppercase tracking-widest">Data & Misc</p>
               </div>
               <div className="divide-y divide-border">
                 <AlertSection icon={Send} title="CV Sent — No Selection" iconColor="text-teal-600 dark:text-teal-400" pillKey="cvoverdue" candidates={cvOverdue} onUpdateField={handleUpdateField}
