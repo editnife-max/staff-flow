@@ -623,27 +623,23 @@ function AlertSection({
     <>
       <button
         type="button"
-        className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-background border border-border hover:bg-muted/50 transition-colors rounded-none"
+        className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted/40 transition-colors text-left"
         onClick={() => { setOpen(true); setPage(1); }}
       >
-        <div className="flex items-center gap-3">
-          <Icon className={cn("h-4 w-4 shrink-0", iconColor)} />
-          <span className="text-sm font-semibold">{title}</span>
-          <span className={cn("text-xs font-bold px-2 py-0.5 rounded-none", ALERT_PILL[pillKey])}>
-            {candidates.length}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span
-            role="button"
-            title="Download Excel"
-            className="p-1 rounded-none text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
-            onClick={(e) => { e.stopPropagation(); downloadCandidatesExcel(candidates, title, exportCols); }}
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-          </span>
-          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-        </div>
+        <Icon className={cn("h-4 w-4 shrink-0", iconColor)} />
+        <span className="flex-1 text-sm font-medium truncate">{title}</span>
+        <span className={cn("text-xs font-bold px-2 py-0.5 rounded-none shrink-0", ALERT_PILL[pillKey])}>
+          {candidates.length}
+        </span>
+        <span
+          role="button"
+          title="Download Excel"
+          className="p-1 rounded-none text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors shrink-0"
+          onClick={(e) => { e.stopPropagation(); downloadCandidatesExcel(candidates, title, exportCols); }}
+        >
+          <FileSpreadsheet className="h-3.5 w-3.5" />
+        </span>
+        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
       </button>
 
       <Dialog open={open} onOpenChange={(o) => { if (!o) setOpen(false); }}>
@@ -1163,9 +1159,11 @@ function StaffDashboard() {
 
           {/* COMPLIANCE & RECRUITMENT */}
           {(noMedical5Days.length > 0 || noTasheer10Days.length > 0 || cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0) && (
-            <div className="border border-border rounded-none p-3 space-y-2">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Compliance & Recruitment</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 items-start">
+            <div className="border border-border rounded-none overflow-hidden">
+              <div className="px-3 py-2 bg-muted/20 border-b border-border">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Compliance & Recruitment</p>
+              </div>
+              <div className="divide-y divide-border">
                 <AlertSection icon={Stethoscope} title="Warning No Medical — 5+ Days in Processing" iconColor="text-red-600 dark:text-red-400" pillKey="medical" candidates={noMedical5Days} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "contract_date", label: "Contract Date" }, { key: "office", label: "Office" }, { key: "selected_by", label: "Selected By" }]}
                   renderBadge={(c) => c.contract_date ? (
@@ -1265,9 +1263,11 @@ function StaffDashboard() {
 
           {/* LOGISTICS & DEPLOYMENT */}
           {(ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerOverdue.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || weeklyAdded.length > 0 || weeklyDeployments.length > 0) && (
-            <div className="border border-border rounded-none p-3 space-y-2">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Logistics & Deployment</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 items-start">
+            <div className="border border-border rounded-none overflow-hidden">
+              <div className="px-3 py-2 bg-muted/20 border-b border-border">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Logistics & Deployment</p>
+              </div>
+              <div className="divide-y divide-border">
                 <AlertSection icon={Ticket} title="Ticket Not Booked — Over 20 Days" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketNotBooked} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "ticket_status", label: "Ticket" }, { key: "contract_date", label: "Contract Date" }, { key: "arrival_city", label: "Arrival City" }, { key: "office", label: "Office" }]}
                   renderBadge={(c) => c.contract_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">{daysSince(c.contract_date)}d since contract</span> : null}
@@ -1352,9 +1352,11 @@ function StaffDashboard() {
 
           {/* DATA & MISC */}
           {(cvOverdue.length > 0 || unfilledLmis.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0) && (
-            <div className="border border-border rounded-none p-3 space-y-2">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Data & Misc</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 items-start">
+            <div className="border border-border rounded-none overflow-hidden">
+              <div className="px-3 py-2 bg-muted/20 border-b border-border">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Data & Misc</p>
+              </div>
+              <div className="divide-y divide-border">
                 <AlertSection icon={Send} title="CV Sent — No Selection" iconColor="text-teal-600 dark:text-teal-400" pillKey="cvoverdue" candidates={cvOverdue} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "cv_sent_to", label: "CV Sent To" }, { key: "cv_sent_date", label: "CV Sent Date" }, { key: "musaned_status", label: "Country" }]}
                   renderBadge={(c) => c.cv_sent_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">{Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000)}d ago</span> : null}

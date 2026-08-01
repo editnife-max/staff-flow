@@ -421,27 +421,23 @@ function AlertSection({
     <>
       <button
         type="button"
-        className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-background border border-border hover:bg-muted/50 transition-colors rounded-none"
+        className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted/40 transition-colors text-left"
         onClick={() => { setOpen(true); setPage(1); }}
       >
-        <div className="flex items-center gap-3">
-          <Icon className={cn("h-4 w-4 shrink-0", iconColor)} />
-          <span className="text-sm font-semibold">{title}</span>
-          <span className={cn("text-xs font-bold px-2 py-0.5 rounded-none", ALERT_PILL[pillKey])}>
-            {candidates.length}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span
-            role="button"
-            title="Download Excel"
-            className="p-1 rounded-none text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
-            onClick={(e) => { e.stopPropagation(); downloadCandidatesExcel(candidates, title, exportCols); }}
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-          </span>
-          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-        </div>
+        <Icon className={cn("h-4 w-4 shrink-0", iconColor)} />
+        <span className="flex-1 text-sm font-medium truncate">{title}</span>
+        <span className={cn("text-xs font-bold px-2 py-0.5 rounded-none shrink-0", ALERT_PILL[pillKey])}>
+          {candidates.length}
+        </span>
+        <span
+          role="button"
+          title="Download Excel"
+          className="p-1 rounded-none text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors shrink-0"
+          onClick={(e) => { e.stopPropagation(); downloadCandidatesExcel(candidates, title, exportCols); }}
+        >
+          <FileSpreadsheet className="h-3.5 w-3.5" />
+        </span>
+        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
       </button>
 
       <Dialog open={open} onOpenChange={(o) => { if (!o) setOpen(false); }}>
@@ -764,260 +760,275 @@ function ManagerDashboard() {
 
       {/* Alert sections */}
       {hasAlerts && (
-        <div className="space-y-2">
-          <AlertSection icon={Stethoscope} title="Warning No Medical — 5+ Days in Processing" iconColor="text-red-600 dark:text-red-400" pillKey="medical" candidates={noMedical5Days} onUpdateField={handleUpdateField}
-            exportCols={[...BASE, { key: "contract_date", label: "Contract Date" }, { key: "office", label: "Office" }, { key: "selected_by", label: "Selected By" }]}
-            renderBadge={(c) => c.contract_date ? (
-              <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">
-                {daysSince(c.contract_date)}d
-              </span>
-            ) : null}
-            renderCardAction={(c) => (
-              <div className="flex gap-1">
-                <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
-                  onClick={() => {
-                    handleUpdateField(c.id, "medical_status", "Fit");
-                    handleUpdateField(c.id, "medical_date", new Date().toISOString().split("T")[0]);
-                  }}>
-                  Fit
-                </Button>
-                <Button size="sm" variant="outline" className="h-6 text-[12px] px-2 rounded-none text-red-600 border-red-300 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
-                  onClick={() => {
-                    handleUpdateField(c.id, "status", "canceled");
-                    navigate({ to: "/manager/candidates", search: { tab: "canceled" } });
-                  }}>
-                  Cancel
-                </Button>
+        <div className="space-y-5">
+
+          {/* COMPLIANCE & RECRUITMENT */}
+          {(noMedical5Days.length > 0 || noTasheer10Days.length > 0 || cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0) && (
+            <div className="border border-border rounded-none overflow-hidden">
+              <div className="px-3 py-2 bg-muted/20 border-b border-border">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Compliance & Recruitment</p>
               </div>
-            )} />
-
-          <AlertSection icon={AlertTriangle} title="Warning No Tasheer — 10+ Days in Processing" iconColor="text-violet-600 dark:text-violet-400" pillKey="tasheer" candidates={noTasheer10Days} onUpdateField={handleUpdateField}
-            exportCols={[...BASE, { key: "contract_date", label: "Contract Date" }, { key: "office", label: "Office" }, { key: "selected_by", label: "Selected By" }]}
-            renderBadge={(c) => c.contract_date ? (
-              <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
-                {daysSince(c.contract_date)}d
-              </span>
-            ) : null}
-            renderCardAction={(c) => (
-              <Button size="sm" variant="outline" className="h-6 text-[12px] px-2 rounded-none text-red-600 border-red-300 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
-                onClick={() => {
-                  handleUpdateField(c.id, "status", "canceled");
-                  navigate({ to: "/manager/candidates", search: { tab: "canceled" } });
-                }}>
-                Suggest Cancel
-              </Button>
-            )} />
-
-          <AlertSection icon={FileCheck} title="COC — No" iconColor="text-orange-600 dark:text-orange-400" pillKey="coc" candidates={cocNo} onUpdateField={handleUpdateField}
-            exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "coc_booked_date", label: "COC Booking Date" }, { key: "labour_id", label: "Labour ID" }, { key: "office", label: "Office" }, { key: "narrative", label: "Narrative" }, { key: "narrative_phone", label: "Narrative Phone" }]}
-            renderBadge={(c) => (
-              <div className="text-right">
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300">No</span>
-                {(c as any).coc_booked_date && (
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Booked: {new Date((c as any).coc_booked_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}</p>
-                )}
+              <div className="divide-y divide-border">
+                <AlertSection icon={Stethoscope} title="Warning No Medical — 5+ Days in Processing" iconColor="text-red-600 dark:text-red-400" pillKey="medical" candidates={noMedical5Days} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "contract_date", label: "Contract Date" }, { key: "office", label: "Office" }, { key: "selected_by", label: "Selected By" }]}
+                  renderBadge={(c) => c.contract_date ? (
+                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">
+                      {daysSince(c.contract_date)}d
+                    </span>
+                  ) : null}
+                  renderCardAction={(c) => (
+                    <div className="flex gap-1">
+                      <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
+                        onClick={() => {
+                          handleUpdateField(c.id, "medical_status", "Fit");
+                          handleUpdateField(c.id, "medical_date", new Date().toISOString().split("T")[0]);
+                        }}>
+                        Fit
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-6 text-[12px] px-2 rounded-none text-red-600 border-red-300 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
+                        onClick={() => {
+                          handleUpdateField(c.id, "status", "canceled");
+                          navigate({ to: "/manager/candidates", search: { tab: "canceled" } });
+                        }}>
+                        Cancel
+                      </Button>
+                    </div>
+                  )} />
+                <AlertSection icon={AlertTriangle} title="Warning No Tasheer — 10+ Days in Processing" iconColor="text-violet-600 dark:text-violet-400" pillKey="tasheer" candidates={noTasheer10Days} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "contract_date", label: "Contract Date" }, { key: "office", label: "Office" }, { key: "selected_by", label: "Selected By" }]}
+                  renderBadge={(c) => c.contract_date ? (
+                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
+                      {daysSince(c.contract_date)}d
+                    </span>
+                  ) : null}
+                  renderCardAction={(c) => (
+                    <Button size="sm" variant="outline" className="h-6 text-[12px] px-2 rounded-none text-red-600 border-red-300 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
+                      onClick={() => {
+                        handleUpdateField(c.id, "status", "canceled");
+                        navigate({ to: "/manager/candidates", search: { tab: "canceled" } });
+                      }}>
+                      Suggest Cancel
+                    </Button>
+                  )} />
+                <AlertSection icon={FileCheck} title="COC — No" iconColor="text-orange-600 dark:text-orange-400" pillKey="coc" candidates={cocNo} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "coc_booked_date", label: "COC Booking Date" }, { key: "labour_id", label: "Labour ID" }, { key: "office", label: "Office" }, { key: "narrative", label: "Narrative" }, { key: "narrative_phone", label: "Narrative Phone" }]}
+                  renderBadge={(c) => (
+                    <div className="text-right">
+                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300">No</span>
+                      {(c as any).coc_booked_date && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Booked: {new Date((c as any).coc_booked_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}</p>
+                      )}
+                    </div>
+                  )}
+                  renderCardAction={(c) => (
+                    <CocBookButton candidate={c} onConfirm={(status, date) => {
+                      handleUpdateField(c.id, "coc_status", status);
+                      if (date) handleUpdateField(c.id, "coc_booked_date", date);
+                    }} />
+                  )} />
+                <AlertSection icon={FileCheck} title="COC — Placed" iconColor="text-violet-600 dark:text-violet-400" pillKey="coc" candidates={cocPlaced} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "coc_booked_date", label: "COC Booking Date" }, { key: "labour_id", label: "Labour ID" }, { key: "selected_by", label: "Selected By" }, { key: "office", label: "Office" }]}
+                  renderBadge={(c) => (
+                    <div className="text-right">
+                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Placed</span>
+                      {(c as any).coc_booked_date && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Booked: {new Date((c as any).coc_booked_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}</p>
+                      )}
+                    </div>
+                  )}
+                  renderCardAction={(c) => (
+                    <CocBookButton candidate={c} onConfirm={(status, date) => {
+                      handleUpdateField(c.id, "coc_status", status);
+                      if (date) handleUpdateField(c.id, "coc_booked_date", date);
+                    }} />
+                  )} />
+                <AlertSection icon={Stethoscope} title="Medical — Not Fit" iconColor="text-red-600 dark:text-red-400" pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }, { key: "coc_status", label: "COC Status" }, { key: "office", label: "Office" }]}
+                  renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">{c.medical_status}</span>}
+                  renderCardAction={(c) => (
+                    <MedicalBookButton candidateName={c.full_name}
+                      onConfirm={(date) => {
+                        handleUpdateField(c.id, "medical_date", date);
+                        handleUpdateField(c.id, "medical_status", "Booked");
+                      }} />
+                  )} />
+                <AlertSection icon={Stethoscope} title="COC Done — Medical Not Fit" iconColor="text-fuchsia-600 dark:text-fuchsia-400" pillKey="medical" candidates={cocDoneNotFit} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }]}
+                  renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">{c.medical_status}</span>}
+                  renderCardAction={(c) => (
+                    <MedicalBookButton candidateName={c.full_name}
+                      onConfirm={(date) => {
+                        handleUpdateField(c.id, "medical_date", date);
+                        handleUpdateField(c.id, "medical_status", "Booked");
+                      }} />
+                  )} />
+                <AlertSection icon={CalendarX} title="Medical — Expired" iconColor="text-rose-600 dark:text-rose-400" pillKey="medexp" candidates={medicalExpired} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }]}
+                  renderBadge={(c) => (
+                    <div className="text-right">
+                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">Expired</span>
+                      {c.medical_date && <p className="text-[10px] text-muted-foreground mt-0.5">{daysSince(c.medical_date)}d ago</p>}
+                    </div>
+                  )}
+                  renderCardAction={(c) => (
+                    <MedicalBookButton candidateName={c.full_name}
+                      onConfirm={(date) => {
+                        handleUpdateField(c.id, "medical_date", date);
+                        handleUpdateField(c.id, "medical_status", "Booked");
+                      }} />
+                  )} />
               </div>
-            )}
-            renderCardAction={(c) => (
-              <CocBookButton candidate={c} onConfirm={(status, date) => {
-                handleUpdateField(c.id, "coc_status", status);
-                if (date) handleUpdateField(c.id, "coc_booked_date", date);
-              }} />
-            )} />
+            </div>
+          )}
 
-          <AlertSection icon={FileCheck} title="COC — Placed" iconColor="text-violet-600 dark:text-violet-400" pillKey="coc" candidates={cocPlaced} onUpdateField={handleUpdateField}
-            exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "coc_booked_date", label: "COC Booking Date" }, { key: "labour_id", label: "Labour ID" }, { key: "selected_by", label: "Selected By" }, { key: "office", label: "Office" }]}
-            renderBadge={(c) => (
-              <div className="text-right">
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Placed</span>
-                {(c as any).coc_booked_date && (
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Booked: {new Date((c as any).coc_booked_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}</p>
-                )}
+          {/* LOGISTICS & DEPLOYMENT */}
+          {(ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerOverdue.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0) && (
+            <div className="border border-border rounded-none overflow-hidden">
+              <div className="px-3 py-2 bg-muted/20 border-b border-border">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Logistics & Deployment</p>
               </div>
-            )}
-            renderCardAction={(c) => (
-              <CocBookButton candidate={c} onConfirm={(status, date) => {
-                handleUpdateField(c.id, "coc_status", status);
-                if (date) handleUpdateField(c.id, "coc_booked_date", date);
-              }} />
-            )} />
-
-          <AlertSection icon={Stethoscope} title="Medical — Not Fit" iconColor="text-red-600 dark:text-red-400" pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField}
-            exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }, { key: "coc_status", label: "COC Status" }, { key: "office", label: "Office" }]}
-            renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">{c.medical_status}</span>}
-            renderCardAction={(c) => (
-              <MedicalBookButton candidateName={c.full_name}
-                onConfirm={(date) => {
-                  handleUpdateField(c.id, "medical_date", date);
-                  handleUpdateField(c.id, "medical_status", "Booked");
-                }} />
-            )} />
-
-          <AlertSection icon={Stethoscope} title="COC Done — Medical Not Fit" iconColor="text-fuchsia-600 dark:text-fuchsia-400" pillKey="medical" candidates={cocDoneNotFit} onUpdateField={handleUpdateField}
-            exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }]}
-            renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">{c.medical_status}</span>}
-            renderCardAction={(c) => (
-              <MedicalBookButton candidateName={c.full_name}
-                onConfirm={(date) => {
-                  handleUpdateField(c.id, "medical_date", date);
-                  handleUpdateField(c.id, "medical_status", "Booked");
-                }} />
-            )} />
-
-          <AlertSection icon={CalendarX} title="Medical — Expired" iconColor="text-rose-600 dark:text-rose-400" pillKey="medexp" candidates={medicalExpired} onUpdateField={handleUpdateField}
-            exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }]}
-            renderBadge={(c) => (
-              <div className="text-right">
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">Expired</span>
-                {c.medical_date && <p className="text-[10px] text-muted-foreground mt-0.5">{daysSince(c.medical_date)}d ago</p>}
+              <div className="divide-y divide-border">
+                <AlertSection icon={Ticket} title="Ticket Not Booked — Over 20 Days" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketNotBooked} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "ticket_status", label: "Ticket" }, { key: "contract_date", label: "Contract Date" }, { key: "arrival_city", label: "Arrival City" }, { key: "office", label: "Office" }]}
+                  renderBadge={(c) => c.contract_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">{daysSince(c.contract_date)}d since contract</span> : null}
+                  renderCardAction={(c) => (
+                    <TicketBookButton candidateName={c.full_name}
+                      onConfirm={(date) => {
+                        handleUpdateField(c.id, "ticket_date", date);
+                        handleUpdateField(c.id, "ticket_status", "Booked");
+                      }} />
+                  )} />
+                <AlertSection icon={Ticket} title="Ticket Ready" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketReady} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "ticket_status", label: "Ticket" }, { key: "ticket_date", label: "Ticket Date" }, { key: "arrival_city", label: "Arrival City" }, { key: "passport_number", label: "Passport No." }]}
+                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Ready</span>}
+                  renderCardAction={(c) => (
+                    <TicketBookButton candidateName={c.full_name}
+                      onConfirm={(date) => {
+                        handleUpdateField(c.id, "ticket_date", date);
+                        handleUpdateField(c.id, "ticket_status", "Booked");
+                      }} />
+                  )} />
+                <AlertSection icon={MapPin} title="Arrival City Not Set" iconColor="text-cyan-600 dark:text-cyan-400" pillKey="arrival" candidates={arrivalCityMissing} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "arrival_city", label: "Arrival City" }, { key: "ticket_status", label: "Ticket" }, { key: "office", label: "Office" }]}
+                  renderCardAction={(c) => (
+                    <Select onValueChange={(v) => handleUpdateField(c.id, "arrival_city", v)}>
+                      <SelectTrigger className="h-7 text-xs rounded-none w-[110px]">
+                        <SelectValue placeholder="Set City" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {["Riyadh", "Jeddah", "Dammam", "Mecca", "Medina", "Taif", "Khobar", "Abha"].map((city) => (
+                          <SelectItem key={city} value={city}>{city}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )} />
+                <AlertSection icon={BadgeCheck} title="Ready for Embassy Visa" iconColor="text-emerald-600 dark:text-emerald-400" pillKey="visaready" candidates={visaReady} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "tasheer_status", label: "Tasheer" }, { key: "wokala_status", label: "Wokala" }, { key: "embassy_date", label: "Embassy Date" }]}
+                  renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">{c.visa_status === "Ready for embassy" ? "Ready" : "Auto"}</span>}
+                  renderCardAction={(c) => (
+                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                      onClick={() => handleUpdateField(c.id, "visa_status", "Sent to Embassy")}>
+                      Sent to Embassy
+                    </Button>
+                  )} />
+                <AlertSection icon={Landmark} title="Embassy Visa — Pending" iconColor="text-sky-600 dark:text-sky-400" pillKey="embassy" candidates={embassyPending} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "tasheer_status", label: "Tasheer" }, { key: "embassy_date", label: "Embassy Date" }, { key: "processing_notes", label: "Notes" }]}
+                  renderBadge={(c) => c.processing_notes ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300 max-w-[120px] truncate block">{c.processing_notes}</span> : null}
+                  renderCardAction={(c) => (
+                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                      onClick={() => handleUpdateField(c.id, "visa_status", "Sent to Embassy")}>
+                      Sent to Embassy
+                    </Button>
+                  )} />
+                <AlertSection icon={AlertTriangle} title="Tasheer Overdue — Booked Date Passed" iconColor="text-amber-600 dark:text-amber-400" pillKey="tasheer" candidates={tasheerOverdue} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }]}
+                  renderBadge={(c) => c.tasheer_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{daysSince(c.tasheer_date)}d overdue</span> : null}
+                  renderCardAction={(c) => (
+                    <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={() => handleUpdateField(c.id, "tasheer_status", "Done")}>
+                      Done
+                    </Button>
+                  )} />
+                <AlertSection icon={AlertTriangle} title="Tasheer Done — Wokala Unpaid" iconColor="text-violet-600 dark:text-violet-400" pillKey="tasheer" candidates={tasheerDoneWokalaUnpaid} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }, { key: "narrative_phone", label: "Narrative Phone" }]}
+                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Unpaid</span>}
+                  renderCardAction={(c) => (
+                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                      onClick={() => handleUpdateField(c.id, "wokala_status", "Paid")}>
+                      Mark Paid
+                    </Button>
+                  )} />
+                <AlertSection icon={XCircle} title="Tasheer — Ready" iconColor="text-red-600 dark:text-red-400" pillKey="tasheer" candidates={passportNotAccepted} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "passport_number", label: "Passport No." }, { key: "office", label: "Office" }]}
+                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">Ready</span>}
+                  renderCardAction={(c) => (
+                    <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={() => {
+                        handleUpdateField(c.id, "passport_accepted", "true");
+                        handleUpdateField(c.id, "tasheer_status", "Done");
+                        handleUpdateField(c.id, "visa_status", "Ready for embassy");
+                      }}>
+                      Yes
+                    </Button>
+                  )} />
+                <AlertSection icon={RotateCcw} title="Visa Returned" iconColor="text-rose-600 dark:text-rose-400" pillKey="visareturn" candidates={visaReturned} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "remark", label: "Remark" }, { key: "musaned_status", label: "Country" }]}
+                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">Returned</span>}
+                  renderCardAction={(c) => (
+                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                      onClick={() => handleUpdateField(c.id, "visa_status", "Waiting Replacement")}>
+                      Replacement
+                    </Button>
+                  )} />
               </div>
-            )}
-            renderCardAction={(c) => (
-              <MedicalBookButton candidateName={c.full_name}
-                onConfirm={(date) => {
-                  handleUpdateField(c.id, "medical_date", date);
-                  handleUpdateField(c.id, "medical_status", "Booked");
-                }} />
-            )} />
+            </div>
+          )}
 
-          <AlertSection icon={ClipboardList} title="LMIS file" iconColor="text-amber-600 dark:text-amber-400" pillKey="lmis" candidates={unfilledLmis} onUpdateField={handleUpdateField}
-            exportCols={[...BASE, { key: "lmis_status", label: "LMIS Status" }, { key: "unfilled_lmis", label: "Unfilled LMIS" }, { key: "labour_id", label: "Labour ID" }]}
-            renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{c.unfilled_lmis}</span>}
-            renderCardAction={(c) => (
-              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
-                onClick={() => handleUpdateField(c.id, "unfilled_lmis", "")}>
-                Mark Done
-              </Button>
-            )} />
+          {/* DATA & MISC */}
+          {(cvOverdue.length > 0 || unfilledLmis.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0) && (
+            <div className="border border-border rounded-none overflow-hidden">
+              <div className="px-3 py-2 bg-muted/20 border-b border-border">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Data & Misc</p>
+              </div>
+              <div className="divide-y divide-border">
+                <AlertSection icon={Send} title="CV Sent — No Selection" iconColor="text-teal-600 dark:text-teal-400" pillKey="cvoverdue" candidates={cvOverdue} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "cv_sent_to", label: "CV Sent To" }, { key: "cv_sent_date", label: "CV Sent Date" }, { key: "musaned_status", label: "Country" }]}
+                  renderBadge={(c) => c.cv_sent_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">{Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000)}d ago</span> : null}
+                  renderCardAction={(c) => (
+                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                      onClick={() => handleUpdateField(c.id, "cv_sent_to", null)}>
+                      Recall CV
+                    </Button>
+                  )} />
+                <AlertSection icon={Stethoscope} title="Medical Fit — LMIS Not Tested" iconColor="text-teal-600 dark:text-teal-400" pillKey="fitlmis" candidates={fitLmisNotTested} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }, { key: "coc_status", label: "COC Status" }, { key: "lmis_status", label: "LMIS" }]}
+                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">Not Tested</span>}
+                  renderCardAction={(c) => (
+                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                      onClick={() => handleUpdateField(c.id, "lmis_status", "Imported")}>
+                      Start LMIS
+                    </Button>
+                  )} />
+                <AlertSection icon={ClipboardList} title="LMIS file" iconColor="text-amber-600 dark:text-amber-400" pillKey="lmis" candidates={unfilledLmis} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "lmis_status", label: "LMIS Status" }, { key: "unfilled_lmis", label: "Unfilled LMIS" }, { key: "labour_id", label: "Labour ID" }]}
+                  renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{c.unfilled_lmis}</span>}
+                  renderCardAction={(c) => (
+                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                      onClick={() => handleUpdateField(c.id, "unfilled_lmis", "")}>
+                      Mark Done
+                    </Button>
+                  )} />
+                <AlertSection icon={Upload} title="LMIS Draft / Imported — Upload Files" iconColor="text-indigo-600 dark:text-indigo-400" pillKey="lmis" candidates={lmisDraftImported} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "lmis_status", label: "LMIS Status" }, { key: "labour_id", label: "Labour ID" }, { key: "unfilled_lmis", label: "Unfilled LMIS" }]}
+                  renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">{c.lmis_status}</span>}
+                  renderCardAction={(c) => (
+                    <LmisUploadButton candidate={c}
+                      onUpdate={(field, value) => handleUpdateField(c.id, field, value)} />
+                  )} />
+              </div>
+            </div>
+          )}
 
-          <AlertSection icon={Ticket} title="Ticket Not Booked — Over 20 Days" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketNotBooked} onUpdateField={handleUpdateField}
-            exportCols={[...BASE, { key: "ticket_status", label: "Ticket" }, { key: "contract_date", label: "Contract Date" }, { key: "arrival_city", label: "Arrival City" }, { key: "office", label: "Office" }]}
-            renderBadge={(c) => c.contract_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">{daysSince(c.contract_date)}d since contract</span> : null}
-            renderCardAction={(c) => (
-              <TicketBookButton candidateName={c.full_name}
-                onConfirm={(date) => {
-                  handleUpdateField(c.id, "ticket_date", date);
-                  handleUpdateField(c.id, "ticket_status", "Booked");
-                }} />
-            )} />
-
-          <AlertSection icon={Ticket} title="Ticket Ready" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketReady} onUpdateField={handleUpdateField}
-            exportCols={[...BASE, { key: "ticket_status", label: "Ticket" }, { key: "ticket_date", label: "Ticket Date" }, { key: "arrival_city", label: "Arrival City" }, { key: "passport_number", label: "Passport No." }]}
-            renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Ready</span>}
-            renderCardAction={(c) => (
-              <TicketBookButton candidateName={c.full_name}
-                onConfirm={(date) => {
-                  handleUpdateField(c.id, "ticket_date", date);
-                  handleUpdateField(c.id, "ticket_status", "Booked");
-                }} />
-            )} />
-
-          <AlertSection icon={MapPin} title="Arrival City Not Set" iconColor="text-cyan-600 dark:text-cyan-400" pillKey="arrival" candidates={arrivalCityMissing} onUpdateField={handleUpdateField}
-            exportCols={[...BASE, { key: "arrival_city", label: "Arrival City" }, { key: "ticket_status", label: "Ticket" }, { key: "office", label: "Office" }]}
-            renderCardAction={(c) => (
-              <Select onValueChange={(v) => handleUpdateField(c.id, "arrival_city", v)}>
-                <SelectTrigger className="h-7 text-xs rounded-none w-[110px]">
-                  <SelectValue placeholder="Set City" />
-                </SelectTrigger>
-                <SelectContent>
-                  {["Riyadh", "Jeddah", "Dammam", "Mecca", "Medina", "Taif", "Khobar", "Abha"].map((city) => (
-                    <SelectItem key={city} value={city}>{city}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )} />
-
-          <AlertSection icon={Landmark} title="Embassy Visa — Pending" iconColor="text-sky-600 dark:text-sky-400" pillKey="embassy" candidates={embassyPending} onUpdateField={handleUpdateField}
-            exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "tasheer_status", label: "Tasheer" }, { key: "embassy_date", label: "Embassy Date" }, { key: "processing_notes", label: "Notes" }]}
-            renderBadge={(c) => c.processing_notes ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300 max-w-[120px] truncate block">{c.processing_notes}</span> : null}
-            renderCardAction={(c) => (
-              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
-                onClick={() => handleUpdateField(c.id, "visa_status", "Sent to Embassy")}>
-                Sent to Embassy
-              </Button>
-            )} />
-
-          <AlertSection icon={BadgeCheck} title="Ready for Embassy Visa" iconColor="text-emerald-600 dark:text-emerald-400" pillKey="visaready" candidates={visaReady} onUpdateField={handleUpdateField}
-            exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "tasheer_status", label: "Tasheer" }, { key: "wokala_status", label: "Wokala" }, { key: "embassy_date", label: "Embassy Date" }]}
-            renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">{c.visa_status === "Ready for embassy" ? "Ready" : "Auto"}</span>}
-            renderCardAction={(c) => (
-              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
-                onClick={() => handleUpdateField(c.id, "visa_status", "Sent to Embassy")}>
-                Sent to Embassy
-              </Button>
-            )} />
-
-          <AlertSection icon={RotateCcw} title="Visa Returned" iconColor="text-rose-600 dark:text-rose-400" pillKey="visareturn" candidates={visaReturned} onUpdateField={handleUpdateField}
-            exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "remark", label: "Remark" }, { key: "musaned_status", label: "Country" }]}
-            renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">Returned</span>}
-            renderCardAction={(c) => (
-              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
-                onClick={() => handleUpdateField(c.id, "visa_status", "Waiting Replacement")}>
-                Replacement
-              </Button>
-            )} />
-
-          <AlertSection icon={AlertTriangle} title="Tasheer Overdue — Booked Date Passed" iconColor="text-amber-600 dark:text-amber-400" pillKey="tasheer" candidates={tasheerOverdue} onUpdateField={handleUpdateField}
-            exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }]}
-            renderBadge={(c) => c.tasheer_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{daysSince(c.tasheer_date)}d overdue</span> : null}
-            renderCardAction={(c) => (
-              <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
-                onClick={() => handleUpdateField(c.id, "tasheer_status", "Done")}>
-                Done
-              </Button>
-            )} />
-
-          <AlertSection icon={AlertTriangle} title="Tasheer Done — Wokala Unpaid" iconColor="text-violet-600 dark:text-violet-400" pillKey="tasheer" candidates={tasheerDoneWokalaUnpaid} onUpdateField={handleUpdateField}
-            exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }, { key: "narrative_phone", label: "Narrative Phone" }]}
-            renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Unpaid</span>}
-            renderCardAction={(c) => (
-              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
-                onClick={() => handleUpdateField(c.id, "wokala_status", "Paid")}>
-                Mark Paid
-              </Button>
-            )} />
-
-          <AlertSection icon={XCircle} title="Tasheer — Ready" iconColor="text-red-600 dark:text-red-400" pillKey="tasheer" candidates={passportNotAccepted} onUpdateField={handleUpdateField}
-            exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "passport_number", label: "Passport No." }, { key: "office", label: "Office" }]}
-            renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">Ready</span>}
-            renderCardAction={(c) => (
-              <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
-                onClick={() => {
-                  handleUpdateField(c.id, "passport_accepted", "true");
-                  handleUpdateField(c.id, "tasheer_status", "Done");
-                  handleUpdateField(c.id, "visa_status", "Ready for embassy");
-                }}>
-                Yes
-              </Button>
-            )} />
-
-          <AlertSection icon={Send} title="CV Sent — No Selection" iconColor="text-teal-600 dark:text-teal-400" pillKey="cvoverdue" candidates={cvOverdue} onUpdateField={handleUpdateField}
-            exportCols={[...BASE, { key: "cv_sent_to", label: "CV Sent To" }, { key: "cv_sent_date", label: "CV Sent Date" }, { key: "musaned_status", label: "Country" }]}
-            renderBadge={(c) => c.cv_sent_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">{Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000)}d ago</span> : null}
-            renderCardAction={(c) => (
-              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
-                onClick={() => handleUpdateField(c.id, "cv_sent_to", null)}>
-                Recall CV
-              </Button>
-            )} />
-
-          <AlertSection icon={Stethoscope} title="Medical Fit — LMIS Not Tested" iconColor="text-teal-600 dark:text-teal-400" pillKey="fitlmis" candidates={fitLmisNotTested} onUpdateField={handleUpdateField}
-            exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }, { key: "coc_status", label: "COC Status" }, { key: "lmis_status", label: "LMIS" }]}
-            renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">Not Tested</span>}
-            renderCardAction={(c) => (
-              <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
-                onClick={() => handleUpdateField(c.id, "lmis_status", "Imported")}>
-                Start LMIS
-              </Button>
-            )} />
-
-          <AlertSection icon={Upload} title="LMIS Draft / Imported — Upload Files" iconColor="text-indigo-600 dark:text-indigo-400" pillKey="lmis" candidates={lmisDraftImported} onUpdateField={handleUpdateField}
-            exportCols={[...BASE, { key: "lmis_status", label: "LMIS Status" }, { key: "labour_id", label: "Labour ID" }, { key: "unfilled_lmis", label: "Unfilled LMIS" }]}
-            renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">{c.lmis_status}</span>}
-            renderCardAction={(c) => (
-              <LmisUploadButton candidate={c}
-                onUpdate={(field, value) => handleUpdateField(c.id, field, value)} />
-            )} />
         </div>
       )}
     </div>
