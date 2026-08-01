@@ -115,7 +115,8 @@
       "Bash(\"/c/Program Files/Volta/node.exe\" --version)",
       "Bash(export PATH=\"/c/Program Files/Volta:$HOME/.bun/bin:$PATH\")",
       "PowerShell(Start-Process \"http://localhost:5174\")",
-      "PowerShell(Start-Process \"http://localhost:5173\")"
+      "PowerShell(Start-Process \"http://localhost:5173\")",
+      "WebSearch"
     ]
   },
   "enableAllProjectMcpServers": true,
