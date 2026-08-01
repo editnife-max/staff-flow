@@ -317,6 +317,7 @@ const initialFilters = {
   selected_by: [] as string[],
   availability: [] as string[],
   private_filter: [] as string[],
+  video: [] as string[],
 };
 
 function parsePasteData(text: string): Partial<typeof initialForm> {
@@ -710,6 +711,14 @@ function StaffCandidatesPage() {
     if (tab === "available" && filters.private_filter.length > 0) {
       list = list.filter((c) => filters.private_filter.includes((c.availability_type ?? "available").toLowerCase()));
     }
+    if (tab === "available" && filters.video.length > 0) {
+      list = list.filter((c) => {
+        const hasVideo = !!(c.video_url && (c.video_url as string).trim() !== "");
+        if (filters.video.includes("yes") && hasVideo) return true;
+        if ((filters.video.includes("no") || filters.video.includes("blank")) && !hasVideo) return true;
+        return false;
+      });
+    }
     if (filters.age.length > 0) {
       list = list.filter((c) => {
         const age = calcAge(c.dob) ?? c.age;
@@ -1057,13 +1066,22 @@ function StaffCandidatesPage() {
               onChange={(v) => setFilters({ ...filters, cv_sent_to: v })}
               options={[{ value: "", label: "Not Selected" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />
             {tab === "available" ? (
-              <MultiFilterSelect placeholder="Availability" values={filters.private_filter} icon={Activity}
-                onChange={(v) => setFilters({ ...filters, private_filter: v })}
-                options={[
-                  { value: "available", label: "Available" },
-                  { value: "private", label: "Private" },
-                  { value: "unavailable", label: "Unavailable" },
-                ]} />
+              <>
+                <MultiFilterSelect placeholder="Availability" values={filters.private_filter} icon={Activity}
+                  onChange={(v) => setFilters({ ...filters, private_filter: v })}
+                  options={[
+                    { value: "available", label: "Available" },
+                    { value: "private", label: "Private" },
+                    { value: "unavailable", label: "Unavailable" },
+                  ]} />
+                <MultiFilterSelect placeholder="Video" values={filters.video} icon={Play}
+                  onChange={(v) => setFilters({ ...filters, video: v })}
+                  options={[
+                    { value: "yes", label: "Yes" },
+                    { value: "no", label: "No" },
+                    { value: "blank", label: "Blank" },
+                  ]} />
+              </>
             ) : (
               <MultiFilterSelect placeholder="Availability" values={filters.availability} icon={Activity}
                 onChange={(v) => setFilters({ ...filters, availability: v })}
