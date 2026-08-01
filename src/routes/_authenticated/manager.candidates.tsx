@@ -91,6 +91,7 @@ const BULK_FIELD_DEFS = [
   { key: "lmis_status",      label: "LMIS",         processingOnly: true },
   { key: "ticket_status",    label: "Ticket",       processingOnly: true },
   { key: "arrival_city",     label: "Arrival City", processingOnly: true },
+  { key: "cv_sent_to",      label: "CV Sent To",   processingOnly: false, availableOnly: true },
 ];
 
 const BULK_FIELD_OPTIONS: Partial<Record<string, string[]>> = {
@@ -292,6 +293,7 @@ const initialFilters = {
   availability: [] as string[],
   added_by: [] as string[],
   private_filter: [] as string[],
+  video: [] as string[],
   from: "",
   to: "",
 };
@@ -783,6 +785,14 @@ function ManagerCandidatesPage() {
     if (tab === "available" && filters.private_filter.length > 0) {
       list = list.filter((c) => filters.private_filter.includes((c.availability_type ?? "available").toLowerCase()));
     }
+    if (tab === "available" && filters.video.length > 0) {
+      list = list.filter((c) => {
+        const hasVideo = !!(c.video_url && (c.video_url as string).trim() !== "");
+        if (filters.video.includes("yes") && hasVideo) return true;
+        if (filters.video.includes("no") && !hasVideo) return true;
+        return false;
+      });
+    }
     if (filters.age.length > 0) {
       list = list.filter((c) => {
         const age = calcAge(c.dob) ?? c.age;
@@ -1140,13 +1150,21 @@ function ManagerCandidatesPage() {
                     onChange={(v) => setFilters({ ...filters, cv_sent_to: v })}
                     options={[{ value: "", label: "Not Selected" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />
                   {tab === "available" ? (
-                    <MultiFilterSelect placeholder="Availability" values={filters.private_filter} icon={Activity}
-                      onChange={(v) => setFilters({ ...filters, private_filter: v })}
-                      options={[
-                        { value: "available", label: "Available" },
-                        { value: "private", label: "Private" },
-                        { value: "unavailable", label: "Unavailable" },
-                      ]} />
+                    <>
+                      <MultiFilterSelect placeholder="Availability" values={filters.private_filter} icon={Activity}
+                        onChange={(v) => setFilters({ ...filters, private_filter: v })}
+                        options={[
+                          { value: "available", label: "Available" },
+                          { value: "private", label: "Private" },
+                          { value: "unavailable", label: "Unavailable" },
+                        ]} />
+                      <MultiFilterSelect placeholder="Video" values={filters.video} icon={Play}
+                        onChange={(v) => setFilters({ ...filters, video: v })}
+                        options={[
+                          { value: "yes", label: "Yes" },
+                          { value: "no", label: "No" },
+                        ]} />
+                    </>
                   ) : (
                     <MultiFilterSelect placeholder="Availability" values={filters.availability} icon={Activity}
                       onChange={(v) => setFilters({ ...filters, availability: v })}
@@ -1279,9 +1297,13 @@ function ManagerCandidatesPage() {
                 </SelectContent>
               </Select>
 
-              {BULK_FIELD_DEFS.filter((fd) => fd.processingOnly === (tab === "processing")).map((fd) => {
+              {BULK_FIELD_DEFS.filter((fd) => {
+                if ((fd as any).availableOnly) return tab === "available";
+                return fd.processingOnly === (tab === "processing");
+              }).map((fd) => {
                 const staticOpts = BULK_FIELD_OPTIONS[fd.key]
-                  ?? (fd.key === "musaned_status" ? countryMeta.map((c) => c.name) : undefined);
+                  ?? (fd.key === "musaned_status" ? countryMeta.map((c) => c.name) : undefined)
+                  ?? (fd.key === "cv_sent_to" ? agencyOptions : undefined);
                 const opts = staticOpts ?? Array.from(new Set(
                   filtered.map((c) => (c[fd.key as keyof Candidate] as string | null) ?? "").filter(Boolean)
                 )).sort();

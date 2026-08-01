@@ -87,6 +87,7 @@ const BULK_FIELD_DEFS = [
   { key: "lmis_status",      label: "LMIS",         processingOnly: true },
   { key: "ticket_status",    label: "Ticket",       processingOnly: true },
   { key: "arrival_city",     label: "Arrival City", processingOnly: true },
+  { key: "cv_sent_to",      label: "CV Sent To",   processingOnly: false, availableOnly: true },
 ];
 
 const BULK_FIELD_OPTIONS: Partial<Record<string, string[]>> = {
@@ -1208,9 +1209,13 @@ function StaffCandidatesPage() {
                 </SelectContent>
               </Select>
 
-              {BULK_FIELD_DEFS.filter((fd) => fd.processingOnly === (tab === "processing")).map((fd) => {
+              {BULK_FIELD_DEFS.filter((fd) => {
+                if ((fd as any).availableOnly) return tab === "available";
+                return fd.processingOnly === (tab === "processing");
+              }).map((fd) => {
                 const staticOpts = BULK_FIELD_OPTIONS[fd.key]
-                  ?? (fd.key === "musaned_status" ? countryMeta.map((c) => c.name) : undefined);
+                  ?? (fd.key === "musaned_status" ? countryMeta.map((c) => c.name) : undefined)
+                  ?? (fd.key === "cv_sent_to" ? agencyOptions : undefined);
                 const opts = staticOpts ?? Array.from(new Set(
                   filtered.map((c) => (c[fd.key as keyof Candidate] as string | null) ?? "").filter(Boolean)
                 )).sort();
