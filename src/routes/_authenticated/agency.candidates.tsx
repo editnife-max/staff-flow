@@ -172,7 +172,7 @@ function AgencyCandidatesPage() {
     mutationFn: () => {
       const prefix = `[${sendType}]`;
       const combined = message ? `${prefix} ${message}` : prefix;
-      return doSend({ data: { staffUserId: staffId, candidateIds: [...selected], message: combined } });
+      return doSend({ data: { staffUserId: staffId, candidateIds: [...selected], message: combined, notifType: sendType === "Reserved" ? "reserved" : "selected" } });
     },
     onSuccess: () => {
       toast.success(`${selected.size} candidate${selected.size !== 1 ? "s" : ""} marked as ${sendType}`);

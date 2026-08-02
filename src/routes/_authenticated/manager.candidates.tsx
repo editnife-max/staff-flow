@@ -34,7 +34,7 @@ import {
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff, bulkUpdateField,
   bulkImportCandidates, nextCandidateCode,
 } from "@/lib/candidates.functions";
-import { UserCheck, X, Download, Play, History, Undo2 } from "lucide-react";
+import { UserCheck, X, Download, Play, History, Undo2, Lock } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import * as XLSX from "xlsx";
 
@@ -2653,6 +2653,23 @@ function CandidateCard({
                             onUpdateField(f.field, v);
                           }
                         }} />
+                      ) : colLabel === "CV SENT TO" && (() => {
+                          const ra = (candidate as any).reserved_at;
+                          return ra && (Date.now() - new Date(ra).getTime()) < 3 * 86_400_000;
+                        })() ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400 text-xs font-medium cursor-default">
+                                <Lock className="h-3 w-3" />
+                                Reserved — {3 - Math.floor((Date.now() - new Date((candidate as any).reserved_at).getTime()) / 86_400_000)}d left
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="rounded-none text-xs p-2">
+                              Reserved by <strong>{(candidate as any).reserved_by ?? "agency"}</strong>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       ) : (
                         <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
                       )

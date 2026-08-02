@@ -23,6 +23,7 @@ export const sendCandidatesNotification = createServerFn({ method: "POST" })
       staffUserId:  z.string().uuid(),
       candidateIds: z.array(z.string().uuid()).min(1),
       message:      z.string().max(500).optional(),
+      notifType:    z.enum(["selected", "reserved"]).optional(),
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -32,6 +33,15 @@ export const sendCandidatesNotification = createServerFn({ method: "POST" })
 
     const senderName = profile?.agency_name ?? profile?.full_name ?? "Agency";
     const count = data.candidateIds.length;
+
+    // If reserved, lock candidates for 3 days
+    if (data.notifType === "reserved") {
+      const { error: resErr } = await supabaseAdmin
+        .from("candidates")
+        .update({ reserved_at: new Date().toISOString(), reserved_by: senderName } as any)
+        .in("id", data.candidateIds);
+      if (resErr) throw new Error(resErr.message);
+    }
 
     const { error } = await supabaseAdmin.from("notifications" as any).insert({
       recipient_id:  data.staffUserId,
@@ -113,6 +123,12 @@ export const declineCandidatesNotification = createServerFn({ method: "POST" })
       .eq("id", data.notificationId)
       .eq("recipient_id", context.userId);
     if (notifErr) throw new Error(notifErr.message);
+
+    // Clear reservation lock on declined candidates
+    await supabaseAdmin
+      .from("candidates")
+      .update({ reserved_at: null, reserved_by: null } as any)
+      .in("id", data.candidateIds);
 
     return { ok: true };
   });

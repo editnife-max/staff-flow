@@ -195,6 +195,8 @@ export type Database = {
           processing_notes: string | null
           religion: string | null
           remark: string | null
+          reserved_at: string | null
+          reserved_by: string | null
           selected_by: string | null
           serial_number: string | null
           skills: string | null
@@ -279,6 +281,8 @@ export type Database = {
           processing_notes?: string | null
           religion?: string | null
           remark?: string | null
+          reserved_at?: string | null
+          reserved_by?: string | null
           selected_by?: string | null
           serial_number?: string | null
           skills?: string | null
@@ -363,6 +367,8 @@ export type Database = {
           processing_notes?: string | null
           religion?: string | null
           remark?: string | null
+          reserved_at?: string | null
+          reserved_by?: string | null
           selected_by?: string | null
           serial_number?: string | null
           skills?: string | null
