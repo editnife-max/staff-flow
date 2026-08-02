@@ -116,7 +116,9 @@
       "Bash(export PATH=\"/c/Program Files/Volta:$HOME/.bun/bin:$PATH\")",
       "PowerShell(Start-Process \"http://localhost:5174\")",
       "PowerShell(Start-Process \"http://localhost:5173\")",
-      "WebSearch"
+      "WebSearch",
+      "PowerShell(supabase db *)",
+      "PowerShell(supabase status *)"
     ]
   },
   "enableAllProjectMcpServers": true,

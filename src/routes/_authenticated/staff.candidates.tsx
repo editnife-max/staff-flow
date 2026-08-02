@@ -675,6 +675,14 @@ function StaffCandidatesPage() {
     };
   }, [candidates]);
 
+  const passportDuplicate = useMemo(() => {
+    const num = form.passport_number?.trim().toUpperCase();
+    if (!num) return null;
+    return candidates.find(
+      (c) => c.passport_number?.trim().toUpperCase() === num && c.id !== editing?.id
+    ) ?? null;
+  }, [form.passport_number, candidates, editing]);
+
   const filtered = useMemo(() => {
     let list = candidates.filter((c) => c.status === tab);
     if (tab === "processing") {
@@ -1479,7 +1487,14 @@ function StaffCandidatesPage() {
             {/* Passport */}
             <FormSection title="Passport" required>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Passport Number *" value={form.passport_number} onChange={(v) => setForm({ ...form, passport_number: v })} />
+                <div className="flex flex-col gap-1">
+                  <Field label="Passport Number *" value={form.passport_number} onChange={(v) => setForm({ ...form, passport_number: v })} />
+                  {passportDuplicate && (
+                    <p className="text-[11px] text-destructive font-medium flex items-center gap-1">
+                      ⚠ Duplicate — {passportDuplicate.full_name}{passportDuplicate.candidate_code ? ` (${passportDuplicate.candidate_code})` : ""} is already registered with this passport number
+                    </p>
+                  )}
+                </div>
                 <Field label="Labour ID *" value={form.labour_id} onChange={(v) => setForm({ ...form, labour_id: v.toUpperCase() })} placeholder="EF/EM + 8 chars" maxLength={10} />
                 <Field label="Issue Date *" type="date" value={form.passport_issue_date} onChange={(v) => setForm({ ...form, passport_issue_date: v })} />
                 <Field label="Expiry Date *" type="date" value={form.passport_expiry_date} onChange={(v) => setForm({ ...form, passport_expiry_date: v })} />
@@ -1639,15 +1654,9 @@ function StaffCandidatesPage() {
                 if (!form.passport_status || !form.medical_status || !form.coc_status || !form.musaned_status) {
                   toast.error("Passport Status, Medical Status, COC Status and Country are required"); return;
                 }
-                if (!editing) {
-                  const passportNum = form.passport_number?.trim().toUpperCase();
-                  if (passportNum) {
-                    const dup = candidates.find((c) => c.passport_number?.trim().toUpperCase() === passportNum);
-                    if (dup) {
-                      toast.error(`Passport number already exists — ${dup.full_name} (${dup.candidate_code ?? dup.passport_number}) is already registered`);
-                      return;
-                    }
-                  }
+                if (passportDuplicate) {
+                  toast.error(`Duplicate passport number — ${passportDuplicate.full_name}${passportDuplicate.candidate_code ? ` (${passportDuplicate.candidate_code})` : ""} is already registered with this passport number`);
+                  return;
                 }
                 saveMut.mutate();
               }}

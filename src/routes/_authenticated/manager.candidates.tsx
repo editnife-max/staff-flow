@@ -748,6 +748,14 @@ function ManagerCandidatesPage() {
     return Array.from(new Set([...fromStaff, ...fromCands])).sort();
   }, [staffList, candidates]);
 
+  const passportDuplicate = useMemo(() => {
+    const num = form.passport_number?.trim().toUpperCase();
+    if (!num) return null;
+    return candidates.find(
+      (c) => c.passport_number?.trim().toUpperCase() === num && c.id !== editing?.id
+    ) ?? null;
+  }, [form.passport_number, candidates, editing]);
+
   const filtered = useMemo(() => {
     let list = candidates.filter((c) => c.status === tab);
     if (tab === "processing") {
@@ -1509,7 +1517,14 @@ function ManagerCandidatesPage() {
 
             <FormSection title="Passport" required>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Passport Number *" value={form.passport_number} onChange={(v) => setForm({ ...form, passport_number: v })} />
+                <div className="flex flex-col gap-1">
+                  <Field label="Passport Number *" value={form.passport_number} onChange={(v) => setForm({ ...form, passport_number: v })} />
+                  {passportDuplicate && (
+                    <p className="text-[11px] text-destructive font-medium flex items-center gap-1">
+                      ⚠ Duplicate — {passportDuplicate.full_name}{passportDuplicate.candidate_code ? ` (${passportDuplicate.candidate_code})` : ""} is already registered with this passport number
+                    </p>
+                  )}
+                </div>
                 <Field label="Labour ID *" value={form.labour_id} onChange={(v) => setForm({ ...form, labour_id: v.toUpperCase() })} placeholder="EF/EM + 8 chars" maxLength={10} />
                 <Field label="Issue Date *" type="date" value={form.passport_issue_date} onChange={(v) => setForm({ ...form, passport_issue_date: v })} />
                 <Field label="Expiry Date *" type="date" value={form.passport_expiry_date} onChange={(v) => setForm({ ...form, passport_expiry_date: v })} />
@@ -1720,15 +1735,9 @@ function ManagerCandidatesPage() {
                 if (!form.passport_status || !form.medical_status || !form.coc_status || !form.musaned_status) {
                   toast.error("Passport Status, Medical Status, COC Status and Country are required"); return;
                 }
-                if (!editing) {
-                  const passportNum = form.passport_number?.trim().toUpperCase();
-                  if (passportNum) {
-                    const dup = candidates.find((c) => c.passport_number?.trim().toUpperCase() === passportNum);
-                    if (dup) {
-                      toast.error(`Passport number already exists — ${dup.full_name} (${dup.candidate_code ?? dup.passport_number}) is already registered`);
-                      return;
-                    }
-                  }
+                if (passportDuplicate) {
+                  toast.error(`Duplicate passport number — ${passportDuplicate.full_name}${passportDuplicate.candidate_code ? ` (${passportDuplicate.candidate_code})` : ""} is already registered with this passport number`);
+                  return;
                 }
                 saveMut.mutate();
               }}
@@ -2350,19 +2359,23 @@ const HISTORY_FIELD_LABELS: Record<string, string> = {
   passport_accepted:"Passport Accepted",
 };
 
-function CandidateHistoryDialog({ candidateId, candidateName, open, onClose }: {
+function CandidateHistoryDialog({ candidateId, candidateName, createdAt, createdByName, createdByUserId, open, onClose }: {
   candidateId: string;
   candidateName: string;
+  createdAt: string;
+  createdByName: string | null | undefined;
+  createdByUserId: string | null | undefined;
   open: boolean;
   onClose: () => void;
 }) {
+  const { user } = useAuth();
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ["candidate-history", candidateId],
     enabled: open,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("candidate_field_log")
-        .select("id, field, old_value, new_value, changed_by_name, changed_by_email, changed_at")
+        .select("id, field, old_value, new_value, changed_by_name, changed_by_user_id, changed_at")
         .eq("candidate_id", candidateId)
         .order("changed_at", { ascending: true });
       if (error) throw error;
@@ -2382,6 +2395,8 @@ function CandidateHistoryDialog({ candidateId, candidateName, open, onClose }: {
     return val;
   };
 
+  const totalEntries = 1 + logs.length;
+
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-lg rounded-none">
@@ -2393,10 +2408,28 @@ function CandidateHistoryDialog({ candidateId, candidateName, open, onClose }: {
         </DialogHeader>
         {isLoading ? (
           <div className="py-8 text-center text-sm text-muted-foreground">Loading…</div>
-        ) : logs.length === 0 ? (
-          <div className="py-8 text-center text-sm text-muted-foreground italic">No updates recorded yet.</div>
         ) : (
           <div className="max-h-[60vh] overflow-y-auto divide-y divide-border border border-border rounded-none">
+            {/* Added entry — always first */}
+            <div className="flex items-start gap-3 px-4 py-2.5">
+              <div className="flex flex-col items-center shrink-0 pt-[3px]">
+                <div className="w-1.5 h-1.5 rounded-full bg-teal-500/70" />
+                {totalEntries > 1 && <div className="w-px flex-1 bg-border mt-1" style={{ minHeight: 12 }} />}
+              </div>
+              <div className="flex-1 min-w-0 pb-0.5">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">
+                  Candidate Added
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
+                  by <span className="font-medium text-foreground">
+                    {createdByUserId === user?.id ? "you" : (createdByName || "—")}
+                  </span>
+                  {" · "}
+                  {fmtTs(createdAt)}
+                </div>
+              </div>
+            </div>
+            {/* Field-change logs */}
             {logs.map((log, i) => (
               <div key={log.id} className="flex items-start gap-3 px-4 py-2.5">
                 <div className="flex flex-col items-center shrink-0 pt-[3px]">
@@ -2417,10 +2450,9 @@ function CandidateHistoryDialog({ candidateId, candidateName, open, onClose }: {
                     </span>
                   </div>
                   <div className="text-[11px] text-muted-foreground mt-0.5">
-                    by <span className="font-medium text-foreground">{log.changed_by_name}</span>
-                    {(log as any).changed_by_email && (
-                      <span className="ml-1 text-muted-foreground/70">({(log as any).changed_by_email})</span>
-                    )}
+                    by <span className="font-medium text-foreground">
+                      {(log as any).changed_by_user_id === user?.id ? "you" : log.changed_by_name}
+                    </span>
                     {" · "}
                     {fmtTs(log.changed_at)}
                   </div>
@@ -2455,6 +2487,7 @@ function CandidateCard({
   agencyPhones: Record<string, string>;
   countryOptions: string[];
 }) {
+  const { user } = useAuth();
   const [cancelOpen, setCancelOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [medDateOpen, setMedDateOpen] = useState(false);
@@ -2471,7 +2504,7 @@ function CandidateCard({
 
   const allFields: FieldDef[] = [
     { label: "FULL NAME", value: candidate.full_name, bold: true },
-    { label: "ADDED BY", value: firstName(candidate.created_by_name) || "—" },
+    { label: "ADDED BY", value: candidate.created_by_user_id === user?.id ? "You" : (firstName(candidate.created_by_name) || "—") },
     { label: "CANDIDATE CODE", value: candidate.candidate_code ?? "—" },
     { label: "GENDER", value: candidate.gender ?? "—" },
     { label: "AGE", value: String(calcAge(candidate.dob) ?? candidate.age ?? "—") },
@@ -2664,6 +2697,9 @@ function CandidateCard({
       <CandidateHistoryDialog
         candidateId={candidate.id}
         candidateName={candidate.full_name}
+        createdAt={candidate.created_at}
+        createdByName={candidate.created_by_name}
+        createdByUserId={candidate.created_by_user_id}
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
       />
@@ -3576,6 +3612,9 @@ function ProcessingCard({
     <CandidateHistoryDialog
       candidateId={candidate.id}
       candidateName={candidate.full_name}
+      createdAt={candidate.created_at}
+      createdByName={candidate.created_by_name}
+      createdByUserId={candidate.created_by_user_id}
       open={historyOpen}
       onClose={() => setHistoryOpen(false)}
     />
