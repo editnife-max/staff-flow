@@ -120,7 +120,9 @@
       "PowerShell(supabase db *)",
       "PowerShell(supabase status *)",
       "PowerShell(supabase projects *)",
-      "PowerShell(supabase link *)"
+      "PowerShell(supabase link *)",
+      "PowerShell(bunx tsc --noEmit 2>&1 | Select-Object -First 50)",
+      "Bash(powershell *)"
     ]
   },
   "enableAllProjectMcpServers": true,

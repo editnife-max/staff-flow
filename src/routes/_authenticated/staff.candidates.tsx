@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ActionDialog } from "@/components/action-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   Search, FilePlus, FileText, Pencil, Trash2, FileSignature,
   SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
@@ -1368,6 +1368,7 @@ function StaffCandidatesPage() {
           officesByCountry={officesByCountry}
           agencyOptions={agencyOptions}
           agencyPhones={agencyPhones}
+          narrativeSuggestions={opts.narrative}
         />
       )}
 
@@ -1593,7 +1594,7 @@ function StaffCandidatesPage() {
             {/* Narrative */}
             <FormSection title="Narrative">
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Narrative" value={form.narrative} onChange={(v) => setForm({ ...form, narrative: v })} />
+                <Field label="Narrative" value={form.narrative} onChange={(v) => setForm({ ...form, narrative: v })} suggestions={opts.narrative} />
                 <Field label="Narrative Phone" value={form.narrative_phone} onChange={(v) => setForm({ ...form, narrative_phone: v })} />
               </div>
             </FormSection>
@@ -1675,6 +1676,7 @@ function StaffCandidatesPage() {
           agencyOptions={agencyOptions}
           countryOptions={countryMeta.map((c) => c.name)}
           officesByCountry={officesByCountry}
+          narrativeSuggestions={opts.narrative}
         />
       )}
       {actionCandidates.length > 0 && (
@@ -1748,7 +1750,7 @@ function StaffCandidatesPage() {
 }
 
 function ProcessingEditDialog({
-  candidate, onClose, onUpdateField, agencyOptions, countryOptions, officesByCountry,
+  candidate, onClose, onUpdateField, agencyOptions, countryOptions, officesByCountry, narrativeSuggestions,
 }: {
   candidate: Candidate;
   onClose: () => void;
@@ -1756,6 +1758,7 @@ function ProcessingEditDialog({
   agencyOptions: string[];
   countryOptions: string[];
   officesByCountry: Record<string, string[]>;
+  narrativeSuggestions?: string[];
 }) {
   const init = {
     passport_number:   candidate.passport_number   ?? "",
@@ -1811,13 +1814,18 @@ function ProcessingEditDialog({
       </select>
     </div>
   );
-  const ProcInput = ({ label, k, type = "text" }: { label: string; k: keyof typeof init; type?: string }) => (
-    <div className="space-y-1">
-      <label className="text-xs font-medium text-muted-foreground">{label}</label>
-      <Input type={type} value={form[k]} onChange={(e) => set(k)(e.target.value)}
-        className="rounded-none h-8 text-sm" />
-    </div>
-  );
+  const ProcInput = ({ label, k, type = "text", suggestions }: { label: string; k: keyof typeof init; type?: string; suggestions?: string[] }) => {
+    const hasSugg = (suggestions?.length ?? 0) > 0;
+    const listId = `proc-input-${k}-list`;
+    return (
+      <div className="space-y-1">
+        <label className="text-xs font-medium text-muted-foreground">{label}</label>
+        <Input type={type} value={form[k]} onChange={(e) => set(k)(e.target.value)}
+          className="rounded-none h-8 text-sm" list={hasSugg ? listId : undefined} />
+        {hasSugg && <datalist id={listId}>{suggestions!.map((s) => <option key={s} value={s} />)}</datalist>}
+      </div>
+    );
+  };
 
   const isLocked = candidate.visa_status === "Waiting Replacement";
 
@@ -1838,7 +1846,7 @@ function ProcessingEditDialog({
             <ProcInput label="Labour ID" k="labour_id" />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <ProcInput label="Narrative" k="narrative" />
+            <ProcInput label="Narrative" k="narrative" suggestions={narrativeSuggestions} />
             <ProcInput label="Narrative Phone" k="narrative_phone" />
             <ProcInput label="Contract Date" k="contract_date" type="date" />
             <ProcInput label="Emergency Contact" k="emergency_contact" />
@@ -1897,7 +1905,7 @@ type EditableField =
 
 function CandidateCardList({
   candidates, selected, onToggleSelect, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo,
-  countryMeta, officesByCountry, agencyOptions, agencyPhones, compact,
+  countryMeta, officesByCountry, agencyOptions, agencyPhones, compact, narrativeSuggestions,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -1914,6 +1922,7 @@ function CandidateCardList({
   officesByCountry: Record<string, string[]>;
   agencyOptions: string[];
   agencyPhones: Record<string, string>;
+  narrativeSuggestions?: string[];
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set(["GENDER", "LIVING TOWN", "OFFICE"]));
@@ -2123,6 +2132,7 @@ function CandidateCardList({
                   agencyOptions={agencyOptions}
                   agencyPhones={agencyPhones}
                   countryOptions={countryOptions}
+                  narrativeSuggestions={narrativeSuggestions}
                 />
               ))}
             </div>
@@ -2264,7 +2274,7 @@ function VideoCell({ url, onSave, candidateName }: { url: string | null; onSave:
 }
 
 function CandidateCard({
-  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo, agencyOptions, agencyPhones, countryOptions, compact,
+  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo, agencyOptions, agencyPhones, countryOptions, compact, narrativeSuggestions,
 }: {
   candidate: Candidate;
   selected: boolean;
@@ -2282,6 +2292,7 @@ function CandidateCard({
   agencyOptions: string[];
   agencyPhones: Record<string, string>;
   countryOptions: string[];
+  narrativeSuggestions?: string[];
 }) {
   const [deleteRequestOpen, setDeleteRequestOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
@@ -2384,7 +2395,7 @@ function CandidateCard({
                   <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">{colLabel}</div>
                   <div className="text-sm text-foreground break-words">
                     {"edit" in f && f.edit === "text" ? (
-                      <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} />
+                      <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} suggestions={f.field === "narrative" ? narrativeSuggestions : undefined} />
                     ) : "edit" in f && f.edit === "date" ? (
                       <InlineDate value={f.value} display={f.display} showDays={"showDays" in f ? f.showDays : undefined} onSave={(v) => onUpdateField(f.field, v)} />
                     ) : "edit" in f && f.edit === "select" ? (
@@ -2888,6 +2899,7 @@ function ProcessingTable({
                   onDelete={() => onDelete(c.id)}
                   officesByCountry={officesByCountry}
                   agencyPhones={agencyPhones}
+                  narrativeSuggestions={narrativeOpts}
                 />
               ))}
             </div>
@@ -3005,7 +3017,7 @@ async function downloadFile(url: string) {
 
 function ProcessingCard({
   candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onUpdateField, onEdit, onDelete, cancelMode,
-  officesByCountry, agencyPhones,
+  officesByCountry, agencyPhones, narrativeSuggestions,
 }: {
   candidate: Candidate;
   selected: boolean;
@@ -3019,6 +3031,7 @@ function ProcessingCard({
   onDelete: () => void;
   officesByCountry: Record<string, string[]>;
   agencyPhones: Record<string, string>;
+  narrativeSuggestions?: string[];
 }) {
   const [requireDate, setRequireDate] = useState<{
     field: "ticket_date" | "tasheer_date" | "medical_date" | "insurance_date";
@@ -3143,7 +3156,7 @@ function ProcessingCard({
                         >{strVal}</button>
                       ) : <span className="text-muted-foreground">—</span>
                     ) : col.type === "text" ? (
-                      <InlineText value={strVal} onSave={(v) => handleColUpdate(col.key, v)} />
+                      <InlineText value={strVal} onSave={(v) => handleColUpdate(col.key, v)} suggestions={col.key === "narrative" ? narrativeSuggestions : undefined} />
                     ) : col.type === "date" ? (
                       col.key === "medical_date" && strVal ? (
                         <span className="break-words">{(() => {
@@ -3461,7 +3474,8 @@ function InlineDate({ value, onSave, display, showDays }: { value: string; onSav
   );
 }
 
-function InlineText({ value, onSave }: { value: string; onSave: (v: string | null) => void }) {
+function InlineText({ value, onSave, suggestions }: { value: string; onSave: (v: string | null) => void; suggestions?: string[] }) {
+  const listId = useId();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   if (!editing) {
@@ -3480,25 +3494,30 @@ function InlineText({ value, onSave }: { value: string; onSave: (v: string | nul
     setEditing(false);
     if (draft !== value) onSave(draft.trim() === "" ? null : draft);
   };
+  const hasSugg = (suggestions?.length ?? 0) > 0;
   return (
-    <input
-      autoFocus
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
-        if (e.key === "Escape") { setDraft(value); setEditing(false); }
-      }}
-      className="rounded-none border border-primary bg-background px-1 py-0.5 text-[14px] text-foreground outline-none min-w-[80px]"
-    />
+    <>
+      <input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+          if (e.key === "Escape") { setDraft(value); setEditing(false); }
+        }}
+        list={hasSugg ? listId : undefined}
+        className="rounded-none border border-primary bg-background px-1 py-0.5 text-[14px] text-foreground outline-none w-full max-w-full"
+      />
+      {hasSugg && <datalist id={listId}>{suggestions!.map((s) => <option key={s} value={s} />)}</datalist>}
+    </>
   );
 }
 
 function OptionPill({ label, className }: { label: string; className?: string }) {
   const color = OPTION_COLORS[label] ?? "bg-muted text-muted-foreground";
   return (
-    <span className={cn("inline-flex items-center justify-center rounded px-1.5 py-0.5 text-xs font-semibold leading-none whitespace-nowrap", color, className)}>
+    <span className={cn("inline-block rounded px-1.5 py-0.5 text-xs font-semibold leading-tight text-center break-words max-w-full", color, className)}>
       {label}
     </span>
   );
@@ -3509,7 +3528,7 @@ function InlineSelect({
 }: { value: string; options: string[]; onSave: (v: string | null) => void }) {
   return (
     <Select value={value || "__clear__"} onValueChange={(v) => onSave(v === "__clear__" ? null : v)}>
-      <SelectTrigger className="h-auto w-full max-w-full overflow-hidden gap-1 border-transparent bg-transparent p-0 shadow-none focus:ring-0 [&>svg]:shrink-0">
+      <SelectTrigger className="h-auto w-full max-w-full overflow-hidden gap-1 border-transparent bg-transparent p-0 shadow-none focus:ring-0 [&>svg]:shrink-0 [&>span]:min-w-0 [&>span]:max-w-full">
         <SelectValue placeholder={<span className="text-muted-foreground text-[14px] px-1">—</span>} />
       </SelectTrigger>
       <SelectContent>
@@ -3680,12 +3699,15 @@ function MultiFilterSelect({
 }
 
 function Field({
-  label, value, onChange, type = "text", placeholder, maxLength,
-}: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string; maxLength?: number }) {
+  label, value, onChange, type = "text", placeholder, maxLength, suggestions,
+}: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string; maxLength?: number; suggestions?: string[] }) {
+  const listId = useId();
+  const hasSugg = (suggestions?.length ?? 0) > 0;
   return (
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
-      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="rounded-none h-9" placeholder={placeholder} maxLength={maxLength} />
+      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="rounded-none h-9" placeholder={placeholder} maxLength={maxLength} list={hasSugg ? listId : undefined} />
+      {hasSugg && <datalist id={listId}>{suggestions!.map((s) => <option key={s} value={s} />)}</datalist>}
     </div>
   );
 }
