@@ -593,6 +593,11 @@ function StaffCandidatesPage() {
   }, [assignOffices, assignCountries, foreignAgencies, officesByCountry]);
 
   const handleUpdateField = useCallback((id: string, field: string, value: string | null) => {
+    const target = candidates.find((c) => c.id === id);
+    if (target?.visa_status === "Waiting Replacement" && field !== "visa_status" && field !== "delete_reason") {
+      toast.error("Candidate is locked — Visa Status is Waiting Replacement");
+      return;
+    }
     fieldMut.mutate({ id, field, value });
     // When contract_date is first set, prompt for LMIS files needed
     if (field === "contract_date" && value) {
@@ -826,8 +831,13 @@ function StaffCandidatesPage() {
   };
 
   const bulkFieldMut = useMutation({
-    mutationFn: ({ field, value }: { field: string; value: string }) =>
-      bulkField({ data: { ids: Array.from(selected), field: field as any, value } }),
+    mutationFn: ({ field, value }: { field: string; value: string }) => {
+      const lockedIds = new Set(candidates.filter((c) => c.visa_status === "Waiting Replacement").map((c) => c.id));
+      const ids = Array.from(selected).filter((id) => !lockedIds.has(id));
+      if (ids.length === 0) { toast.error("All selected candidates are locked (Waiting Replacement)"); return Promise.reject(); }
+      if (ids.length < selected.size) toast.warning(`${selected.size - ids.length} locked candidate(s) skipped`);
+      return bulkField({ data: { ids, field: field as any, value } });
+    },
     onSuccess: (r, { field, value }) => {
       toast.success(`Updated ${r.count} candidate(s)`);
       qc.invalidateQueries({ queryKey: ["staff-candidates"] });
@@ -1814,13 +1824,20 @@ function ProcessingEditDialog({
     </div>
   );
 
+  const isLocked = candidate.visa_status === "Waiting Replacement";
+
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-2xl" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>Edit Processing — {candidate.full_name}</DialogTitle>
         </DialogHeader>
-        <div className="max-h-[65vh] overflow-y-auto pr-1 space-y-4">
+        {isLocked && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-none bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300 text-sm">
+            🔒 This candidate is locked — Visa Status is <strong>Waiting Replacement</strong>.
+          </div>
+        )}
+        <div className={cn("max-h-[65vh] overflow-y-auto pr-1 space-y-4", isLocked && "pointer-events-none opacity-50")}>
           <div className="grid grid-cols-2 gap-3">
             <ProcInput label="Passport No" k="passport_number" />
             <ProcInput label="Labour ID" k="labour_id" />
@@ -1864,7 +1881,7 @@ function ProcessingEditDialog({
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave}>Save changes</Button>
+          <Button onClick={handleSave} disabled={isLocked}>Save changes</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -2325,7 +2342,7 @@ function CandidateCard({
       >
         {/* Status badge + checkbox — sticky left */}
         <div className="sticky left-0 z-10 w-fit flex items-center gap-2 px-4 pt-2.5 pb-1" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
-          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
+          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" disabled={candidate.visa_status === "Waiting Replacement"} />
           <StatusBadge status={candidate.status ?? "available"} />
           {candidate.availability_type?.toLowerCase() === "private" && (
             <span className="inline-flex items-center rounded-sm bg-purple-400 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 text-[10px] font-semibold px-1.5 py-0.5 leading-none">
@@ -2354,7 +2371,7 @@ function CandidateCard({
             </div>
           </div>
           {/* Field columns (FULL NAME rendered in sticky section above) */}
-          <div className="flex-1 flex items-start gap-6">
+          <div className={cn("flex-1 flex items-start gap-6", candidate.visa_status === "Waiting Replacement" && "pointer-events-none opacity-60")}>
             {visibleCols.map((colLabel) => {
               if (colLabel === "FULL NAME") return null;
               if (colLabel === "VIDEO") {
@@ -2426,7 +2443,11 @@ function CandidateCard({
             <Button size="sm" onClick={onAction} className="w-full px-5 h-8 rounded text-xs font-semibold tracking-wide">
               VIEW
             </Button>
-            <button onClick={onEdit} className="text-xs text-primary hover:underline">Edit</button>
+            {candidate.visa_status === "Waiting Replacement" ? (
+              <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-0.5">🔒 Locked</span>
+            ) : (
+              <button onClick={onEdit} className="text-xs text-primary hover:underline">Edit</button>
+            )}
             {onReturn && (
               <button onClick={() => setReturnOpen(true)} className="text-xs text-orange-600 hover:underline">Return</button>
             )}
@@ -3094,7 +3115,7 @@ function ProcessingCard({
       >
         {/* Status badge + checkbox — sticky left */}
         <div className="sticky left-0 z-10 w-fit flex items-center gap-2 px-4 pt-2.5 pb-1" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
-          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
+          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" disabled={candidate.visa_status === "Waiting Replacement"} />
           <StatusBadge status="processing" />
         </div>
         <div className="flex items-center pb-3 pt-1">
@@ -3111,7 +3132,7 @@ function ProcessingCard({
               <div className="text-sm font-semibold line-clamp-2 break-words">{candidate.full_name}</div>
             </div>
           </div>
-          <div className="flex-1 flex items-start gap-6">
+          <div className={cn("flex-1 flex items-start gap-6", candidate.visa_status === "Waiting Replacement" && "pointer-events-none opacity-60")}>
             {visibleCols.map((col) => {
               const raw = candidate[col.key as keyof Candidate];
               const strVal = raw == null ? "" : String(raw);
@@ -3232,7 +3253,11 @@ function ProcessingCard({
             <Button size="sm" onClick={onAction} className="w-full px-5 h-8 rounded text-xs font-semibold tracking-wide">
               VIEW
             </Button>
-            <button onClick={onEdit} className="text-xs text-primary hover:underline">Edit</button>
+            {candidate.visa_status === "Waiting Replacement" ? (
+              <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-0.5">🔒 Locked</span>
+            ) : (
+              <button onClick={onEdit} className="text-xs text-primary hover:underline">Edit</button>
+            )}
             <button
               onClick={() => setDeleteRequestOpen(true)}
               className="text-xs text-destructive hover:underline"

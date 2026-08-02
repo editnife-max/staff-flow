@@ -906,8 +906,13 @@ function ManagerCandidatesPage() {
   };
 
   const bulkFieldMut = useMutation({
-    mutationFn: ({ field, value }: { field: string; value: string }) =>
-      bulkField({ data: { ids: Array.from(selected), field: field as any, value } }),
+    mutationFn: ({ field, value }: { field: string; value: string }) => {
+      const lockedIds = new Set(candidates.filter((c) => c.visa_status === "Waiting Replacement").map((c) => c.id));
+      const ids = Array.from(selected).filter((id) => !lockedIds.has(id));
+      if (ids.length === 0) { toast.error("All selected candidates are locked (Waiting Replacement)"); return Promise.reject(); }
+      if (ids.length < selected.size) toast.warning(`${selected.size - ids.length} locked candidate(s) skipped`);
+      return bulkField({ data: { ids, field: field as any, value } });
+    },
     onSuccess: (r, { field, value }) => {
       toast.success(`Updated ${r.count} candidate(s)`);
       qc.invalidateQueries({ queryKey: ["manager-candidates"] });
@@ -2568,7 +2573,7 @@ function CandidateCard({
       >
         {/* Status badge + checkbox — sticky left */}
         <div className="sticky left-0 z-10 w-fit flex items-center gap-2 px-4 pt-2.5 pb-1" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
-          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
+          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" disabled={candidate.visa_status === "Waiting Replacement"} />
           <StatusBadge status={candidate.status ?? "available"} />
           {candidate.availability_type?.toLowerCase() === "private" && (
             <span className="inline-flex items-center rounded-sm bg-purple-400 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 text-[10px] font-semibold px-1.5 py-0.5 leading-none">
@@ -2599,7 +2604,7 @@ function CandidateCard({
             </div>
           </div>
           {/* Field columns (FULL NAME rendered in sticky section above) */}
-          <div className="flex-1 flex items-start gap-6">
+          <div className={cn("flex-1 flex items-start gap-6", candidate.visa_status === "Waiting Replacement" && "pointer-events-none opacity-60")}>
             {visibleCols.map((colLabel) => {
               if (colLabel === "FULL NAME") return null;
               if (colLabel === "VIDEO") {
@@ -2671,7 +2676,11 @@ function CandidateCard({
             <Button size="sm" onClick={onAction} className="w-full px-5 h-8 rounded text-xs font-semibold tracking-wide">
               VIEW
             </Button>
-            <button onClick={onEdit} className="text-xs text-primary hover:underline">Edit</button>
+            {candidate.visa_status === "Waiting Replacement" ? (
+              <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-0.5">🔒 Locked</span>
+            ) : (
+              <button onClick={onEdit} className="text-xs text-primary hover:underline">Edit</button>
+            )}
             <button
               onClick={() => setHistoryOpen(true)}
               className="text-xs text-muted-foreground hover:text-foreground hover:underline flex items-center gap-1"
@@ -3348,7 +3357,7 @@ function ProcessingCard({
       >
         {/* Status badge + checkbox — sticky left */}
         <div className="sticky left-0 z-10 w-fit flex items-center gap-2 px-4 pt-2.5 pb-1" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
-          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" />
+          <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" disabled={candidate.visa_status === "Waiting Replacement"} />
           <StatusBadge status="processing" />
         </div>
         <div className="flex items-center pb-3 pt-1">
@@ -3365,7 +3374,7 @@ function ProcessingCard({
               <div className="text-sm font-semibold line-clamp-2 break-words">{candidate.full_name}</div>
             </div>
           </div>
-          <div className="flex-1 flex items-start gap-6">
+          <div className={cn("flex-1 flex items-start gap-6", candidate.visa_status === "Waiting Replacement" && "pointer-events-none opacity-60")}>
             {visibleCols.map((col) => {
               const raw = candidate[col.key as keyof Candidate];
               const strVal = raw == null ? "" : String(raw);
@@ -3477,7 +3486,11 @@ function ProcessingCard({
             <Button size="sm" onClick={onAction} className="w-full px-5 h-8 rounded text-xs font-semibold tracking-wide">
               VIEW
             </Button>
-            <button onClick={onEdit} className="text-xs text-primary hover:underline">Edit</button>
+            {candidate.visa_status === "Waiting Replacement" ? (
+              <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-0.5">🔒 Locked</span>
+            ) : (
+              <button onClick={onEdit} className="text-xs text-primary hover:underline">Edit</button>
+            )}
             {(candidate as any).delete_reason ? (
               <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
                 ⏳ Pending Deletion
