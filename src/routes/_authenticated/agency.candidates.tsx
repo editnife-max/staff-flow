@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Search, SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
   ArrowUpDown, Users, User, BookOpen, Briefcase, Heart, Send,
@@ -22,8 +22,13 @@ import { cn, calcAge } from "@/lib/utils";
 import { X } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { getStaffList, sendCandidatesNotification } from "@/lib/notifications.functions";
+import { getAgencyCvTemplate } from "@/lib/agencies.functions";
 import { CvPreview, candidateToCanvas } from "@/components/cv-preview";
-import { canvasToPdf } from "@/lib/pdf-export";
+import { canvasToPdf, downloadDocx } from "@/lib/pdf-export";
+import { renderAsync as docxRenderAsync } from "docx-preview";
+import type { CvTemplate } from "@/lib/docx-fill";
+import { buildFilledDocx } from "@/lib/docx-fill";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/_authenticated/agency/candidates")({
   head: () => ({ meta: [{ title: "Candidates — Agency Portal" }] }),
@@ -84,16 +89,25 @@ const initialFilters = {
 
 function AgencyCandidatesPage() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const [search, setSearch]           = useState("");
   const [showFilters, setShowFilters] = useState(true);
   const [filters, setFilters]         = useState(initialFilters);
   const [selected, setSelected]       = useState<Set<string>>(new Set());
   const [sendOpen, setSendOpen]       = useState(false);
+  const [sendType, setSendType]       = useState<"Selected" | "Reserved">("Selected");
   const [staffId, setStaffId]         = useState("");
   const [message, setMessage]         = useState("");
 
   const fetchStaff = useServerFn(getStaffList);
   const doSend     = useServerFn(sendCandidatesNotification);
+  const fetchTemplate = useServerFn(getAgencyCvTemplate);
+
+  const { data: agencyTemplate = null } = useQuery<CvTemplate | null>({
+    queryKey: ["agency-cv-template", user?.id],
+    queryFn: () => fetchTemplate(),
+    enabled: !!user?.id,
+  });
 
   const { data: candidates = [], isLoading } = useQuery<Candidate[]>({
     queryKey: ["agency-candidates"],
@@ -152,12 +166,16 @@ function AgencyCandidatesPage() {
 
   function closeSend() { setSendOpen(false); setStaffId(""); setMessage(""); }
 
+  function openSend(type: "Selected" | "Reserved") { setSendType(type); setSendOpen(true); }
+
   const sendMut = useMutation({
-    mutationFn: () => doSend({
-      data: { staffUserId: staffId, candidateIds: [...selected], message: message || undefined },
-    }),
+    mutationFn: () => {
+      const prefix = `[${sendType}]`;
+      const combined = message ? `${prefix} ${message}` : prefix;
+      return doSend({ data: { staffUserId: staffId, candidateIds: [...selected], message: combined } });
+    },
     onSuccess: () => {
-      toast.success(`${selected.size} candidate${selected.size !== 1 ? "s" : ""} sent to staff`);
+      toast.success(`${selected.size} candidate${selected.size !== 1 ? "s" : ""} marked as ${sendType}`);
       setSelected(new Set());
       closeSend();
     },
@@ -286,9 +304,13 @@ function AgencyCandidatesPage() {
           </label>
           {selected.size > 0 && (
             <>
-              <Button size="sm" className="h-7 text-xs gap-1.5" onClick={() => setSendOpen(true)}>
+              <Button size="sm" className="h-7 text-xs gap-1.5" onClick={() => openSend("Selected")}>
                 <Send className="h-3.5 w-3.5" />
-                Send to Staff ({selected.size})
+                Selected ({selected.size})
+              </Button>
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => openSend("Reserved")}>
+                <Send className="h-3.5 w-3.5" />
+                Reserved ({selected.size})
               </Button>
               <button type="button" onClick={() => setSelected(new Set())}
                 className="text-xs text-muted-foreground hover:text-foreground">
@@ -316,6 +338,7 @@ function AgencyCandidatesPage() {
               candidate={c}
               selected={selected.has(c.id)}
               onToggle={() => toggleSelect(c.id)}
+              template={agencyTemplate}
             />
           ))}
         </div>
@@ -324,7 +347,7 @@ function AgencyCandidatesPage() {
       {/* Send to staff dialog */}
       <Dialog open={sendOpen} onOpenChange={(o) => { if (!o) closeSend(); }}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Send to Staff</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{sendType} — {selected.size} candidate{selected.size !== 1 ? "s" : ""}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Staff member</Label>
@@ -351,14 +374,11 @@ function AgencyCandidatesPage() {
                 rows={3}
               />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Sending {selected.size} candidate{selected.size !== 1 ? "s" : ""}.
-            </p>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={closeSend}>Cancel</Button>
             <Button onClick={() => sendMut.mutate()} disabled={!staffId || sendMut.isPending}>
-              {sendMut.isPending ? "Sending…" : "Send"}
+              {sendMut.isPending ? "Sending…" : `Mark as ${sendType}`}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -368,16 +388,49 @@ function AgencyCandidatesPage() {
 }
 
 
-function CvViewDialog({ candidate, onClose }: { candidate: Candidate; onClose: () => void }) {
+function CvViewDialog({ candidate, template, onClose }: { candidate: Candidate; template: CvTemplate | null; onClose: () => void }) {
   const [downloading, setDownloading] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  const isDocx = !!template && template.file_url.split("?")[0].toLowerCase().endsWith(".docx");
+
+  useEffect(() => {
+    if (!isDocx) return;
+    let cancelled = false;
+    setPreviewLoading(true);
+    (async () => {
+      try {
+        const bytes = await buildFilledDocx(template!, candidate as any, false);
+        if (cancelled || !previewRef.current) return;
+        previewRef.current.innerHTML = "";
+        const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+        await docxRenderAsync(buf, previewRef.current, undefined, {
+          className: "docx-agency-preview",
+          inWrapper: true,
+          ignoreHeight: true,
+        });
+      } catch {
+        toast.error("Failed to render CV preview");
+      } finally {
+        if (!cancelled) setPreviewLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isDocx, template?.id, candidate.id]);
 
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      const canvas = await candidateToCanvas(candidate as any, null);
-      await canvasToPdf(canvas, `${candidate.full_name} — CV.pdf`);
+      if (isDocx) {
+        const bytes = await buildFilledDocx(template!, candidate as any);
+        downloadDocx(bytes, `${candidate.full_name} — CV.docx`);
+      } else {
+        const canvas = await candidateToCanvas(candidate as any, template);
+        await canvasToPdf(canvas, `${candidate.full_name} — CV.pdf`);
+      }
     } catch {
-      toast.error("Failed to generate PDF");
+      toast.error("Failed to generate CV");
     } finally {
       setDownloading(false);
     }
@@ -390,13 +443,24 @@ function CvViewDialog({ candidate, onClose }: { candidate: Candidate; onClose: (
           <DialogTitle>CV — {candidate.full_name}</DialogTitle>
         </DialogHeader>
         <div className="max-h-[68vh] overflow-auto">
-          <CvPreview candidate={candidate as any} template={null} />
+          {isDocx ? (
+            <div className="relative min-h-[400px]">
+              {previewLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/60 z-10">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              )}
+              <div ref={previewRef} className="docx-agency-preview-wrapper" />
+            </div>
+          ) : (
+            <CvPreview candidate={candidate as any} template={template} />
+          )}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Close</Button>
           <Button onClick={handleDownload} disabled={downloading} className="gap-1.5">
             <Download className="h-4 w-4" />
-            {downloading ? "Generating…" : "Download PDF"}
+            {downloading ? "Generating…" : "Download CV"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -405,8 +469,8 @@ function CvViewDialog({ candidate, onClose }: { candidate: Candidate; onClose: (
 }
 
 function AgencyCandidateCard({
-  candidate: c, selected, onToggle,
-}: { candidate: Candidate; selected: boolean; onToggle: () => void }) {
+  candidate: c, selected, onToggle, template,
+}: { candidate: Candidate; selected: boolean; onToggle: () => void; template: CvTemplate | null }) {
   const [cvOpen, setCvOpen]   = useState(false);
   const [dlCv, setDlCv]       = useState(false);
   const [dlVideo, setDlVideo] = useState(false);
@@ -416,10 +480,15 @@ function AgencyCandidateCard({
   const handleDownloadCv = async () => {
     setDlCv(true);
     try {
-      const canvas = await candidateToCanvas(c as any, null);
-      await canvasToPdf(canvas, `${c.full_name} — CV.pdf`);
+      if (template && template.file_url.split("?")[0].toLowerCase().endsWith(".docx")) {
+        const bytes = await buildFilledDocx(template, c as any);
+        downloadDocx(bytes, `${c.full_name} — CV.docx`);
+      } else {
+        const canvas = await candidateToCanvas(c as any, template);
+        await canvasToPdf(canvas, `${c.full_name} — CV.pdf`);
+      }
     } catch {
-      toast.error("Failed to generate PDF");
+      toast.error("Failed to generate CV");
     } finally {
       setDlCv(false);
     }
@@ -551,7 +620,7 @@ function AgencyCandidateCard({
         </div>
       </div>
 
-      {cvOpen && <CvViewDialog candidate={c} onClose={() => setCvOpen(false)} />}
+      {cvOpen && <CvViewDialog candidate={c} template={template} onClose={() => setCvOpen(false)} />}
 
     </>
   );

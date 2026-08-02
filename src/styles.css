@@ -230,3 +230,14 @@
   }
   .group:hover &::-webkit-scrollbar-track { background: transparent; }
 }
+
+/* docx-preview inside the agency CV view dialog */
+.docx-agency-preview-wrapper .docx-wrapper {
+  background: #fff;
+  padding: 0 !important;
+}
+.docx-agency-preview-wrapper .docx-wrapper > section.docx {
+  box-shadow: none !important;
+  margin: 0 auto !important;
+  min-height: unset !important;
+}

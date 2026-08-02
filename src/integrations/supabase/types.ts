@@ -425,6 +425,7 @@ export type Database = {
           contact_phone: string | null
           country: string
           created_at: string
+          cv_template_id: string | null
           id: string
           manager_id: string
           name: string
@@ -437,6 +438,7 @@ export type Database = {
           contact_phone?: string | null
           country: string
           created_at?: string
+          cv_template_id?: string | null
           id?: string
           manager_id: string
           name: string
@@ -449,6 +451,7 @@ export type Database = {
           contact_phone?: string | null
           country?: string
           created_at?: string
+          cv_template_id?: string | null
           id?: string
           manager_id?: string
           name?: string

@@ -27,7 +27,10 @@ type Agency = {
   status: string;
   contact_email: string | null;
   portal_user_id: string | null;
+  cv_template_id: string | null;
 };
+
+type CvTemplate = { id: string; name: string };
 
 type Office = { id: string; name: string };
 
@@ -41,6 +44,11 @@ function AgenciesPage() {
   const [addName, setAddName] = useState("");
   const [addEmail, setAddEmail] = useState("");
   const [addPassword, setAddPassword] = useState("");
+  const [addTemplateId, setAddTemplateId] = useState("");
+
+  // Edit CV template for existing agency
+  const [editTemplateAgency, setEditTemplateAgency] = useState<Agency | null>(null);
+  const [editTemplateId, setEditTemplateId] = useState("");
 
   // Create login for existing agency dialog
   const [loginAgency, setLoginAgency] = useState<Agency | null>(null);
@@ -61,7 +69,7 @@ function AgenciesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("foreign_agencies")
-        .select("id,name,country,status,contact_email,portal_user_id")
+        .select("id,name,country,status,contact_email,portal_user_id,cv_template_id")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as unknown as Agency[];
@@ -81,6 +89,19 @@ function AgenciesPage() {
     },
   });
 
+  const { data: cvTemplates = [] } = useQuery<CvTemplate[]>({
+    queryKey: ["cv-templates", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cv_templates")
+        .select("id,name")
+        .order("name");
+      if (error) throw error;
+      return data as CvTemplate[];
+    },
+  });
+
   function officeNameById(id: string) {
     return offices.find((o) => o.id === id)?.name ?? "";
   }
@@ -92,20 +113,20 @@ function AgenciesPage() {
       // 1. Insert agency row
       const { data: row, error: insErr } = await supabase
         .from("foreign_agencies")
-        .insert({ manager_id: user!.id, name: addName || officeName, country: officeName, contact_email: addEmail || null })
+        .insert({ manager_id: user!.id, name: addName || officeName, country: officeName, contact_email: addEmail || null, cv_template_id: addTemplateId || null })
         .select("id")
         .single();
       if (insErr) throw insErr;
       // 2. Create portal login
       await createAgencyLogin({
-        data: { agencyId: row.id, agencyName: officeName, email: addEmail, password: addPassword },
+        data: { agencyId: row.id, agencyName: addName || officeName, email: addEmail, password: addPassword },
       });
     },
     onSuccess: () => {
       toast.success("Agency and portal login created");
       qc.invalidateQueries({ queryKey: ["agencies"] });
       qc.invalidateQueries({ queryKey: ["agencies-offices-names"] });
-      setAddOpen(false); setAddOfficeId(""); setAddName(""); setAddEmail(""); setAddPassword("");
+      setAddOpen(false); setAddOfficeId(""); setAddName(""); setAddEmail(""); setAddPassword(""); setAddTemplateId("");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -129,7 +150,7 @@ function AgenciesPage() {
       if (!loginAgency) return;
       const officeName = officeNameById(loginOfficeId);
       await createAgencyLogin({
-        data: { agencyId: loginAgency.id, agencyName: officeName, email: loginEmail, password: loginPassword },
+        data: { agencyId: loginAgency.id, agencyName: loginAgency.name, email: loginEmail, password: loginPassword },
       });
     },
     onSuccess: () => {
@@ -158,6 +179,22 @@ function AgenciesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const updateTemplate = useMutation({
+    mutationFn: async ({ agencyId, templateId }: { agencyId: string; templateId: string | null }) => {
+      const { error } = await supabase
+        .from("foreign_agencies")
+        .update({ cv_template_id: templateId } as any)
+        .eq("id", agencyId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("CV template updated");
+      qc.invalidateQueries({ queryKey: ["agencies"] });
+      setEditTemplateAgency(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const addValid = !!addOfficeId && addEmail.includes("@") && addPassword.length >= 8;
   const loginValid = !!loginOfficeId && loginEmail.includes("@") && loginPassword.length >= 8;
 
@@ -182,6 +219,7 @@ function AgenciesPage() {
                 <TableHead>Office</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>CV Template</TableHead>
                 <TableHead>Portal</TableHead>
                 <TableHead className="w-24" />
               </TableRow>
@@ -194,6 +232,16 @@ function AgenciesPage() {
                   <TableCell className="text-muted-foreground">{a.contact_email ?? "—"}</TableCell>
                   <TableCell>
                     <span className="inline-flex rounded-full bg-success/15 text-success px-2 py-0.5 text-xs">{a.status}</span>
+                  </TableCell>
+                  <TableCell>
+                    <button
+                      className="text-xs underline-offset-2 hover:underline text-primary"
+                      onClick={() => { setEditTemplateAgency(a); setEditTemplateId(a.cv_template_id ?? ""); }}
+                    >
+                      {a.cv_template_id
+                        ? (cvTemplates.find((t) => t.id === a.cv_template_id)?.name ?? "Unknown")
+                        : <span className="text-muted-foreground">None — click to set</span>}
+                    </button>
                   </TableCell>
                   <TableCell>
                     {a.portal_user_id
@@ -235,7 +283,7 @@ function AgenciesPage() {
               ))}
               {agencies.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">No agencies yet.</TableCell>
+                  <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">No agencies yet.</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -244,7 +292,7 @@ function AgenciesPage() {
       </Card>
 
       {/* Add agency + login dialog */}
-      <Dialog open={addOpen} onOpenChange={(o) => { if (!o) { setAddOpen(false); setAddOfficeId(""); setAddName(""); setAddEmail(""); setAddPassword(""); } }}>
+      <Dialog open={addOpen} onOpenChange={(o) => { if (!o) { setAddOpen(false); setAddOfficeId(""); setAddName(""); setAddEmail(""); setAddPassword(""); setAddTemplateId(""); } }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Add foreign agency</DialogTitle></DialogHeader>
           <div className="space-y-4">
@@ -264,6 +312,17 @@ function AgenciesPage() {
               <Input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Auto-filled from office" />
             </div>
             <div className="space-y-2">
+              <Label>CV Template <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Select value={addTemplateId} onValueChange={setAddTemplateId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a CV template…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {cvTemplates.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Portal email</Label>
               <Input type="email" value={addEmail} onChange={(e) => setAddEmail(e.target.value)} />
             </div>
@@ -273,7 +332,7 @@ function AgenciesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => { setAddOpen(false); setAddOfficeId(""); setAddName(""); setAddEmail(""); setAddPassword(""); }}>Cancel</Button>
+            <Button variant="ghost" onClick={() => { setAddOpen(false); setAddOfficeId(""); setAddName(""); setAddEmail(""); setAddPassword(""); setAddTemplateId(""); }}>Cancel</Button>
             <Button onClick={() => createWithLogin.mutate()} disabled={!addValid || createWithLogin.isPending}>
               {createWithLogin.isPending ? "Creating…" : "Create"}
             </Button>
@@ -352,6 +411,43 @@ function AgenciesPage() {
             <Button variant="ghost" onClick={() => { setLoginAgency(null); setLoginOfficeId(""); setLoginEmail(""); setLoginPassword(""); }}>Cancel</Button>
             <Button onClick={() => createLogin.mutate()} disabled={!loginValid || createLogin.isPending}>
               {createLogin.isPending ? "Creating…" : "Create login"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit CV template for existing agency */}
+      <Dialog open={!!editTemplateAgency} onOpenChange={(o) => { if (!o) { setEditTemplateAgency(null); setEditTemplateId(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>CV Template — {editTemplateAgency?.name}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Choose which CV template this agency sees when viewing or downloading candidates.
+          </p>
+          <Select value={editTemplateId} onValueChange={setEditTemplateId}>
+            <SelectTrigger>
+              <SelectValue placeholder="No template (none)" />
+            </SelectTrigger>
+            <SelectContent>
+              {cvTemplates.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setEditTemplateAgency(null); setEditTemplateId(""); }}>Cancel</Button>
+            <Button
+              variant="ghost"
+              className="text-destructive"
+              onClick={() => updateTemplate.mutate({ agencyId: editTemplateAgency!.id, templateId: null })}
+              disabled={updateTemplate.isPending}
+            >
+              Clear
+            </Button>
+            <Button
+              onClick={() => updateTemplate.mutate({ agencyId: editTemplateAgency!.id, templateId: editTemplateId || null })}
+              disabled={updateTemplate.isPending}
+            >
+              {updateTemplate.isPending ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>

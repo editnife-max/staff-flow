@@ -53,6 +53,27 @@ export const createAgencyLogin = createServerFn({ method: "POST" })
     return { ok: true, userId };
   });
 
+export const getAgencyCvTemplate = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    // Look up the foreign agency row for this portal user
+    const { data: agency } = await (supabaseAdmin.from("foreign_agencies") as any)
+      .select("cv_template_id")
+      .eq("portal_user_id", context.userId)
+      .single();
+
+    const templateId = (agency as any)?.cv_template_id as string | null | undefined;
+    if (!templateId) return null;
+
+    const { data: tpl } = await supabaseAdmin
+      .from("cv_templates")
+      .select("*")
+      .eq("id", templateId)
+      .single();
+
+    return tpl ?? null;
+  });
+
 export const resetAgencyPassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
