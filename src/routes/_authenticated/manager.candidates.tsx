@@ -3685,16 +3685,16 @@ function ProcessingCard({
 }
 
 function InlineDate({ value, onSave, display, showDays }: { value: string; onSave: (v: string | null) => void; display?: string; showDays?: boolean }) {
-  const [editing, setEditing] = useState(false);
+  const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
   const fmt = (v: string) =>
     v ? new Date(v + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) : "";
   const days = showDays && value
     ? Math.floor((Date.now() - new Date(value + "T00:00:00").getTime()) / 86_400_000)
     : null;
-  if (!editing) {
-    return (
-      <button type="button" onClick={() => { setDraft(value); setEditing(true); }}
+  return (
+    <>
+      <button type="button" onClick={() => { setDraft(value); setOpen(true); }}
         className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block">
         {display ?? (value ? fmt(value) : <span className="text-muted-foreground">—</span>)}
         {days !== null && (
@@ -3703,17 +3703,20 @@ function InlineDate({ value, onSave, display, showDays }: { value: string; onSav
           </span>
         )}
       </button>
-    );
-  }
-  return (
-    <input autoFocus type="date" value={draft} onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => { setEditing(false); if (draft !== value) onSave(draft || null); }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
-        if (e.key === "Escape") { setDraft(value); setEditing(false); }
-      }}
-      className="rounded-none border border-primary bg-background px-1 py-0.5 text-[14px] text-foreground outline-none min-w-[110px]"
-    />
+      {open && (
+        <Dialog open onOpenChange={(o) => { if (!o) setOpen(false); }}>
+          <DialogContent className="max-w-xs rounded-none">
+            <DialogHeader><DialogTitle>Set Date</DialogTitle></DialogHeader>
+            <input autoFocus type="date" value={draft} onChange={(e) => setDraft(e.target.value)}
+              className="w-full rounded-none border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+            <DialogFooter>
+              <Button variant="ghost" className="rounded-none" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button className="rounded-none" onClick={() => { onSave(draft || null); setOpen(false); }}>Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }
 
