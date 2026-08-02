@@ -548,6 +548,9 @@ function ManagerDashboard() {
   });
   const managerCvThreshold = profile?.cv_days_threshold ?? 7;
   const [embassyOverwrite, setEmbassyOverwrite] = useState<string | null>(null);
+  const [replacePending, setReplacePending] = useState<Candidate | null>(null);
+  const [replaceReason, setReplaceReason] = useState("Replacement sent");
+  const [replaceNotes, setReplaceNotes] = useState("");
 
   const removeFn = useServerFn(deleteCandidate);
   const fieldMut = useMutation({
@@ -995,9 +998,9 @@ function ManagerDashboard() {
                   exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "musaned_status", label: "Country" }, { key: "office", label: "Office" }, { key: "passport_number", label: "Passport No." }]}
                   renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">Waiting</span>}
                   renderCardAction={(c) => (
-                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
-                      onClick={() => handleUpdateField(c.id, "visa_status", "Ready for embassy")}>
-                      Re-submit
+                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2 border-amber-400 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20"
+                      onClick={() => { setReplacePending(c); setReplaceReason("Replacement sent"); setReplaceNotes(""); }}>
+                      Pending Deletion
                     </Button>
                   )} />
               </div>
@@ -1021,10 +1024,10 @@ function ManagerDashboard() {
                   renderCardAction={(c) => (
                     <div className="flex gap-1">
                       <Button size="sm" variant="destructive" className="h-6 text-[12px] px-2 rounded-none"
-                        disabled={removeMut.isPending}
+                        disabled={fieldMut.isPending}
                         onClick={() => {
-                          if (confirm(`Permanently delete ${c.full_name}? This cannot be undone.`))
-                            removeMut.mutate(c.id);
+                          handleUpdateField(c.id, "status", "canceled");
+                          handleUpdateField(c.id, "delete_reason", null);
                         }}>
                         Confirm
                       </Button>
@@ -1086,6 +1089,45 @@ function ManagerDashboard() {
         </div>
       )}
     </div>
+    {replacePending && (
+      <Dialog open onOpenChange={(o) => { if (!o) setReplacePending(null); }}>
+        <DialogContent className="max-w-sm rounded-none">
+          <DialogHeader><DialogTitle>Replacement Reason</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Mark <strong>{replacePending.full_name}</strong> for deletion and explain why they are being replaced.
+          </p>
+          <div className="space-y-3 py-1">
+            <Select value={replaceReason} onValueChange={setReplaceReason}>
+              <SelectTrigger className="rounded-none">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Replacement sent">Replacement sent</SelectItem>
+                <SelectItem value="Visa rejected — replacement">Visa rejected — replacement</SelectItem>
+                <SelectItem value="Medical failed — replacement">Medical failed — replacement</SelectItem>
+                <SelectItem value="Candidate refused — replacement">Candidate refused — replacement</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input
+              placeholder="Additional notes (optional)"
+              value={replaceNotes}
+              onChange={(e) => setReplaceNotes(e.target.value)}
+              className="rounded-none"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" className="rounded-none" onClick={() => setReplacePending(null)}>Cancel</Button>
+            <Button variant="destructive" className="rounded-none" onClick={() => {
+              handleUpdateField(replacePending.id, "status", "canceled");
+              setReplacePending(null);
+            }}>
+              Submit Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )}
     {embassyOverwrite && (() => {
       const c = candidates.find((c) => c.id === embassyOverwrite);
       return c ? (

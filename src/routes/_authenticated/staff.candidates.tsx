@@ -1345,12 +1345,7 @@ function StaffCandidatesPage() {
           onAction={(c) => setActionCandidates([c])}
           onEdit={openEdit}
           compact={tab === "arrived"}
-          cancelMode={tab === "available"}
-          onDelete={(id) =>
-            tab === "available"
-              ? fieldMut.mutate({ id, field: "status", value: "canceled" })
-              : removeMut.mutate(id)
-          }
+          onDelete={(id) => fieldMut.mutate({ id, field: "status", value: "canceled" })}
           onUpdateField={handleCocAwareUpdate}
           onReturn={tab === "arrived" ? (id) => fieldMut.mutate({ id, field: "status", value: "returned" }) : undefined}
           onUndo={
@@ -2276,7 +2271,7 @@ function CandidateCard({
   agencyPhones: Record<string, string>;
   countryOptions: string[];
 }) {
-  const [cancelOpen, setCancelOpen] = useState(false);
+  const [deleteRequestOpen, setDeleteRequestOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [medDateOpen, setMedDateOpen] = useState(false);
   const [pendingMedDate, setPendingMedDate] = useState("");
@@ -2441,7 +2436,7 @@ function CandidateCard({
               </button>
             )}
             <button
-              onClick={() => cancelMode ? setCancelOpen(true) : onDelete()}
+              onClick={() => setDeleteRequestOpen(true)}
               className="text-xs text-destructive hover:underline"
             >
               Delete
@@ -2449,10 +2444,10 @@ function CandidateCard({
           </div>
         </div>
       </div>
-      {cancelOpen && (
+      {deleteRequestOpen && (
         <CancelReasonDialog
-          onConfirm={(reason) => { onUpdateField("notes", reason); onDelete(); setCancelOpen(false); }}
-          onClose={() => setCancelOpen(false)}
+          onConfirm={(reason) => { onUpdateField("notes", reason); onDelete(); setDeleteRequestOpen(false); }}
+          onClose={() => setDeleteRequestOpen(false)}
         />
       )}
       {returnOpen && onReturn && (
@@ -3019,7 +3014,7 @@ function ProcessingCard({
     statusField: string;
   } | null>(null);
   const [pendingDate, setPendingDate] = useState("");
-  const [cancelOpen, setCancelOpen] = useState(false);
+  const [deleteRequestOpen, setDeleteRequestOpen] = useState(false);
   const [embassyOpen, setEmbassyOpen] = useState(false);
   const [embassyStep, setEmbassyStep] = useState<"ask" | "reason">("ask");
   const [embassyReason, setEmbassyReason] = useState("");
@@ -3239,7 +3234,7 @@ function ProcessingCard({
             </Button>
             <button onClick={onEdit} className="text-xs text-primary hover:underline">Edit</button>
             <button
-              onClick={() => cancelMode ? setCancelOpen(true) : onDelete()}
+              onClick={() => setDeleteRequestOpen(true)}
               className="text-xs text-destructive hover:underline"
             >
               Delete
@@ -3247,10 +3242,10 @@ function ProcessingCard({
           </div>
         </div>
       </div>
-    {cancelOpen && (
+    {deleteRequestOpen && (
       <CancelReasonDialog
-        onConfirm={(reason) => { onUpdateField("notes", reason); onDelete(); setCancelOpen(false); }}
-        onClose={() => setCancelOpen(false)}
+        onConfirm={(reason) => { onUpdateField("notes", reason); onDelete(); setDeleteRequestOpen(false); }}
+        onClose={() => setDeleteRequestOpen(false)}
       />
     )}
     {requireDate && (
