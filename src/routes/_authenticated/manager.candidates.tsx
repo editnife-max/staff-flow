@@ -77,7 +77,7 @@ const LMIS_OPTIONS = [
   "Verified", "Draft", "Pending", "Issued", "Rejected",
 ];
 const UNFILLED_LMIS_OPTIONS = ["INSU", "COC", "ID"];
-const TICKET_OPTIONS = ["No", "Ready", "New Order", "Booked", "Exchange", "Urgent"];
+const TICKET_OPTIONS = ["No", "Ready", "New Order", "Booked", "Exchange", "Urgent", "Hold"];
 const ARRIVAL_CITY_OPTIONS = ["RIYADH", "JEDDAH", "DAMMAM", "JOUF", "HAIL", "ABHA", "OTHERS"];
 const BULK_FIELD_DEFS = [
   { key: "medical_status",   label: "Medical",      processingOnly: false },
@@ -186,6 +186,7 @@ const OPTION_COLORS: Record<string, string> = {
   "newest":             "bg-white text-sky-700 border border-sky-300 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-700",
   "oldest":             "bg-white text-amber-700 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-700",
   "Not Selected":       "bg-white text-zinc-400 border border-zinc-200 dark:bg-zinc-900 dark:text-zinc-500 dark:border-zinc-700",
+  "Hold":               "bg-white text-rose-700 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-700",
   "":                   "bg-white text-zinc-400 border border-zinc-200 dark:bg-zinc-900 dark:text-zinc-500 dark:border-zinc-700",
 };
 
@@ -2604,7 +2605,7 @@ function CandidateCard({
                 <AvatarFallback className="text-[11px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
             </button>
-            <div className="shrink-0 w-[90px]">
+            <div className="shrink-0 w-[110px]">
               <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">FULL NAME</div>
               <button type="button" onClick={onView} className={cn("text-sm font-semibold text-left hover:text-primary hover:underline transition-colors break-words", compact ? "line-clamp-1" : "line-clamp-2")}>
                 {candidate.full_name || "—"}
@@ -2612,12 +2613,12 @@ function CandidateCard({
             </div>
           </div>
           {/* Field columns (FULL NAME rendered in sticky section above) */}
-          <div className={cn("flex-1 flex items-start gap-6", candidate.visa_status === "Waiting Replacement" && "pointer-events-none opacity-60")}>
+          <div className={cn("flex-1 flex items-start gap-2", candidate.visa_status === "Waiting Replacement" && "pointer-events-none opacity-60")}>
             {visibleCols.map((colLabel) => {
               if (colLabel === "FULL NAME") return null;
               if (colLabel === "VIDEO") {
                 return (
-                  <div key="VIDEO" className="shrink-0 w-[90px]">
+                  <div key="VIDEO" className="shrink-0 w-[110px]">
                     <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">VIDEO</div>
                     <VideoCell url={candidate.video_url ?? null} onSave={(v) => onUpdateField("video_url", v)} candidateName={candidate.full_name} />
                   </div>
@@ -2626,8 +2627,8 @@ function CandidateCard({
               const f = allFields.find((f) => f.label === colLabel);
               if (!f) return null;
               return (
-                <div key={colLabel} className="shrink-0 w-[90px]">
-                  <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">{colLabel}</div>
+                <div key={colLabel} className="shrink-0 w-[110px]">
+                  <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">{colLabel}</div>
                   <div className="text-sm text-foreground break-words">
                     {"edit" in f && f.edit === "text" ? (
                       <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} suggestions={f.field === "narrative" ? narrativeSuggestions : undefined} />
@@ -3297,6 +3298,8 @@ function ProcessingCard({
   const [lmisFilesOpen, setLmisFilesOpen] = useState(false);
   const [embassyOverwriteOpen, setEmbassyOverwriteOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [ticketHoldOpen, setTicketHoldOpen] = useState(false);
+  const [ticketHoldReason, setTicketHoldReason] = useState("");
   function handleColUpdate(colKey: string, value: string | null) {
     if (colKey === "coc_status" && value === "Placed") {
       setCocPlacedOpen(true); setCocPlacedName(""); setCocPlacedPhone("");
@@ -3319,6 +3322,14 @@ function ProcessingCard({
     if (colKey === "visa_status" && value === "Returned") {
       setVisaReturnOpen(true); setVisaReturnReason("");
       return;
+    }
+    if (colKey === "ticket_status" && value === "Hold") {
+      setTicketHoldOpen(true);
+      setTicketHoldReason("");
+      return;
+    }
+    if (colKey === "ticket_status" && candidate.ticket_status === "Hold" && value !== "Hold") {
+      onUpdateField("processing_notes", null);
     }
     if (colKey === "ticket_status" && value === "Booked") {
       setRequireDate({ field: "ticket_date", label: "Ticket Date", pendingStatus: "Booked", statusField: "ticket_status" });
@@ -3378,19 +3389,18 @@ function ProcessingCard({
                 <AvatarFallback className="text-[11px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
             </button>
-            <div className="shrink-0 w-[90px]">
+            <div className="shrink-0 w-[110px]">
               <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">FULL NAME</div>
               <div className="text-sm font-semibold line-clamp-2 break-words">{candidate.full_name}</div>
             </div>
           </div>
-          <div className={cn("flex-1 flex items-start gap-6", candidate.visa_status === "Waiting Replacement" && "pointer-events-none opacity-60")}>
+          <div className={cn("flex-1 flex items-start gap-2", candidate.visa_status === "Waiting Replacement" && "pointer-events-none opacity-60")}>
             {visibleCols.map((col) => {
               const raw = candidate[col.key as keyof Candidate];
               const strVal = raw == null ? "" : String(raw);
-              const isWide = col.key === "emergency_contact" || col.key === "narrative" || col.key === "processing_notes";
               return (
-                <div key={col.key} className={cn("shrink-0", isWide ? "w-[180px]" : "w-[90px]")}>
-                  <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">{col.header}</div>
+                <div key={col.key} className="shrink-0 w-[110px]">
+                  <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">{col.header}</div>
                   <div className="text-sm text-foreground break-words">
                     {col.type === "copy" ? (
                       strVal ? (
@@ -3617,6 +3627,29 @@ function ProcessingCard({
         </DialogContent>
       </Dialog>
     )}
+    {ticketHoldOpen && (
+      <Dialog open onOpenChange={(o) => { if (!o) { setTicketHoldOpen(false); setTicketHoldReason(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Ticket Hold — Reason Required</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Why is the ticket on hold for <strong>{candidate.full_name}</strong>?</p>
+          <Textarea rows={3} placeholder="Enter reason…" value={ticketHoldReason} onChange={(e) => setTicketHoldReason(e.target.value)} />
+          <DialogFooter className="flex gap-2">
+            <Button variant="ghost" onClick={() => { setTicketHoldOpen(false); setTicketHoldReason(""); }}>Cancel</Button>
+            <Button
+              disabled={!ticketHoldReason.trim()}
+              onClick={() => {
+                onUpdateField("ticket_status", "Hold");
+                onUpdateField("processing_notes", ticketHoldReason.trim());
+                setTicketHoldOpen(false);
+                setTicketHoldReason("");
+              }}
+            >
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )}
     {cocPlacedOpen && (
       <Dialog open onOpenChange={(o) => { if (!o) setCocPlacedOpen(false); }}>
         <DialogContent className="max-w-sm">
@@ -3783,7 +3816,7 @@ function InlineSelect({ value, options, onSave }: { value: string; options: stri
 function OptionPill({ label, className }: { label: string; className?: string }) {
   const color = OPTION_COLORS[label] ?? "bg-muted text-muted-foreground";
   return (
-    <span className={cn("inline-block rounded px-1.5 py-0.5 text-xs font-semibold leading-tight text-center break-words max-w-full", color, className)}>
+    <span className={cn("inline-flex items-center justify-center rounded px-1.5 py-0.5 text-xs font-semibold leading-none whitespace-nowrap", color, className)}>
       {label}
     </span>
   );

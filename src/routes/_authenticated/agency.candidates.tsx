@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import {
   Search, SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
   ArrowUpDown, Users, User, BookOpen, Briefcase, Heart, Send,
-  Play, Download, Eye, FileText, Trash2,
+  Play, Download, Eye, FileText, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -24,7 +24,6 @@ import { StatusBadge } from "@/components/status-badge";
 import { getStaffList, sendCandidatesNotification } from "@/lib/notifications.functions";
 import { CvPreview, candidateToCanvas } from "@/components/cv-preview";
 import { canvasToPdf } from "@/lib/pdf-export";
-import { removeCandidateFromAgency } from "@/lib/agency-candidates.functions";
 
 export const Route = createFileRoute("/_authenticated/agency/candidates")({
   head: () => ({ meta: [{ title: "Candidates — Agency Portal" }] }),
@@ -129,10 +128,10 @@ function AgencyCandidatesPage() {
     .filter((c) => !search || c.full_name.toLowerCase().includes(search.toLowerCase()))
     .filter((c) => filters.gender     === "all" || c.gender         === filters.gender)
     .filter((c) => filters.religion   === "all" || c.religion       === filters.religion)
-    .filter((c) => filters.experience === "all" || c.experience     === filters.experience)
+    .filter((c) => filters.experience === "all" || (filters.experience === "Yes" ? c.experience === "Yes" : c.experience !== "Yes"))
     .filter((c) => filters.marital    === "all" || c.marital_status === filters.marital)
-    .filter((c) => ageFromNum === null || (c.age != null && c.age >= ageFromNum))
-    .filter((c) => ageToNum   === null || (c.age != null && c.age <= ageToNum))
+    .filter((c) => { const a = calcAge(c.dob) ?? c.age; return ageFromNum === null || (a != null && a >= ageFromNum); })
+    .filter((c) => { const a = calcAge(c.dob) ?? c.age; return ageToNum   === null || (a != null && a <= ageToNum);  })
     .sort((a, b) =>
       filters.sort === "oldest"
         ? (a as any).created_at?.localeCompare((b as any).created_at ?? "") ?? 0
@@ -226,12 +225,12 @@ function AgencyCandidatesPage() {
               <FilterSelect
                 placeholder="Religion" value={filters.religion} icon={BookOpen}
                 onChange={(v) => setFilters({ ...filters, religion: v })}
-                options={[{ value: "all", label: "-----" }, { value: "Muslim", label: "Muslim" }, { value: "Non-Muslim", label: "Non-Muslim" }]}
+                options={[{ value: "all", label: "-----" }, { value: "Muslim", label: "Muslim" }, { value: "Non-muslim", label: "Non-muslim" }]}
               />
               <FilterSelect
                 placeholder="Experience" value={filters.experience} icon={Briefcase}
                 onChange={(v) => setFilters({ ...filters, experience: v })}
-                options={[{ value: "all", label: "-----" }, { value: "Experience", label: "Experience" }, { value: "Non-Experience", label: "Non-Experience" }]}
+                options={[{ value: "all", label: "-----" }, { value: "Yes", label: "Experienced" }, { value: "No", label: "Non-Experienced" }]}
               />
               <FilterSelect
                 placeholder="Marital Status" value={filters.marital} icon={Heart}
@@ -317,7 +316,6 @@ function AgencyCandidatesPage() {
               candidate={c}
               selected={selected.has(c.id)}
               onToggle={() => toggleSelect(c.id)}
-              onRemoved={() => qc.invalidateQueries({ queryKey: ["agency-candidates"] })}
             />
           ))}
         </div>
@@ -369,40 +367,6 @@ function AgencyCandidatesPage() {
   );
 }
 
-function VideoPlayDialog({ url, onClose }: { url: string; onClose: () => void }) {
-  const handleDownload = async () => {
-    try {
-      const res = await fetch(url);
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      const ext = url.split("?")[0].split(".").pop() ?? "mp4";
-      a.download = `video.${ext}`;
-      a.click();
-      URL.revokeObjectURL(blobUrl);
-    } catch {
-      window.open(url, "_blank");
-    }
-  };
-  return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-2xl rounded-none">
-        <DialogHeader>
-          <DialogTitle className="text-base">Video</DialogTitle>
-        </DialogHeader>
-        <div className="relative w-full aspect-video bg-black overflow-hidden">
-          <video src={url} controls autoPlay className="w-full h-full" />
-        </div>
-        <div className="flex justify-end gap-2 pt-1">
-          <Button size="sm" variant="outline" className="rounded-none gap-1 text-xs" onClick={handleDownload}>
-            <Download className="h-3 w-3" /> Download Video
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 function CvViewDialog({ candidate, onClose }: { candidate: Candidate; onClose: () => void }) {
   const [downloading, setDownloading] = useState(false);
@@ -441,14 +405,11 @@ function CvViewDialog({ candidate, onClose }: { candidate: Candidate; onClose: (
 }
 
 function AgencyCandidateCard({
-  candidate: c, selected, onToggle, onRemoved,
-}: { candidate: Candidate; selected: boolean; onToggle: () => void; onRemoved: () => void }) {
-  const [videoOpen, setVideoOpen]   = useState(false);
-  const [cvOpen, setCvOpen]         = useState(false);
-  const [dlCv, setDlCv]             = useState(false);
-  const [confirmRemove, setConfirmRemove] = useState(false);
-
-  const doRemove = useServerFn(removeCandidateFromAgency);
+  candidate: c, selected, onToggle,
+}: { candidate: Candidate; selected: boolean; onToggle: () => void }) {
+  const [cvOpen, setCvOpen]   = useState(false);
+  const [dlCv, setDlCv]       = useState(false);
+  const [dlVideo, setDlVideo] = useState(false);
 
   const age = calcAge(c.dob) ?? c.age;
 
@@ -465,19 +426,30 @@ function AgencyCandidateCard({
   };
 
   const handleDownloadVideo = async () => {
-    if (!c.video_url) return;
+    if (!c.video_url || dlVideo) return;
+    const url = c.video_url;
+    const gdMatch = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
+    if (gdMatch) {
+      window.open(`https://drive.google.com/uc?export=download&id=${gdMatch[1]}`, "_blank");
+      return;
+    }
+    setDlVideo(true);
     try {
-      const res = await fetch(c.video_url);
+      const res = await fetch(url);
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
-      const ext = c.video_url.split("?")[0].split(".").pop() ?? "mp4";
+      const ext = url.split("?")[0].split(".").pop() ?? "mp4";
       a.download = `${c.full_name} — video.${ext}`;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(blobUrl);
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
     } catch {
-      window.open(c.video_url, "_blank");
+      window.open(url, "_blank");
+    } finally {
+      setDlVideo(false);
     }
   };
 
@@ -557,7 +529,7 @@ function AgencyCandidateCard({
               <Button
                 size="sm" variant="outline"
                 className="h-6 text-[10px] gap-0.5 rounded-sm px-1"
-                onClick={() => setVideoOpen(true)}
+                onClick={() => window.open(c.video_url!, "_blank")}
               >
                 <Play className="h-2.5 w-2.5 shrink-0 fill-current" /> Play
               </Button>
@@ -565,8 +537,10 @@ function AgencyCandidateCard({
                 size="sm" variant="outline"
                 className="h-6 text-[10px] gap-0.5 rounded-sm px-1"
                 onClick={handleDownloadVideo}
+                disabled={dlVideo}
               >
-                <Download className="h-2.5 w-2.5 shrink-0" /> Video
+                {dlVideo ? <Loader2 className="h-2.5 w-2.5 shrink-0 animate-spin" /> : <Download className="h-2.5 w-2.5 shrink-0" />}
+                {dlVideo ? "…" : "Video"}
               </Button>
             </div>
           ) : (
@@ -574,67 +548,15 @@ function AgencyCandidateCard({
               No video
             </div>
           )}
-          {/* Remove from agency */}
-          <Button
-            size="sm" variant="ghost"
-            className="w-full h-6 text-[10px] gap-0.5 rounded-sm px-1 text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={() => setConfirmRemove(true)}
-          >
-            <Trash2 className="h-2.5 w-2.5 shrink-0" /> Remove
-          </Button>
         </div>
       </div>
 
-      {videoOpen && <VideoPlayDialog url={c.video_url!} onClose={() => setVideoOpen(false)} />}
       {cvOpen && <CvViewDialog candidate={c} onClose={() => setCvOpen(false)} />}
 
-      {/* Remove confirmation */}
-      <Dialog open={confirmRemove} onOpenChange={(o) => { if (!o) setConfirmRemove(false); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Trash2 className="h-4 w-4 text-destructive" /> Remove Candidate
-            </DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Remove <strong>{c.full_name}</strong> from your agency list? The candidate will no longer appear in your portal.
-          </p>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setConfirmRemove(false)}>Cancel</Button>
-            <RemoveButton
-              candidateId={c.id}
-              doRemove={doRemove}
-              onDone={() => { setConfirmRemove(false); onRemoved(); }}
-            />
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
 
-function RemoveButton({
-  candidateId, doRemove, onDone,
-}: {
-  candidateId: string;
-  doRemove: (args: { data: { id: string } }) => Promise<{ ok: boolean }>;
-  onDone: () => void;
-}) {
-  const removeMut = useMutation({
-    mutationFn: () => doRemove({ data: { id: candidateId } }),
-    onSuccess: () => { toast.success("Candidate removed from your list"); onDone(); },
-    onError: (e: Error) => toast.error(e.message),
-  });
-  return (
-    <Button
-      variant="destructive"
-      onClick={() => removeMut.mutate()}
-      disabled={removeMut.isPending}
-    >
-      {removeMut.isPending ? "Removing…" : "Remove"}
-    </Button>
-  );
-}
 
 function FilterSelect({
   value, onChange, options, placeholder, icon: Icon,
