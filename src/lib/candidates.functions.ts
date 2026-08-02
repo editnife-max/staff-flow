@@ -88,6 +88,7 @@ const InlineFieldSchema = z.object({
     "availability_type",
     "lmis_insu_url", "lmis_coc_url", "lmis_id_url", "lmis_id_relative_url",
     "video_url",
+    "delete_reason",
   ]),
   value: z.string().nullable(),
 });

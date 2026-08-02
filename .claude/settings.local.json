@@ -118,7 +118,9 @@
       "PowerShell(Start-Process \"http://localhost:5173\")",
       "WebSearch",
       "PowerShell(supabase db *)",
-      "PowerShell(supabase status *)"
+      "PowerShell(supabase status *)",
+      "PowerShell(supabase projects *)",
+      "PowerShell(supabase link *)"
     ]
   },
   "enableAllProjectMcpServers": true,

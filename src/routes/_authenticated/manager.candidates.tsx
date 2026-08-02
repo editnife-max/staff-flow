@@ -665,6 +665,11 @@ function ManagerCandidatesPage() {
   }, [assignOffices, assignCountries, foreignAgencies, officesByCountry]);
 
   const handleUpdateField = useCallback((id: string, field: string, value: string | null) => {
+    const target = candidates.find((c) => c.id === id);
+    if (target?.visa_status === "Waiting Replacement" && field !== "visa_status" && field !== "delete_reason") {
+      toast.error("Candidate is locked — Visa Status is Waiting Replacement");
+      return;
+    }
     fieldMut.mutate({ id, field, value });
     const current = () => qc.getQueryData<Candidate[]>(["manager-candidates", user?.id])?.find((c) => c.id === id);
     // When contract_date is first set, prompt for LMIS files needed
@@ -1900,13 +1905,21 @@ function ProcessingEditDialog({
     </div>
   );
 
+  const isLocked = candidate.visa_status === "Waiting Replacement";
+
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-2xl" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>Edit Processing — {candidate.full_name}</DialogTitle>
         </DialogHeader>
-        <div className="max-h-[65vh] overflow-y-auto pr-1 space-y-4">
+        {isLocked && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-300 dark:bg-amber-950/40 dark:border-amber-700 rounded-none text-sm text-amber-800 dark:text-amber-300">
+            <span className="text-base">🔒</span>
+            <span><strong>Locked</strong> — Visa Status is <strong>Waiting Replacement</strong>. Changes are not allowed until the visa status is updated.</span>
+          </div>
+        )}
+        <div className={isLocked ? "pointer-events-none opacity-50 max-h-[65vh] overflow-y-auto pr-1 space-y-4" : "max-h-[65vh] overflow-y-auto pr-1 space-y-4"}>
           <div className="grid grid-cols-2 gap-3">
             <ProcInput label="Passport No" k="passport_number" />
             <ProcInput label="Labour ID" k="labour_id" />
@@ -1950,7 +1963,7 @@ function ProcessingEditDialog({
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave}>Save changes</Button>
+          <Button onClick={handleSave} disabled={isLocked}>Save changes</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -1968,7 +1981,7 @@ type EditableField =
   | "ticket_status" | "ticket_date" | "arrival_city" | "emergency_contact"
   | "processing_notes" | "remark" | "destination_country" | "cv_sent_to" | "passport_accepted"
   | "availability_type" | "coc_agency_name" | "coc_agency_phone" | "insurance_date"
-  | "video_url";
+  | "video_url" | "delete_reason";
 
 function CandidateCardList({
   candidates, selected, onToggleSelect, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo,
@@ -2488,13 +2501,14 @@ function CandidateCard({
   countryOptions: string[];
 }) {
   const { user } = useAuth();
-  const [cancelOpen, setCancelOpen] = useState(false);
+  const [deleteRequestOpen, setDeleteRequestOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [medDateOpen, setMedDateOpen] = useState(false);
   const [pendingMedDate, setPendingMedDate] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const statusKey = (["available","processing","arrived","canceled","returned"].includes(candidate.status ?? "")
     ? candidate.status : "available") as Status;
+  const deletePending = !!(candidate as any).delete_reason;
 
   type FieldDef =
     | { label: string; value: string; bold?: boolean; copy?: boolean }
@@ -2673,19 +2687,30 @@ function CandidateCard({
                 <Undo2 className="h-3 w-3" /> Undo
               </button>
             )}
-            <button
-              onClick={() => cancelMode ? setCancelOpen(true) : onDelete()}
-              className="text-xs text-destructive hover:underline"
-            >
-              Delete
-            </button>
+            {deletePending ? (
+              <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                ⏳ Pending Deletion
+              </span>
+            ) : (
+              <button
+                onClick={() => setDeleteRequestOpen(true)}
+                className="text-xs text-destructive hover:underline"
+              >
+                Delete
+              </button>
+            )}
           </div>
         </div>
       </div>
-      {cancelOpen && (
-        <CancelReasonDialog
-          onConfirm={(reason) => { onUpdateField("notes", reason); onDelete(); setCancelOpen(false); }}
-          onClose={() => setCancelOpen(false)}
+      {deletePending && (
+        <div className="mx-2 mb-1 px-2 py-1 bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-700 text-[11px] text-amber-800 dark:text-amber-300 rounded-none">
+          <span className="font-semibold">Deletion reason:</span> {(candidate as any).delete_reason}
+        </div>
+      )}
+      {deleteRequestOpen && (
+        <DeleteReasonDialog
+          onConfirm={(reason) => { onUpdateField("delete_reason", reason); setDeleteRequestOpen(false); }}
+          onClose={() => setDeleteRequestOpen(false)}
         />
       )}
       {returnOpen && onReturn && (
@@ -3242,7 +3267,7 @@ function ProcessingCard({
     statusField: string;
   } | null>(null);
   const [pendingDate, setPendingDate] = useState("");
-  const [cancelOpen, setCancelOpen] = useState(false);
+  const [deleteRequestOpen, setDeleteRequestOpen] = useState(false);
   const [embassyOpen, setEmbassyOpen] = useState(false);
   const [embassyStep, setEmbassyStep] = useState<"ask" | "reason">("ask");
   const [embassyReason, setEmbassyReason] = useState("");
@@ -3453,22 +3478,28 @@ function ProcessingCard({
               VIEW
             </Button>
             <button onClick={onEdit} className="text-xs text-primary hover:underline">Edit</button>
-            <button
-              onClick={() => cancelMode ? setCancelOpen(true) : onDelete()}
-              className="text-xs text-destructive hover:underline"
-            >
-              Delete
-            </button>
+            {(candidate as any).delete_reason ? (
+              <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                ⏳ Pending Deletion
+              </span>
+            ) : (
+              <button
+                onClick={() => setDeleteRequestOpen(true)}
+                className="text-xs text-destructive hover:underline"
+              >
+                Delete
+              </button>
+            )}
             <button onClick={() => setHistoryOpen(true)} className="text-xs text-muted-foreground hover:text-foreground hover:underline flex items-center gap-1">
               <History className="h-3 w-3" /> History
             </button>
           </div>
         </div>
       </div>
-    {cancelOpen && (
-      <CancelReasonDialog
-        onConfirm={(reason) => { onUpdateField("notes", reason); onDelete(); setCancelOpen(false); }}
-        onClose={() => setCancelOpen(false)}
+    {deleteRequestOpen && (
+      <DeleteReasonDialog
+        onConfirm={(reason) => { onUpdateField("delete_reason", reason); setDeleteRequestOpen(false); }}
+        onClose={() => setDeleteRequestOpen(false)}
       />
     )}
     {requireDate && (
@@ -4162,6 +4193,60 @@ function CancelReasonDialog({
             onClick={() => onConfirm(notes.trim() ? `${reason}: ${notes.trim()}` : reason)}
           >
             Confirm Delete
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DeleteReasonDialog({
+  onConfirm, onClose,
+}: {
+  onConfirm: (reason: string) => void;
+  onClose: () => void;
+}) {
+  const [reason, setReason] = useState("No longer needed");
+  const [notes, setNotes] = useState("");
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Request Deletion</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          The candidate won't be deleted immediately — the request will appear on the dashboard for confirmation.
+        </p>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Reason *</Label>
+            <Select value={reason} onValueChange={setReason}>
+              <SelectTrigger className="rounded-none h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {["No longer needed", "Duplicate record", "Candidate withdrew", "Data error", "Other"].map((r) => (
+                  <SelectItem key={r} value={r}>{r}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Notes</Label>
+            <Textarea
+              rows={2}
+              placeholder="Optional details..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="rounded-none text-sm"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Back</Button>
+          <Button
+            variant="destructive"
+            onClick={() => onConfirm(notes.trim() ? `${reason}: ${notes.trim()}` : reason)}
+          >
+            Submit Request
           </Button>
         </DialogFooter>
       </DialogContent>

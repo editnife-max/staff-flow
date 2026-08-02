@@ -1,10 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import React, { useState, useEffect, useRef } from "react";
 import {
   Users, Clock, CheckCircle2, XCircle, RotateCcw, UserPlus, ChevronRight, FileSpreadsheet,
   Stethoscope, FileCheck, ClipboardList, Ticket, FileText, CalendarX, Landmark, BadgeCheck,
-  AlertTriangle, Send, Upload, Download, X, MapPin, TrendingUp,
+  AlertTriangle, Send, Upload, Download, X, MapPin, TrendingUp, Trash2,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -17,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
-import { updateCandidateField } from "@/lib/candidates.functions";
+import { updateCandidateField, deleteCandidate } from "@/lib/candidates.functions";
 
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"];
 
@@ -54,6 +55,8 @@ const ALERT_PILL: Record<string, string> = {
   embassy:   "bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300",
   visaready: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
   visareturn:"bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300",
+  waitreplace:  "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+  deletepending:"bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
   tasheer:   "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
   cvoverdue: "bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300",
   fitlmis:   "bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300",
@@ -546,9 +549,14 @@ function ManagerDashboard() {
   const managerCvThreshold = profile?.cv_days_threshold ?? 7;
   const [embassyOverwrite, setEmbassyOverwrite] = useState<string | null>(null);
 
+  const removeFn = useServerFn(deleteCandidate);
   const fieldMut = useMutation({
     mutationFn: (vars: { id: string; field: string; value: string | null }) =>
       updateCandidateField({ data: vars as never }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dashboard-candidates", user?.id] }),
+  });
+  const removeMut = useMutation({
+    mutationFn: (id: string) => removeFn({ data: { id } }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dashboard-candidates", user?.id] }),
   });
 
@@ -678,6 +686,8 @@ function ManagerDashboard() {
   );
 
   const visaReturned            = candidates.filter((c) => c.status === "processing" && c.visa_status === "Returned");
+  const visaWaitingReplacement  = candidates.filter((c) => c.status === "processing" && c.visa_status === "Waiting Replacement");
+  const deletePending           = candidates.filter((c) => !!(c as any).delete_reason);
   const tasheerDoneWokalaUnpaid = candidates.filter((c) => c.status === "processing" && c.tasheer_status === "Done" && c.wokala_status === "Unpaid");
   const tasheerOverdue          = candidates.filter((c) => {
     if (c.tasheer_status !== "Booked" || !c.tasheer_date) return false;
@@ -725,7 +735,8 @@ function ManagerDashboard() {
     embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 ||
     tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 ||
     cvOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0 ||
-    lmisDraftImported.length > 0 || noMedical5Days.length > 0 || noTasheer10Days.length > 0;
+    lmisDraftImported.length > 0 || noMedical5Days.length > 0 || noTasheer10Days.length > 0 ||
+    visaWaitingReplacement.length > 0 || deletePending.length > 0;
 
   return (
     <>
@@ -882,7 +893,7 @@ function ManagerDashboard() {
           )}
 
           {/* LOGISTICS & DEPLOYMENT */}
-          {(ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerOverdue.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0) && (
+          {(ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || visaWaitingReplacement.length > 0 || tasheerOverdue.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0) && (
             <div className="border border-border rounded-none overflow-hidden">
               <div className="px-3 py-2 bg-muted/20 border-b border-border">
                 <p className="text-sm font-bold text-foreground uppercase tracking-widest">Logistics & Deployment</p>
@@ -979,6 +990,49 @@ function ManagerDashboard() {
                       onClick={() => handleUpdateField(c.id, "visa_status", "Waiting Replacement")}>
                       Replacement
                     </Button>
+                  )} />
+                <AlertSection icon={AlertTriangle} title="Visa — Waiting Replacement" iconColor="text-amber-600 dark:text-amber-400" pillKey="waitreplace" candidates={visaWaitingReplacement} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "musaned_status", label: "Country" }, { key: "office", label: "Office" }, { key: "passport_number", label: "Passport No." }]}
+                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">Waiting</span>}
+                  renderCardAction={(c) => (
+                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                      onClick={() => handleUpdateField(c.id, "visa_status", "Ready for embassy")}>
+                      Re-submit
+                    </Button>
+                  )} />
+              </div>
+            </div>
+          )}
+
+          {/* PENDING DELETION */}
+          {deletePending.length > 0 && (
+            <div className="border border-red-300 dark:border-red-800 rounded-none overflow-hidden">
+              <div className="px-3 py-2 bg-red-50 dark:bg-red-950/30 border-b border-red-300 dark:border-red-800">
+                <p className="text-sm font-bold text-red-700 dark:text-red-400 uppercase tracking-widest">Pending Deletion</p>
+              </div>
+              <div className="divide-y divide-border">
+                <AlertSection icon={Trash2} title="Deletion Requested" iconColor="text-red-600 dark:text-red-400" pillKey="deletepending" candidates={deletePending} onUpdateField={handleUpdateField}
+                  exportCols={[...BASE, { key: "delete_reason", label: "Delete Reason" }, { key: "status", label: "Status" }]}
+                  renderBadge={(c) => (
+                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 max-w-[140px] truncate block">
+                      {(c as any).delete_reason}
+                    </span>
+                  )}
+                  renderCardAction={(c) => (
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="destructive" className="h-6 text-[12px] px-2 rounded-none"
+                        disabled={removeMut.isPending}
+                        onClick={() => {
+                          if (confirm(`Permanently delete ${c.full_name}? This cannot be undone.`))
+                            removeMut.mutate(c.id);
+                        }}>
+                        Confirm
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-6 text-[12px] px-2 rounded-none"
+                        onClick={() => handleUpdateField(c.id, "delete_reason", null)}>
+                        Cancel
+                      </Button>
+                    </div>
                   )} />
               </div>
             </div>
