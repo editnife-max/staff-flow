@@ -1117,24 +1117,15 @@ function ManagerCandidatesPage() {
       </div>
 
       {tab !== "processing" && (
+        <>
         <Card className="rounded-none">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
-                {activeCount > 0 && (
-                  <span className="rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
-                    {activeCount}
-                  </span>
-                )}
-              </div>
-              <Button
-                size="sm" variant="ghost" className="h-7 gap-1 text-xs font-bold text-black"
-                onClick={() => { setFilters(initialFilters); setPassport(""); }}
-                disabled={activeCount === 0 && !passport}
-              >
-                <RotateCcw className="h-3.5 w-3.5" /> Reset
-              </Button>
+            <div className="flex items-center gap-2">
+              {activeCount > 0 && (
+                <span className="rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+                  {activeCount}
+                </span>
+              )}
             </div>
                 <div className="mt-3 flex flex-wrap items-center gap-5">
                   <FilterSelect value={filters.sort} onChange={(v) => setFilters({ ...filters, sort: v })}
@@ -1157,7 +1148,7 @@ function ManagerCandidatesPage() {
                     options={[{ value: "", label: "Not Selected" }, ...opts.narrative.map((o) => ({ value: o, label: o }))]} />
                   <MultiFilterSelect placeholder="Experience" values={filters.experience} icon={Briefcase}
                     onChange={(v) => setFilters({ ...filters, experience: v })}
-                    options={[{ value: "", label: "Not Selected" }, { value: "Yes", label: "Yes" }, { value: "No", label: "No" }, { value: "None", label: "None" }]} />
+                    options={[{ value: "Yes", label: "Yes" }, { value: "No", label: "No" }]} />
                   <MultiFilterSelect placeholder="COC" values={filters.coc} icon={FileCheck}
                     onChange={(v) => setFilters({ ...filters, coc: v })}
                     options={[{ value: "", label: "Not Selected" }, ...["Done","No","Booked","Placed","Yitazez","Pending Release"].map((o) => ({ value: o, label: o }))]} />
@@ -1203,11 +1194,17 @@ function ManagerCandidatesPage() {
                     />
                   </div>
                 </div>
-            <div className="mt-2 text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground">{filtered.length}</span> candidate{filtered.length !== 1 ? "s" : ""} found
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-xs text-muted-foreground"><span className="font-semibold text-foreground">{filtered.length}</span> candidate{filtered.length !== 1 ? "s" : ""} found</span>
+              <Button size="sm" variant="ghost" className="h-6 gap-1 text-xs font-bold text-black"
+                onClick={() => { setFilters(initialFilters); setPassport(""); }}
+                disabled={activeCount === 0 && !passport}>
+                <RotateCcw className="h-3 w-3" /> Reset
+              </Button>
             </div>
           </CardContent>
         </Card>
+        </>
       )}
 
       <Card className="rounded-none">
@@ -1552,7 +1549,7 @@ function ManagerCandidatesPage() {
                 <FormSelect label="Work Experience *" value={form.experience} onChange={(v) => {
                   setForm({ ...form, experience: v });
                   if (v !== "Yes") setExpEntries([{ country: "", customCountry: "", years: "" }]);
-                }} options={["Yes", "No", "None"]} />
+                }} options={["Yes", "No"]} />
               </div>
               {form.experience === "Yes" && (
                 <div className="mt-3 space-y-2">
@@ -2067,8 +2064,8 @@ function CandidateCardList({
   useEffect(() => { setPage(1); }, [filtered.length, pageSize]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
-  const allSel = filtered.length > 0 && filtered.every((c) => selected.has(c.id));
-  const someSel = !allSel && filtered.some((c) => selected.has(c.id));
+  const allSel = paginated.length > 0 && paginated.every((c) => selected.has(c.id));
+  const someSel = !allSel && paginated.some((c) => selected.has(c.id));
   const visibleCols = (CANDIDATE_CARD_COLS as readonly string[]).filter((l) => !hiddenCols.has(l));
 
   return (
@@ -2136,7 +2133,7 @@ function CandidateCardList({
             <Checkbox
               checked={allSel ? true : someSel ? "indeterminate" : false}
               onCheckedChange={(v) =>
-                filtered.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
+                paginated.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
               }
             />
             {selected.size > 0 ? `${selected.size} selected` : "Select all"}
@@ -2900,8 +2897,8 @@ function ProcessingTable({
   const totalPages = Math.max(1, Math.ceil(filteredCandidates.length / pageSize));
   const paginated = filteredCandidates.slice((page - 1) * pageSize, page * pageSize);
   const visibleCols = allCols.filter((col) => !hiddenCols.has(col.key));
-  const allSel = filteredCandidates.length > 0 && filteredCandidates.every((c) => selected.has(c.id));
-  const someSel = !allSel && filteredCandidates.some((c) => selected.has(c.id));
+  const allSel = paginated.length > 0 && paginated.every((c) => selected.has(c.id));
+  const someSel = !allSel && paginated.some((c) => selected.has(c.id));
 
   const arrivedChecked = useRef<Set<string>>(new Set());
   const [arrivedCheckCandidate, setArrivedCheckCandidate] = useState<Candidate | null>(null);
@@ -2938,50 +2935,10 @@ function ProcessingTable({
     <div className="space-y-2">
       {<Card className="rounded-none">
         <CardContent className="p-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
-              {activeCount > 0 && (
-                <span className="rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">{activeCount}</span>
-              )}
-            </div>
-            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs font-bold text-black ml-auto"
-              onClick={() => { setProcFilters(INITIAL_PROC_FILTERS); setSearch(""); }}
-              disabled={activeCount === 0 && !search}>
-              <RotateCcw className="h-3.5 w-3.5" /> Reset
-            </Button>
-            <div className="relative">
-              <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs"
-                onClick={() => setShowColPicker((v) => !v)}>
-                <SlidersHorizontal className="h-3.5 w-3.5" /> Columns
-                {hiddenCols.size > 0 && (
-                  <span className="ml-1 rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">{hiddenCols.size} hidden</span>
-                )}
-              </Button>
-              {showColPicker && (
-                <div className="absolute right-0 top-8 z-50 bg-popover border border-border rounded-none shadow-xl p-3 w-[340px]">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Columns</span>
-                    <button type="button" onClick={() => setHiddenCols(new Set())}
-                      className="text-[11px] text-primary hover:underline disabled:opacity-40"
-                      disabled={hiddenCols.size === 0}>
-                      Reset
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                    {allCols.map((col) => (
-                      <label key={col.key} className="flex items-center gap-1.5 text-xs cursor-pointer py-1 hover:text-primary">
-                        <Checkbox checked={!hiddenCols.has(col.key)}
-                          onCheckedChange={(v) =>
-                            setHiddenCols((prev) => { const n = new Set(prev); v ? n.delete(col.key) : n.add(col.key); return n; })
-                          } />
-                        {col.header}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+          <div className="flex items-center gap-1.5">
+            {activeCount > 0 && (
+              <span className="rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">{activeCount}</span>
+            )}
           </div>
             <div className="mt-3 flex flex-wrap gap-5">
               <FilterSelect value={f.sort} onChange={(v) => setProcFilters((p) => ({ ...p, sort: v }))}
@@ -3009,8 +2966,47 @@ function ProcessingTable({
                 />
               </div>
             </div>
-          <div className="mt-2 text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">{filteredCandidates.length}</span> candidate{filteredCandidates.length !== 1 ? "s" : ""} found
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-xs text-muted-foreground"><span className="font-semibold text-foreground">{filteredCandidates.length}</span> candidate{filteredCandidates.length !== 1 ? "s" : ""} found</span>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="ghost" className="h-6 gap-1 text-xs font-bold text-black"
+                onClick={() => { setProcFilters(INITIAL_PROC_FILTERS); setSearch(""); }}
+                disabled={activeCount === 0 && !search}>
+                <RotateCcw className="h-3 w-3" /> Reset
+              </Button>
+              <div className="relative">
+                <Button size="sm" variant="outline" className="h-6 gap-1.5 text-xs"
+                  onClick={() => setShowColPicker((v) => !v)}>
+                  <SlidersHorizontal className="h-3 w-3" /> Columns
+                  {hiddenCols.size > 0 && (
+                    <span className="ml-1 rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">{hiddenCols.size} hidden</span>
+                  )}
+                </Button>
+                {showColPicker && (
+                  <div className="absolute right-0 bottom-7 z-50 bg-popover border border-border rounded-none shadow-xl p-3 w-[340px]">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Columns</span>
+                      <button type="button" onClick={() => setHiddenCols(new Set())}
+                        className="text-[11px] text-primary hover:underline disabled:opacity-40"
+                        disabled={hiddenCols.size === 0}>
+                        Reset
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                      {allCols.map((col) => (
+                        <label key={col.key} className="flex items-center gap-1.5 text-xs cursor-pointer py-1 hover:text-primary">
+                          <Checkbox checked={!hiddenCols.has(col.key)}
+                            onCheckedChange={(v) =>
+                              setHiddenCols((prev) => { const n = new Set(prev); v ? n.delete(col.key) : n.add(col.key); return n; })
+                            } />
+                          {col.header}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>}
@@ -3106,7 +3102,7 @@ function ProcessingTable({
             <Checkbox
               checked={allSel ? true : someSel ? "indeterminate" : false}
               onCheckedChange={(v) =>
-                filteredCandidates.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
+                paginated.forEach((c) => { if (!!v !== selected.has(c.id)) onToggleSelect(c.id); })
               }
             />
             {selected.size > 0 ? `${selected.size} selected` : "Select all"}
@@ -3416,19 +3412,19 @@ function ProcessingCard({
                             const items: React.ReactNode[] = [];
                             if (ca.lmis_insu_url) items.push(
                               <div key="insu" className="flex items-center gap-1">
-                                <button type="button" onClick={() => setLmisFilesOpen(true)} className="text-[10px] font-semibold text-green-700 dark:text-green-400 hover:underline">INSU</button>
+                                <button type="button" onClick={() => setLmisFilesOpen(true)} className="text-[10px] font-semibold text-green-700 dark:text-green-400 hover:underline w-7 shrink-0">INSU</button>
                                 <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(ca.lmis_insu_url); }} className="text-green-700 dark:text-green-400 hover:opacity-70"><Download className="h-3 w-3" /></button>
                               </div>
                             );
                             if (ca.lmis_coc_url) items.push(
                               <div key="coc" className="flex items-center gap-1">
-                                <button type="button" onClick={() => setLmisFilesOpen(true)} className="text-[10px] font-semibold text-blue-700 dark:text-blue-400 hover:underline">COC</button>
+                                <button type="button" onClick={() => setLmisFilesOpen(true)} className="text-[10px] font-semibold text-blue-700 dark:text-blue-400 hover:underline w-7 shrink-0">COC</button>
                                 <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(ca.lmis_coc_url); }} className="text-blue-700 dark:text-blue-400 hover:opacity-70"><Download className="h-3 w-3" /></button>
                               </div>
                             );
                             if (ca.lmis_id_url || ca.lmis_id_relative_url) items.push(
                               <div key="id" className="flex items-center gap-1">
-                                <button type="button" onClick={() => setLmisFilesOpen(true)} className="text-[10px] font-semibold text-purple-700 dark:text-purple-400 hover:underline">{bothIds ? "ID'S" : "ID"}</button>
+                                <button type="button" onClick={() => setLmisFilesOpen(true)} className="text-[10px] font-semibold text-purple-700 dark:text-purple-400 hover:underline w-7 shrink-0">{bothIds ? "ID'S" : "ID"}</button>
                                 {ca.lmis_id_url && <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(ca.lmis_id_url); }} className="text-purple-700 dark:text-purple-400 hover:opacity-70"><Download className="h-3 w-3" /></button>}
                                 {bothIds && <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(ca.lmis_id_relative_url); }} className="text-purple-700 dark:text-purple-400 hover:opacity-70"><Download className="h-3 w-3" /></button>}
                               </div>
