@@ -1336,6 +1336,7 @@ function StaffCandidatesPage() {
           onToggleSelect={toggleSelect}
           onAction={(c) => setActionCandidates([c])}
           onEdit={openEdit}
+          compact={tab === "arrived"}
           cancelMode={tab === "available"}
           onDelete={(id) =>
             tab === "available"
@@ -1880,7 +1881,7 @@ type EditableField =
 
 function CandidateCardList({
   candidates, selected, onToggleSelect, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo,
-  countryMeta, officesByCountry, agencyOptions, agencyPhones,
+  countryMeta, officesByCountry, agencyOptions, agencyPhones, compact,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -1890,6 +1891,7 @@ function CandidateCardList({
   onDelete: (id: string) => void;
   onUpdateField: (id: string, field: string, value: string | null) => void;
   cancelMode?: boolean;
+  compact?: boolean;
   onReturn?: (id: string) => void;
   onUndo?: (id: string, c: Candidate) => void;
   countryMeta: Array<{ name: string; flag: string }>;
@@ -2093,6 +2095,7 @@ function CandidateCardList({
                   selected={selected.has(c.id)}
                   visibleCols={visibleCols}
                   cancelMode={cancelMode}
+                  compact={compact}
                   onToggleSelect={() => onToggleSelect(c.id)}
                   onViewPhotos={() => setViewingPhotos(c)}
                   onAction={() => onAction(c)}
@@ -2245,12 +2248,13 @@ function VideoCell({ url, onSave, candidateName }: { url: string | null; onSave:
 }
 
 function CandidateCard({
-  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo, agencyOptions, agencyPhones, countryOptions,
+  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo, agencyOptions, agencyPhones, countryOptions, compact,
 }: {
   candidate: Candidate;
   selected: boolean;
   visibleCols: readonly string[];
   cancelMode?: boolean;
+  compact?: boolean;
   onToggleSelect: () => void;
   onViewPhotos: () => void;
   onAction: () => void;
@@ -2335,14 +2339,14 @@ function CandidateCard({
           {/* Sticky left: photo + full name */}
           <div className="sticky left-0 z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
             <button type="button" onClick={onViewPhotos} className="shrink-0">
-              <Avatar className="h-14 w-14 hover:ring-2 hover:ring-primary transition-all">
+              <Avatar className={cn("hover:ring-2 hover:ring-primary transition-all", compact ? "h-10 w-10" : "h-14 w-14")}>
                 {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
                 <AvatarFallback className="text-[11px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
             </button>
             <div className="shrink-0 w-[90px]">
               <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">FULL NAME</div>
-              <span className="text-sm font-semibold line-clamp-2 break-words">{candidate.full_name || "—"}</span>
+              <span className={cn("text-sm font-semibold break-words", compact ? "line-clamp-1" : "line-clamp-2")}>{candidate.full_name || "—"}</span>
             </div>
           </div>
           {/* Field columns (FULL NAME rendered in sticky section above) */}
@@ -2401,12 +2405,12 @@ function CandidateCard({
                         type="button"
                         title="Click to copy"
                         onClick={() => { navigator.clipboard.writeText(f.value); toast.success("Copied!"); }}
-                        className="text-left line-clamp-2 break-words hover:text-primary hover:underline cursor-copy transition-colors"
+                        className={cn("text-left break-words hover:text-primary hover:underline cursor-copy transition-colors", compact ? "line-clamp-1" : "line-clamp-2")}
                       >
                         {f.value}
                       </button>
                     ) : (
-                      <span className="line-clamp-2 break-words">{f.value || "—"}</span>
+                      <span className={cn("break-words", compact ? "line-clamp-1" : "line-clamp-2")}>{f.value || "—"}</span>
                     )}
                   </div>
                 </div>
@@ -2414,12 +2418,8 @@ function CandidateCard({
             })}
           </div>
           {/* Actions — sticky right */}
-          <div className={cn(
-            "sticky right-0 z-10 self-stretch shrink-0 flex flex-col justify-center items-end gap-1.5 pr-4 pl-3",
-            "shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.07)]",
-            selected ? "bg-primary/5" : "bg-white",
-          )}>
-            <Button size="sm" onClick={onAction} className="bg-[#5cb8c4] hover:bg-[#4aa8b4] text-white px-5 h-8 rounded text-xs font-semibold tracking-wide">
+          <div className="sticky right-0 z-10 self-stretch shrink-0 flex flex-col justify-center items-center gap-1.5 px-4 border-l border-border" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
+            <Button size="sm" onClick={onAction} className="w-full px-5 h-8 rounded text-xs font-semibold tracking-wide">
               VIEW
             </Button>
             <button onClick={onEdit} className="text-xs text-primary hover:underline">Edit</button>
@@ -3111,8 +3111,9 @@ function ProcessingCard({
             {visibleCols.map((col) => {
               const raw = candidate[col.key as keyof Candidate];
               const strVal = raw == null ? "" : String(raw);
+              const isWide = col.key === "emergency_contact" || col.key === "narrative" || col.key === "processing_notes";
               return (
-                <div key={col.key} className="shrink-0 w-[90px]">
+                <div key={col.key} className={cn("shrink-0", isWide ? "w-[180px]" : "w-[90px]")}>
                   <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">{col.header}</div>
                   <div className="text-sm text-foreground break-words">
                     {col.type === "copy" ? (
@@ -3223,12 +3224,8 @@ function ProcessingCard({
             })}
           </div>
           {/* Actions — sticky right */}
-          <div className={cn(
-            "sticky right-0 z-10 self-stretch shrink-0 flex flex-col justify-center items-end gap-1.5 pr-4 pl-3",
-            "shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.07)]",
-            selected ? "bg-primary/5" : "bg-white",
-          )}>
-            <Button size="sm" onClick={onAction} className="bg-[#5cb8c4] hover:bg-[#4aa8b4] text-white px-5 h-8 rounded text-xs font-semibold tracking-wide">
+          <div className="sticky right-0 z-10 self-stretch shrink-0 flex flex-col justify-center items-center gap-1.5 px-4 border-l border-border" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
+            <Button size="sm" onClick={onAction} className="w-full px-5 h-8 rounded text-xs font-semibold tracking-wide">
               VIEW
             </Button>
             <button onClick={onEdit} className="text-xs text-primary hover:underline">Edit</button>
