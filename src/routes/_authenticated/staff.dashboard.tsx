@@ -20,6 +20,10 @@ import { DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import { updateCandidateField } from "@/lib/candidates.functions";
+import { acceptCandidatesNotification, declineCandidatesNotification } from "@/lib/notifications.functions";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"];
 type Status = "available" | "processing" | "arrived" | "canceled" | "returned";
@@ -932,6 +936,63 @@ function StaffDashboard() {
     },
   });
 
+  // ── Agency notifications (Selected / Reserved) ───────────────────────────
+  const doAccept  = useServerFn(acceptCandidatesNotification);
+  const doDecline = useServerFn(declineCandidatesNotification);
+
+  const { data: agencyNotifs = [] } = useQuery<{
+    id: string; title: string; body: string | null; candidate_ids: string[]; sender_id: string | null; created_at: string;
+  }[]>({
+    queryKey: ["staff-dashboard-agency-notifs", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("notifications" as any)
+        .select("id,title,body,candidate_ids,sender_id,created_at")
+        .eq("type", "candidates_sent")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+      return (data ?? []) as any[];
+    },
+    refetchInterval: 30_000,
+  });
+
+  const [activeAgencyNotif, setActiveAgencyNotif] = useState<typeof agencyNotifs[0] | null>(null);
+  const [declineMode, setDeclineMode]             = useState(false);
+  const [declineReason, setDeclineReason]         = useState("");
+
+  const acceptNotifMut = useMutation({
+    mutationFn: (n: typeof agencyNotifs[0]) => doAccept({ data: { notificationId: n.id, candidateIds: n.candidate_ids } }),
+    onSuccess: () => {
+      toast.success("Candidates moved to Processing");
+      queryClient.invalidateQueries({ queryKey: ["staff-dashboard-agency-notifs"] });
+      queryClient.invalidateQueries({ queryKey: ["staff-dashboard-candidates"] });
+      queryClient.invalidateQueries({ queryKey: ["staff-notifications"] });
+      setActiveAgencyNotif(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const declineNotifMut = useMutation({
+    mutationFn: () => doDecline({
+      data: {
+        notificationId: activeAgencyNotif!.id,
+        agencyUserId:   activeAgencyNotif!.sender_id!,
+        candidateIds:   activeAgencyNotif!.candidate_ids,
+        reason:         declineReason.trim(),
+      },
+    }),
+    onSuccess: () => {
+      toast.success("Decline sent to agency");
+      queryClient.invalidateQueries({ queryKey: ["staff-dashboard-agency-notifs"] });
+      queryClient.invalidateQueries({ queryKey: ["staff-notifications"] });
+      setActiveAgencyNotif(null);
+      setDeclineMode(false);
+      setDeclineReason("");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const [embassyOverwrite, setEmbassyOverwrite] = useState<string | null>(null);
 
   const fieldMut = useMutation({
@@ -1131,6 +1192,60 @@ function StaffDashboard() {
           </Link>
         </Button>
       </div>
+
+      {/* Agency candidate requests */}
+      {agencyNotifs.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Agency Requests</p>
+          {agencyNotifs.map((n) => {
+            const count = n.candidate_ids?.length ?? 0;
+            const isSelected = n.body?.startsWith("[Selected]");
+            const isReserved = n.body?.startsWith("[Reserved]");
+            const typeLabel = isSelected ? "Selected" : isReserved ? "Reserved" : "Sent";
+            const note = n.body?.replace(/^\[Selected\]\s*|^\[Reserved\]\s*/, "") || null;
+            return (
+              <div key={n.id} className="flex items-start gap-3 border border-border rounded-none bg-card px-4 py-3">
+                <div className={cn(
+                  "mt-0.5 shrink-0 h-7 w-7 rounded-none grid place-items-center text-white text-[10px] font-bold",
+                  isReserved ? "bg-amber-500" : "bg-primary",
+                )}>
+                  <Send className="h-3.5 w-3.5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold leading-snug">{n.title}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className={cn(
+                      "text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-none",
+                      isReserved ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                                 : "bg-primary/10 text-primary",
+                    )}>{typeLabel}</span>
+                    <span className="text-xs text-muted-foreground">{count} candidate{count !== 1 ? "s" : ""}</span>
+                    <span className="text-[11px] text-muted-foreground">{new Date(n.created_at).toLocaleString()}</span>
+                  </div>
+                  {note && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{note}</p>}
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Button
+                    size="sm" variant="outline"
+                    className="h-7 text-xs text-destructive border-destructive/40 hover:bg-destructive/10"
+                    onClick={() => { setActiveAgencyNotif(n); setDeclineMode(true); }}
+                  >
+                    Decline
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs"
+                    disabled={acceptNotifMut.isPending}
+                    onClick={() => acceptNotifMut.mutate(n)}
+                  >
+                    Accept
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Status stat cards */}
       <div className="grid grid-cols-3 lg:grid-cols-5 gap-2">
@@ -1412,6 +1527,34 @@ function StaffDashboard() {
         </Dialog>
       ) : null;
     })()}
+
+    {/* Decline agency request dialog */}
+    {activeAgencyNotif && declineMode && (
+      <Dialog open onOpenChange={(o) => { if (!o) { setActiveAgencyNotif(null); setDeclineMode(false); setDeclineReason(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Decline — {activeAgencyNotif.title}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <Label>Reason for declining <span className="text-destructive">*</span></Label>
+            <Textarea
+              rows={3}
+              placeholder="Enter reason…"
+              value={declineReason}
+              onChange={(e) => setDeclineReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setActiveAgencyNotif(null); setDeclineMode(false); setDeclineReason(""); }}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={!declineReason.trim() || declineNotifMut.isPending}
+              onClick={() => declineNotifMut.mutate()}
+            >
+              {declineNotifMut.isPending ? "Sending…" : "Decline"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )}
     </>
   );
 }
