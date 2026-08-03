@@ -124,7 +124,9 @@
       "PowerShell(bunx tsc --noEmit 2>&1 | Select-Object -First 50)",
       "Bash(powershell *)",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('scripts',{}\\), indent=2\\)\\)\")",
-      "Bash(node_modules/.bin/wrangler deploy *)"
+      "Bash(node_modules/.bin/wrangler deploy *)",
+      "Bash(findstr /i \"error built failed\")",
+      "PowerShell(where.exe node 2>$null; where.exe bun 2>$null; $env:PATH -split ';' | Where-Object { $_ -match 'node|bun|nvm' })"
     ]
   },
   "enableAllProjectMcpServers": true,

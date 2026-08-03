@@ -526,13 +526,43 @@ function centerAlignCell(cellXml: string): string {
   return result;
 }
 
-// Fills the 3 value cells that precede an anchor label cell in the same row.
-// Used for the Jawa template's Row-3/Row-4 layout where Religion, Height, Weight
-// labels are in Row 3 but their values are in Row 4 — immediately before "Monthly Salary".
-// cells[anchorIndex - 3] = religion, [anchorIndex - 2] = height, [anchorIndex - 1] = weight.
+// Replaces the Jawa template's religion cell by finding it via content ("NON-MUSLIM" /
+// "MUSLIM" text) rather than by position, so it works regardless of row structure changes.
+// Writes "MUSLIM" for Muslim candidates and "NON-MUSLIM" for all others (uppercase to
+// match the template's own capitalisation style).
+function fillJawaReligionCell(xml: string, value: "MUSLIM" | "NON-MUSLIM"): string {
+  let p = 0;
+  while (p < xml.length) {
+    const cs = nextCell(xml, p);
+    if (cs === -1) break;
+    const ce = outerCellEnd(xml, cs);
+    if (ce === -1) break;
+    // Normalise cell text: strip spaces/hyphens so "NON-MUSLIM", "NON MUSLIM",
+    // "NONMUSLIM" and the bare "MUSLIM" all collapse to the same comparison string.
+    const raw = cellText(xml, cs, ce).toUpperCase().replace(/[\s\-]+/g, "");
+    if (raw === "NONMUSLIM" || raw === "MUSLIM") {
+      let first = true;
+      let newCell = xml.slice(cs, ce + 7).replace(/<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g, (_, attrs) => {
+        if (first) { first = false; return `<w:t${attrs ?? ""}>${xmlEsc(value)}</w:t>`; }
+        return `<w:t${attrs ?? ""}></w:t>`;
+      });
+      if (first) {
+        const pEnd = newCell.indexOf("</w:p>");
+        if (pEnd !== -1)
+          newCell = newCell.slice(0, pEnd) + `<w:r><w:t>${xmlEsc(value)}</w:t></w:r>` + newCell.slice(pEnd);
+      }
+      return xml.slice(0, cs) + centerAlignCell(newCell) + xml.slice(ce + 7);
+    }
+    p = ce + 7;
+  }
+  return xml;
+}
+
+// Fills the Height and Weight value cells that precede "Monthly Salary" in the Jawa
+// template's value row (Row 4). Religion is handled separately by fillJawaReligionCell.
+// cells[anchorIndex - 2] = height, cells[anchorIndex - 1] = weight.
 function fillJawaSpecialRow(
   xml: string,
-  religion: string,
   height: string,
   weight: string,
   opts?: { bold?: boolean },
@@ -570,7 +600,6 @@ function fillJawaSpecialRow(
   }
 
   const targets: [number, string][] = [
-    [cells.length - 3, religion],
     [cells.length - 2, height],
     [cells.length - 1, weight],
   ];
@@ -1807,13 +1836,18 @@ export async function buildFilledDocx(
   // level. Runs FIRST so value cells are still empty (not yet filled by fillField).
   xml = fillLevelCheckboxes(xml, c);
 
-  // Jawa template: Religion, Height, Weight labels are in one row but their values
-  // are in the next row — fill them positionally before the standard label pass runs
-  // (which would otherwise corrupt the label cells by treating them as value cells).
+  // Jawa template: Religion cell is filled by content-match (finds the "NON-MUSLIM"
+  // or "MUSLIM" cell directly). Height/Weight are filled positionally (3 cells before
+  // "Monthly Salary"). Both run before the standard label pass to avoid corrupting
+  // the Row-3 label cells (Religion / Height / Weight) which would otherwise be treated
+  // as value targets by fillField.
   if (isJawa) {
+    const religionNorm = toEnglish(c.religion, EN_RELIGION).toUpperCase();
+    const jawaReligion: "MUSLIM" | "NON-MUSLIM" = religionNorm === "MUSLIM" ? "MUSLIM" : "NON-MUSLIM";
+    xml = fillJawaReligionCell(xml, jawaReligion);
     const h = c.height != null ? `${c.height} cm` : "";
     const w = c.weight != null ? `${c.weight} kg` : "";
-    xml = fillJawaSpecialRow(xml, c.religion ?? "", h, w, fillOpts);
+    xml = fillJawaSpecialRow(xml, h, w, fillOpts);
   }
 
   // Standard label-based fill; skip Jawa's positionally-filled fields to avoid

@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import html2canvas from "html2canvas";
+import { toEnglish, EN_RELIGION } from "@/lib/docx-fill";
 import type { Candidate, CvTemplate } from "@/lib/docx-fill";
 
 const NAVY  = "#1A3A6B";
@@ -94,7 +95,7 @@ export function CvPreview({ candidate: c, template }: { candidate: Candidate; te
           <DataRow lbl="EXPERIENCE" val={c.experience} ar="الخبرة" span bg1={GRAY} bg2={WHITE} />
           <SectionHdr en="PERSONAL DATA  |" ar="معلومات شخصية" />
           <DataRow lbl="NATIONALITY"    val={c.country}        ar="الجنسية"           bg1={GRAY}  bg2={WHITE} />
-          <DataRow lbl="RELIGION"       val={c.religion}       ar="الديانة"           bg1={WHITE} bg2={GRAY}  />
+          <DataRow lbl="RELIGION"       val={toEnglish(c.religion, EN_RELIGION)}       ar="الديانة"           bg1={WHITE} bg2={GRAY}  />
           <DataRow lbl="DATE OF BIRTH"  val={c.dob}            ar="تاريخ الميلاد"     bg1={GRAY}  bg2={WHITE} />
           <DataRow lbl="PLACE OF BIRTH" val={c.birth_place}    ar="مكان الميلاد"      bg1={WHITE} bg2={GRAY}  />
           <DataRow lbl="LIVING TOWN"    val={c.living_town}    ar="مكان الإقامة"      bg1={GRAY}  bg2={WHITE} />

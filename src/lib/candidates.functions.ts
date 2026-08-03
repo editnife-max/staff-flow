@@ -93,6 +93,14 @@ const InlineFieldSchema = z.object({
   value: z.string().nullable(),
 });
 
+function normalizeReligion(value: string | null | undefined): string | null | undefined {
+  if (!value) return value;
+  const r = value.toLowerCase().replace(/[-\s]+/g, " ").trim();
+  if (r === "muslim" || r === "islam" || r === "moslem") return "Muslim";
+  if (r === "non muslim" || r === "nonmuslim" || r === "christian" || r === "christianity" || r === "hindu" || r === "buddhist") return "Non-muslim";
+  return value;
+}
+
 async function resolveChangedBy(userId: string): Promise<{ name: string; email: string | null }> {
   const [{ data: staffRow }, { data: profile }, { data: { user } }] = await Promise.all([
     supabaseAdmin.from("staff").select("name").eq("user_id", userId).maybeSingle(),
@@ -137,6 +145,11 @@ export const upsertCandidate = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const managerId = await resolveManagerId(context.userId);
+
+    // Normalize religion to canonical 'Muslim' / 'Non-muslim' before saving
+    if (data.data.religion !== undefined) {
+      (data.data as Record<string, unknown>).religion = normalizeReligion(data.data.religion);
+    }
 
     // Auto-derive cv_sent_to from musaned_status (Country)
     const today = new Date().toISOString().split("T")[0];
@@ -461,6 +474,7 @@ export const bulkImportCandidates = createServerFn({ method: "POST" })
 
     const rows = data.rows.map((r) => ({
       ...r,
+      religion: normalizeReligion(r.religion),
       manager_id: managerId,
       created_by_user_id: context.userId,
       created_by_name: createdByName,
