@@ -1,6 +1,6 @@
 import { Outlet, createFileRoute, Navigate, Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, Users, ChevronDown, Building2, Bell } from "lucide-react";
-import { useState } from "react";
+import { LogOut, Users, ChevronDown, Building2, Bell, Languages } from "lucide-react";
+import { useState, createContext, useContext } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -20,6 +20,12 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/agency")({
   component: AgencyLayout,
+});
+
+export type Lang = "en" | "ar";
+export const LangContext = createContext<{ lang: Lang; setLang: (l: Lang) => void }>({
+  lang: "en",
+  setLang: () => {},
 });
 
 const NAV = [
@@ -53,6 +59,7 @@ function AgencyLayout() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
+  const [lang, setLang] = useState<Lang>("ar");
   const [notifOpen, setNotifOpen] = useState(false);
   const [activeNotif, setActiveNotif] = useState<Notification | null>(null);
 
@@ -140,6 +147,22 @@ function AgencyLayout() {
             })}
           </nav>
 
+          {/* Language toggle */}
+          <button
+            type="button"
+            onClick={() => setLang(lang === "en" ? "ar" : "en")}
+            className={cn(
+              "flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 border rounded-md transition-colors",
+              lang === "ar"
+                ? "bg-primary text-primary-foreground border-primary"
+                : "text-muted-foreground hover:text-foreground border-border hover:bg-muted",
+            )}
+            title="Toggle Arabic / English"
+          >
+            <Languages className="h-3.5 w-3.5" />
+            {lang === "ar" ? "EN" : "AR"}
+          </button>
+
           {/* Notification bell */}
           <Popover open={notifOpen} onOpenChange={(o) => { if (o) openNotifs(); else setNotifOpen(false); }}>
             <PopoverTrigger asChild>
@@ -205,7 +228,11 @@ function AgencyLayout() {
         </div>
       </header>
 
-      <main className="flex-1 p-6"><Outlet /></main>
+      <main className="flex-1 p-6">
+        <LangContext.Provider value={{ lang, setLang }}>
+          <Outlet />
+        </LangContext.Provider>
+      </main>
 
       <footer className="border-t bg-background">
         <div className="px-6 py-4 text-xs text-muted-foreground flex flex-wrap items-center justify-between gap-2">

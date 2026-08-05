@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Download, FileText, ArrowUpDown, ChevronDown, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
+// xlsx-js-style loaded lazily inside download handler
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -239,20 +239,44 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
         toast.success("Summary PDF downloaded");
 
       } else {
-        // Excel / Excel for Ticket → .xlsx
+        // Excel → .xlsx with styled header + row numbers
+        const XLSX = await import("xlsx-js-style");
         const cols = EXPORT_COLUMNS.filter((col) => selectedCols.has(col.key as string));
         if (cols.length === 0) throw new Error("Select at least one column to export.");
-        const header = cols.map((col) => col.label);
-        const rows   = sortedCandidates.map((cand) =>
-          cols.map((col) => {
+
+        const PRIMARY_C   = "1A3A52";
+        const SECONDARY_C = "5CB8C4";
+        const WHITE_C     = "FFFFFF";
+        const hdrStyle = {
+          fill: { fgColor: { rgb: PRIMARY_C } },
+          font: { bold: true, color: { rgb: WHITE_C }, sz: 11 },
+          alignment: { horizontal: "center", vertical: "center", wrapText: true },
+        };
+        const numHdrStyle = { ...hdrStyle, fill: { fgColor: { rgb: SECONDARY_C } } };
+        const numStyle = {
+          fill: { fgColor: { rgb: SECONDARY_C } },
+          font: { bold: true, color: { rgb: WHITE_C }, sz: 10 },
+          alignment: { horizontal: "center", vertical: "center" },
+        };
+        const cellStyle = { alignment: { vertical: "center" }, font: { sz: 10 } };
+
+        const sc = (v: string | number, s: object) => ({ v, t: typeof v === "number" ? "n" : "s", s });
+
+        const headerRow = [sc("#", numHdrStyle), ...cols.map((col) => sc(col.label, hdrStyle))];
+        const dataRows  = sortedCandidates.map((cand, i) => [
+          sc(i + 1, numStyle),
+          ...cols.map((col) => {
             const v = cand[col.key];
-            return v == null ? "" : typeof v === "number" ? v : String(v);
+            return sc(v == null ? "" : typeof v === "number" ? v : String(v), cellStyle);
           }),
-        );
-        const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
-        ws["!cols"] = header.map((h, i) => ({
-          wch: Math.max(h.length, ...rows.map((r) => String(r[i] ?? "").length), 10),
+        ]);
+
+        const ws = XLSX.utils.aoa_to_sheet([headerRow, ...dataRows]);
+        ws["!cols"] = ["#", ...cols.map((c) => c.label)].map((h, i) => ({
+          wch: i === 0 ? 5 : Math.max(h.length, ...dataRows.map((r) => String((r[i] as any)?.v ?? "").length), 12),
         }));
+        ws["!freeze"] = { xSplit: 0, ySplit: 1 };
+
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Candidates");
         const buf  = XLSX.write(wb, { bookType: "xlsx", type: "array" });

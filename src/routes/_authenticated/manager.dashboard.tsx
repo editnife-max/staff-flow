@@ -7,7 +7,7 @@ import {
   Stethoscope, FileCheck, ClipboardList, Ticket, FileText, CalendarX, Landmark, BadgeCheck,
   AlertTriangle, Send, Upload, Download, X, MapPin, TrendingUp, Trash2,
 } from "lucide-react";
-import * as XLSX from "xlsx";
+// xlsx-js-style is loaded lazily inside downloadCandidatesExcel (client-only)
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
@@ -70,15 +70,66 @@ const BASE: ExportCol[] = [
   { key: "passport_number", label: "Passport No." },
 ];
 
-function downloadCandidatesExcel(candidates: Candidate[], title: string, cols: ExportCol[]) {
-  const header = cols.map((c) => c.label);
-  const rows = candidates.map((c) =>
-    cols.map((col) => { const v = (c as any)[col.key]; return v == null ? "" : String(v); })
-  );
-  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
-  ws["!cols"] = header.map((h, i) => ({
-    wch: Math.max(h.length, ...rows.map((r) => String(r[i] ?? "").length), 10),
+const PRIMARY   = "1A3A52"; // navy  — header background
+const SECONDARY = "5CB8C4"; // teal  — row number column background
+const WHITE     = "FFFFFF";
+
+function styledCell(value: string | number, style: Record<string, unknown>) {
+  return { v: value, t: typeof value === "number" ? "n" : "s", s: style };
+}
+
+async function downloadCandidatesExcel(candidates: Candidate[], title: string, cols: ExportCol[]) {
+  const XLSX = await import("xlsx-js-style");
+  const headerStyle = {
+    fill: { fgColor: { rgb: PRIMARY } },
+    font: { bold: true, color: { rgb: WHITE }, sz: 11 },
+    alignment: { horizontal: "center", vertical: "center", wrapText: true },
+    border: { bottom: { style: "thin", color: { rgb: WHITE } } },
+  };
+  const numHeaderStyle = {
+    ...headerStyle,
+    fill: { fgColor: { rgb: SECONDARY } },
+  };
+  const numCellStyle = {
+    fill: { fgColor: { rgb: SECONDARY } },
+    font: { bold: true, color: { rgb: WHITE }, sz: 10 },
+    alignment: { horizontal: "center", vertical: "center" },
+  };
+  const dataCellStyle = {
+    alignment: { vertical: "center", wrapText: false },
+    font: { sz: 10 },
+  };
+
+  // Build header row: # column + data columns
+  const headerRow = [
+    styledCell("#", numHeaderStyle),
+    ...cols.map((c) => styledCell(c.label, headerStyle)),
+  ];
+
+  // Build data rows
+  const dataRows = candidates.map((c, i) => [
+    styledCell(i + 1, numCellStyle),
+    ...cols.map((col) => {
+      const v = (c as any)[col.key];
+      return styledCell(v == null ? "" : String(v), dataCellStyle);
+    }),
+  ]);
+
+  const ws = XLSX.utils.aoa_to_sheet([headerRow, ...dataRows]);
+
+  // Column widths: # col narrow, data cols auto-fit
+  const allCols = ["#", ...cols.map((c) => c.label)];
+  ws["!cols"] = allCols.map((h, i) => ({
+    wch: i === 0 ? 5 : Math.max(
+      h.length,
+      ...dataRows.map((r) => String((r[i] as any)?.v ?? "").length),
+      12,
+    ),
   }));
+
+  // Freeze header row
+  ws["!freeze"] = { xSplit: 0, ySplit: 1 };
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Candidates");
   const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });

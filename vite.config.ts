@@ -13,6 +13,12 @@ export default defineConfig(({ mode }) => {
       // Inject server-only secrets at transform time — works in every runtime context
       'process.env.ANTHROPIC_API_KEY': JSON.stringify(env.ANTHROPIC_API_KEY ?? ''),
     },
+    optimizeDeps: {
+      include: ['xlsx-js-style'],
+    },
+    ssr: {
+      noExternal: ['xlsx-js-style'],
+    },
     plugins: [
       tailwindcss(),
       tsconfigPaths(),
