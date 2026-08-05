@@ -68,8 +68,6 @@ type ExportCol = { key: string; label: string };
 const BASE: ExportCol[] = [
   { key: "full_name",       label: "Full Name" },
   { key: "passport_number", label: "Passport No." },
-  { key: "occupation",      label: "Occupation" },
-  { key: "status",          label: "Status" },
 ];
 
 function downloadCandidatesExcel(candidates: Candidate[], title: string, cols: ExportCol[]) {
@@ -825,7 +823,7 @@ function ManagerDashboard() {
                     </Button>
                   )} />
                 <AlertSection icon={FileCheck} title="COC — No" iconColor="text-orange-600 dark:text-orange-400" pillKey="coc" candidates={cocNo} onUpdateField={handleUpdateField}
-                  exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "coc_booked_date", label: "COC Booking Date" }, { key: "labour_id", label: "Labour ID" }, { key: "office", label: "Office" }, { key: "narrative", label: "Narrative" }, { key: "narrative_phone", label: "Narrative Phone" }]}
+                  exportCols={[{ key: "full_name", label: "Full Name" }, { key: "passport_number", label: "Passport No." }, { key: "coc_status", label: "COC Status" }, { key: "labour_id", label: "Labour ID" }, { key: "narrative", label: "Narrative" }, { key: "narrative_phone", label: "Narrative Phone" }]}
                   renderBadge={(c) => (
                     <div className="text-right">
                       <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300">No</span>
@@ -841,7 +839,7 @@ function ManagerDashboard() {
                     }} />
                   )} />
                 <AlertSection icon={FileCheck} title="COC — Placed" iconColor="text-violet-600 dark:text-violet-400" pillKey="coc" candidates={cocPlaced} onUpdateField={handleUpdateField}
-                  exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "coc_booked_date", label: "COC Booking Date" }, { key: "labour_id", label: "Labour ID" }, { key: "selected_by", label: "Selected By" }, { key: "office", label: "Office" }]}
+                  exportCols={[{ key: "full_name", label: "Full Name" }, { key: "passport_number", label: "Passport No." }, { key: "coc_status", label: "COC Status" }, { key: "labour_id", label: "Labour ID" }, { key: "office", label: "Office" }, { key: "narrative", label: "Narrative" }, { key: "narrative_phone", label: "Narrative Phone" }]}
                   renderBadge={(c) => (
                     <div className="text-right">
                       <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Placed</span>
@@ -877,7 +875,7 @@ function ManagerDashboard() {
                       }} />
                   )} />
                 <AlertSection icon={CalendarX} title="Medical — Expired" iconColor="text-rose-600 dark:text-rose-400" pillKey="medexp" candidates={medicalExpired} onUpdateField={handleUpdateField}
-                  exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }]}
+                  exportCols={[{ key: "full_name", label: "Full Name" }, { key: "passport_number", label: "Passport No." }, { key: "medical_status", label: "Medical Status" }, { key: "narrative", label: "Narrative" }, { key: "narrative_phone", label: "Narrative Phone" }]}
                   renderBadge={(c) => (
                     <div className="text-right">
                       <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">Expired</span>
@@ -913,7 +911,7 @@ function ManagerDashboard() {
                       }} />
                   )} />
                 <AlertSection icon={Ticket} title="Ticket Ready" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketReady} onUpdateField={handleUpdateField}
-                  exportCols={[...BASE, { key: "ticket_status", label: "Ticket" }, { key: "ticket_date", label: "Ticket Date" }, { key: "arrival_city", label: "Arrival City" }, { key: "passport_number", label: "Passport No." }]}
+                  exportCols={[{ key: "full_name", label: "Full Name" }, { key: "passport_number", label: "Passport No." }, { key: "ticket_status", label: "Ticket" }, { key: "ticket_date", label: "Ticket Date" }, { key: "arrival_city", label: "Arrival City" }, { key: "visa_status", label: "Visa Status" }, { key: "coc_status", label: "Coc Status" }, { key: "narrative", label: "Narrative" }, { key: "labour_id", label: "Labour Id" }, { key: "narrative_phone", label: "Narrative Phone" }]}
                   renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Ready</span>}
                   renderCardAction={(c) => (
                     <TicketBookButton candidateName={c.full_name}
@@ -923,7 +921,7 @@ function ManagerDashboard() {
                       }} />
                   )} />
                 <AlertSection icon={MapPin} title="Arrival City Not Set" iconColor="text-cyan-600 dark:text-cyan-400" pillKey="arrival" candidates={arrivalCityMissing} onUpdateField={handleUpdateField}
-                  exportCols={[...BASE, { key: "arrival_city", label: "Arrival City" }, { key: "ticket_status", label: "Ticket" }, { key: "office", label: "Office" }]}
+                  exportCols={[{ key: "full_name", label: "Full Name" }, { key: "passport_number", label: "Passport No." }, { key: "arrival_city", label: "Arrival City" }, { key: "ticket_status", label: "Ticket" }, { key: "office", label: "Office" }]}
                   renderCardAction={(c) => (
                     <Select onValueChange={(v) => handleUpdateField(c.id, "arrival_city", v)}>
                       <SelectTrigger className="h-7 text-xs rounded-none w-[110px]">
@@ -937,7 +935,7 @@ function ManagerDashboard() {
                     </Select>
                   )} />
                 <AlertSection icon={BadgeCheck} title="Ready for Embassy Visa" iconColor="text-emerald-600 dark:text-emerald-400" pillKey="visaready" candidates={visaReady} onUpdateField={handleUpdateField}
-                  exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "tasheer_status", label: "Tasheer" }, { key: "wokala_status", label: "Wokala" }, { key: "embassy_date", label: "Embassy Date" }]}
+                  exportCols={[{ key: "full_name", label: "Full Name" }, { key: "passport_number", label: "Passport No." }, { key: "visa_status", label: "Visa Status" }, { key: "tasheer_status", label: "Tasheer" }, { key: "wokala_status", label: "Wokala" }]}
                   renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">{c.visa_status === "Ready for embassy" ? "Ready" : "Auto"}</span>}
                   renderCardAction={(c) => (
                     <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
@@ -955,7 +953,7 @@ function ManagerDashboard() {
                     </Button>
                   )} />
                 <AlertSection icon={AlertTriangle} title="Tasheer Overdue — Booked Date Passed" iconColor="text-amber-600 dark:text-amber-400" pillKey="tasheer" candidates={tasheerOverdue} onUpdateField={handleUpdateField}
-                  exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }]}
+                  exportCols={[{ key: "full_name", label: "Full Name" }, { key: "passport_number", label: "Passport No." }, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }]}
                   renderBadge={(c) => c.tasheer_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{daysSince(c.tasheer_date)}d overdue</span> : null}
                   renderCardAction={(c) => (
                     <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -964,7 +962,7 @@ function ManagerDashboard() {
                     </Button>
                   )} />
                 <AlertSection icon={AlertTriangle} title="Tasheer Done — Wokala Unpaid" iconColor="text-violet-600 dark:text-violet-400" pillKey="tasheer" candidates={tasheerDoneWokalaUnpaid} onUpdateField={handleUpdateField}
-                  exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }, { key: "narrative_phone", label: "Narrative Phone" }]}
+                  exportCols={[{ key: "full_name", label: "Full Name" }, { key: "passport_number", label: "Passport No." }, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }]}
                   renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Unpaid</span>}
                   renderCardAction={(c) => (
                     <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
@@ -1058,7 +1056,7 @@ function ManagerDashboard() {
                     </Button>
                   )} />
                 <AlertSection icon={Stethoscope} title="Medical Fit — LMIS Not Tested" iconColor="text-teal-600 dark:text-teal-400" pillKey="fitlmis" candidates={fitLmisNotTested} onUpdateField={handleUpdateField}
-                  exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }, { key: "coc_status", label: "COC Status" }, { key: "lmis_status", label: "LMIS" }]}
+                  exportCols={[{ key: "full_name", label: "Full Name" }, { key: "passport_number", label: "Passport No." }, { key: "medical_status", label: "Medical Status" }, { key: "coc_status", label: "COC Status" }, { key: "lmis_status", label: "LMIS" }]}
                   renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">Not Tested</span>}
                   renderCardAction={(c) => (
                     <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
