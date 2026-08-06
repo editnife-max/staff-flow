@@ -465,9 +465,13 @@ function AlertSection({
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [statusFilter, setStatusFilter] = useState("all");
   const listRef = useRef<HTMLDivElement>(null);
   if (candidates.length === 0) return null;
-  const paginated = candidates.slice((page - 1) * pageSize, page * pageSize);
+
+  const statusSet = new Set(candidates.map((c) => c.status));
+  const filtered = statusFilter === "all" ? candidates : candidates.filter((c) => c.status === statusFilter);
+  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <>
@@ -485,21 +489,31 @@ function AlertSection({
           role="button"
           title="Download Excel"
           className="p-1 rounded-none text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors shrink-0"
-          onClick={(e) => { e.stopPropagation(); downloadCandidatesExcel(candidates, title, exportCols); }}
+          onClick={(e) => { e.stopPropagation(); downloadCandidatesExcel(filtered, title, exportCols); }}
         >
           <FileSpreadsheet className="h-3.5 w-3.5" />
         </span>
         <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
       </button>
 
-      <Dialog open={open} onOpenChange={(o) => { if (!o) setOpen(false); }}>
+      <Dialog open={open} onOpenChange={(o) => { if (!o) { setOpen(false); setStatusFilter("all"); setPage(1); } }}>
         <DialogContent className="max-w-lg rounded-none">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Icon className={cn("h-5 w-5", iconColor)} />
-              {title} ({candidates.length})
+              {title} ({filtered.length}{filtered.length !== candidates.length ? ` / ${candidates.length}` : ""})
             </DialogTitle>
           </DialogHeader>
+          {statusSet.size > 1 && (
+            <div className="flex flex-wrap gap-1.5">
+              <button type="button" onClick={() => { setStatusFilter("all"); setPage(1); }} className={cn("px-2.5 py-1 text-xs font-medium rounded-none border transition-colors", statusFilter === "all" ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 text-muted-foreground border-border hover:bg-muted hover:text-foreground")}>All <span className="opacity-70">{candidates.length}</span></button>
+              {(["available","processing","arrived","canceled","returned"] as const).filter((s) => statusSet.has(s)).map((s) => (
+                <button key={s} type="button" onClick={() => { setStatusFilter(s); setPage(1); }} className={cn("px-2.5 py-1 text-xs font-medium rounded-none border transition-colors", statusFilter === s ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 text-muted-foreground border-border hover:bg-muted hover:text-foreground")}>
+                  {s.charAt(0).toUpperCase() + s.slice(1)} <span className="opacity-70">{candidates.filter((c) => c.status === s).length}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <div ref={listRef} className="max-h-[50vh] overflow-y-auto divide-y divide-border">
             {paginated.map((c) => (
               <div key={c.id} className="flex items-center gap-3 py-3">
@@ -526,14 +540,14 @@ function AlertSection({
             ))}
           </div>
           <PaginationBar
-            total={candidates.length} page={page} pageSize={pageSize}
+            total={filtered.length} page={page} pageSize={pageSize}
             onPage={setPage}
             onPageSize={(s) => { setPageSize(s); setPage(1); }}
             onBackToTop={() => listRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
           />
           <div className="pt-2 flex items-center justify-between">
             <Button size="sm" variant="outline" className="rounded-none text-xs gap-1 text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-900/20"
-              onClick={() => downloadCandidatesExcel(candidates, title, exportCols)}>
+              onClick={() => downloadCandidatesExcel(filtered, title, exportCols)}>
               <FileSpreadsheet className="h-3.5 w-3.5" /> Download Excel
             </Button>
             <Button asChild size="sm" className="rounded-none text-xs gap-1">
@@ -704,13 +718,15 @@ function ManagerDashboard() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const cocNo         = candidates.filter((c) => c.coc_status === "No");
-  const cocPlaced     = candidates.filter((c) => c.coc_status === "Placed");
-  const medicalNotFit = candidates.filter((c) => c.medical_status && c.medical_status !== "Fit");
-  const cocDoneNotFit = candidates.filter((c) => c.coc_status === "Done" && c.medical_status && c.medical_status !== "Fit");
-  const unfilledLmis  = candidates.filter((c) => c.status === "processing" && c.unfilled_lmis && c.unfilled_lmis.trim() !== "");
+  const alertCandidates = candidates.filter((c) => c.status !== "arrived" && c.status !== "canceled");
 
-  const medicalExpired = candidates.filter((c) => {
+  // ── Compliance & Recruitment sections ───────────────────────────────────────
+  const cocNo         = alertCandidates.filter((c) => c.coc_status === "No");
+  const cocPlaced     = alertCandidates.filter((c) => c.coc_status === "Placed");
+  const medicalNotFit = alertCandidates.filter((c) => c.medical_status && c.medical_status !== "Fit");
+  const cocDoneNotFit = alertCandidates.filter((c) => c.coc_status === "Done" && c.medical_status && c.medical_status !== "Fit");
+
+  const medicalExpired = alertCandidates.filter((c) => {
     if (c.medical_status === "Expired") return true;
     if (c.medical_status === "Fit" && c.medical_date) {
       const days = Math.floor((today.getTime() - new Date(c.medical_date + "T00:00:00").getTime()) / 86_400_000);
@@ -719,50 +735,13 @@ function ManagerDashboard() {
     return false;
   });
 
-  const ticketNotBooked = candidates.filter((c) => {
-    if (!c.contract_date) return false;
-    if (c.ticket_status === "Booked") return false;
-    const days = Math.floor((today.getTime() - new Date(c.contract_date + "T00:00:00").getTime()) / 86_400_000);
-    return days > 20;
-  });
-
-  const embassyPending = candidates.filter(
-    (c) => c.status === "processing" && c.tasheer_status === "Done" && c.visa_status !== "Ready for embassy" && c.processing_notes,
-  );
-
-  const visaReady = candidates.filter(
-    (c) => c.status === "processing" && c.visa_status !== "Returned" && (
-      (c.tasheer_status === "Done" && c.wokala_status === "Paid" && !c.visa_status) ||
-      c.visa_status === "Ready for embassy"
-    ),
-  );
-
-  const visaReturned            = candidates.filter((c) => c.status === "processing" && c.visa_status === "Returned");
-  const visaWaitingReplacement  = candidates.filter((c) => c.status === "processing" && c.visa_status === "Waiting Replacement");
-  const deletePending           = candidates.filter((c) => !!(c as any).delete_reason);
-  const tasheerDoneWokalaUnpaid = candidates.filter((c) => c.status === "processing" && c.tasheer_status === "Done" && c.wokala_status === "Unpaid");
-  const tasheerOverdue          = candidates.filter((c) => {
-    if (c.tasheer_status !== "Booked" || !c.tasheer_date) return false;
-    return new Date(c.tasheer_date + "T00:00:00") < today;
-  });
-  const passportNotAccepted = candidates.filter((c) => c.status === "processing" && c.tasheer_status === "Ready");
-  const fitLmisNotTested    = candidates.filter((c) => c.status === "processing" && c.medical_status === "Fit" && c.coc_status === "Done" && (!c.lmis_status || c.lmis_status === "Not tested"));
-  const lmisDraftImported   = candidates.filter((c) => c.status === "processing" && (c.lmis_status === "Draft" || c.lmis_status === "Imported"));
-  const ticketReady         = candidates.filter((c) => c.ticket_status === "Ready");
-  const arrivalCityMissing  = candidates.filter((c) => c.status === "processing" && !c.arrival_city);
-
-  const cvOverdue = candidates.filter((c) => {
-    if (!c.cv_sent_to || c.selected_by || !c.cv_sent_date) return false;
-    const days = Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000);
-    return days >= managerCvThreshold;
-  });
-
   const daysSince = (d: string) =>
     Math.floor((today.getTime() - new Date(d + "T00:00:00").getTime()) / 86_400_000);
 
   const processingRef = (c: Candidate) =>
     c.contract_date ?? c.created_at?.split("T")[0] ?? null;
-  const noMedical5Days = candidates.filter((c) => {
+
+  const noMedical5Days = alertCandidates.filter((c) => {
     if (c.status !== "processing") return false;
     const medNo = c.medical_status === "No";
     const medEmpty = !c.medical_status || c.medical_status.trim() === "";
@@ -771,7 +750,7 @@ function ManagerDashboard() {
     const ref = processingRef(c);
     return !!ref && daysSince(ref) >= 5;
   });
-  const noTasheer10Days = candidates.filter((c) => {
+  const noTasheer10Days = alertCandidates.filter((c) => {
     if (c.status !== "processing") return false;
     const tasheerNo = c.tasheer_status === "No";
     const tasheerEmpty = !c.tasheer_status || c.tasheer_status.trim() === "";
@@ -781,10 +760,48 @@ function ManagerDashboard() {
     return !!ref && daysSince(ref) >= 10;
   });
 
+  // ── Logistics & Deployment sections ─────────────────────────────────────────
+  const ticketNotBooked = alertCandidates.filter((c) => {
+    if (!c.contract_date) return false;
+    if (c.ticket_status === "Booked") return false;
+    const days = Math.floor((today.getTime() - new Date(c.contract_date + "T00:00:00").getTime()) / 86_400_000);
+    return days > 20;
+  });
+
+const visaReady = alertCandidates.filter(
+    (c) => c.status === "processing" && c.visa_status !== "Returned" && (
+      (c.tasheer_status === "Done" && c.wokala_status === "Paid" && !c.visa_status) ||
+      c.visa_status === "Ready for embassy"
+    ),
+  );
+
+  const visaReturned            = alertCandidates.filter((c) => c.status === "processing" && c.visa_status === "Returned");
+  const visaWaitingReplacement  = alertCandidates.filter((c) => c.status === "processing" && c.visa_status === "Waiting Replacement");
+  const tasheerDoneWokalaUnpaid = alertCandidates.filter((c) => c.status === "processing" && c.tasheer_status === "Done" && c.wokala_status === "Unpaid");
+  const tasheerOverdue          = alertCandidates.filter((c) => {
+    if (c.tasheer_status !== "Booked" || !c.tasheer_date) return false;
+    return new Date(c.tasheer_date + "T00:00:00") < today;
+  });
+  const passportNotAccepted = alertCandidates.filter((c) => c.status === "processing" && c.tasheer_status === "Ready");
+  const ticketReady         = alertCandidates.filter((c) => c.ticket_status === "Ready");
+  const arrivalCityMissing  = alertCandidates.filter((c) => c.status === "processing" && !c.arrival_city);
+
+  // ── Data & Misc sections ─────────────────────────────────────────────────────
+  const unfilledLmis  = alertCandidates.filter((c) => c.status === "processing" && c.unfilled_lmis && c.unfilled_lmis.trim() !== "");
+  const deletePending = alertCandidates.filter((c) => !!(c as any).delete_reason);
+  const fitLmisNotTested  = alertCandidates.filter((c) => c.status === "processing" && c.medical_status === "Fit" && c.coc_status === "Done" && (!c.lmis_status || c.lmis_status === "Not tested"));
+  const lmisDraftImported = alertCandidates.filter((c) => c.status === "processing" && (c.lmis_status === "Draft" || c.lmis_status === "Imported") && !(c as any).lmis_id_url);
+
+  const cvOverdue = alertCandidates.filter((c) => {
+    if (!c.cv_sent_to || c.selected_by || !c.cv_sent_date) return false;
+    const days = Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000);
+    return days >= managerCvThreshold;
+  });
+
   const hasAlerts = cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 ||
     cocDoneNotFit.length > 0 || medicalExpired.length > 0 || unfilledLmis.length > 0 ||
     ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 ||
-    embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 ||
+    visaReady.length > 0 || visaReturned.length > 0 ||
     tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 ||
     cvOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0 ||
     lmisDraftImported.length > 0 || noMedical5Days.length > 0 || noTasheer10Days.length > 0 ||
@@ -824,7 +841,6 @@ function ManagerDashboard() {
       {/* Alert sections */}
       {hasAlerts && (
         <div className="space-y-5">
-
           {/* COMPLIANCE & RECRUITMENT */}
           {(noMedical5Days.length > 0 || noTasheer10Days.length > 0 || cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0) && (
             <div className="border border-border rounded-none overflow-hidden">
@@ -945,7 +961,7 @@ function ManagerDashboard() {
           )}
 
           {/* LOGISTICS & DEPLOYMENT */}
-          {(ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || embassyPending.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || visaWaitingReplacement.length > 0 || tasheerOverdue.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0) && (
+          {(ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || visaWaitingReplacement.length > 0 || tasheerOverdue.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0) && (
             <div className="border border-border rounded-none overflow-hidden">
               <div className="px-3 py-2 bg-muted/20 border-b border-border">
                 <p className="text-sm font-bold text-foreground uppercase tracking-widest">Logistics & Deployment</p>
@@ -994,16 +1010,7 @@ function ManagerDashboard() {
                       Sent to Embassy
                     </Button>
                   )} />
-                <AlertSection icon={Landmark} title="Embassy Visa — Pending" iconColor="text-sky-600 dark:text-sky-400" pillKey="embassy" candidates={embassyPending} onUpdateField={handleUpdateField}
-                  exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "tasheer_status", label: "Tasheer" }, { key: "embassy_date", label: "Embassy Date" }, { key: "processing_notes", label: "Notes" }]}
-                  renderBadge={(c) => c.processing_notes ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300 max-w-[120px] truncate block">{c.processing_notes}</span> : null}
-                  renderCardAction={(c) => (
-                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
-                      onClick={() => handleUpdateField(c.id, "visa_status", "Sent to Embassy")}>
-                      Sent to Embassy
-                    </Button>
-                  )} />
-                <AlertSection icon={AlertTriangle} title="Tasheer Overdue — Booked Date Passed" iconColor="text-amber-600 dark:text-amber-400" pillKey="tasheer" candidates={tasheerOverdue} onUpdateField={handleUpdateField}
+<AlertSection icon={AlertTriangle} title="Tasheer Overdue — Booked Date Passed" iconColor="text-amber-600 dark:text-amber-400" pillKey="tasheer" candidates={tasheerOverdue} onUpdateField={handleUpdateField}
                   exportCols={[{ key: "full_name", label: "Full Name" }, { key: "passport_number", label: "Passport No." }, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }]}
                   renderBadge={(c) => c.tasheer_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{daysSince(c.tasheer_date)}d overdue</span> : null}
                   renderCardAction={(c) => (
