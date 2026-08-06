@@ -512,3 +512,31 @@ export const bulkAssignStaff = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true, count: count ?? 0 };
   });
+
+export const logFlightReadiness = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    IdList.extend({ answer: z.enum(["Ready", "Not ready"]) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    const { data: owned } = await supabaseAdmin
+      .from("candidates")
+      .select("id")
+      .in("id", data.ids)
+      .eq("manager_id", managerId);
+    const ownedIds = (owned ?? []).map((r) => r.id);
+    if (ownedIds.length === 0) return { ok: true };
+    const { name: changedByName, email: changedByEmail } = await resolveChangedBy(context.userId);
+    const rows = ownedIds.map((id) => ({
+      candidate_id: id,
+      field: "flight_readiness",
+      old_value: null,
+      new_value: data.answer,
+      changed_by_user_id: context.userId,
+      changed_by_name: changedByName,
+      changed_by_email: changedByEmail,
+    }));
+    await supabaseAdmin.from("candidate_field_log").insert(rows as never[]);
+    return { ok: true };
+  });

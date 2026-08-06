@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { DialogFooter } from "@/components/ui/dialog";
 import { cn, calcAge } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
-import { updateCandidateField, deleteCandidate } from "@/lib/candidates.functions";
+import { updateCandidateField, deleteCandidate, logFlightReadiness } from "@/lib/candidates.functions";
 
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"];
 
@@ -852,6 +852,7 @@ function ManagerDashboard() {
   const [replaceNotes, setReplaceNotes] = useState("");
 
   const removeFn = useServerFn(deleteCandidate);
+  const logFlightFn = useServerFn(logFlightReadiness);
   const fieldMut = useMutation({
     mutationFn: (vars: { id: string; field: string; value: string | null }) =>
       updateCandidateField({ data: vars as never }),
@@ -1459,6 +1460,7 @@ const visaReady = alertCandidates.filter(
             <DialogTitle className="flex items-center gap-2 text-base">
               ✈️ Upcoming Flights — Next 3 Days
             </DialogTitle>
+            <p className="text-sm text-muted-foreground">Is she ready?</p>
           </DialogHeader>
           <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
             {upcomingFlights.map((c) => {
@@ -1481,10 +1483,14 @@ const visaReady = alertCandidates.filter(
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => {
+              const ids = upcomingFlights.map((c) => c.id);
+              logFlightFn({ data: { ids, answer: "Not ready" } });
               try { sessionStorage.setItem("flight-reminder-dismissed", todayKey); } catch {}
               setFlightReminderOpen(false);
             }}>No, not ready</Button>
             <Button onClick={() => {
+              const ids = upcomingFlights.map((c) => c.id);
+              logFlightFn({ data: { ids, answer: "Ready" } });
               try { sessionStorage.setItem("flight-reminder-dismissed", todayKey); } catch {}
               setFlightReminderOpen(false);
             }}>Yes</Button>

@@ -2496,6 +2496,7 @@ const HISTORY_FIELD_LABELS: Record<string, string> = {
   selected_by:    "Selected By",
   processing_notes:"Notes",
   passport_accepted:"Passport Accepted",
+  flight_readiness: "Flight Readiness",
 };
 
 function CandidateHistoryDialog({ candidateId, candidateName, createdAt, createdByName, createdByUserId, open, onClose }: {

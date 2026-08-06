@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
-import { updateCandidateField } from "@/lib/candidates.functions";
+import { updateCandidateField, logFlightReadiness } from "@/lib/candidates.functions";
 import { acceptCandidatesNotification, declineCandidatesNotification } from "@/lib/notifications.functions";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -970,6 +970,7 @@ function StaffDashboard() {
   // ── Agency notifications (Selected / Reserved) ───────────────────────────
   const doAccept  = useServerFn(acceptCandidatesNotification);
   const doDecline = useServerFn(declineCandidatesNotification);
+  const logFlightFn = useServerFn(logFlightReadiness);
 
   const { data: agencyNotifs = [] } = useQuery<{
     id: string; title: string; body: string | null; candidate_ids: string[]; sender_id: string | null; created_at: string;
@@ -1599,6 +1600,7 @@ function StaffDashboard() {
             <DialogTitle className="flex items-center gap-2 text-base">
               ✈️ Upcoming Flights — Next 3 Days
             </DialogTitle>
+            <p className="text-sm text-muted-foreground">Is she ready?</p>
           </DialogHeader>
           <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
             {upcomingFlights.map((c) => {
@@ -1620,10 +1622,18 @@ function StaffDashboard() {
             })}
           </div>
           <DialogFooter>
-            <Button onClick={() => {
+            <Button variant="outline" onClick={() => {
+              const ids = upcomingFlights.map((c) => c.id);
+              logFlightFn({ data: { ids, answer: "Not ready" } });
               try { sessionStorage.setItem("flight-reminder-dismissed", todayKey); } catch {}
               setFlightReminderOpen(false);
-            }}>Got it</Button>
+            }}>No, not ready</Button>
+            <Button onClick={() => {
+              const ids = upcomingFlights.map((c) => c.id);
+              logFlightFn({ data: { ids, answer: "Ready" } });
+              try { sessionStorage.setItem("flight-reminder-dismissed", todayKey); } catch {}
+              setFlightReminderOpen(false);
+            }}>Yes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
