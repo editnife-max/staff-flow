@@ -185,7 +185,12 @@ export const upsertCandidate = createServerFn({ method: "POST" })
         .update(patched)
         .eq("id", data.id)
         .eq("manager_id", managerId);
-      if (error) throw new Error(error.message);
+      if (error) {
+        if (error.code === "23505" && error.message.includes("candidate_code")) {
+          throw new Error(`Candidate code "${patched.candidate_code}" is already used by another candidate — please choose a different code.`);
+        }
+        throw new Error(error.message);
+      }
 
       if (existing) {
         const { name: changedByName, email: changedByEmail } = await resolveChangedBy(context.userId);
@@ -213,13 +218,13 @@ export const upsertCandidate = createServerFn({ method: "POST" })
 
       return { ok: true, id: data.id };
     }
-    // Resolve name, next code, and passport duplicate check in parallel
+    // Resolve name, next/validate code, and duplicate checks — all in parallel
     const passportTrim = data.data.passport_number?.trim();
-    const existingCode = data.data.candidate_code?.trim() || null;
-    const [createdByName, codeResult, dupResult] = await Promise.all([
+    const manualCode   = data.data.candidate_code?.trim() || null;
+    const [createdByName, codeResult, passportDup, codeDup] = await Promise.all([
       resolveCreatedByName(context.userId),
-      existingCode
-        ? Promise.resolve({ data: existingCode, error: null })
+      manualCode
+        ? Promise.resolve({ data: manualCode, error: null })
         : (supabaseAdmin as any).rpc("next_candidate_code", { p_manager_id: managerId }),
       passportTrim
         ? (supabaseAdmin.from("candidates") as any)
@@ -228,14 +233,26 @@ export const upsertCandidate = createServerFn({ method: "POST" })
             .ilike("passport_number", passportTrim)
             .maybeSingle()
         : Promise.resolve({ data: null }),
+      // Check the manually-entered code isn't already taken
+      manualCode
+        ? (supabaseAdmin.from("candidates") as any)
+            .select("id, full_name")
+            .eq("manager_id", managerId)
+            .eq("candidate_code", manualCode)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
 
     if (codeResult.error) throw new Error(codeResult.error.message);
     const candidateCode = codeResult.data as string;
 
-    if (dupResult.data) {
-      const label = dupResult.data.candidate_code ?? dupResult.data.full_name ?? "existing record";
+    if (passportDup.data) {
+      const label = passportDup.data.candidate_code ?? passportDup.data.full_name ?? "existing record";
       throw new Error(`Duplicate passport number — already registered as ${label}`);
+    }
+    if (codeDup.data) {
+      const label = codeDup.data.full_name ?? "another candidate";
+      throw new Error(`Candidate code "${candidateCode}" is already used by ${label}. Please choose a different code.`);
     }
 
     const { data: row, error } = await supabaseAdmin
@@ -249,7 +266,12 @@ export const upsertCandidate = createServerFn({ method: "POST" })
       } as never)
       .select("id")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (error.code === "23505" && error.message.includes("candidate_code")) {
+        throw new Error(`Candidate code "${candidateCode}" is already taken — please use a different code.`);
+      }
+      throw new Error(error.message);
+    }
     return { ok: true, id: row.id };
   });
 
@@ -452,8 +474,29 @@ export const bulkImportCandidates = createServerFn({ method: "POST" })
     const managerId = await resolveManagerId(context.userId);
     const createdByName = await resolveCreatedByName(context.userId);
 
+    // Rows that already carry a code vs rows that need one generated
+    const withCode    = data.rows.filter((r) => !!r.candidate_code?.trim());
+    const withoutCode = data.rows.filter((r) => !r.candidate_code?.trim());
+
+    // Reject imports that contain their own internal duplicates
+    const providedCodes = withCode.map((r) => r.candidate_code!.trim().toUpperCase());
+    if (new Set(providedCodes).size !== providedCodes.length) {
+      throw new Error("Import file contains duplicate candidate codes — please fix and re-upload.");
+    }
+
+    // Batch-generate codes for rows that need them (single round-trip)
+    let generatedCodes: string[] = [];
+    if (withoutCode.length > 0) {
+      const { data: codes, error: batchErr } = await (supabaseAdmin as any)
+        .rpc("next_candidate_codes_batch", { p_manager_id: managerId, p_count: withoutCode.length });
+      if (batchErr) throw new Error(batchErr.message);
+      generatedCodes = codes as string[];
+    }
+
+    let genIdx = 0;
     const rows = data.rows.map((r) => ({
       ...r,
+      candidate_code: r.candidate_code?.trim() || generatedCodes[genIdx++],
       religion: normalizeReligion(r.religion),
       manager_id: managerId,
       created_by_user_id: context.userId,
@@ -463,7 +506,12 @@ export const bulkImportCandidates = createServerFn({ method: "POST" })
     const { error, count } = await supabaseAdmin
       .from("candidates")
       .insert(rows as never[], { count: "exact" });
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (error.code === "23505" && error.message.includes("candidate_code")) {
+        throw new Error("One or more candidate codes in the import already exist — please remove duplicates and re-upload.");
+      }
+      throw new Error(error.message);
+    }
     return { ok: true, count: count ?? rows.length };
   });
 
