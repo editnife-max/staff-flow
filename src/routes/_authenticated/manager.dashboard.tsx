@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { DialogFooter } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { cn, calcAge } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import { updateCandidateField, deleteCandidate } from "@/lib/candidates.functions";
 
@@ -447,9 +447,215 @@ function LmisUploadButton({ candidate, onUpdate }: {
   );
 }
 
+// ─── Option constants ────────────────────────────────────────────────────────
+const MEDICAL_OPTIONS    = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired"];
+const COC_OPTIONS        = ["Done", "No", "Booked", "Placed", "Yitazez", "Pending release"];
+const OFFICE_OPTIONS     = ["Riyadh", "Jeddah", "Dammam", "Other"];
+const PASSPORT_OPTIONS   = ["Original", "Scan"];
+const TASHEER_OPTIONS    = ["No", "Booked", "Done", "Ready"];
+const WOKALA_OPTIONS     = ["Paid", "Unpaid"];
+const VISA_OPTIONS       = ["Ready for embassy", "Sent to Embassy", "Privately Sent", "Issued", "Visa canceled", "Arrived KSA", "Returned", "Waiting Replacement"];
+const INSURANCE_OPTIONS  = ["Done", "Pending", "No", "Expired"];
+const LMIS_OPTIONS       = ["No COC", "Not tested", "Placed", "Imported", "Checked", "Verified", "Draft", "Pending", "Issued", "Rejected"];
+const TICKET_OPTIONS     = ["No", "Ready", "New Order", "Booked", "Exchange", "Urgent"];
+const ARRIVAL_CITY_OPTIONS = ["RIYADH", "JEDDAH", "DAMMAM", "JOUF", "HAIL", "ABHA", "OTHERS"];
+const STATUS_OPTIONS     = ["available", "processing", "arrived", "returned", "canceled"];
+
+// ─── Inline editing helpers ──────────────────────────────────────────────────
+function InlineSelect({ value, options, onSave }: { value: string; options: string[]; onSave: (v: string | null) => void }) {
+  const [open, setOpen] = useState(false);
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)}
+        className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border block min-w-[60px] text-[13px]">
+        {value || <span className="text-muted-foreground">—</span>}
+      </button>
+    );
+  }
+  return (
+    <div className="relative z-20">
+      <div className="absolute top-0 left-0 bg-background border border-border shadow-md rounded-none min-w-[140px]">
+        {options.map((opt) => (
+          <button key={opt} type="button"
+            className={cn("w-full text-left px-3 py-1.5 text-[13px] hover:bg-muted/60", opt === value && "bg-muted/40 font-semibold")}
+            onMouseDown={() => { setOpen(false); if (opt !== value) onSave(opt); }}>
+            {opt}
+          </button>
+        ))}
+        <button type="button"
+          className="w-full text-left px-3 py-1.5 text-[13px] text-muted-foreground hover:bg-muted/60"
+          onMouseDown={() => { setOpen(false); if (value) onSave(null); }}>
+          Clear
+        </button>
+      </div>
+      <div className="fixed inset-0 z-[-1]" onClick={() => setOpen(false)} />
+    </div>
+  );
+}
+
+function InlineText({ value, onSave, long }: { value: string; onSave: (v: string | null) => void; long?: boolean }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  if (!editing) {
+    return (
+      <button type="button" onClick={() => { setDraft(value); setEditing(true); }}
+        className={cn("text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block text-[13px]", long ? "whitespace-pre-wrap max-w-[260px]" : "whitespace-nowrap")}>
+        {value || <span className="text-muted-foreground">—</span>}
+      </button>
+    );
+  }
+  return (
+    <input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => { setEditing(false); if (draft !== value) onSave(draft || null); }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+        if (e.key === "Escape") { setDraft(value); setEditing(false); }
+      }}
+      className="rounded-none border border-primary bg-background px-1 py-0.5 text-[13px] outline-none min-w-[120px]" />
+  );
+}
+
+function InlineDate({ value, onSave, showDays }: { value: string; onSave: (v: string | null) => void; showDays?: boolean }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const fmt = (v: string) => v ? new Date(v + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) : "";
+  const days = showDays && value ? Math.floor((Date.now() - new Date(value + "T00:00:00").getTime()) / 86_400_000) : null;
+  if (!editing) {
+    return (
+      <button type="button" onClick={() => { setDraft(value); setEditing(true); }}
+        className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block text-[13px]">
+        {value ? fmt(value) : <span className="text-muted-foreground">—</span>}
+        {days !== null && <span className="block text-[11px] text-muted-foreground mt-0.5">({days}d)</span>}
+      </button>
+    );
+  }
+  return (
+    <input autoFocus type="date" value={draft} onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => { setEditing(false); if (draft !== value) onSave(draft || null); }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+        if (e.key === "Escape") { setDraft(value); setEditing(false); }
+      }}
+      className="rounded-none border border-primary bg-background px-1 py-0.5 text-[13px] outline-none min-w-[110px]" />
+  );
+}
+
+// ─── Candidate detail view (manager, sectioned + editable) ───────────────────
+function ER({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
+      <div className="text-[13px] text-foreground">{children}</div>
+    </div>
+  );
+}
+function DS({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border pb-1">{title}</h3>
+      <div className="grid grid-cols-3 gap-x-6 gap-y-3">{children}</div>
+    </div>
+  );
+}
+function ManagerCandidateDetailView({ candidate, onUpdateField, countryOptions }: {
+  candidate: Candidate;
+  onUpdateField: (field: string, value: string | null) => void;
+  countryOptions: string[];
+}) {
+  const statusStyles: Record<string, string> = {
+    available: "bg-emerald-400 text-emerald-800", processing: "bg-amber-400 text-amber-800",
+    arrived: "bg-blue-400 text-blue-800", canceled: "bg-red-400 text-red-800", returned: "bg-orange-400 text-orange-800",
+  };
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-3">
+        <Avatar className="h-12 w-12 shrink-0">
+          {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
+          <AvatarFallback className="text-sm rounded-none">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+        </Avatar>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-base truncate">{candidate.full_name}</p>
+          {candidate.candidate_code && <p className="text-xs font-mono text-muted-foreground">{candidate.candidate_code}</p>}
+        </div>
+        <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-none capitalize shrink-0", statusStyles[candidate.status] ?? "bg-muted text-muted-foreground")}>
+          {candidate.status}
+        </span>
+      </div>
+
+      {(candidate.photo_url || candidate.passport_scan_url) && (
+        <div className="flex gap-3">
+          {candidate.photo_url && (
+            <div className="flex flex-col items-center gap-1">
+              <img src={candidate.photo_url} alt="Photo" className="h-24 w-20 object-cover border border-border" />
+              <span className="text-[10px] text-muted-foreground">Photo</span>
+            </div>
+          )}
+          {candidate.passport_scan_url && (
+            <div className="flex flex-col items-center gap-1">
+              <img src={candidate.passport_scan_url} alt="Passport" className="h-24 w-20 object-cover border border-border" />
+              <span className="text-[10px] text-muted-foreground">Passport Scan</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      <DS title="Personal">
+        <ER label="Gender">{candidate.gender || "—"}</ER>
+        <ER label="Religion">{candidate.religion || "—"}</ER>
+        <ER label="Marital Status">{candidate.marital_status || "—"}</ER>
+        <ER label="Birth Place">{candidate.birth_place || "—"}</ER>
+        <ER label="Age">{String(calcAge(candidate.dob) ?? candidate.age ?? "—")}</ER>
+        <ER label="Occupation"><InlineText value={candidate.occupation ?? ""} onSave={(v) => onUpdateField("occupation", v)} /></ER>
+        <ER label="Living Town"><InlineText value={candidate.living_town ?? ""} onSave={(v) => onUpdateField("living_town", v)} /></ER>
+      </DS>
+
+      <DS title="Passport">
+        <ER label="Passport Number">{candidate.passport_number || "—"}</ER>
+        <ER label="Labour ID">{candidate.labour_id || "—"}</ER>
+        <ER label="Passport Status"><InlineSelect value={candidate.passport_status ?? ""} options={PASSPORT_OPTIONS} onSave={(v) => onUpdateField("passport_status", v)} /></ER>
+      </DS>
+
+      <DS title="Status">
+        <ER label="Availability"><InlineSelect value={candidate.status ?? ""} options={STATUS_OPTIONS} onSave={(v) => onUpdateField("status", v)} /></ER>
+        <ER label="COC Status"><InlineSelect value={candidate.coc_status ?? ""} options={COC_OPTIONS} onSave={(v) => onUpdateField("coc_status", v)} /></ER>
+        <ER label="Medical Status"><InlineSelect value={candidate.medical_status ?? ""} options={MEDICAL_OPTIONS} onSave={(v) => onUpdateField("medical_status", v)} /></ER>
+        <ER label="Medical Date"><InlineDate value={candidate.medical_date ?? ""} onSave={(v) => onUpdateField("medical_date", v)} /></ER>
+        <ER label="Country"><InlineSelect value={candidate.musaned_status ?? ""} options={countryOptions} onSave={(v) => onUpdateField("musaned_status", v)} /></ER>
+        <ER label="Office"><InlineSelect value={candidate.office ?? ""} options={OFFICE_OPTIONS} onSave={(v) => onUpdateField("office", v)} /></ER>
+        <ER label="Selected By"><InlineText value={candidate.selected_by ?? ""} onSave={(v) => onUpdateField("selected_by", v)} /></ER>
+        <ER label="Contract Date"><InlineDate value={candidate.contract_date ?? ""} onSave={(v) => onUpdateField("contract_date", v)} showDays /></ER>
+        <ER label="CV Sent To">{candidate.cv_sent_to || "—"}</ER>
+        <ER label="Narrative"><InlineText value={candidate.narrative ?? ""} onSave={(v) => onUpdateField("narrative", v)} long /></ER>
+      </DS>
+
+      <DS title="Logistics">
+        <ER label="Tasheer Status"><InlineSelect value={candidate.tasheer_status ?? ""} options={TASHEER_OPTIONS} onSave={(v) => onUpdateField("tasheer_status", v)} /></ER>
+        <ER label="Tasheer Date"><InlineDate value={candidate.tasheer_date ?? ""} onSave={(v) => onUpdateField("tasheer_date", v)} /></ER>
+        <ER label="Wokala Status"><InlineSelect value={candidate.wokala_status ?? ""} options={WOKALA_OPTIONS} onSave={(v) => onUpdateField("wokala_status", v)} /></ER>
+        <ER label="Visa Status"><InlineSelect value={candidate.visa_status ?? ""} options={VISA_OPTIONS} onSave={(v) => onUpdateField("visa_status", v)} /></ER>
+        <ER label="Ticket Status"><InlineSelect value={candidate.ticket_status ?? ""} options={TICKET_OPTIONS} onSave={(v) => onUpdateField("ticket_status", v)} /></ER>
+        <ER label="Ticket Date"><InlineDate value={candidate.ticket_date ?? ""} onSave={(v) => onUpdateField("ticket_date", v)} /></ER>
+        <ER label="Arrival City"><InlineSelect value={candidate.arrival_city ?? ""} options={ARRIVAL_CITY_OPTIONS} onSave={(v) => onUpdateField("arrival_city", v)} /></ER>
+      </DS>
+
+      <DS title="LMIS & Insurance">
+        <ER label="LMIS Status"><InlineSelect value={candidate.lmis_status ?? ""} options={LMIS_OPTIONS} onSave={(v) => onUpdateField("lmis_status", v)} /></ER>
+        <ER label="Insurance"><InlineSelect value={candidate.insurance_status ?? ""} options={INSURANCE_OPTIONS} onSave={(v) => onUpdateField("insurance_status", v)} /></ER>
+      </DS>
+
+      {(candidate.notes || candidate.remark) && (
+        <DS title="Other">
+          {candidate.notes && <div className="col-span-3"><ER label="Notes"><InlineText value={candidate.notes ?? ""} onSave={(v) => onUpdateField("notes", v)} long /></ER></div>}
+          {candidate.remark && <div className="col-span-3"><ER label="Remark">{candidate.remark}</ER></div>}
+        </DS>
+      )}
+    </div>
+  );
+}
+
 // ─── Alert section ───────────────────────────────────────────────────────────
 function AlertSection({
-  icon: Icon, title, iconColor, pillKey, candidates, getNote, renderBadge, exportCols, onUpdateField, renderCardAction,
+  icon: Icon, title, iconColor, pillKey, candidates, getNote, renderBadge, exportCols, onUpdateField, renderCardAction, countryOptions,
 }: {
   icon: React.ElementType;
   title: string;
@@ -461,11 +667,13 @@ function AlertSection({
   exportCols: ExportCol[];
   onUpdateField: (id: string, field: string, value: string | null) => void;
   renderCardAction?: (candidate: Candidate) => React.ReactNode;
+  countryOptions: string[];
 }) {
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [viewCandidate, setViewCandidate] = useState<Candidate | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   if (candidates.length === 0) return null;
 
@@ -527,6 +735,10 @@ function AlertSection({
                 </div>
                 <div className="shrink-0 flex items-center gap-2">
                   {renderCardAction?.(c)}
+                  <button type="button" title="View candidate" onClick={() => setViewCandidate(c)}
+                    className="p-1 rounded-none text-muted-foreground hover:text-primary hover:bg-muted/60 transition-colors shrink-0">
+                    <FileText className="h-3.5 w-3.5" />
+                  </button>
                   <div className="text-right">
                     {renderBadge ? renderBadge(c) : getNote?.(c) ? (
                       <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-none", ALERT_PILL[pillKey])}>
@@ -555,6 +767,25 @@ function AlertSection({
                 Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
               </Link>
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!viewCandidate} onOpenChange={(o) => { if (!o) setViewCandidate(null); }}>
+        <DialogContent className="max-w-2xl rounded-none">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              {viewCandidate?.full_name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[70vh] overflow-y-auto pr-1">
+            {viewCandidate && (
+              <ManagerCandidateDetailView
+                candidate={viewCandidate}
+                onUpdateField={(field, value) => onUpdateField(viewCandidate.id, field, value)}
+                countryOptions={countryOptions}
+              />
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -610,6 +841,7 @@ function ManagerDashboard() {
     },
   });
   const managerCvThreshold = profile?.cv_days_threshold ?? 7;
+  const countryOptions = assignCountries.map((c) => c.name);
   const [embassyOverwrite, setEmbassyOverwrite] = useState<string | null>(null);
   const [replacePending, setReplacePending] = useState<Candidate | null>(null);
   const [replaceReason, setReplaceReason] = useState("Replacement sent");
@@ -848,7 +1080,7 @@ const visaReady = alertCandidates.filter(
                 <p className="text-sm font-bold text-foreground uppercase tracking-widest">Compliance & Recruitment</p>
               </div>
               <div className="divide-y divide-border">
-                <AlertSection icon={Stethoscope} title="Warning No Medical — 5+ Days in Processing" iconColor="text-red-600 dark:text-red-400" pillKey="medical" candidates={noMedical5Days} onUpdateField={handleUpdateField}
+                <AlertSection icon={Stethoscope} title="Warning No Medical — 5+ Days in Processing" iconColor="text-red-600 dark:text-red-400" pillKey="medical" candidates={noMedical5Days} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "contract_date", label: "Contract Date" }, { key: "office", label: "Office" }, { key: "selected_by", label: "Selected By" }]}
                   renderBadge={(c) => c.contract_date ? (
                     <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">
@@ -873,7 +1105,7 @@ const visaReady = alertCandidates.filter(
                       </Button>
                     </div>
                   )} />
-                <AlertSection icon={AlertTriangle} title="Warning No Tasheer — 10+ Days in Processing" iconColor="text-violet-600 dark:text-violet-400" pillKey="tasheer" candidates={noTasheer10Days} onUpdateField={handleUpdateField}
+                <AlertSection icon={AlertTriangle} title="Warning No Tasheer — 10+ Days in Processing" iconColor="text-violet-600 dark:text-violet-400" pillKey="tasheer" candidates={noTasheer10Days} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "contract_date", label: "Contract Date" }, { key: "office", label: "Office" }, { key: "selected_by", label: "Selected By" }]}
                   renderBadge={(c) => c.contract_date ? (
                     <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
@@ -889,7 +1121,7 @@ const visaReady = alertCandidates.filter(
                       Suggest Cancel
                     </Button>
                   )} />
-                <AlertSection icon={FileCheck} title="COC — No" iconColor="text-orange-600 dark:text-orange-400" pillKey="coc" candidates={cocNo} onUpdateField={handleUpdateField}
+                <AlertSection icon={FileCheck} title="COC — No" iconColor="text-orange-600 dark:text-orange-400" pillKey="coc" candidates={cocNo} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[{ key: "full_name", label: "Full Name" }, { key: "passport_number", label: "Passport No." }, { key: "coc_status", label: "COC Status" }, { key: "labour_id", label: "Labour ID" }, { key: "narrative", label: "Narrative" }, { key: "narrative_phone", label: "Narrative Phone" }]}
                   renderBadge={(c) => (
                     <div className="text-right">
@@ -905,7 +1137,7 @@ const visaReady = alertCandidates.filter(
                       if (date) handleUpdateField(c.id, "coc_booked_date", date);
                     }} />
                   )} />
-                <AlertSection icon={FileCheck} title="COC — Placed" iconColor="text-violet-600 dark:text-violet-400" pillKey="coc" candidates={cocPlaced} onUpdateField={handleUpdateField}
+                <AlertSection icon={FileCheck} title="COC — Placed" iconColor="text-violet-600 dark:text-violet-400" pillKey="coc" candidates={cocPlaced} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[{ key: "full_name", label: "Full Name" }, { key: "passport_number", label: "Passport No." }, { key: "coc_status", label: "COC Status" }, { key: "labour_id", label: "Labour ID" }, { key: "office", label: "Office" }, { key: "narrative", label: "Narrative" }, { key: "narrative_phone", label: "Narrative Phone" }]}
                   renderBadge={(c) => (
                     <div className="text-right">
@@ -921,7 +1153,7 @@ const visaReady = alertCandidates.filter(
                       if (date) handleUpdateField(c.id, "coc_booked_date", date);
                     }} />
                   )} />
-                <AlertSection icon={Stethoscope} title="Medical — Not Fit" iconColor="text-red-600 dark:text-red-400" pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField}
+                <AlertSection icon={Stethoscope} title="Medical — Not Fit" iconColor="text-red-600 dark:text-red-400" pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }, { key: "coc_status", label: "COC Status" }, { key: "office", label: "Office" }]}
                   renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">{c.medical_status}</span>}
                   renderCardAction={(c) => (
@@ -931,7 +1163,7 @@ const visaReady = alertCandidates.filter(
                         handleUpdateField(c.id, "medical_status", "Booked");
                       }} />
                   )} />
-                <AlertSection icon={Stethoscope} title="COC Done — Medical Not Fit" iconColor="text-fuchsia-600 dark:text-fuchsia-400" pillKey="medical" candidates={cocDoneNotFit} onUpdateField={handleUpdateField}
+                <AlertSection icon={Stethoscope} title="COC Done — Medical Not Fit" iconColor="text-fuchsia-600 dark:text-fuchsia-400" pillKey="medical" candidates={cocDoneNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }]}
                   renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">{c.medical_status}</span>}
                   renderCardAction={(c) => (
@@ -941,7 +1173,7 @@ const visaReady = alertCandidates.filter(
                         handleUpdateField(c.id, "medical_status", "Booked");
                       }} />
                   )} />
-                <AlertSection icon={CalendarX} title="Medical — Expired" iconColor="text-rose-600 dark:text-rose-400" pillKey="medexp" candidates={medicalExpired} onUpdateField={handleUpdateField}
+                <AlertSection icon={CalendarX} title="Medical — Expired" iconColor="text-rose-600 dark:text-rose-400" pillKey="medexp" candidates={medicalExpired} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[{ key: "full_name", label: "Full Name" }, { key: "passport_number", label: "Passport No." }, { key: "medical_status", label: "Medical Status" }, { key: "narrative", label: "Narrative" }, { key: "narrative_phone", label: "Narrative Phone" }]}
                   renderBadge={(c) => (
                     <div className="text-right">
@@ -967,7 +1199,7 @@ const visaReady = alertCandidates.filter(
                 <p className="text-sm font-bold text-foreground uppercase tracking-widest">Logistics & Deployment</p>
               </div>
               <div className="divide-y divide-border">
-                <AlertSection icon={Ticket} title="Ticket Not Booked — Over 20 Days" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketNotBooked} onUpdateField={handleUpdateField}
+                <AlertSection icon={Ticket} title="Ticket Not Booked — Over 20 Days" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketNotBooked} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "ticket_status", label: "Ticket" }, { key: "contract_date", label: "Contract Date" }, { key: "arrival_city", label: "Arrival City" }, { key: "office", label: "Office" }]}
                   renderBadge={(c) => c.contract_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">{daysSince(c.contract_date)}d since contract</span> : null}
                   renderCardAction={(c) => (
@@ -977,7 +1209,7 @@ const visaReady = alertCandidates.filter(
                         handleUpdateField(c.id, "ticket_status", "Booked");
                       }} />
                   )} />
-                <AlertSection icon={Ticket} title="Ticket Ready" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketReady} onUpdateField={handleUpdateField}
+                <AlertSection icon={Ticket} title="Ticket Ready" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketReady} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[{ key: "full_name", label: "Full Name" }, { key: "passport_number", label: "Passport No." }, { key: "ticket_status", label: "Ticket" }, { key: "ticket_date", label: "Ticket Date" }, { key: "arrival_city", label: "Arrival City" }, { key: "visa_status", label: "Visa Status" }, { key: "coc_status", label: "Coc Status" }, { key: "narrative", label: "Narrative" }, { key: "labour_id", label: "Labour Id" }, { key: "narrative_phone", label: "Narrative Phone" }]}
                   renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Ready</span>}
                   renderCardAction={(c) => (
@@ -987,7 +1219,7 @@ const visaReady = alertCandidates.filter(
                         handleUpdateField(c.id, "ticket_status", "Booked");
                       }} />
                   )} />
-                <AlertSection icon={MapPin} title="Arrival City Not Set" iconColor="text-cyan-600 dark:text-cyan-400" pillKey="arrival" candidates={arrivalCityMissing} onUpdateField={handleUpdateField}
+                <AlertSection icon={MapPin} title="Arrival City Not Set" iconColor="text-cyan-600 dark:text-cyan-400" pillKey="arrival" candidates={arrivalCityMissing} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[{ key: "full_name", label: "Full Name" }, { key: "passport_number", label: "Passport No." }, { key: "arrival_city", label: "Arrival City" }, { key: "ticket_status", label: "Ticket" }, { key: "office", label: "Office" }]}
                   renderCardAction={(c) => (
                     <Select onValueChange={(v) => handleUpdateField(c.id, "arrival_city", v)}>
@@ -1001,7 +1233,7 @@ const visaReady = alertCandidates.filter(
                       </SelectContent>
                     </Select>
                   )} />
-                <AlertSection icon={BadgeCheck} title="Ready for Embassy Visa" iconColor="text-emerald-600 dark:text-emerald-400" pillKey="visaready" candidates={visaReady} onUpdateField={handleUpdateField}
+                <AlertSection icon={BadgeCheck} title="Ready for Embassy Visa" iconColor="text-emerald-600 dark:text-emerald-400" pillKey="visaready" candidates={visaReady} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[{ key: "full_name", label: "Full Name" }, { key: "passport_number", label: "Passport No." }, { key: "visa_status", label: "Visa Status" }, { key: "tasheer_status", label: "Tasheer" }, { key: "wokala_status", label: "Wokala" }]}
                   renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">{c.visa_status === "Ready for embassy" ? "Ready" : "Auto"}</span>}
                   renderCardAction={(c) => (
@@ -1010,7 +1242,7 @@ const visaReady = alertCandidates.filter(
                       Sent to Embassy
                     </Button>
                   )} />
-<AlertSection icon={AlertTriangle} title="Tasheer Overdue — Booked Date Passed" iconColor="text-amber-600 dark:text-amber-400" pillKey="tasheer" candidates={tasheerOverdue} onUpdateField={handleUpdateField}
+<AlertSection icon={AlertTriangle} title="Tasheer Overdue — Booked Date Passed" iconColor="text-amber-600 dark:text-amber-400" pillKey="tasheer" candidates={tasheerOverdue} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[{ key: "full_name", label: "Full Name" }, { key: "passport_number", label: "Passport No." }, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }]}
                   renderBadge={(c) => c.tasheer_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{daysSince(c.tasheer_date)}d overdue</span> : null}
                   renderCardAction={(c) => (
@@ -1019,7 +1251,7 @@ const visaReady = alertCandidates.filter(
                       Done
                     </Button>
                   )} />
-                <AlertSection icon={AlertTriangle} title="Tasheer Done — Wokala Unpaid" iconColor="text-violet-600 dark:text-violet-400" pillKey="tasheer" candidates={tasheerDoneWokalaUnpaid} onUpdateField={handleUpdateField}
+                <AlertSection icon={AlertTriangle} title="Tasheer Done — Wokala Unpaid" iconColor="text-violet-600 dark:text-violet-400" pillKey="tasheer" candidates={tasheerDoneWokalaUnpaid} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[{ key: "full_name", label: "Full Name" }, { key: "passport_number", label: "Passport No." }, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }]}
                   renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Unpaid</span>}
                   renderCardAction={(c) => (
@@ -1028,7 +1260,7 @@ const visaReady = alertCandidates.filter(
                       Mark Paid
                     </Button>
                   )} />
-                <AlertSection icon={XCircle} title="Tasheer — Ready" iconColor="text-red-600 dark:text-red-400" pillKey="tasheer" candidates={passportNotAccepted} onUpdateField={handleUpdateField}
+                <AlertSection icon={XCircle} title="Tasheer — Ready" iconColor="text-red-600 dark:text-red-400" pillKey="tasheer" candidates={passportNotAccepted} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "passport_number", label: "Passport No." }, { key: "office", label: "Office" }]}
                   renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">Ready</span>}
                   renderCardAction={(c) => (
@@ -1041,7 +1273,7 @@ const visaReady = alertCandidates.filter(
                       Yes
                     </Button>
                   )} />
-                <AlertSection icon={RotateCcw} title="Visa Returned" iconColor="text-rose-600 dark:text-rose-400" pillKey="visareturn" candidates={visaReturned} onUpdateField={handleUpdateField}
+                <AlertSection icon={RotateCcw} title="Visa Returned" iconColor="text-rose-600 dark:text-rose-400" pillKey="visareturn" candidates={visaReturned} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "remark", label: "Remark" }, { key: "musaned_status", label: "Country" }]}
                   renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">Returned</span>}
                   renderCardAction={(c) => (
@@ -1050,7 +1282,7 @@ const visaReady = alertCandidates.filter(
                       Replacement
                     </Button>
                   )} />
-                <AlertSection icon={AlertTriangle} title="Visa — Waiting Replacement" iconColor="text-amber-600 dark:text-amber-400" pillKey="waitreplace" candidates={visaWaitingReplacement} onUpdateField={handleUpdateField}
+                <AlertSection icon={AlertTriangle} title="Visa — Waiting Replacement" iconColor="text-amber-600 dark:text-amber-400" pillKey="waitreplace" candidates={visaWaitingReplacement} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "musaned_status", label: "Country" }, { key: "office", label: "Office" }, { key: "passport_number", label: "Passport No." }]}
                   renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">Waiting</span>}
                   renderCardAction={(c) => (
@@ -1070,7 +1302,7 @@ const visaReady = alertCandidates.filter(
                 <p className="text-sm font-bold text-red-700 dark:text-red-400 uppercase tracking-widest">Pending Deletion</p>
               </div>
               <div className="divide-y divide-border">
-                <AlertSection icon={Trash2} title="Deletion Requested" iconColor="text-red-600 dark:text-red-400" pillKey="deletepending" candidates={deletePending} onUpdateField={handleUpdateField}
+                <AlertSection icon={Trash2} title="Deletion Requested" iconColor="text-red-600 dark:text-red-400" pillKey="deletepending" candidates={deletePending} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "delete_reason", label: "Delete Reason" }, { key: "status", label: "Status" }]}
                   renderBadge={(c) => (
                     <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 max-w-[140px] truncate block">
@@ -1104,7 +1336,7 @@ const visaReady = alertCandidates.filter(
                 <p className="text-sm font-bold text-foreground uppercase tracking-widest">Data & Misc</p>
               </div>
               <div className="divide-y divide-border">
-                <AlertSection icon={Send} title="CV Sent — No Selection" iconColor="text-teal-600 dark:text-teal-400" pillKey="cvoverdue" candidates={cvOverdue} onUpdateField={handleUpdateField}
+                <AlertSection icon={Send} title="CV Sent — No Selection" iconColor="text-teal-600 dark:text-teal-400" pillKey="cvoverdue" candidates={cvOverdue} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "cv_sent_to", label: "CV Sent To" }, { key: "cv_sent_date", label: "CV Sent Date" }, { key: "musaned_status", label: "Country" }]}
                   renderBadge={(c) => c.cv_sent_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">{Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000)}d ago</span> : null}
                   renderCardAction={(c) => (
@@ -1113,7 +1345,7 @@ const visaReady = alertCandidates.filter(
                       Recall CV
                     </Button>
                   )} />
-                <AlertSection icon={Stethoscope} title="Medical Fit — LMIS Not Tested" iconColor="text-teal-600 dark:text-teal-400" pillKey="fitlmis" candidates={fitLmisNotTested} onUpdateField={handleUpdateField}
+                <AlertSection icon={Stethoscope} title="Medical Fit — LMIS Not Tested" iconColor="text-teal-600 dark:text-teal-400" pillKey="fitlmis" candidates={fitLmisNotTested} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[{ key: "full_name", label: "Full Name" }, { key: "passport_number", label: "Passport No." }, { key: "medical_status", label: "Medical Status" }, { key: "coc_status", label: "COC Status" }, { key: "lmis_status", label: "LMIS" }]}
                   renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">Not Tested</span>}
                   renderCardAction={(c) => (
@@ -1122,7 +1354,7 @@ const visaReady = alertCandidates.filter(
                       Start LMIS
                     </Button>
                   )} />
-                <AlertSection icon={ClipboardList} title="LMIS file" iconColor="text-amber-600 dark:text-amber-400" pillKey="lmis" candidates={unfilledLmis} onUpdateField={handleUpdateField}
+                <AlertSection icon={ClipboardList} title="LMIS file" iconColor="text-amber-600 dark:text-amber-400" pillKey="lmis" candidates={unfilledLmis} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "lmis_status", label: "LMIS Status" }, { key: "unfilled_lmis", label: "Unfilled LMIS" }, { key: "labour_id", label: "Labour ID" }]}
                   renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{c.unfilled_lmis}</span>}
                   renderCardAction={(c) => (
@@ -1131,7 +1363,7 @@ const visaReady = alertCandidates.filter(
                       Mark Done
                     </Button>
                   )} />
-                <AlertSection icon={Upload} title="LMIS Draft / Imported — Upload Files" iconColor="text-indigo-600 dark:text-indigo-400" pillKey="lmis" candidates={lmisDraftImported} onUpdateField={handleUpdateField}
+                <AlertSection icon={Upload} title="LMIS Draft / Imported — Upload Files" iconColor="text-indigo-600 dark:text-indigo-400" pillKey="lmis" candidates={lmisDraftImported} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "lmis_status", label: "LMIS Status" }, { key: "labour_id", label: "Labour ID" }, { key: "unfilled_lmis", label: "Unfilled LMIS" }]}
                   renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">{c.lmis_status}</span>}
                   renderCardAction={(c) => (

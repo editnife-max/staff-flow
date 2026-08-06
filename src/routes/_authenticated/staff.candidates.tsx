@@ -825,14 +825,22 @@ function StaffCandidatesPage() {
   };
 
   const bulkFieldMut = useMutation({
-    mutationFn: ({ field, value }: { field: string; value: string }) => {
+    onMutate: ({ field }: { field: string; value: string | null }) => {
+      const prevs = Array.from(selected).map((id) => {
+        const c = candidates.find((c) => c.id === id);
+        return { id, value: (c ? (c[field as keyof Candidate] as string | null) : null) ?? null };
+      });
+      return { field, prevs };
+    },
+    mutationFn: ({ field, value }: { field: string; value: string | null }) => {
       const lockedIds = new Set(candidates.filter((c) => c.visa_status === "Waiting Replacement").map((c) => c.id));
       const ids = Array.from(selected).filter((id) => !lockedIds.has(id));
       if (ids.length === 0) { toast.error("All selected candidates are locked (Waiting Replacement)"); return Promise.reject(); }
       if (ids.length < selected.size) toast.warning(`${selected.size - ids.length} locked candidate(s) skipped`);
       return bulkField({ data: { ids, field: field as any, value } });
     },
-    onSuccess: (r, { field, value }) => {
+    onSuccess: (r, { field, value }, context) => {
+      if (context) setLastBulkOp(context);
       toast.success(`Updated ${r.count} candidate(s)`);
       qc.invalidateQueries({ queryKey: ["staff-candidates"] });
       if (field === "coc_status" && value === "Done")
@@ -848,6 +856,29 @@ function StaffCandidatesPage() {
 
   const [ticketDateOpen, setTicketDateOpen] = useState(false);
   const [ticketDate, setTicketDate] = useState("");
+  const [bulkNarrativeOpen, setBulkNarrativeOpen] = useState(false);
+  const [bulkNarrativeText, setBulkNarrativeText] = useState("");
+  const [bulkNarrativePhone, setBulkNarrativePhone] = useState("");
+  const [lastBulkOp, setLastBulkOp] = useState<{ field: string; prevs: Array<{ id: string; value: string | null }> } | null>(null);
+
+  const undoBulkMut = useMutation({
+    mutationFn: async () => {
+      if (!lastBulkOp) return;
+      const groups = new Map<string | null, string[]>();
+      for (const { id, value } of lastBulkOp.prevs) {
+        if (!groups.has(value)) groups.set(value, []);
+        groups.get(value)!.push(id);
+      }
+      for (const [value, ids] of groups)
+        await bulkField({ data: { ids, field: lastBulkOp.field as any, value } });
+    },
+    onSuccess: () => {
+      toast.success("Undone");
+      setLastBulkOp(null);
+      qc.invalidateQueries({ queryKey: ["staff-candidates"] });
+    },
+    onError: () => toast.error("Undo failed"),
+  });
 
   const ticketBookedMut = useMutation({
     mutationFn: async () => {
@@ -1195,14 +1226,56 @@ function StaffCandidatesPage() {
         </Card>
       )}
 
+      {bulkNarrativeOpen && (
+        <Card className="border-blue-400/60 bg-white/60 dark:bg-blue-900/20">
+          <CardContent className="p-3 flex flex-wrap items-center gap-3">
+            <span className="text-sm font-semibold text-blue-800 dark:text-blue-300">
+              Narrative — {selected.size} candidate{selected.size !== 1 ? "s" : ""}
+            </span>
+            <Input
+              placeholder="Narrative text…"
+              className="h-8 w-[220px]"
+              value={bulkNarrativeText}
+              onChange={(e) => setBulkNarrativeText(e.target.value)}
+              list="bulk-narrative-suggestions"
+            />
+            <datalist id="bulk-narrative-suggestions">
+              {opts.narrative.map((n) => <option key={n} value={n} />)}
+            </datalist>
+            <Input
+              placeholder="Narrative phone…"
+              className="h-8 w-[160px]"
+              value={bulkNarrativePhone}
+              onChange={(e) => setBulkNarrativePhone(e.target.value)}
+            />
+            <Button
+              size="sm"
+              disabled={bulkFieldMut.isPending || !bulkNarrativeText.trim()}
+              onClick={async () => {
+                await bulkFieldMut.mutateAsync({ field: "narrative", value: bulkNarrativeText.trim() });
+                if (bulkNarrativePhone.trim())
+                  await bulkFieldMut.mutateAsync({ field: "narrative_phone", value: bulkNarrativePhone.trim() });
+                setBulkNarrativeOpen(false);
+                setBulkNarrativeText("");
+                setBulkNarrativePhone("");
+              }}
+            >
+              {bulkFieldMut.isPending ? "Updating…" : "Apply"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => { setBulkNarrativeOpen(false); setBulkNarrativeText(""); setBulkNarrativePhone(""); }}>
+              Cancel
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Bulk actions */}
-      {selected.size > 0 && (
+      {(selected.size > 0 || !!lastBulkOp) && (
         <Card className="border-primary/40 bg-primary/5">
           <CardContent className="p-3 flex flex-wrap items-center gap-3">
-            <span className="text-sm font-semibold pl-1">
-              {selected.size} selected
-            </span>
+            {selected.size > 0 && <span className="text-sm font-semibold pl-1">{selected.size} selected</span>}
             <div className="ml-auto flex flex-wrap items-center gap-2">
+            {selected.size > 0 && (<>
               <Select onValueChange={(v) => bulkStatusMut.mutate(v as Status)}>
                 <SelectTrigger className="h-9 w-[150px]">
                   <SelectValue placeholder="Status…" />
@@ -1229,6 +1302,11 @@ function StaffCandidatesPage() {
                 if (opts.length === 0) return null;
                 return (
                   <Select key={fd.key} onValueChange={(v) => {
+                    if (v === "__clear__") {
+                      bulkFieldMut.mutateAsync({ field: fd.key, value: null })
+                        .then(() => { if (fd.key === "visa_status") bulkFieldMut.mutate({ field: "embassy_date", value: null }); });
+                      return;
+                    }
                     if (fd.key === "ticket_status" && v === "Booked") { setTicketDateOpen(true); }
                     else if (fd.key === "tasheer_status" && v === "Booked") { setTasheerDateOpen(true); }
                     else if (fd.key === "tasheer_status" && v === "Done") {
@@ -1244,18 +1322,30 @@ function StaffCandidatesPage() {
                       if (blocked.length > 0) { toast.error(`${blocked.length} candidate(s) must be Processing with Tasheer = Done and either Passport Accepted or Wokala = Paid`); }
                       else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
                     }
+                    else if (fd.key === "visa_status" && v === "Sent to Embassy") {
+                      const today = new Date().toISOString().split("T")[0];
+                      bulkFieldMut.mutateAsync({ field: "visa_status", value: v })
+                        .then(() => bulkFieldMut.mutate({ field: "embassy_date", value: today }));
+                    }
                     else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
                   }}>
                     <SelectTrigger className="h-9 w-[120px]">
                       <SelectValue placeholder={fd.label} />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__clear__" className="text-muted-foreground">-</SelectItem>
                       {opts.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 );
               })}
 
+              <Button
+                size="sm" variant="outline" className="gap-1"
+                onClick={() => { setBulkNarrativeOpen(true); setBulkNarrativeText(""); setBulkNarrativePhone(""); }}
+              >
+                Narrative
+              </Button>
               <Button
                 size="sm"
                 variant="destructive"
@@ -1271,6 +1361,12 @@ function StaffCandidatesPage() {
               <Button size="sm" variant="ghost" className="gap-1" onClick={clearSelection}>
                 <X className="h-4 w-4" /> Clear
               </Button>
+            </>)}
+            {lastBulkOp && (
+              <Button size="sm" variant="outline" className="gap-1" disabled={undoBulkMut.isPending} onClick={() => undoBulkMut.mutate()}>
+                <Undo2 className="h-3.5 w-3.5" /> Undo
+              </Button>
+            )}
             </div>
           </CardContent>
         </Card>
@@ -2267,6 +2363,144 @@ function VideoCell({ url, onSave, candidateName }: { url: string | null; onSave:
   );
 }
 
+function InfoRow({ label, value }: { label: string; value: string | number | null | undefined }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className="text-[13px] text-foreground">{value || "—"}</span>
+    </div>
+  );
+}
+
+function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border pb-1">{title}</h3>
+      <div className="grid grid-cols-3 gap-x-6 gap-y-3">{children}</div>
+    </div>
+  );
+}
+
+function CandidateDetailDialog({ candidate, onClose, agencyPhones = {} }: { candidate: Candidate | null; onClose: () => void; agencyPhones?: Record<string, string> }) {
+  if (!candidate) return null;
+  const statusStyles: Record<Status, string> = {
+    available: "bg-emerald-400 text-emerald-800",
+    processing: "bg-amber-400 text-amber-800",
+    arrived: "bg-blue-400 text-blue-800",
+    canceled: "bg-red-400 text-red-800",
+    returned: "bg-orange-400 text-orange-800",
+  };
+  const statusKey = (candidate.status as Status) ?? "available";
+  return (
+    <Dialog open={!!candidate} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-3">
+            <span>{candidate.full_name}</span>
+            {candidate.candidate_code && (
+              <span className="text-xs font-mono font-normal text-muted-foreground">{candidate.candidate_code}</span>
+            )}
+            <span className={cn("ml-auto text-[11px] font-semibold px-2 py-0.5 rounded-none capitalize", statusStyles[statusKey])}>
+              {statusKey}
+            </span>
+          </DialogTitle>
+        </DialogHeader>
+        <div className="max-h-[70vh] overflow-y-auto pr-1 space-y-5">
+          {(candidate.photo_url || (candidate as any).full_photo_url || candidate.passport_scan_url) && (
+            <div className="flex gap-3">
+              {candidate.photo_url && (
+                <div className="flex flex-col items-center gap-1">
+                  <img src={candidate.photo_url} alt="Photo" className="h-24 w-20 object-cover border border-border" />
+                  <span className="text-[10px] text-muted-foreground">Photo</span>
+                </div>
+              )}
+              {(candidate as any).full_photo_url && (
+                <div className="flex flex-col items-center gap-1">
+                  <img src={(candidate as any).full_photo_url} alt="Full Photo" className="h-24 w-20 object-cover border border-border" />
+                  <span className="text-[10px] text-muted-foreground">Full Photo</span>
+                </div>
+              )}
+              {candidate.passport_scan_url && (
+                <div className="flex flex-col items-center gap-1">
+                  <img src={candidate.passport_scan_url} alt="Passport" className="h-24 w-20 object-cover border border-border" />
+                  <span className="text-[10px] text-muted-foreground">Passport Scan</span>
+                </div>
+              )}
+            </div>
+          )}
+          <DetailSection title="Personal">
+            <InfoRow label="Full Name" value={candidate.full_name} />
+            <InfoRow label="First Name" value={candidate.first_name} />
+            <InfoRow label="Last Name" value={candidate.last_name} />
+            <InfoRow label="Date of Birth" value={candidate.dob} />
+            <InfoRow label="Age" value={calcAge(candidate.dob) ?? candidate.age} />
+            <InfoRow label="Gender" value={candidate.gender} />
+            <InfoRow label="Religion" value={candidate.religion} />
+            <InfoRow label="Marital Status" value={candidate.marital_status} />
+            <InfoRow label="Children" value={candidate.children} />
+            <InfoRow label="Birth Place" value={candidate.birth_place} />
+            <InfoRow label="Living Town" value={candidate.living_town} />
+            <InfoRow label="Country" value={candidate.country} />
+            <InfoRow label="Occupation" value={candidate.occupation} />
+            <InfoRow label="Education" value={candidate.education} />
+            <InfoRow label="Experience" value={candidate.experience} />
+          </DetailSection>
+          <DetailSection title="Passport">
+            <InfoRow label="Passport Number" value={candidate.passport_number} />
+            <InfoRow label="Passport Status" value={candidate.passport_status} />
+            <InfoRow label="Issue Date" value={candidate.passport_issue_date} />
+            <InfoRow label="Expiry Date" value={candidate.passport_expiry_date} />
+            <InfoRow label="Place of Issue" value={candidate.place_of_issue} />
+            <InfoRow label="Labour ID" value={candidate.labour_id} />
+          </DetailSection>
+          <DetailSection title="Languages & Physical">
+            <InfoRow label="Spoken Languages" value={candidate.spoken_languages} />
+            <InfoRow label="English Level" value={candidate.english_level} />
+            <InfoRow label="Arabic Level" value={candidate.arabic_level} />
+            <InfoRow label="Weight (kg)" value={candidate.weight} />
+            <InfoRow label="Height (cm)" value={candidate.height} />
+          </DetailSection>
+          <DetailSection title="Status">
+            <InfoRow label="Medical Status" value={candidate.medical_status} />
+            <InfoRow label="Medical Date" value={candidate.medical_date} />
+            <InfoRow label="COC Status" value={candidate.coc_status} />
+            <InfoRow label="Country" value={candidate.musaned_status} />
+            <InfoRow label="Passport Status" value={candidate.passport_status} />
+            <InfoRow label="Office" value={candidate.office} />
+            <InfoRow label="Selected By" value={candidate.selected_by} />
+            <InfoRow label="Contract Date" value={candidate.contract_date} />
+            <InfoRow label="CV Sent To" value={candidate.cv_sent_to} />
+            <InfoRow label="CV Sent Date" value={candidate.cv_sent_date} />
+            <InfoRow label="Narrative" value={candidate.narrative} />
+            <InfoRow label="Narrative Phone" value={candidate.narrative_phone} />
+          </DetailSection>
+          <DetailSection title="Logistics & Processing">
+            <InfoRow label="Tasheer Status" value={candidate.tasheer_status} />
+            <InfoRow label="Tasheer Date" value={candidate.tasheer_date} />
+            <InfoRow label="Wokala Status" value={candidate.wokala_status} />
+            <InfoRow label="Visa Status" value={candidate.visa_status} />
+            <InfoRow label="Ticket Status" value={candidate.ticket_status} />
+            <InfoRow label="Ticket Date" value={candidate.ticket_date} />
+            <InfoRow label="Arrival City" value={candidate.arrival_city} />
+            <InfoRow label="LMIS Status" value={candidate.lmis_status} />
+            <InfoRow label="Insurance" value={candidate.insurance_status} />
+          </DetailSection>
+          {(candidate.skills || candidate.notes || candidate.remark) && (
+            <DetailSection title="Other">
+              {candidate.skills && <div className="col-span-3"><InfoRow label="Skills" value={candidate.skills} /></div>}
+              {candidate.notes && <div className="col-span-3"><InfoRow label="Notes" value={candidate.notes} /></div>}
+              {candidate.remark && <div className="col-span-3"><InfoRow label="Remark" value={candidate.remark} /></div>}
+            </DetailSection>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CandidateCard({
   candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo, agencyOptions, agencyPhones, countryOptions, compact, narrativeSuggestions,
 }: {
@@ -2288,6 +2522,7 @@ function CandidateCard({
   countryOptions: string[];
   narrativeSuggestions?: string[];
 }) {
+  const [viewing, setViewing] = useState(false);
   const [deleteRequestOpen, setDeleteRequestOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [medDateOpen, setMedDateOpen] = useState(false);
@@ -2457,7 +2692,7 @@ function CandidateCard({
           </div>
           {/* Actions — sticky right */}
           <div className="sticky right-0 z-10 self-stretch shrink-0 flex flex-col justify-center items-center gap-1.5 px-4 border-l border-border" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
-            <Button size="sm" onClick={onAction} className="w-full px-5 h-8 rounded text-xs font-semibold tracking-wide">
+            <Button size="sm" onClick={() => setViewing(true)} className="w-full px-5 h-8 rounded text-xs font-semibold tracking-wide">
               VIEW
             </Button>
             {candidate.visa_status === "Waiting Replacement" ? (
@@ -2518,6 +2753,11 @@ function CandidateCard({
           </DialogContent>
         </Dialog>
       )}
+      <CandidateDetailDialog
+        candidate={viewing ? candidate : null}
+        onClose={() => setViewing(false)}
+        agencyPhones={agencyPhones}
+      />
     </>
   );
 }
@@ -3044,6 +3284,7 @@ function ProcessingCard({
   agencyPhones: Record<string, string>;
   narrativeSuggestions?: string[];
 }) {
+  const [viewing, setViewing] = useState(false);
   const [requireDate, setRequireDate] = useState<{
     field: "ticket_date" | "tasheer_date" | "medical_date" | "insurance_date";
     label: string;
@@ -3275,7 +3516,7 @@ function ProcessingCard({
           </div>
           {/* Actions — sticky right */}
           <div className="sticky right-0 z-10 self-stretch shrink-0 flex flex-col justify-center items-center gap-1.5 px-4 border-l border-border" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
-            <Button size="sm" onClick={onAction} className="w-full px-5 h-8 rounded text-xs font-semibold tracking-wide">
+            <Button size="sm" onClick={() => setViewing(true)} className="w-full px-5 h-8 rounded text-xs font-semibold tracking-wide">
               VIEW
             </Button>
             {candidate.visa_status === "Waiting Replacement" ? (
@@ -3477,6 +3718,11 @@ function ProcessingCard({
         </DialogContent>
       </Dialog>
     )}
+    <CandidateDetailDialog
+      candidate={viewing ? candidate : null}
+      onClose={() => setViewing(false)}
+      agencyPhones={agencyPhones}
+    />
     </>
   );
 }
