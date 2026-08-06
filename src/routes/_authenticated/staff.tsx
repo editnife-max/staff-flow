@@ -26,6 +26,7 @@ import {
   declineCandidatesNotification,
 } from "@/lib/notifications.functions";
 import { updateCandidateField } from "@/lib/candidates.functions";
+import { useStaffSession } from "@/hooks/use-staff-session";
 
 export const Route = createFileRoute("/_authenticated/staff")({
   component: StaffLayout,
@@ -220,6 +221,8 @@ function StaffLayout() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  useStaffSession(role === "staff");
 
   if (loading) return <div className="p-8 text-muted-foreground">Loading...</div>;
   if (role !== "staff" && role !== "admin") return <Navigate to="/dashboard" />;

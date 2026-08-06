@@ -1,0 +1,311 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+
+const HEARTBEAT_STALE_MS = 15 * 60 * 1000; // 15 minutes
+
+function getMondayOfWeek(d: Date): Date {
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : -(day - 1);
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + diff);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
+function computeSessionHours(
+  startedAt: string,
+  endedAt: string | null,
+  lastHeartbeatAt: string,
+): number {
+  const start = new Date(startedAt).getTime();
+  let end: number;
+  if (endedAt) {
+    end = new Date(endedAt).getTime();
+  } else {
+    const hb = new Date(lastHeartbeatAt).getTime();
+    const now = Date.now();
+    // If heartbeat is stale treat it as the end time, otherwise use now
+    end = now - hb > HEARTBEAT_STALE_MS ? hb : now;
+  }
+  return Math.max(0, end - start) / (1000 * 60 * 60);
+}
+
+export const startStaffSession = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      deviceType: z.enum(["desktop", "mobile", "tablet"]),
+      userAgent: z.string().max(500),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const userId = context.userId;
+
+    const { data: roleRow, error: roleErr } = await supabaseAdmin
+      .from("user_roles")
+      .select("manager_id")
+      .eq("user_id", userId)
+      .eq("role", "staff")
+      .maybeSingle();
+    if (roleErr) throw new Error(roleErr.message);
+    if (!roleRow?.manager_id) throw new Error("No manager found for this staff user");
+
+    const { data: staffRow } = await supabaseAdmin
+      .from("staff")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const { data: inserted, error: insertErr } = await (supabaseAdmin
+      .from("staff_sessions" as any)
+      .insert({
+        staff_user_id: userId,
+        manager_id: roleRow.manager_id,
+        staff_id: staffRow?.id ?? null,
+        device_type: data.deviceType,
+        user_agent: data.userAgent,
+      })
+      .select("id")
+      .single() as any);
+    if (insertErr) throw new Error(insertErr.message);
+
+    return { sessionId: inserted.id as string };
+  });
+
+export const heartbeatSession = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ sessionId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await (supabaseAdmin
+      .from("staff_sessions" as any)
+      .update({ last_heartbeat_at: new Date().toISOString() })
+      .eq("id", data.sessionId)
+      .eq("staff_user_id", context.userId) as any);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const endStaffSession = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ sessionId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await (supabaseAdmin
+      .from("staff_sessions" as any)
+      .update({ ended_at: new Date().toISOString() })
+      .eq("id", data.sessionId)
+      .eq("staff_user_id", context.userId) as any);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const getMySessionStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const userId = context.userId;
+    const now = new Date();
+    const yearAgo = new Date(now);
+    yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+
+    const { data: sessions, error } = await (supabaseAdmin
+      .from("staff_sessions" as any)
+      .select("id, started_at, ended_at, last_heartbeat_at")
+      .eq("staff_user_id", userId)
+      .gte("started_at", yearAgo.toISOString())
+      .order("started_at", { ascending: false }) as any);
+    if (error) throw new Error(error.message);
+
+    const rows = (sessions ?? []) as Array<{
+      id: string;
+      started_at: string;
+      ended_at: string | null;
+      last_heartbeat_at: string;
+    }>;
+
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const weekStart = getMondayOfWeek(now);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+
+    let hoursToday = 0;
+    let hoursWeek = 0;
+    let hoursMonth = 0;
+    let hoursYear = 0;
+    let firstLoginToday: string | null = null;
+    let sessionsToday = 0;
+
+    for (const s of rows) {
+      const sStart = new Date(s.started_at);
+      const h = computeSessionHours(s.started_at, s.ended_at, s.last_heartbeat_at);
+
+      if (sStart >= yearStart) hoursYear += h;
+      if (sStart >= monthStart) hoursMonth += h;
+      if (sStart >= weekStart) hoursWeek += h;
+      if (sStart >= todayStart) {
+        hoursToday += h;
+        sessionsToday++;
+        if (!firstLoginToday || sStart < new Date(firstLoginToday)) {
+          firstLoginToday = s.started_at;
+        }
+      }
+    }
+
+    const latestSession = rows[0] ?? null;
+    let isOnline = false;
+    if (latestSession && !latestSession.ended_at) {
+      const hb = new Date(latestSession.last_heartbeat_at).getTime();
+      isOnline = Date.now() - hb <= HEARTBEAT_STALE_MS;
+    }
+
+    return {
+      isOnline,
+      hoursToday: Math.round(hoursToday * 10) / 10,
+      hoursWeek: Math.round(hoursWeek * 10) / 10,
+      hoursMonth: Math.round(hoursMonth * 10) / 10,
+      hoursYear: Math.round(hoursYear * 10) / 10,
+      firstLoginToday,
+      sessionsToday,
+    };
+  });
+
+export const getTeamActivity = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const managerId = context.userId;
+
+    const { data: roleCheck, error: roleErr } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", managerId);
+    if (roleErr) throw new Error(roleErr.message);
+    if (!roleCheck?.some((r) => r.role === "manager")) {
+      throw new Response("Forbidden", { status: 403 });
+    }
+
+    const now = new Date();
+    const yearAgo = new Date(now);
+    yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+
+    const { data: staffList, error: staffErr } = await supabaseAdmin
+      .from("staff")
+      .select("id, name, user_id")
+      .eq("manager_id", managerId)
+      .eq("status", "active");
+    if (staffErr) throw new Error(staffErr.message);
+
+    const { data: allSessions, error: sessErr } = await (supabaseAdmin
+      .from("staff_sessions" as any)
+      .select("id, staff_user_id, started_at, ended_at, last_heartbeat_at")
+      .eq("manager_id", managerId)
+      .gte("started_at", yearAgo.toISOString()) as any);
+    if (sessErr) throw new Error(sessErr.message);
+
+    const { data: allCandidates, error: candErr } = await supabaseAdmin
+      .from("candidates")
+      .select("created_by_user_id, created_at")
+      .eq("manager_id", managerId)
+      .gte("created_at", yearAgo.toISOString());
+    if (candErr) throw new Error(candErr.message);
+
+    const sessions = (allSessions ?? []) as Array<{
+      id: string;
+      staff_user_id: string;
+      started_at: string;
+      ended_at: string | null;
+      last_heartbeat_at: string;
+    }>;
+
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const weekStart = getMondayOfWeek(now);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+
+    return (staffList ?? []).map((staff) => {
+      const uid = staff.user_id ?? "";
+      const staffSessions = sessions.filter((s) => s.staff_user_id === uid);
+      const staffCandidates = (allCandidates ?? []).filter(
+        (c) => c.created_by_user_id === uid,
+      );
+
+      let hoursToday = 0;
+      let hoursWeek = 0;
+      let hoursMonth = 0;
+      let hoursYear = 0;
+      let firstLoginToday: string | null = null;
+      let sessionsToday = 0;
+      const workDaysMonthSet = new Set<string>();
+
+      for (const s of staffSessions) {
+        const sStart = new Date(s.started_at);
+        const h = computeSessionHours(s.started_at, s.ended_at, s.last_heartbeat_at);
+
+        if (sStart >= yearStart) hoursYear += h;
+        if (sStart >= monthStart) {
+          hoursMonth += h;
+          workDaysMonthSet.add(sStart.toISOString().split("T")[0]);
+        }
+        if (sStart >= weekStart) hoursWeek += h;
+        if (sStart >= todayStart) {
+          hoursToday += h;
+          sessionsToday++;
+          if (!firstLoginToday || sStart < new Date(firstLoginToday)) {
+            firstLoginToday = s.started_at;
+          }
+        }
+      }
+
+      const latestSession = staffSessions.sort(
+        (a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime(),
+      )[0] ?? null;
+
+      let isOnline = false;
+      let lastSeen: string | null = null;
+
+      if (latestSession) {
+        const hb = new Date(latestSession.last_heartbeat_at).getTime();
+        if (!latestSession.ended_at && Date.now() - hb <= HEARTBEAT_STALE_MS) {
+          isOnline = true;
+        }
+        lastSeen = latestSession.last_heartbeat_at;
+      }
+
+      const candidatesToday = staffCandidates.filter(
+        (c) => new Date(c.created_at) >= todayStart,
+      ).length;
+      const candidatesWeek = staffCandidates.filter(
+        (c) => new Date(c.created_at) >= weekStart,
+      ).length;
+      const candidatesMonth = staffCandidates.filter(
+        (c) => new Date(c.created_at) >= monthStart,
+      ).length;
+      const candidatesYear = staffCandidates.filter(
+        (c) => new Date(c.created_at) >= yearStart,
+      ).length;
+
+      return {
+        staffId: staff.id,
+        staffUserId: uid,
+        name: staff.name,
+        isOnline,
+        lastSeen,
+        firstLoginToday,
+        sessionsToday,
+        hoursToday: Math.round(hoursToday * 10) / 10,
+        hoursWeek: Math.round(hoursWeek * 10) / 10,
+        hoursMonth: Math.round(hoursMonth * 10) / 10,
+        hoursYear: Math.round(hoursYear * 10) / 10,
+        candidatesToday,
+        candidatesWeek,
+        candidatesMonth,
+        candidatesYear,
+        workDaysMonth: workDaysMonthSet.size,
+      };
+    });
+  });

@@ -1,7 +1,7 @@
 import { Outlet, createFileRoute, Navigate, Link, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, Users, Globe2, ClipboardList, CreditCard,
-  MapPin, FileText, Bell, CheckCircle2, Building2, LogOut, ChevronDown,
+  MapPin, FileText, Bell, CheckCircle2, Building2, LogOut, ChevronDown, Activity,
 } from "lucide-react";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -27,7 +27,8 @@ export const Route = createFileRoute("/_authenticated/manager")({
 
 const NAV_ITEMS = [
   { to: "/manager/dashboard",    label: "Dashboard",        icon: LayoutDashboard },
-  { to: "/manager/staff",        label: "Staff",            icon: Users },
+  { to: "/manager/staff",          label: "Staff",            icon: Users },
+  { to: "/manager/staff-activity", label: "Staff Activity",   icon: Activity },
   { to: "/manager/agencies",     label: "Foreign Agencies", icon: Globe2 },
   { to: "/manager/candidates",   label: "Candidates",       icon: ClipboardList },
   { to: "/manager/subscription", label: "Subscription",     icon: CreditCard },
