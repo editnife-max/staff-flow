@@ -206,6 +206,7 @@ export type Database = {
           tasheer_status: string | null
           ticket_date: string | null
           ticket_date_updated_at: string | null
+          ticket_pdf_url: string | null
           ticket_status: string | null
           ticket_updated_at: string | null
           unfilled_lmis: string | null
@@ -292,6 +293,7 @@ export type Database = {
           tasheer_status?: string | null
           ticket_date?: string | null
           ticket_date_updated_at?: string | null
+          ticket_pdf_url?: string | null
           ticket_status?: string | null
           ticket_updated_at?: string | null
           unfilled_lmis?: string | null
@@ -378,6 +380,7 @@ export type Database = {
           tasheer_status?: string | null
           ticket_date?: string | null
           ticket_date_updated_at?: string | null
+          ticket_pdf_url?: string | null
           ticket_status?: string | null
           ticket_updated_at?: string | null
           unfilled_lmis?: string | null

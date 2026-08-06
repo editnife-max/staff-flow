@@ -191,7 +191,7 @@ const OPTION_COLORS: Record<string, string> = {
 };
 
 type ProcessingColDef =
-  | { key: string; header: string; type: "text" | "date" | "copy" }
+  | { key: string; header: string; type: "text" | "date" | "copy" | "upload" }
   | { key: string; header: string; type: "select"; options: string[] }
   | { key: string; header: string; type: "select-dynamic" };
 
@@ -214,6 +214,7 @@ const PROCESSING_COLS: ProcessingColDef[] = [
   { key: "lmis_status",       header: "LMIS",              type: "select", options: LMIS_OPTIONS },
   { key: "ticket_status",     header: "Ticket",            type: "select", options: TICKET_OPTIONS },
   { key: "ticket_date",       header: "Ticket Date",       type: "date" },
+  { key: "ticket_pdf_url",    header: "Ticket PDF",        type: "upload" },
   { key: "arrival_city",      header: "Arrival City",      type: "select", options: ARRIVAL_CITY_OPTIONS },
   { key: "processing_notes",  header: "Note",              type: "text" },
   { key: "emergency_contact", header: "Emergency Contact", type: "text" },
@@ -227,6 +228,7 @@ const CANDIDATE_CARD_COLS = [
   "PASSPORT STATUS", "COC STATUS", "COUNTRY", "MEDICAL STATUS", "MEDICAL DATE",
   "EXPERIENCE", "NOTES", "AVAILABILITY", "SELECTED BY",
   "ADDED BY", "GENDER", "LIVING TOWN", "OFFICE", "CONTRACT DATE",
+  "TICKET PDF",
 ] as const;
 
 const initialForm = {
@@ -2086,7 +2088,7 @@ type EditableField =
   | "ticket_status" | "ticket_date" | "arrival_city" | "emergency_contact"
   | "processing_notes" | "remark" | "destination_country" | "cv_sent_to" | "passport_accepted"
   | "availability_type" | "coc_agency_name" | "coc_agency_phone" | "insurance_date"
-  | "video_url" | "delete_reason";
+  | "video_url" | "delete_reason" | "ticket_pdf_url";
 
 function CandidateCardList({
   candidates, selected, onToggleSelect, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo,
@@ -2116,7 +2118,7 @@ function CandidateCardList({
       const s = sessionStorage.getItem("mgr-hidden-cols-avail");
       if (s) return new Set(JSON.parse(s));
     } catch {}
-    return new Set(["ADDED BY", "GENDER", "LIVING TOWN", "OFFICE", "CONTRACT DATE"]);
+    return new Set(["ADDED BY", "GENDER", "LIVING TOWN", "OFFICE", "CONTRACT DATE", "TICKET PDF"]);
   });
   useEffect(() => {
     sessionStorage.setItem("mgr-hidden-cols-avail", JSON.stringify(Array.from(hiddenCols)));
@@ -2189,7 +2191,11 @@ function CandidateCardList({
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
   const allSel = paginated.length > 0 && paginated.every((c) => selected.has(c.id));
   const someSel = !allSel && paginated.some((c) => selected.has(c.id));
-  const visibleCols = (CANDIDATE_CARD_COLS as readonly string[]).filter((l) => !hiddenCols.has(l));
+  const visibleCols = (CANDIDATE_CARD_COLS as readonly string[]).filter((l) => {
+    if (hiddenCols.has(l)) return false;
+    if (l === "TICKET PDF" && !compact) return false;
+    return true;
+  });
 
   return (
     <div className="space-y-2">
@@ -2292,7 +2298,7 @@ function CandidateCardList({
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                    {CANDIDATE_CARD_COLS.map((label) => (
+                    {CANDIDATE_CARD_COLS.filter((l) => l !== "TICKET PDF" || compact).map((label) => (
                       <label key={label} className="flex items-center gap-1.5 text-xs cursor-pointer py-1 hover:text-primary">
                         <Checkbox
                           checked={!hiddenCols.has(label)}
@@ -2736,6 +2742,19 @@ function CandidateCard({
                   <div key="VIDEO" className="shrink-0 w-[110px]">
                     <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">VIDEO</div>
                     <VideoCell url={candidate.video_url ?? null} onSave={(v) => onUpdateField("video_url", v)} candidateName={candidate.full_name} />
+                  </div>
+                );
+              }
+              if (colLabel === "TICKET PDF") {
+                return (
+                  <div key="TICKET PDF" className="shrink-0 w-[110px]">
+                    <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">TICKET PDF</div>
+                    <TicketPdfCell
+                      url={(candidate as any).ticket_pdf_url ?? null}
+                      candidateId={candidate.id}
+                      onUpload={(url) => onUpdateField("ticket_pdf_url", url)}
+                      onRemove={() => onUpdateField("ticket_pdf_url", null)}
+                    />
                   </div>
                 );
               }
@@ -3652,6 +3671,13 @@ function ProcessingCard({
                         options={officesByCountry[candidate.destination_country ?? ""] ?? []}
                         onSave={(v) => handleColUpdate(col.key, v)}
                       />
+                    ) : col.type === "upload" ? (
+                      <TicketPdfCell
+                        url={(candidate as any).ticket_pdf_url ?? null}
+                        candidateId={candidate.id}
+                        onUpload={(url) => onUpdateField("ticket_pdf_url", url)}
+                        onRemove={() => onUpdateField("ticket_pdf_url", null)}
+                      />
                     ) : null}
                   </div>
                 </div>
@@ -4244,6 +4270,56 @@ function PhotoUpload({ label, value, onChange, accept = "image/*" }: { label: st
         )}
       </div>
       <input ref={inputRef} type="file" accept={accept} className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
+    </div>
+  );
+}
+
+function TicketPdfCell({ url, candidateId, onUpload, onRemove }: {
+  url: string | null;
+  candidateId: string;
+  onUpload: (url: string) => void;
+  onRemove: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() ?? "pdf";
+      const path = `ticket-pdfs/${candidateId}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("candidate-files").upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data } = supabase.storage.from("candidate-files").getPublicUrl(path);
+      onUpload(data.publicUrl);
+    } catch {
+      toast.error("Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+  return (
+    <div className="flex items-center gap-1 flex-wrap">
+      {url ? (
+        <>
+          <button type="button" onClick={() => downloadFile(url)} className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5">
+            <FileText className="h-3 w-3" /> PDF
+          </button>
+          <button type="button" onClick={() => { inputRef.current?.click(); }} title="Replace" className="text-muted-foreground hover:text-primary">
+            <Upload className="h-3 w-3" />
+          </button>
+          <button type="button" onClick={onRemove} title="Remove" className="text-muted-foreground hover:text-destructive">
+            <X className="h-3 w-3" />
+          </button>
+        </>
+      ) : (
+        <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
+          className="flex items-center gap-0.5 text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50">
+          {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+          {uploading ? "…" : "Upload"}
+        </button>
+      )}
+      <input ref={inputRef} type="file" accept="application/pdf,image/*" className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
     </div>
   );

@@ -89,6 +89,7 @@ const InlineFieldSchema = z.object({
     "lmis_insu_url", "lmis_coc_url", "lmis_id_url", "lmis_id_relative_url",
     "video_url",
     "delete_reason",
+    "ticket_pdf_url",
   ]),
   value: z.string().nullable(),
 });
@@ -114,7 +115,7 @@ async function resolveChangedBy(userId: string): Promise<{ name: string; email: 
 
 const UNTRACKED_FIELDS = new Set([
   "lmis_insu_url", "lmis_coc_url", "lmis_id_url", "lmis_id_relative_url", "video_url",
-  "photo_url", "full_photo_url", "passport_scan_url", "medical_days",
+  "photo_url", "full_photo_url", "passport_scan_url", "medical_days", "ticket_pdf_url",
 ]);
 
 async function resolveManagerId(userId: string): Promise<string> {
