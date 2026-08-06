@@ -296,13 +296,13 @@ export const updateCandidateField = createServerFn({ method: "POST" })
     // When tasheer_status changes, clear downstream fields.
     // Preserve tasheer_date when setting to "Booked" (date is captured in the booking popup)
     // or "Done" (date reflects when the appointment was booked).
-    if (data.field === "tasheer_status") {
-      payload.wokala_status = null;
-      payload.embassy_date = null;
-      payload.visa_status = null;
-      if (raw !== "Booked" && raw !== "Done") {
-        payload.tasheer_date = null;
-      }
+    if (data.field === "tasheer_status" && raw !== "Booked" && raw !== "Done") {
+      const { data: cur } = await supabaseAdmin
+        .from("candidates")
+        .select("tasheer_date")
+        .eq("id", data.id)
+        .maybeSingle();
+      if (!cur?.tasheer_date) payload.tasheer_date = null;
     }
 
     // Auto-assign cv_sent_to when the Country (musaned_status) field is set

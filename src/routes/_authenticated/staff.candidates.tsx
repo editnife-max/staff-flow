@@ -616,10 +616,8 @@ function StaffCandidatesPage() {
     if (field === "visa_status" && value === "Arrived KSA")
       fieldMut.mutate({ id, field: "status", value: "arrived" });
     if (field === "tasheer_status" && (value === "No" || !value)) {
-      fieldMut.mutate({ id, field: "wokala_status", value: null });
-      fieldMut.mutate({ id, field: "tasheer_date", value: null });
-      fieldMut.mutate({ id, field: "visa_status", value: null });
-      fieldMut.mutate({ id, field: "embassy_date", value: null });
+      const c = qc.getQueryData<Candidate[]>(["staff-candidates", user?.id])?.find((c) => c.id === id);
+      if (!c?.tasheer_date) fieldMut.mutate({ id, field: "tasheer_date", value: null });
     }
     // Tasheer Done + Wokala Paid → Visa "Ready for embassy"
     if (field === "tasheer_status" && value === "Done") {
