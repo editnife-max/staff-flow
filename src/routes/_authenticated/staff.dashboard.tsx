@@ -1025,6 +1025,10 @@ function StaffDashboard() {
   });
 
   const [embassyOverwrite, setEmbassyOverwrite] = useState<string | null>(null);
+  const todayKey = new Date().toISOString().split("T")[0];
+  const [flightReminderOpen, setFlightReminderOpen] = useState(() => {
+    try { return sessionStorage.getItem("flight-reminder-dismissed") !== todayKey; } catch { return true; }
+  });
 
   const fieldMut = useMutation({
     mutationFn: async (input: { id: string; field: string; value: string | null }) =>
@@ -1125,6 +1129,12 @@ function StaffDashboard() {
   today.setHours(0, 0, 0, 0);
 
   const alertCandidates = candidates.filter((c) => c.status !== "arrived" && c.status !== "canceled");
+
+  const upcomingFlights = candidates.filter((c) => {
+    if (c.ticket_status !== "Booked" || !c.ticket_date) return false;
+    const daysUntil = Math.ceil((new Date(c.ticket_date + "T00:00:00").getTime() - today.getTime()) / 86_400_000);
+    return daysUntil >= 0 && daysUntil <= 3;
+  }).sort((a, b) => (a.ticket_date ?? "").localeCompare(b.ticket_date ?? ""));
 
   const cocNo         = alertCandidates.filter((c) => c.coc_status === "No");
   const cocPlaced     = alertCandidates.filter((c) => c.coc_status === "Placed");
@@ -1573,6 +1583,47 @@ function StaffDashboard() {
             >
               {declineNotifMut.isPending ? "Sending…" : "Decline"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )}
+    {flightReminderOpen && upcomingFlights.length > 0 && (
+      <Dialog open onOpenChange={(o) => {
+        if (!o) {
+          try { sessionStorage.setItem("flight-reminder-dismissed", todayKey); } catch {}
+          setFlightReminderOpen(false);
+        }
+      }}>
+        <DialogContent className="max-w-md rounded-none">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              ✈️ Upcoming Flights — Next 3 Days
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+            {upcomingFlights.map((c) => {
+              const daysUntil = Math.ceil((new Date(c.ticket_date! + "T00:00:00").getTime() - today.getTime()) / 86_400_000);
+              return (
+                <div key={c.id} className="flex items-center justify-between rounded-none border border-border px-3 py-2 text-sm">
+                  <div>
+                    <div className="font-semibold">{c.full_name}</div>
+                    <div className="text-xs text-muted-foreground">{c.arrival_city ?? "—"}</div>
+                  </div>
+                  <div className="text-right shrink-0 ml-4">
+                    <div className="font-mono text-xs">{new Date(c.ticket_date! + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}</div>
+                    <div className={`text-xs font-semibold ${daysUntil === 0 ? "text-red-600" : daysUntil === 1 ? "text-orange-500" : "text-amber-500"}`}>
+                      {daysUntil === 0 ? "Today" : daysUntil === 1 ? "Tomorrow" : `In ${daysUntil} days`}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => {
+              try { sessionStorage.setItem("flight-reminder-dismissed", todayKey); } catch {}
+              setFlightReminderOpen(false);
+            }}>Got it</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

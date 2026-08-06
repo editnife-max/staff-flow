@@ -946,8 +946,11 @@ function ManagerCandidatesPage() {
         if (!groups.has(value)) groups.set(value, []);
         groups.get(value)!.push(id);
       }
-      for (const [value, ids] of groups)
-        await bulkField({ data: { ids, field: lastBulkOp.field as any, value } });
+      await Promise.all(
+        Array.from(groups, ([value, ids]) =>
+          bulkField({ data: { ids, field: lastBulkOp.field as any, value } })
+        )
+      );
     },
     onSuccess: () => {
       toast.success("Undone");
@@ -2108,8 +2111,27 @@ function CandidateCardList({
   narrativeSuggestions?: string[];
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
-  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set(["ADDED BY", "GENDER", "LIVING TOWN", "OFFICE", "CONTRACT DATE"]));
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    try {
+      const s = sessionStorage.getItem("mgr-hidden-cols-avail");
+      if (s) return new Set(JSON.parse(s));
+    } catch {}
+    return new Set(["ADDED BY", "GENDER", "LIVING TOWN", "OFFICE", "CONTRACT DATE"]);
+  });
+  useEffect(() => {
+    sessionStorage.setItem("mgr-hidden-cols-avail", JSON.stringify(Array.from(hiddenCols)));
+  }, [hiddenCols]);
   const [showColPicker, setShowColPicker] = useState(false);
+  const colPickerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showColPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (colPickerRef.current && !colPickerRef.current.contains(e.target as Node))
+        setShowColPicker(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showColPicker]);
   const [activeCountryTab, setActiveCountryTab] = useState("all");
   const [activeOfficeTab, setActiveOfficeTab] = useState("all");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -2248,7 +2270,7 @@ function CandidateCardList({
                 <RotateCcw className="h-3 w-3" /> Reset columns
               </Button>
             )}
-            <div className="relative">
+            <div className="relative" ref={colPickerRef}>
               <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs"
                 onClick={() => setShowColPicker((v) => !v)}>
                 <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -2922,8 +2944,27 @@ function ProcessingTable({
   agencyOptions: string[];
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
-  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set(["destination_country", "office"]));
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    try {
+      const s = sessionStorage.getItem("mgr-hidden-cols-proc");
+      if (s) return new Set(JSON.parse(s));
+    } catch {}
+    return new Set(["destination_country", "office"]);
+  });
+  useEffect(() => {
+    sessionStorage.setItem("mgr-hidden-cols-proc", JSON.stringify(Array.from(hiddenCols)));
+  }, [hiddenCols]);
   const [showColPicker, setShowColPicker] = useState(false);
+  const colPickerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showColPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (colPickerRef.current && !colPickerRef.current.contains(e.target as Node))
+        setShowColPicker(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showColPicker]);
   const [search, setSearch] = useState("");
   const [procFilters, setProcFilters] = useState(INITIAL_PROC_FILTERS);
   const [activeCountryTab, setActiveCountryTab] = useState("all");
@@ -3100,7 +3141,7 @@ function ProcessingTable({
                 disabled={activeCount === 0 && !search}>
                 <RotateCcw className="h-3 w-3" /> Reset
               </Button>
-              <div className="relative">
+              <div className="relative" ref={colPickerRef}>
                 <Button size="sm" variant="outline" className="h-6 gap-1.5 text-xs"
                   onClick={() => setShowColPicker((v) => !v)}>
                   <SlidersHorizontal className="h-3 w-3" /> Columns
