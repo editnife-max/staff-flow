@@ -10,6 +10,7 @@ import {
   ChevronLeft, ChevronRight,
   ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
   Globe, Send, Activity, ClipboardPaste, Upload, ImageIcon, UserPlus, AlertTriangle, Table2, Plus, Loader2,
+  ScanSearch,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -32,8 +33,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   upsertCandidate, deleteCandidate, updateCandidateField,
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff, bulkUpdateField,
-  bulkImportCandidates, nextCandidateCode,
+  bulkImportCandidates, nextCandidateCode, searchCandidates,
 } from "@/lib/candidates.functions";
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from "@/components/ui/command";
 import { UserCheck, X, Download, Play, History, Undo2, Lock } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import * as XLSX from "xlsx";
@@ -418,6 +422,34 @@ function ManagerCandidatesPage() {
   const [tab, setTab] = useState<Status>(tabParam ?? "available");
   useEffect(() => { if (tabParam) setTab(tabParam); }, [tabParam]);
   const [passport, setPassport] = useState("");
+
+  // Global deep search
+  const doSearch = useServerFn(searchCandidates);
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
+  const [globalQ, setGlobalQ] = useState("");
+  const [globalResults, setGlobalResults] = useState<Awaited<ReturnType<typeof searchCandidates>>>([]);
+  const [globalSearching, setGlobalSearching] = useState(false);
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setGlobalSearchOpen((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+  useEffect(() => {
+    if (!globalSearchOpen) { setGlobalQ(""); setGlobalResults([]); return; }
+    if (globalQ.length < 2) { setGlobalResults([]); return; }
+    const t = setTimeout(async () => {
+      setGlobalSearching(true);
+      try { setGlobalResults(await doSearch({ data: { q: globalQ } })); }
+      catch { /* ignore */ }
+      finally { setGlobalSearching(false); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [globalQ, globalSearchOpen]);
   const [filters, setFilters] = useState(initialFilters);
   const activeCount = Object.entries(filters).filter(([k, v]) =>
     k !== "sort" && (Array.isArray(v) ? v.length > 0 : v && v !== "all")
@@ -1141,8 +1173,76 @@ function ManagerCandidatesPage() {
               <FilePlus className="h-4 w-4" /> ADD NEW CANDIDATE
             </Button>
           )}
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 text-xs h-8 rounded-none"
+            onClick={() => setGlobalSearchOpen(true)}
+          >
+            <ScanSearch className="h-3.5 w-3.5" />
+            Search
+            <kbd className="ml-1 text-[10px] bg-muted px-1 py-0.5 rounded font-mono">⌘K</kbd>
+          </Button>
         </div>
       </div>
+
+      {/* Global deep-search dialog */}
+      <Dialog open={globalSearchOpen} onOpenChange={(o) => { setGlobalSearchOpen(o); if (!o) { setGlobalQ(""); setGlobalResults([]); } }}>
+        <DialogContent className="p-0 max-w-lg overflow-hidden">
+          <Command shouldFilter={false} className="rounded-lg">
+            <CommandInput
+              placeholder="Search name, passport, code, labour ID…"
+              value={globalQ}
+              onValueChange={setGlobalQ}
+            />
+            <CommandList className="max-h-80">
+              {globalQ.length >= 2 && !globalSearching && globalResults.length === 0 && (
+                <CommandEmpty>No candidates found.</CommandEmpty>
+              )}
+              {globalSearching && (
+                <div className="py-6 flex justify-center">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              )}
+              {globalResults.length > 0 && (
+                <CommandGroup heading={`${globalResults.length} result${globalResults.length !== 1 ? "s" : ""}`}>
+                  {globalResults.map((r) => {
+                    const found = candidates.find((c) => c.id === r.id);
+                    return (
+                      <CommandItem
+                        key={r.id}
+                        value={r.id}
+                        onSelect={() => {
+                          setGlobalSearchOpen(false);
+                          if (found) {
+                            setTab(found.status as Status);
+                            setViewing(found);
+                          }
+                        }}
+                        className="flex items-center gap-3 cursor-pointer"
+                      >
+                        <Avatar className="h-7 w-7 shrink-0">
+                          {r.photo_url && <AvatarImage src={r.photo_url} />}
+                          <AvatarFallback className="text-[10px]">
+                            {(r.full_name ?? "?")[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{r.full_name ?? "—"}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {[r.candidate_code, r.occupation, r.country].filter(Boolean).join(" · ")}
+                          </p>
+                        </div>
+                        <StatusBadge status={r.status as Status} />
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+              )}
+            </CommandList>
+          </Command>
+        </DialogContent>
+      </Dialog>
 
       {tab !== "processing" && (
         <>

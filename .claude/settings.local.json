@@ -126,7 +126,10 @@
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('scripts',{}\\), indent=2\\)\\)\")",
       "Bash(node_modules/.bin/wrangler deploy *)",
       "Bash(findstr /i \"error built failed\")",
-      "PowerShell(where.exe node 2>$null; where.exe bun 2>$null; $env:PATH -split ';' | Where-Object { $_ -match 'node|bun|nvm' })"
+      "PowerShell(where.exe node 2>$null; where.exe bun 2>$null; $env:PATH -split ';' | Where-Object { $_ -match 'node|bun|nvm' })",
+      "Bash(Get-ChildItem -Path \"C:\\\\Project\\\\flowpath-suite\" -Recurse -Filter \"*.ts\" -o Name)",
+      "Bash(Select-Object -First 30)",
+      "Bash(awk '/filtered\\\\.length > 0 && \\\\\\(/,/\\\\\\)/' \"C:\\\\Project\\\\flowpath-suite\\\\src\\\\routes\\\\_authenticated\\\\manager.candidates.tsx\")"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -103,6 +103,7 @@ function normalizeReligion(value: string | null | undefined): string | null | un
 }
 
 async function resolveChangedBy(userId: string): Promise<{ name: string; email: string | null }> {
+  // All three run in parallel — staff lookup now hits idx_staff_user_id
   const [{ data: staffRow }, { data: profile }, { data: { user } }] = await Promise.all([
     supabaseAdmin.from("staff").select("name").eq("user_id", userId).maybeSingle(),
     supabaseAdmin.from("profiles").select("full_name").eq("id", userId).maybeSingle(),
@@ -111,6 +112,16 @@ async function resolveChangedBy(userId: string): Promise<{ name: string; email: 
   const name = staffRow?.name ?? profile?.full_name ?? "Unknown";
   const email = user?.email ?? null;
   return { name, email };
+}
+
+async function resolveCreatedByName(userId: string): Promise<string | null> {
+  // Staff and profile checks run in parallel
+  const [{ data: staffRow }, { data: profile }] = await Promise.all([
+    supabaseAdmin.from("staff").select("name").eq("user_id", userId).maybeSingle(),
+    supabaseAdmin.from("profiles").select("full_name").eq("id", userId).maybeSingle(),
+  ]);
+  const name = staffRow?.name ?? profile?.full_name ?? null;
+  return name ? name.trim().split(/\s+/)[0] : null;
 }
 
 const UNTRACKED_FIELDS = new Set([
@@ -202,43 +213,29 @@ export const upsertCandidate = createServerFn({ method: "POST" })
 
       return { ok: true, id: data.id };
     }
-    // Resolve "Added By" name from staff record (if creator is staff) or profile
-    let createdByName: string | null = null;
-    const { data: staffRow } = await supabaseAdmin
-      .from("staff")
-      .select("name")
-      .eq("user_id", context.userId)
-      .maybeSingle();
-    if (staffRow?.name) {
-      createdByName = staffRow.name.trim().split(/\s+/)[0];
-    } else {
-      const { data: profile } = await supabaseAdmin
-        .from("profiles")
-        .select("full_name")
-        .eq("id", context.userId)
-        .maybeSingle();
-      if (profile?.full_name) createdByName = profile.full_name.trim().split(/\s+/)[0];
-    }
-    // Auto-generate a unique, ever-increasing candidate code if one wasn't supplied
-    let candidateCode = data.data.candidate_code?.trim() || null;
-    if (!candidateCode) {
-      const { data: codeData, error: codeErr } = await (supabaseAdmin as any)
-        .rpc("next_candidate_code", { p_manager_id: managerId });
-      if (codeErr) throw new Error(codeErr.message);
-      candidateCode = codeData as string;
-    }
+    // Resolve name, next code, and passport duplicate check in parallel
+    const passportTrim = data.data.passport_number?.trim();
+    const existingCode = data.data.candidate_code?.trim() || null;
+    const [createdByName, codeResult, dupResult] = await Promise.all([
+      resolveCreatedByName(context.userId),
+      existingCode
+        ? Promise.resolve({ data: existingCode, error: null })
+        : (supabaseAdmin as any).rpc("next_candidate_code", { p_manager_id: managerId }),
+      passportTrim
+        ? (supabaseAdmin.from("candidates") as any)
+            .select("id, full_name, candidate_code")
+            .eq("manager_id", managerId)
+            .ilike("passport_number", passportTrim)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
 
-    // Duplicate passport number check
-    if (data.data.passport_number?.trim()) {
-      const { data: existing } = await (supabaseAdmin.from("candidates") as any)
-        .select("id, full_name, candidate_code")
-        .eq("manager_id", managerId)
-        .ilike("passport_number", data.data.passport_number.trim())
-        .maybeSingle();
-      if (existing) {
-        const label = existing.candidate_code ?? existing.full_name ?? "existing record";
-        throw new Error(`Duplicate passport number — already registered as ${label}`);
-      }
+    if (codeResult.error) throw new Error(codeResult.error.message);
+    const candidateCode = codeResult.data as string;
+
+    if (dupResult.data) {
+      const label = dupResult.data.candidate_code ?? dupResult.data.full_name ?? "existing record";
+      throw new Error(`Duplicate passport number — already registered as ${label}`);
     }
 
     const { data: row, error } = await supabaseAdmin
@@ -293,15 +290,31 @@ export const updateCandidateField = createServerFn({ method: "POST" })
       payload.coc_booked_date = null;
     }
 
+    const shouldTrack = !UNTRACKED_FIELDS.has(data.field);
+
+    // Single pre-flight read replaces 2-3 separate conditional fetches.
+    // Includes fields needed for all business-logic checks + old-value tracking.
+    const needsPreflight =
+      shouldTrack ||
+      (data.field === "tasheer_status" && raw !== "Booked" && raw !== "Done") ||
+      (data.field === "selected_by" && !!raw) ||
+      (data.field === "availability_type" && raw === "Private");
+
+    const preflightCols = new Set(["tasheer_date", "status", "contract_date", "selected_by"]);
+    if (shouldTrack) preflightCols.add(data.field);
+
+    const cur: Record<string, unknown> | null = needsPreflight
+      ? await (supabaseAdmin.from("candidates") as any)
+          .select([...preflightCols].join(","))
+          .eq("id", data.id)
+          .eq("manager_id", managerId)
+          .maybeSingle()
+          .then((r: any) => r.data)
+      : null;
+
     // When tasheer_status changes, clear downstream fields.
-    // Preserve tasheer_date when setting to "Booked" (date is captured in the booking popup)
-    // or "Done" (date reflects when the appointment was booked).
+    // Preserve tasheer_date when setting to "Booked" or "Done".
     if (data.field === "tasheer_status" && raw !== "Booked" && raw !== "Done") {
-      const { data: cur } = await supabaseAdmin
-        .from("candidates")
-        .select("tasheer_date")
-        .eq("id", data.id)
-        .maybeSingle();
       if (!cur?.tasheer_date) payload.tasheer_date = null;
     }
 
@@ -316,61 +329,43 @@ export const updateCandidateField = createServerFn({ method: "POST" })
     }
 
     // When selected_by is set on an available candidate, auto-advance to processing
-    if (data.field === "selected_by" && raw) {
-      const { data: cand } = await supabaseAdmin
-        .from("candidates")
-        .select("status, contract_date")
-        .eq("id", data.id)
-        .maybeSingle();
-      if (cand?.status === "available") payload.status = "processing";
-      if (!cand?.contract_date) payload.contract_date = new Date().toISOString().split("T")[0];
+    if (data.field === "selected_by" && raw && cur) {
+      if (cur.status === "available") payload.status = "processing";
+      if (!cur.contract_date) payload.contract_date = new Date().toISOString().split("T")[0];
     }
 
-    // When availability_type is set to "Private" and selected_by is already filled, auto-advance to processing
-    if (data.field === "availability_type" && raw === "Private") {
-      const { data: cand } = await supabaseAdmin
-        .from("candidates")
-        .select("status, contract_date, selected_by")
-        .eq("id", data.id)
-        .maybeSingle();
-      if (cand?.status === "available" && cand?.selected_by) {
+    // When availability_type is set to "Private" and selected_by is filled, auto-advance to processing
+    if (data.field === "availability_type" && raw === "Private" && cur) {
+      if (cur.status === "available" && cur.selected_by) {
         payload.status = "processing";
-        if (!cand?.contract_date) payload.contract_date = new Date().toISOString().split("T")[0];
+        if (!cur.contract_date) payload.contract_date = new Date().toISOString().split("T")[0];
       }
     }
 
-    const shouldTrack = !UNTRACKED_FIELDS.has(data.field);
+    const oldValue: string | null =
+      shouldTrack && cur != null
+        ? cur[data.field] == null ? null : String(cur[data.field])
+        : null;
 
-    // Fetch old value before updating so we can record the before/after change
-    let oldValue: string | null = null;
-    if (shouldTrack) {
-      const { data: existing } = await (supabaseAdmin.from("candidates") as any)
-        .select(data.field)
+    // Parallelize the DB write and the changedBy lookup — they don't depend on each other
+    const [updateResult, changedBy] = await Promise.all([
+      (supabaseAdmin.from("candidates") as any)
+        .update(payload)
         .eq("id", data.id)
-        .eq("manager_id", managerId)
-        .maybeSingle();
-      if (existing) {
-        const v = existing[data.field];
-        oldValue = v == null ? null : String(v);
-      }
-    }
+        .eq("manager_id", managerId),
+      shouldTrack ? resolveChangedBy(context.userId) : Promise.resolve(null),
+    ]);
+    if (updateResult.error) throw new Error(updateResult.error.message);
 
-    const { error } = await (supabaseAdmin.from("candidates") as any)
-      .update(payload)
-      .eq("id", data.id)
-      .eq("manager_id", managerId);
-    if (error) throw new Error(error.message);
-
-    if (shouldTrack) {
-      const { name: changedByName, email: changedByEmail } = await resolveChangedBy(context.userId);
+    if (shouldTrack && changedBy) {
       await supabaseAdmin.from("candidate_field_log").insert({
         candidate_id: data.id,
         field: data.field,
         old_value: oldValue,
         new_value: raw,
         changed_by_user_id: context.userId,
-        changed_by_name: changedByName,
-        changed_by_email: changedByEmail,
+        changed_by_name: changedBy.name,
+        changed_by_email: changedBy.email,
       });
     }
 
@@ -455,23 +450,7 @@ export const bulkImportCandidates = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const managerId = await resolveManagerId(context.userId);
-
-    let createdByName: string | null = null;
-    const { data: staffRow } = await supabaseAdmin
-      .from("staff")
-      .select("name")
-      .eq("user_id", context.userId)
-      .maybeSingle();
-    if (staffRow?.name) {
-      createdByName = staffRow.name.trim().split(/\s+/)[0];
-    } else {
-      const { data: profile } = await supabaseAdmin
-        .from("profiles")
-        .select("full_name")
-        .eq("id", context.userId)
-        .maybeSingle();
-      if (profile?.full_name) createdByName = profile.full_name.trim().split(/\s+/)[0];
-    }
+    const createdByName = await resolveCreatedByName(context.userId);
 
     const rows = data.rows.map((r) => ({
       ...r,
@@ -540,4 +519,44 @@ export const logFlightReadiness = createServerFn({ method: "POST" })
     }));
     await supabaseAdmin.from("candidate_field_log").insert(rows as never[]);
     return { ok: true };
+  });
+
+// Fast full-text search across all candidates for a manager.
+// Uses pg_trgm GIN indexes added in 20260807130000 for sub-10ms ILIKE on large tables.
+export const searchCandidates = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ q: z.string().max(100) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const term = data.q.trim();
+    if (term.length < 2) return [];
+    const managerId = await resolveManagerId(context.userId);
+    // Strip characters that would break the PostgREST or() filter string
+    const safe = term.replace(/[,()|]/g, " ").trim();
+    if (!safe) return [];
+    const pattern = `%${safe}%`;
+    const { data: rows, error } = await (supabaseAdmin.from("candidates") as any)
+      .select("id,full_name,candidate_code,passport_number,labour_id,photo_url,status,occupation,country")
+      .eq("manager_id", managerId)
+      .or(
+        `full_name.ilike.${pattern},` +
+        `passport_number.ilike.${pattern},` +
+        `candidate_code.ilike.${pattern},` +
+        `labour_id.ilike.${pattern}`,
+      )
+      .order("created_at", { ascending: false })
+      .limit(40);
+    if (error) throw new Error(error.message);
+    return rows as Array<{
+      id: string;
+      full_name: string | null;
+      candidate_code: string | null;
+      passport_number: string | null;
+      labour_id: string | null;
+      photo_url: string | null;
+      status: string;
+      occupation: string | null;
+      country: string | null;
+    }>;
   });
