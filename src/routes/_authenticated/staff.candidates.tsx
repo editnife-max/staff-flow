@@ -8,7 +8,7 @@ import {
   SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight,
   ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
-  Globe, Send, Activity, ClipboardPaste, Upload, ImageIcon, AlertTriangle, Table2, Loader2,
+  Globe, Send, Activity, ClipboardPaste, Upload, ImageIcon, AlertTriangle, Table2, Loader2, Plus,
   ScanSearch,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -2081,8 +2081,8 @@ function ProcessingEditDialog({
             <div className="flex gap-5 flex-wrap">
               <div className="space-y-0.5">
                 <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Ticket PDF</div>
-                <TicketPdfCell url={(candidate as any).ticket_pdf_url ?? null} candidateId={candidate.id} folder="ticket-pdfs" label="PDF"
-                  onUpload={(url) => onUpdateField("ticket_pdf_url", url)} onRemove={() => onUpdateField("ticket_pdf_url", null)} />
+                <MultiTicketCell value={(candidate as any).ticket_pdf_url ?? null} candidateId={candidate.id}
+                  onUpdate={(v) => onUpdateField("ticket_pdf_url", v)} />
               </div>
               <div className="space-y-0.5">
                 <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Visa PDF</div>
@@ -2778,8 +2778,8 @@ function CandidateCard({
                     <div className="flex gap-3 flex-wrap">
                       <div>
                         <div className="text-[9px] text-muted-foreground mb-0.5">TICKET</div>
-                        <TicketPdfCell url={(candidate as any).ticket_pdf_url ?? null} candidateId={candidate.id} folder="ticket-pdfs" label="PDF"
-                          onUpload={(url) => onUpdateField("ticket_pdf_url", url)} onRemove={() => onUpdateField("ticket_pdf_url", null)} />
+                        <MultiTicketCell value={(candidate as any).ticket_pdf_url ?? null} candidateId={candidate.id}
+                          onUpdate={(v) => onUpdateField("ticket_pdf_url", v)} />
                       </div>
                       <div>
                         <div className="text-[9px] text-muted-foreground mb-0.5">VISA</div>
@@ -3709,8 +3709,8 @@ function ProcessingCard({
                       <div className="flex gap-3 flex-wrap">
                         <div>
                           <div className="text-[9px] text-muted-foreground mb-0.5">TICKET</div>
-                          <TicketPdfCell url={(candidate as any).ticket_pdf_url ?? null} candidateId={candidate.id} folder="ticket-pdfs" label="PDF"
-                            onUpload={(url) => onUpdateField("ticket_pdf_url", url)} onRemove={() => onUpdateField("ticket_pdf_url", null)} />
+                          <MultiTicketCell value={(candidate as any).ticket_pdf_url ?? null} candidateId={candidate.id}
+                            onUpdate={(v) => onUpdateField("ticket_pdf_url", v)} />
                         </div>
                         <div>
                           <div className="text-[9px] text-muted-foreground mb-0.5">VISA</div>
@@ -4316,6 +4316,77 @@ function PhotoUpload({
         className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
       />
+    </div>
+  );
+}
+
+function parseTicketUrls(val: string | null): string[] {
+  if (!val) return [];
+  try {
+    const parsed = JSON.parse(val);
+    if (Array.isArray(parsed)) return parsed.filter(Boolean);
+    return [val];
+  } catch {
+    return [val];
+  }
+}
+
+function MultiTicketCell({ value, candidateId, onUpdate }: {
+  value: string | null;
+  candidateId: string;
+  onUpdate: (serialized: string | null) => void;
+}) {
+  const urls = parseTicketUrls(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const serialize = (arr: string[]) => arr.length === 0 ? null : JSON.stringify(arr);
+
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() ?? "pdf";
+      const path = `ticket-pdfs/${candidateId}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("candidate-files").upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data } = supabase.storage.from("candidate-files").getPublicUrl(path);
+      onUpdate(serialize([...urls, data.publicUrl]));
+    } catch {
+      toast.error("Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      {urls.map((url, i) => (
+        <div key={i} className="flex items-center gap-1">
+          <button type="button" onClick={() => downloadFile(url)}
+            className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5">
+            <FileText className="h-3 w-3" />
+            {urls.length > 1 ? `PDF ${i + 1}` : "PDF"}
+          </button>
+          <button type="button" title="Remove"
+            onClick={() => onUpdate(serialize(urls.filter((_, j) => j !== i)))}
+            className="text-muted-foreground hover:text-destructive">
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      ))}
+      <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
+        className="flex items-center gap-0.5 text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+        title={urls.length > 0 ? "Add another ticket" : "Upload ticket"}>
+        {uploading
+          ? <Loader2 className="h-3 w-3 animate-spin" />
+          : urls.length > 0
+            ? <Plus className="h-3 w-3" />
+            : <Upload className="h-3 w-3" />}
+        {!uploading && urls.length === 0 && "Upload"}
+        {uploading && "…"}
+      </button>
+      <input ref={inputRef} type="file" accept="application/pdf,image/*" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
     </div>
   );
 }
