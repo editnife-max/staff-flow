@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-const HEARTBEAT_STALE_MS = 15 * 60 * 1000; // 15 minutes
+const HEARTBEAT_STALE_MS = 3 * 60 * 1000; // 3 minutes (≈3× the 1-min heartbeat)
 
 function getMondayOfWeek(d: Date): Date {
   const day = d.getDay();

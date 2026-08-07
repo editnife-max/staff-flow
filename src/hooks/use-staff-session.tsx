@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { startStaffSession, heartbeatSession, endStaffSession } from "@/lib/staff-sessions.functions";
 
-const HEARTBEAT_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const HEARTBEAT_INTERVAL = 60 * 1000; // 1 minute
 
 function detectDeviceType(): "desktop" | "mobile" | "tablet" {
   if (typeof window === "undefined") return "desktop";
@@ -10,12 +10,6 @@ function detectDeviceType(): "desktop" | "mobile" | "tablet" {
   if (/Mobi|Android|iPhone|iPod/.test(ua)) return "mobile";
   if (/iPad|Tablet/.test(ua)) return "tablet";
   return "desktop";
-}
-
-function isDesktop(): boolean {
-  if (typeof window === "undefined") return false;
-  const deviceType = detectDeviceType();
-  return deviceType === "desktop" && window.innerWidth >= 1024;
 }
 
 export function useStaffSession(isStaff: boolean): { isTracking: boolean } {
@@ -28,9 +22,19 @@ export function useStaffSession(isStaff: boolean): { isTracking: boolean } {
   const doEnd = useServerFn(endStaffSession);
 
   useEffect(() => {
-    if (!isStaff || !isDesktop()) return;
+    if (!isStaff) return;
 
     let cancelled = false;
+
+    const sendHeartbeat = () => {
+      if (sessionIdRef.current) {
+        doHeartbeat({ data: { sessionId: sessionIdRef.current } }).catch(() => {});
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) sendHeartbeat();
+    };
 
     (async () => {
       try {
@@ -41,18 +45,14 @@ export function useStaffSession(isStaff: boolean): { isTracking: boolean } {
           },
         });
         if (cancelled) {
-          // Component unmounted before start resolved — end immediately
           doEnd({ data: { sessionId: result.sessionId } }).catch(() => {});
           return;
         }
         sessionIdRef.current = result.sessionId;
         setIsTracking(true);
 
-        intervalRef.current = setInterval(() => {
-          if (sessionIdRef.current) {
-            doHeartbeat({ data: { sessionId: sessionIdRef.current } }).catch(() => {});
-          }
-        }, HEARTBEAT_INTERVAL);
+        intervalRef.current = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
       } catch {
         // Silently ignore start failures (e.g. not yet fully authenticated)
       }
@@ -60,6 +60,7 @@ export function useStaffSession(isStaff: boolean): { isTracking: boolean } {
 
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;

@@ -137,7 +137,7 @@ function StaffActivityPage() {
   const { data: team, isLoading } = useQuery({
     queryKey: ["team-activity"],
     queryFn: () => doGetTeamActivity(),
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 
   const members = (team ?? []) as TeamMember[];
