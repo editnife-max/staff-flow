@@ -2188,7 +2188,7 @@ type EditableField =
   | "ticket_status" | "ticket_date" | "arrival_city" | "emergency_contact"
   | "processing_notes" | "remark" | "destination_country" | "cv_sent_to" | "passport_accepted"
   | "availability_type" | "coc_agency_name" | "coc_agency_phone" | "insurance_date"
-  | "video_url" | "delete_reason" | "ticket_pdf_url";
+  | "video_url" | "delete_reason" | "ticket_pdf_url" | "visa_pdf_url" | "qr_url";
 
 function CandidateCardList({
   candidates, selected, onToggleSelect, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo,
@@ -2847,14 +2847,25 @@ function CandidateCard({
               }
               if (colLabel === "TICKET PDF") {
                 return (
-                  <div key="TICKET PDF" className="shrink-0 w-[110px]">
-                    <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">TICKET PDF</div>
-                    <TicketPdfCell
-                      url={(candidate as any).ticket_pdf_url ?? null}
-                      candidateId={candidate.id}
-                      onUpload={(url) => onUpdateField("ticket_pdf_url", url)}
-                      onRemove={() => onUpdateField("ticket_pdf_url", null)}
-                    />
+                  <div key="TICKET PDF" className="shrink-0">
+                    <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">TICKET FILES</div>
+                    <div className="flex gap-3 flex-wrap">
+                      <div>
+                        <div className="text-[9px] text-muted-foreground mb-0.5">TICKET</div>
+                        <TicketPdfCell url={(candidate as any).ticket_pdf_url ?? null} candidateId={candidate.id} folder="ticket-pdfs" label="PDF"
+                          onUpload={(url) => onUpdateField("ticket_pdf_url", url)} onRemove={() => onUpdateField("ticket_pdf_url", null)} />
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-muted-foreground mb-0.5">VISA</div>
+                        <TicketPdfCell url={(candidate as any).visa_pdf_url ?? null} candidateId={candidate.id} folder="visa-pdfs" label="PDF"
+                          onUpload={(url) => onUpdateField("visa_pdf_url", url)} onRemove={() => onUpdateField("visa_pdf_url", null)} />
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-muted-foreground mb-0.5">QR</div>
+                        <TicketPdfCell url={(candidate as any).qr_url ?? null} candidateId={candidate.id} folder="qr-files" label="QR"
+                          onUpload={(url) => onUpdateField("qr_url", url)} onRemove={() => onUpdateField("qr_url", null)} />
+                      </div>
+                    </div>
                   </div>
                 );
               }
@@ -3772,12 +3783,23 @@ function ProcessingCard({
                         onSave={(v) => handleColUpdate(col.key, v)}
                       />
                     ) : col.type === "upload" ? (
-                      <TicketPdfCell
-                        url={(candidate as any).ticket_pdf_url ?? null}
-                        candidateId={candidate.id}
-                        onUpload={(url) => onUpdateField("ticket_pdf_url", url)}
-                        onRemove={() => onUpdateField("ticket_pdf_url", null)}
-                      />
+                      <div className="flex gap-3 flex-wrap">
+                        <div>
+                          <div className="text-[9px] text-muted-foreground mb-0.5">TICKET</div>
+                          <TicketPdfCell url={(candidate as any).ticket_pdf_url ?? null} candidateId={candidate.id} folder="ticket-pdfs" label="PDF"
+                            onUpload={(url) => onUpdateField("ticket_pdf_url", url)} onRemove={() => onUpdateField("ticket_pdf_url", null)} />
+                        </div>
+                        <div>
+                          <div className="text-[9px] text-muted-foreground mb-0.5">VISA</div>
+                          <TicketPdfCell url={(candidate as any).visa_pdf_url ?? null} candidateId={candidate.id} folder="visa-pdfs" label="PDF"
+                            onUpload={(url) => onUpdateField("visa_pdf_url", url)} onRemove={() => onUpdateField("visa_pdf_url", null)} />
+                        </div>
+                        <div>
+                          <div className="text-[9px] text-muted-foreground mb-0.5">QR</div>
+                          <TicketPdfCell url={(candidate as any).qr_url ?? null} candidateId={candidate.id} folder="qr-files" label="QR"
+                            onUpload={(url) => onUpdateField("qr_url", url)} onRemove={() => onUpdateField("qr_url", null)} />
+                        </div>
+                      </div>
                     ) : null}
                   </div>
                 </div>
@@ -4375,19 +4397,22 @@ function PhotoUpload({ label, value, onChange, accept = "image/*" }: { label: st
   );
 }
 
-function TicketPdfCell({ url, candidateId, onUpload, onRemove }: {
+function TicketPdfCell({ url, candidateId, folder, label = "File", onUpload, onRemove }: {
   url: string | null;
   candidateId: string;
+  folder: string;
+  label?: string;
   onUpload: (url: string) => void;
   onRemove: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const isImage = url ? /\.(jpg|jpeg|png|webp|gif|svg)(\?|$)/i.test(url) : false;
   const handleFile = async (file: File) => {
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop() ?? "pdf";
-      const path = `ticket-pdfs/${candidateId}/${Date.now()}.${ext}`;
+      const ext = file.name.split(".").pop() ?? "bin";
+      const path = `${folder}/${candidateId}/${Date.now()}.${ext}`;
       const { error } = await supabase.storage.from("candidate-files").upload(path, file, { upsert: true });
       if (error) throw error;
       const { data } = supabase.storage.from("candidate-files").getPublicUrl(path);
@@ -4402,9 +4427,15 @@ function TicketPdfCell({ url, candidateId, onUpload, onRemove }: {
     <div className="flex items-center gap-1 flex-wrap">
       {url ? (
         <>
-          <button type="button" onClick={() => downloadFile(url)} className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5">
-            <FileText className="h-3 w-3" /> PDF
-          </button>
+          {isImage ? (
+            <a href={url} target="_blank" rel="noopener noreferrer">
+              <img src={url} alt={label} className="h-8 w-8 object-cover rounded border" />
+            </a>
+          ) : (
+            <button type="button" onClick={() => downloadFile(url)} className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5">
+              <FileText className="h-3 w-3" /> {label}
+            </button>
+          )}
           <button type="button" onClick={() => { inputRef.current?.click(); }} title="Replace" className="text-muted-foreground hover:text-primary">
             <Upload className="h-3 w-3" />
           </button>
