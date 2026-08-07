@@ -122,6 +122,8 @@ function EditCell({
     if (next === (value ?? "")) return;
     try {
       await doUpdate({ data: { id: candidateId, field, value: next || null } });
+      if (field === "ticket_status" && next === "No")
+        await doUpdate({ data: { id: candidateId, field: "ticket_date", value: null } });
       toast.success("Saved");
       onSaved();
     } catch (e: any) {

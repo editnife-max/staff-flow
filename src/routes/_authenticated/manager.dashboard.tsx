@@ -909,6 +909,8 @@ function ManagerDashboard() {
         }
       }
     }
+    if (field === "ticket_status" && value === "No")
+      fieldMut.mutate({ id, field: "ticket_date", value: null });
   };
 
   const medExpiryChecked = useRef<Set<string>>(new Set());

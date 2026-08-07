@@ -744,6 +744,8 @@ function ManagerCandidatesPage() {
       else if (value !== "Issued" && current()?.ticket_status === "Ready")
         fieldMut.mutate({ id, field: "ticket_status", value: null });
     }
+    if (field === "ticket_status" && value === "No")
+      fieldMut.mutate({ id, field: "ticket_date", value: null });
   }, [fieldMut, resolveSelectedBy, qc, user?.id]);
 
   const handleCocAwareUpdate = useCallback((id: string, field: string, value: string | null) => {
