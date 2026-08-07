@@ -130,7 +130,9 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Project\\\\flowpath-suite\" -Recurse -Filter \"*.ts\" -o Name)",
       "Bash(Select-Object -First 30)",
       "Bash(awk '/filtered\\\\.length > 0 && \\\\\\(/,/\\\\\\)/' \"C:\\\\Project\\\\flowpath-suite\\\\src\\\\routes\\\\_authenticated\\\\manager.candidates.tsx\")",
-      "Bash(Select-String \"staff-activity|staff.dash\")"
+      "Bash(Select-String \"staff-activity|staff.dash\")",
+      "Bash(timeout 8)",
+      "PowerShell(npx tsc --noEmit 2>&1 | Select-Object -First 40)"
     ]
   },
   "enableAllProjectMcpServers": true,

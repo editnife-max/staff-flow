@@ -174,6 +174,92 @@ export const getMySessionStats = createServerFn({ method: "GET" })
     };
   });
 
+const ACTIVITY_SLOT_MS = 15 * 60 * 1000; // 15 minutes
+
+export const recordActivityPing = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ sessionId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const userId = context.userId;
+
+    const { data: session } = await (supabaseAdmin
+      .from("staff_sessions" as any)
+      .select("manager_id")
+      .eq("id", data.sessionId)
+      .eq("staff_user_id", userId)
+      .maybeSingle() as any);
+
+    if (!session?.manager_id) return { ok: false };
+
+    await (supabaseAdmin
+      .from("staff_activity_pings" as any)
+      .insert({
+        staff_user_id: userId,
+        manager_id: session.manager_id,
+        session_id: data.sessionId,
+      }) as any);
+
+    return { ok: true };
+  });
+
+export const getMyAttendance = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const userId = context.userId;
+    const now = new Date();
+    const yearAgo = new Date(now);
+    yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+
+    const { data: pings, error } = await (supabaseAdmin
+      .from("staff_activity_pings" as any)
+      .select("pinged_at")
+      .eq("staff_user_id", userId)
+      .gte("pinged_at", yearAgo.toISOString())
+      .order("pinged_at", { ascending: true }) as any);
+    if (error) throw new Error(error.message);
+
+    const pingTimes = ((pings ?? []) as { pinged_at: string }[]).map(
+      (p) => new Date(p.pinged_at).getTime(),
+    );
+
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const weekStart = getMondayOfWeek(now);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+
+    const countSlots = (from: number) => {
+      const set = new Set<number>();
+      for (const t of pingTimes) {
+        if (t >= from) set.add(Math.floor(t / ACTIVITY_SLOT_MS));
+      }
+      return set;
+    };
+
+    const todaySlotSet = countSlots(todayStart.getTime());
+    const weekSlotSet = countSlots(weekStart.getTime());
+    const monthSlotSet = countSlots(monthStart.getTime());
+    const yearSlotSet = countSlots(yearStart.getTime());
+
+    let firstPingToday: number | null = null;
+    for (const t of pingTimes) {
+      if (t >= todayStart.getTime()) {
+        if (firstPingToday === null || t < firstPingToday) firstPingToday = t;
+      }
+    }
+
+    return {
+      activeMinutesToday: todaySlotSet.size * 15,
+      activeMinutesWeek: weekSlotSet.size * 15,
+      activeMinutesMonth: monthSlotSet.size * 15,
+      activeMinutesYear: yearSlotSet.size * 15,
+      firstActivityToday: firstPingToday ? new Date(firstPingToday).toISOString() : null,
+      todaySlotIndices: Array.from(todaySlotSet).sort((a, b) => a - b),
+    };
+  });
+
 export const getTeamActivity = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

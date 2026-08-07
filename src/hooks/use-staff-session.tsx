@@ -1,8 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { startStaffSession, heartbeatSession, endStaffSession } from "@/lib/staff-sessions.functions";
+import {
+  startStaffSession,
+  heartbeatSession,
+  endStaffSession,
+  recordActivityPing,
+} from "@/lib/staff-sessions.functions";
 
-const HEARTBEAT_INTERVAL = 60 * 1000; // 1 minute
+const HEARTBEAT_INTERVAL = 60 * 1000;
+const ACTIVITY_WINDOW_MS = 15 * 60 * 1000;
+
+const ACTIVITY_EVENTS = [
+  "mousemove",
+  "keydown",
+  "click",
+  "scroll",
+  "touchstart",
+] as const;
 
 function detectDeviceType(): "desktop" | "mobile" | "tablet" {
   if (typeof window === "undefined") return "desktop";
@@ -12,28 +26,45 @@ function detectDeviceType(): "desktop" | "mobile" | "tablet" {
   return "desktop";
 }
 
-export function useStaffSession(isStaff: boolean): { isTracking: boolean } {
+export function useStaffSession(isStaff: boolean): {
+  isTracking: boolean;
+  isCurrentlyActive: boolean;
+} {
   const sessionIdRef = useRef<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastActivityRef = useRef<number>(0);
   const [isTracking, setIsTracking] = useState(false);
+  const [isCurrentlyActive, setIsCurrentlyActive] = useState(false);
 
   const doStart = useServerFn(startStaffSession);
   const doHeartbeat = useServerFn(heartbeatSession);
   const doEnd = useServerFn(endStaffSession);
+  const doPing = useServerFn(recordActivityPing);
 
   useEffect(() => {
     if (!isStaff) return;
 
+    const recordActivity = () => {
+      lastActivityRef.current = Date.now();
+    };
+    ACTIVITY_EVENTS.forEach((e) =>
+      window.addEventListener(e, recordActivity, { passive: true }),
+    );
+
     let cancelled = false;
 
-    const sendHeartbeat = () => {
-      if (sessionIdRef.current) {
-        doHeartbeat({ data: { sessionId: sessionIdRef.current } }).catch(() => {});
+    const tick = () => {
+      if (!sessionIdRef.current) return;
+      const active = Date.now() - lastActivityRef.current <= ACTIVITY_WINDOW_MS;
+      setIsCurrentlyActive(active);
+      doHeartbeat({ data: { sessionId: sessionIdRef.current } }).catch(() => {});
+      if (active) {
+        doPing({ data: { sessionId: sessionIdRef.current } }).catch(() => {});
       }
     };
 
     const handleVisibilityChange = () => {
-      if (!document.hidden) sendHeartbeat();
+      if (!document.hidden) tick();
     };
 
     (async () => {
@@ -49,17 +80,20 @@ export function useStaffSession(isStaff: boolean): { isTracking: boolean } {
           return;
         }
         sessionIdRef.current = result.sessionId;
+        lastActivityRef.current = Date.now();
         setIsTracking(true);
-
-        intervalRef.current = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
+        setIsCurrentlyActive(true);
+        doPing({ data: { sessionId: result.sessionId } }).catch(() => {});
+        intervalRef.current = setInterval(tick, HEARTBEAT_INTERVAL);
         document.addEventListener("visibilitychange", handleVisibilityChange);
       } catch {
-        // Silently ignore start failures (e.g. not yet fully authenticated)
+        // silently ignore
       }
     })();
 
     return () => {
       cancelled = true;
+      ACTIVITY_EVENTS.forEach((e) => window.removeEventListener(e, recordActivity));
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -70,9 +104,10 @@ export function useStaffSession(isStaff: boolean): { isTracking: boolean } {
         sessionIdRef.current = null;
       }
       setIsTracking(false);
+      setIsCurrentlyActive(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isStaff]);
 
-  return { isTracking };
+  return { isTracking, isCurrentlyActive };
 }

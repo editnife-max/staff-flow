@@ -24,6 +24,7 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedStaffDashboardRouteImport } from './routes/_authenticated/staff.dashboard'
 import { Route as AuthenticatedStaffCvGeneratorRouteImport } from './routes/_authenticated/staff.cv-generator'
 import { Route as AuthenticatedStaffCandidatesRouteImport } from './routes/_authenticated/staff.candidates'
+import { Route as AuthenticatedStaffAttendanceRouteImport } from './routes/_authenticated/staff.attendance'
 import { Route as AuthenticatedManagerSubscriptionRouteImport } from './routes/_authenticated/manager.subscription'
 import { Route as AuthenticatedManagerStaffActivityRouteImport } from './routes/_authenticated/manager.staff-activity'
 import { Route as AuthenticatedManagerStaffRouteImport } from './routes/_authenticated/manager.staff'
@@ -114,6 +115,12 @@ const AuthenticatedStaffCandidatesRoute =
   AuthenticatedStaffCandidatesRouteImport.update({
     id: '/candidates',
     path: '/candidates',
+    getParentRoute: () => AuthenticatedStaffRoute,
+  } as any)
+const AuthenticatedStaffAttendanceRoute =
+  AuthenticatedStaffAttendanceRouteImport.update({
+    id: '/attendance',
+    path: '/attendance',
     getParentRoute: () => AuthenticatedStaffRoute,
   } as any)
 const AuthenticatedManagerSubscriptionRoute =
@@ -227,6 +234,7 @@ export interface FileRoutesByFullPath {
   '/manager/staff': typeof AuthenticatedManagerStaffRoute
   '/manager/staff-activity': typeof AuthenticatedManagerStaffActivityRoute
   '/manager/subscription': typeof AuthenticatedManagerSubscriptionRoute
+  '/staff/attendance': typeof AuthenticatedStaffAttendanceRoute
   '/staff/candidates': typeof AuthenticatedStaffCandidatesRoute
   '/staff/cv-generator': typeof AuthenticatedStaffCvGeneratorRoute
   '/staff/dashboard': typeof AuthenticatedStaffDashboardRoute
@@ -257,6 +265,7 @@ export interface FileRoutesByTo {
   '/manager/staff': typeof AuthenticatedManagerStaffRoute
   '/manager/staff-activity': typeof AuthenticatedManagerStaffActivityRoute
   '/manager/subscription': typeof AuthenticatedManagerSubscriptionRoute
+  '/staff/attendance': typeof AuthenticatedStaffAttendanceRoute
   '/staff/candidates': typeof AuthenticatedStaffCandidatesRoute
   '/staff/cv-generator': typeof AuthenticatedStaffCvGeneratorRoute
   '/staff/dashboard': typeof AuthenticatedStaffDashboardRoute
@@ -289,6 +298,7 @@ export interface FileRoutesById {
   '/_authenticated/manager/staff': typeof AuthenticatedManagerStaffRoute
   '/_authenticated/manager/staff-activity': typeof AuthenticatedManagerStaffActivityRoute
   '/_authenticated/manager/subscription': typeof AuthenticatedManagerSubscriptionRoute
+  '/_authenticated/staff/attendance': typeof AuthenticatedStaffAttendanceRoute
   '/_authenticated/staff/candidates': typeof AuthenticatedStaffCandidatesRoute
   '/_authenticated/staff/cv-generator': typeof AuthenticatedStaffCvGeneratorRoute
   '/_authenticated/staff/dashboard': typeof AuthenticatedStaffDashboardRoute
@@ -321,6 +331,7 @@ export interface FileRouteTypes {
     | '/manager/staff'
     | '/manager/staff-activity'
     | '/manager/subscription'
+    | '/staff/attendance'
     | '/staff/candidates'
     | '/staff/cv-generator'
     | '/staff/dashboard'
@@ -351,6 +362,7 @@ export interface FileRouteTypes {
     | '/manager/staff'
     | '/manager/staff-activity'
     | '/manager/subscription'
+    | '/staff/attendance'
     | '/staff/candidates'
     | '/staff/cv-generator'
     | '/staff/dashboard'
@@ -382,6 +394,7 @@ export interface FileRouteTypes {
     | '/_authenticated/manager/staff'
     | '/_authenticated/manager/staff-activity'
     | '/_authenticated/manager/subscription'
+    | '/_authenticated/staff/attendance'
     | '/_authenticated/staff/candidates'
     | '/_authenticated/staff/cv-generator'
     | '/_authenticated/staff/dashboard'
@@ -502,6 +515,13 @@ declare module '@tanstack/react-router' {
       path: '/candidates'
       fullPath: '/staff/candidates'
       preLoaderRoute: typeof AuthenticatedStaffCandidatesRouteImport
+      parentRoute: typeof AuthenticatedStaffRoute
+    }
+    '/_authenticated/staff/attendance': {
+      id: '/_authenticated/staff/attendance'
+      path: '/attendance'
+      fullPath: '/staff/attendance'
+      preLoaderRoute: typeof AuthenticatedStaffAttendanceRouteImport
       parentRoute: typeof AuthenticatedStaffRoute
     }
     '/_authenticated/manager/subscription': {
@@ -662,12 +682,14 @@ const AuthenticatedManagerRouteWithChildren =
   AuthenticatedManagerRoute._addFileChildren(AuthenticatedManagerRouteChildren)
 
 interface AuthenticatedStaffRouteChildren {
+  AuthenticatedStaffAttendanceRoute: typeof AuthenticatedStaffAttendanceRoute
   AuthenticatedStaffCandidatesRoute: typeof AuthenticatedStaffCandidatesRoute
   AuthenticatedStaffCvGeneratorRoute: typeof AuthenticatedStaffCvGeneratorRoute
   AuthenticatedStaffDashboardRoute: typeof AuthenticatedStaffDashboardRoute
 }
 
 const AuthenticatedStaffRouteChildren: AuthenticatedStaffRouteChildren = {
+  AuthenticatedStaffAttendanceRoute: AuthenticatedStaffAttendanceRoute,
   AuthenticatedStaffCandidatesRoute: AuthenticatedStaffCandidatesRoute,
   AuthenticatedStaffCvGeneratorRoute: AuthenticatedStaffCvGeneratorRoute,
   AuthenticatedStaffDashboardRoute: AuthenticatedStaffDashboardRoute,
