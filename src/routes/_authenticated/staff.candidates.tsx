@@ -2077,20 +2077,20 @@ function ProcessingEditDialog({
             <ProcInput label="Processing Note" k="processing_notes" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground">Ticket Files</label>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">TICKET PDF</label>
             <div className="flex gap-5 flex-wrap">
               <div className="space-y-0.5">
-                <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Ticket PDF</div>
+                <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Ticket</div>
                 <MultiTicketCell value={(candidate as any).ticket_pdf_url ?? null} candidateId={candidate.id}
                   onUpdate={(v) => onUpdateField("ticket_pdf_url", v)} />
               </div>
               <div className="space-y-0.5">
-                <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Visa PDF</div>
+                <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Visa</div>
                 <TicketPdfCell url={(candidate as any).visa_pdf_url ?? null} candidateId={candidate.id} folder="visa-pdfs" label="PDF"
                   onUpload={(url) => onUpdateField("visa_pdf_url", url)} onRemove={() => onUpdateField("visa_pdf_url", null)} />
               </div>
               <div className="space-y-0.5">
-                <div className="text-[9px] text-muted-foreground uppercase tracking-wide">QR Code</div>
+                <div className="text-[9px] text-muted-foreground uppercase tracking-wide">QR</div>
                 <TicketPdfCell url={(candidate as any).qr_url ?? null} candidateId={candidate.id} folder="qr-files" label="QR"
                   onUpload={(url) => onUpdateField("qr_url", url)} onRemove={() => onUpdateField("qr_url", null)} />
               </div>
