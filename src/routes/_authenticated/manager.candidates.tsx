@@ -4517,43 +4517,16 @@ function TicketPdfCell({ url, candidateId, folder, label = "File", onUpload, onR
   );
 }
 
-function TicketPdfSection({ ticketUrl, visaUrl, qrUrl, candidateId, onUpdate }: {
+function TicketPdfSection({ ticketUrl, candidateId, onUpdate }: {
   ticketUrl: string | null;
-  visaUrl: string | null;
-  qrUrl: string | null;
+  visaUrl?: string | null;
+  qrUrl?: string | null;
   candidateId: string;
   onUpdate: (field: "ticket_pdf_url" | "visa_pdf_url" | "qr_url", value: string | null) => void;
 }) {
-  const hasTicket = parseTicketUrls(ticketUrl).length > 0;
-  const [showExtra, setShowExtra] = useState(!!(visaUrl || qrUrl));
   return (
-    <div className="flex gap-3 flex-wrap items-end">
-      <div>
-        <div className="text-[9px] text-muted-foreground mb-0.5 uppercase tracking-wide">Ticket</div>
-        <MultiTicketCell value={ticketUrl} candidateId={candidateId}
-          onUpdate={(v) => onUpdate("ticket_pdf_url", v)} />
-      </div>
-      {hasTicket && !showExtra && (
-        <button type="button" onClick={() => setShowExtra(true)}
-          className="flex items-center justify-center w-6 h-6 border border-dashed border-muted-foreground/40 text-muted-foreground hover:border-primary hover:text-primary mb-px">
-          <Plus className="w-3 h-3" />
-        </button>
-      )}
-      {showExtra && (
-        <>
-          <div>
-            <div className="text-[9px] text-muted-foreground mb-0.5 uppercase tracking-wide">Visa</div>
-            <TicketPdfCell url={visaUrl} candidateId={candidateId} folder="visa-pdfs" label="PDF"
-              onUpload={(url) => onUpdate("visa_pdf_url", url)} onRemove={() => onUpdate("visa_pdf_url", null)} />
-          </div>
-          <div>
-            <div className="text-[9px] text-muted-foreground mb-0.5 uppercase tracking-wide">QR</div>
-            <TicketPdfCell url={qrUrl} candidateId={candidateId} folder="qr-files" label="QR"
-              onUpload={(url) => onUpdate("qr_url", url)} onRemove={() => onUpdate("qr_url", null)} />
-          </div>
-        </>
-      )}
-    </div>
+    <MultiTicketCell value={ticketUrl} candidateId={candidateId}
+      onUpdate={(v) => onUpdate("ticket_pdf_url", v)} />
   );
 }
 
