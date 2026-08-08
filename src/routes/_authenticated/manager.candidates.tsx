@@ -2162,24 +2162,14 @@ function ProcessingEditDialog({
             <ProcInput label="Processing Note" k="processing_notes" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ticket PDF</label>
-            <div className="flex gap-5 flex-wrap">
-              <div className="space-y-0.5">
-                <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Ticket</div>
-                <MultiTicketCell value={(candidate as any).ticket_pdf_url ?? null} candidateId={candidate.id}
-                  onUpdate={(v) => onUpdateField("ticket_pdf_url", v)} />
-              </div>
-              <div className="space-y-0.5">
-                <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Visa</div>
-                <TicketPdfCell url={(candidate as any).visa_pdf_url ?? null} candidateId={candidate.id} folder="visa-pdfs" label="PDF"
-                  onUpload={(url) => onUpdateField("visa_pdf_url", url)} onRemove={() => onUpdateField("visa_pdf_url", null)} />
-              </div>
-              <div className="space-y-0.5">
-                <div className="text-[9px] text-muted-foreground uppercase tracking-wide">QR</div>
-                <TicketPdfCell url={(candidate as any).qr_url ?? null} candidateId={candidate.id} folder="qr-files" label="QR"
-                  onUpload={(url) => onUpdateField("qr_url", url)} onRemove={() => onUpdateField("qr_url", null)} />
-              </div>
-            </div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">TICKET PDF</label>
+            <TicketPdfSection
+              ticketUrl={(candidate as any).ticket_pdf_url ?? null}
+              visaUrl={(candidate as any).visa_pdf_url ?? null}
+              qrUrl={(candidate as any).qr_url ?? null}
+              candidateId={candidate.id}
+              onUpdate={(field, value) => onUpdateField(field, value)}
+            />
           </div>
           {countryOptions.length > 0 && (
             <div className="grid grid-cols-2 gap-3">
@@ -2869,23 +2859,13 @@ function CandidateCard({
                 return (
                   <div key="TICKET PDF" className="shrink-0">
                     <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">TICKET FILES</div>
-                    <div className="flex gap-3 flex-wrap">
-                      <div>
-                        <div className="text-[9px] text-muted-foreground mb-0.5">TICKET</div>
-                        <MultiTicketCell value={(candidate as any).ticket_pdf_url ?? null} candidateId={candidate.id}
-                          onUpdate={(v) => onUpdateField("ticket_pdf_url", v)} />
-                      </div>
-                      <div>
-                        <div className="text-[9px] text-muted-foreground mb-0.5">VISA</div>
-                        <TicketPdfCell url={(candidate as any).visa_pdf_url ?? null} candidateId={candidate.id} folder="visa-pdfs" label="PDF"
-                          onUpload={(url) => onUpdateField("visa_pdf_url", url)} onRemove={() => onUpdateField("visa_pdf_url", null)} />
-                      </div>
-                      <div>
-                        <div className="text-[9px] text-muted-foreground mb-0.5">QR</div>
-                        <TicketPdfCell url={(candidate as any).qr_url ?? null} candidateId={candidate.id} folder="qr-files" label="QR"
-                          onUpload={(url) => onUpdateField("qr_url", url)} onRemove={() => onUpdateField("qr_url", null)} />
-                      </div>
-                    </div>
+                    <TicketPdfSection
+                      ticketUrl={(candidate as any).ticket_pdf_url ?? null}
+                      visaUrl={(candidate as any).visa_pdf_url ?? null}
+                      qrUrl={(candidate as any).qr_url ?? null}
+                      candidateId={candidate.id}
+                      onUpdate={(field, value) => onUpdateField(field, value)}
+                    />
                   </div>
                 );
               }
@@ -3803,23 +3783,13 @@ function ProcessingCard({
                         onSave={(v) => handleColUpdate(col.key, v)}
                       />
                     ) : col.type === "upload" ? (
-                      <div className="flex gap-3 flex-wrap">
-                        <div>
-                          <div className="text-[9px] text-muted-foreground mb-0.5">TICKET</div>
-                          <MultiTicketCell value={(candidate as any).ticket_pdf_url ?? null} candidateId={candidate.id}
-                            onUpdate={(v) => onUpdateField("ticket_pdf_url", v)} />
-                        </div>
-                        <div>
-                          <div className="text-[9px] text-muted-foreground mb-0.5">VISA</div>
-                          <TicketPdfCell url={(candidate as any).visa_pdf_url ?? null} candidateId={candidate.id} folder="visa-pdfs" label="PDF"
-                            onUpload={(url) => onUpdateField("visa_pdf_url", url)} onRemove={() => onUpdateField("visa_pdf_url", null)} />
-                        </div>
-                        <div>
-                          <div className="text-[9px] text-muted-foreground mb-0.5">QR</div>
-                          <TicketPdfCell url={(candidate as any).qr_url ?? null} candidateId={candidate.id} folder="qr-files" label="QR"
-                            onUpload={(url) => onUpdateField("qr_url", url)} onRemove={() => onUpdateField("qr_url", null)} />
-                        </div>
-                      </div>
+                      <TicketPdfSection
+                        ticketUrl={(candidate as any).ticket_pdf_url ?? null}
+                        visaUrl={(candidate as any).visa_pdf_url ?? null}
+                        qrUrl={(candidate as any).qr_url ?? null}
+                        candidateId={candidate.id}
+                        onUpdate={(field, value) => onUpdateField(field, value)}
+                      />
                     ) : null}
                   </div>
                 </div>
@@ -4543,6 +4513,46 @@ function TicketPdfCell({ url, candidateId, folder, label = "File", onUpload, onR
       )}
       <input ref={inputRef} type="file" accept="application/pdf,image/*" className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
+    </div>
+  );
+}
+
+function TicketPdfSection({ ticketUrl, visaUrl, qrUrl, candidateId, onUpdate }: {
+  ticketUrl: string | null;
+  visaUrl: string | null;
+  qrUrl: string | null;
+  candidateId: string;
+  onUpdate: (field: "ticket_pdf_url" | "visa_pdf_url" | "qr_url", value: string | null) => void;
+}) {
+  const hasTicket = parseTicketUrls(ticketUrl).length > 0;
+  const [showExtra, setShowExtra] = useState(!!(visaUrl || qrUrl));
+  return (
+    <div className="flex gap-3 flex-wrap items-end">
+      <div>
+        <div className="text-[9px] text-muted-foreground mb-0.5 uppercase tracking-wide">Ticket</div>
+        <MultiTicketCell value={ticketUrl} candidateId={candidateId}
+          onUpdate={(v) => onUpdate("ticket_pdf_url", v)} />
+      </div>
+      {hasTicket && !showExtra && (
+        <button type="button" onClick={() => setShowExtra(true)}
+          className="flex items-center justify-center w-6 h-6 border border-dashed border-muted-foreground/40 text-muted-foreground hover:border-primary hover:text-primary mb-px">
+          <Plus className="w-3 h-3" />
+        </button>
+      )}
+      {showExtra && (
+        <>
+          <div>
+            <div className="text-[9px] text-muted-foreground mb-0.5 uppercase tracking-wide">Visa</div>
+            <TicketPdfCell url={visaUrl} candidateId={candidateId} folder="visa-pdfs" label="PDF"
+              onUpload={(url) => onUpdate("visa_pdf_url", url)} onRemove={() => onUpdate("visa_pdf_url", null)} />
+          </div>
+          <div>
+            <div className="text-[9px] text-muted-foreground mb-0.5 uppercase tracking-wide">QR</div>
+            <TicketPdfCell url={qrUrl} candidateId={candidateId} folder="qr-files" label="QR"
+              onUpload={(url) => onUpdate("qr_url", url)} onRemove={() => onUpdate("qr_url", null)} />
+          </div>
+        </>
+      )}
     </div>
   );
 }
