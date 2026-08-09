@@ -24,7 +24,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { getStaffList, sendCandidatesNotification } from "@/lib/notifications.functions";
 import { getAgencyCvTemplate } from "@/lib/agencies.functions";
 import { CvPreview, candidateToCanvas } from "@/components/cv-preview";
-import { canvasToPdf, downloadDocx } from "@/lib/pdf-export";
+import { canvasToPdf, downloadDocx, docxBytesToPdf } from "@/lib/pdf-export";
 import { renderAsync as docxRenderAsync } from "docx-preview";
 import type { CvTemplate } from "@/lib/docx-fill";
 import { buildFilledDocx } from "@/lib/docx-fill";
@@ -487,7 +487,8 @@ function AgencyCandidatesPage() {
 
 function CvViewDialog({ candidate, template, onClose, translatedName }: { candidate: Candidate; template: CvTemplate | null; onClose: () => void; translatedName?: string }) {
   const displayName = translatedName ?? candidate.full_name;
-  const [downloading, setDownloading] = useState(false);
+  const [dlDocx, setDlDocx] = useState(false);
+  const [dlPdf, setDlPdf]   = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -517,20 +518,32 @@ function CvViewDialog({ candidate, template, onClose, translatedName }: { candid
     return () => { cancelled = true; };
   }, [isDocx, template?.id, candidate.id]);
 
-  const handleDownload = async () => {
-    setDownloading(true);
+  const handleDownloadDocx = async () => {
+    setDlDocx(true);
+    try {
+      const bytes = await buildFilledDocx(template!, candidate as any);
+      downloadDocx(bytes, `${candidate.full_name} — CV.docx`);
+    } catch {
+      toast.error("Failed to generate DOCX");
+    } finally {
+      setDlDocx(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    setDlPdf(true);
     try {
       if (isDocx) {
-        const bytes = await buildFilledDocx(template!, candidate as any);
-        downloadDocx(bytes, `${candidate.full_name} — CV.docx`);
+        const bytes = await buildFilledDocx(template!, candidate as any, false);
+        await docxBytesToPdf(bytes, `${candidate.full_name} — CV.pdf`);
       } else {
         const canvas = await candidateToCanvas(candidate as any, template);
         await canvasToPdf(canvas, `${candidate.full_name} — CV.pdf`);
       }
     } catch {
-      toast.error("Failed to generate CV");
+      toast.error("Failed to generate PDF");
     } finally {
-      setDownloading(false);
+      setDlPdf(false);
     }
   };
 
@@ -540,9 +553,9 @@ function CvViewDialog({ candidate, template, onClose, translatedName }: { candid
         <DialogHeader>
           <DialogTitle>CV — {displayName}</DialogTitle>
         </DialogHeader>
-        <div className="max-h-[68vh] overflow-auto">
+        <div className="max-h-[72vh] overflow-auto">
           {isDocx ? (
-            <div className="relative min-h-[400px]">
+            <div className="relative min-h-[400px] overflow-x-auto">
               {previewLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-background/60 z-10">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -556,9 +569,15 @@ function CvViewDialog({ candidate, template, onClose, translatedName }: { candid
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Close</Button>
-          <Button onClick={handleDownload} disabled={downloading} className="gap-1.5">
+          {isDocx && (
+            <Button variant="outline" onClick={handleDownloadDocx} disabled={dlDocx} className="gap-1.5">
+              <FileText className="h-4 w-4" />
+              {dlDocx ? "Generating…" : "DOCX"}
+            </Button>
+          )}
+          <Button onClick={handleDownloadPdf} disabled={dlPdf} className="gap-1.5">
             <Download className="h-4 w-4" />
-            {downloading ? "Generating…" : "Download CV"}
+            {dlPdf ? "Generating…" : "Download PDF"}
           </Button>
         </DialogFooter>
       </DialogContent>

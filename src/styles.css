@@ -232,6 +232,9 @@
 }
 
 /* docx-preview inside the agency CV view dialog */
+.docx-agency-preview-wrapper {
+  min-width: 794px;
+}
 .docx-agency-preview-wrapper .docx-wrapper {
   background: #fff;
   padding: 0 !important;
