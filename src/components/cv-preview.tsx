@@ -46,8 +46,18 @@ function DataRow({ lbl, val, ar, bg1 = GRAY, bg2 = WHITE, span = false }:
 
 export function CvPreview({ candidate: c, template }: { candidate: Candidate; template: CvTemplate | null }) {
   const photo = c.full_photo_url ?? c.photo_url;
+  const isImageTemplate = !!template && !template.file_url.split("?")[0].toLowerCase().endsWith(".docx");
+
   return (
     <div style={{ width: 720, fontFamily: "Arial, sans-serif", backgroundColor: WHITE, color: DARK }}>
+      {isImageTemplate && (
+        <img
+          src={template.file_url}
+          alt={template.name}
+          crossOrigin="anonymous"
+          style={{ width: "100%", display: "block" }}
+        />
+      )}
       <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
         <colgroup>
           <col style={{ width: "27%" }} /><col style={{ width: "28%" }} />
@@ -56,7 +66,7 @@ export function CvPreview({ candidate: c, template }: { candidate: Candidate; te
         <tbody>
           <tr>
             <td colSpan={2} style={{ backgroundColor: NAVY, padding: "14px 16px", border: "none" }}>
-              {template && <div style={{ color: LBLUE, fontSize: 9, marginBottom: 2 }}>{template.name}</div>}
+              {!isImageTemplate && template && <div style={{ color: LBLUE, fontSize: 9, marginBottom: 2 }}>{template.name}</div>}
               <div style={{ color: WHITE, fontSize: 15, fontWeight: "bold" }}>APPLICATION FOR EMPLOYMENT</div>
             </td>
             <td colSpan={2} style={{ backgroundColor: NAVY, padding: "14px 16px", border: "none", textAlign: "right", verticalAlign: "middle", direction: "rtl" }}>
