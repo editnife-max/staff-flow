@@ -603,9 +603,17 @@ function CvViewDialog({ candidate: c, template, onClose, translatedName }: { can
             <CvInfoRow label="Spoken Languages" value={c.spoken_languages} />
           </CvDetailSection>
 
-          {c.skills && (
-            <CvDetailSection title="Skills">
-              <div className="col-span-3"><CvInfoRow label="Skills" value={c.skills} /></div>
+          <CvDetailSection title="Experience">
+            <CvInfoRow label="Experience"         value={c.experience} />
+            <CvInfoRow label="Experience Country" value={c.experience_country} />
+            <CvInfoRow label="Experience Years"   value={c.experience_years} />
+          </CvDetailSection>
+
+          {(c.skills || c.notes || c.remark) && (
+            <CvDetailSection title="Other">
+              {c.skills  && <div className="col-span-3"><CvInfoRow label="Skills"  value={c.skills} /></div>}
+              {c.notes   && <div className="col-span-3"><CvInfoRow label="Notes"   value={c.notes} /></div>}
+              {c.remark  && <div className="col-span-3"><CvInfoRow label="Remark"  value={c.remark} /></div>}
             </CvDetailSection>
           )}
         </div>

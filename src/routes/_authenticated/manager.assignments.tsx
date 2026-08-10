@@ -34,10 +34,7 @@ const EXPERIENCE_OPTIONS     = ["Yes", "No", "None"];
 const ENGLISH_LEVEL_OPTIONS  = ["Poor", "Little", "Fair", "Good"];
 
 const DEFAULT_CV_REQ = {
-  age: "all", gender: "all", religion: "all", medical: "Fit",
-  narrative: "all", experience: "all", coc: "Done",
-  musaned: "all", selected_by: "all", cv_sent_to: "all",
-  english_level: "all",
+  medical: "Fit", narrative: "all", experience: "all", coc: "Done",
 };
 
 function AssignmentsPage() {
@@ -529,17 +526,10 @@ function AssignmentsPage() {
             <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
               {(
                 [
-                  { key: "age",          label: "Age",           opts: AGE_OPTIONS },
-                  { key: "gender",       label: "Gender",        opts: GENDER_OPTIONS },
-                  { key: "religion",     label: "Religion",      opts: RELIGION_OPTIONS },
-                  { key: "medical",      label: "Medical",       opts: MEDICAL_OPTIONS },
-                  { key: "narrative",    label: "Narrative",     opts: narrativeOpts },
-                  { key: "experience",   label: "Experience",    opts: EXPERIENCE_OPTIONS },
-                  { key: "coc",          label: "COC",           opts: COC_OPTIONS },
-                  { key: "english_level",label: "English Level", opts: ENGLISH_LEVEL_OPTIONS },
-                  { key: "musaned",      label: "Country",       opts: countries.map((c) => c.name) },
-                  { key: "selected_by",  label: "Selected By",   opts: agencyOptions },
-                  { key: "cv_sent_to",   label: "CV Sent To",    opts: agencyOptions },
+                  { key: "medical",    label: "Medical",    opts: MEDICAL_OPTIONS },
+                  { key: "narrative",  label: "Narrative",  opts: narrativeOpts },
+                  { key: "experience", label: "Experience", opts: EXPERIENCE_OPTIONS },
+                  { key: "coc",        label: "COC",        opts: COC_OPTIONS },
                 ] as { key: keyof typeof DEFAULT_CV_REQ; label: string; opts: string[] }[]
               ).map(({ key, label, opts }) => (
                 <div key={key} className="flex items-center gap-2 min-w-0">
