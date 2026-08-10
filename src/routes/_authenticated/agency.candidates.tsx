@@ -23,9 +23,8 @@ import { X } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { getStaffList, sendCandidatesNotification } from "@/lib/notifications.functions";
 import { getAgencyCvTemplate } from "@/lib/agencies.functions";
-import { CvPreview, candidateToCanvas } from "@/components/cv-preview";
+import { candidateToCanvas } from "@/components/cv-preview";
 import { canvasToPdf, downloadDocx, docxBytesToPdf } from "@/lib/pdf-export";
-import { renderAsync as docxRenderAsync } from "docx-preview";
 import type { CvTemplate } from "@/lib/docx-fill";
 import { buildFilledDocx } from "@/lib/docx-fill";
 import { useAuth } from "@/hooks/use-auth";
@@ -485,88 +484,132 @@ function AgencyCandidatesPage() {
 }
 
 
-function CvViewDialog({ candidate, template, onClose, translatedName }: { candidate: Candidate; template: CvTemplate | null; onClose: () => void; translatedName?: string }) {
-  const displayName = translatedName ?? candidate.full_name;
+function CvViewDialog({ candidate: c, template, onClose, translatedName }: { candidate: Candidate; template: CvTemplate | null; onClose: () => void; translatedName?: string }) {
+  const displayName = translatedName ?? c.full_name;
+  const age = calcAge(c.dob) ?? c.age;
   const [dlDocx, setDlDocx] = useState(false);
-  const [dlPdf, setDlPdf]   = useState(false);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const previewRef = useRef<HTMLDivElement>(null);
+  const [dlPdf,  setDlPdf]  = useState(false);
+  const [lightbox, setLightbox] = useState<{ src: string; label: string } | null>(null);
 
   const isDocx = !!template && template.file_url.split("?")[0].toLowerCase().endsWith(".docx");
-
-  useEffect(() => {
-    if (!isDocx) return;
-    let cancelled = false;
-    setPreviewLoading(true);
-    (async () => {
-      try {
-        const bytes = await buildFilledDocx(template!, candidate as any, false);
-        if (cancelled || !previewRef.current) return;
-        previewRef.current.innerHTML = "";
-        const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-        await docxRenderAsync(buf, previewRef.current, undefined, {
-          className: "docx-agency-preview",
-          inWrapper: true,
-          ignoreHeight: true,
-        });
-      } catch {
-        toast.error("Failed to render CV preview");
-      } finally {
-        if (!cancelled) setPreviewLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [isDocx, template?.id, candidate.id]);
 
   const handleDownloadDocx = async () => {
     setDlDocx(true);
     try {
-      const bytes = await buildFilledDocx(template!, candidate as any);
-      downloadDocx(bytes, `${candidate.full_name} — CV.docx`);
-    } catch {
-      toast.error("Failed to generate DOCX");
-    } finally {
-      setDlDocx(false);
-    }
+      const bytes = await buildFilledDocx(template!, c as any);
+      downloadDocx(bytes, `${c.full_name} — CV.docx`);
+    } catch { toast.error("Failed to generate DOCX"); }
+    finally { setDlDocx(false); }
   };
 
   const handleDownloadPdf = async () => {
     setDlPdf(true);
     try {
       if (isDocx) {
-        const bytes = await buildFilledDocx(template!, candidate as any, false);
-        await docxBytesToPdf(bytes, `${candidate.full_name} — CV.pdf`);
+        const bytes = await buildFilledDocx(template!, c as any, false);
+        await docxBytesToPdf(bytes, `${c.full_name} — CV.pdf`);
       } else {
-        const canvas = await candidateToCanvas(candidate as any, template);
-        await canvasToPdf(canvas, `${candidate.full_name} — CV.pdf`);
+        const canvas = await candidateToCanvas(c as any, template);
+        await canvasToPdf(canvas, `${c.full_name} — CV.pdf`);
       }
-    } catch {
-      toast.error("Failed to generate PDF");
-    } finally {
-      setDlPdf(false);
-    }
+    } catch { toast.error("Failed to generate PDF"); }
+    finally { setDlPdf(false); }
   };
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>CV — {displayName}</DialogTitle>
+          <DialogTitle>{displayName}</DialogTitle>
         </DialogHeader>
-        <div className="max-h-[72vh] overflow-auto">
-          {isDocx ? (
-            <div className="relative min-h-[400px] overflow-x-auto">
-              {previewLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-background/60 z-10">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
+
+        <div className="max-h-[70vh] overflow-y-auto pr-1 space-y-5">
+          {/* Photos */}
+          {(c.photo_url || c.full_photo_url || c.passport_scan_url) && (
+            <div className="flex gap-3">
+              {c.photo_url && (
+                <button type="button" className="flex flex-col items-center gap-1 group" onClick={() => setLightbox({ src: c.photo_url!, label: "Photo" })}>
+                  <img src={c.photo_url} alt="Photo" crossOrigin="anonymous" className="h-24 w-20 object-cover border border-border group-hover:opacity-80 transition-opacity cursor-zoom-in" />
+                  <span className="text-[10px] text-muted-foreground">Photo</span>
+                </button>
               )}
-              <div ref={previewRef} className="docx-agency-preview-wrapper" />
+              {c.full_photo_url && (
+                <button type="button" className="flex flex-col items-center gap-1 group" onClick={() => setLightbox({ src: c.full_photo_url!, label: "Full Photo" })}>
+                  <img src={c.full_photo_url} alt="Full Photo" crossOrigin="anonymous" className="h-24 w-20 object-cover border border-border group-hover:opacity-80 transition-opacity cursor-zoom-in" />
+                  <span className="text-[10px] text-muted-foreground">Full Photo</span>
+                </button>
+              )}
+              {c.passport_scan_url && (
+                <button type="button" className="flex flex-col items-center gap-1 group" onClick={() => setLightbox({ src: c.passport_scan_url!, label: "Passport" })}>
+                  <img src={c.passport_scan_url} alt="Passport" crossOrigin="anonymous" className="h-24 w-20 object-cover border border-border group-hover:opacity-80 transition-opacity cursor-zoom-in" />
+                  <span className="text-[10px] text-muted-foreground">Passport</span>
+                </button>
+              )}
             </div>
-          ) : (
-            <CvPreview candidate={candidate as any} template={template} />
+          )}
+
+          {/* Lightbox */}
+          {lightbox && (
+            <Dialog open onOpenChange={() => setLightbox(null)}>
+              <DialogContent className="max-w-2xl p-0 overflow-hidden bg-black border-0">
+                <DialogTitle className="sr-only">{lightbox.label}</DialogTitle>
+                <button
+                  type="button"
+                  className="absolute top-3 right-3 z-10 flex items-center justify-center h-8 w-8 rounded-full bg-black/60 hover:bg-black/80 text-white transition-colors"
+                  onClick={() => setLightbox(null)}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <img
+                  src={lightbox.src}
+                  alt={lightbox.label}
+                  crossOrigin="anonymous"
+                  className="w-full h-auto max-h-[85vh] object-contain"
+                />
+                <div className="absolute bottom-0 left-0 right-0 px-4 py-2 bg-black/50 text-center">
+                  <span className="text-[11px] text-white/70">{lightbox.label}</span>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+
+          <CvDetailSection title="Personal">
+            <CvInfoRow label="Full Name"      value={displayName} />
+            <CvInfoRow label="Occupation"     value={c.occupation} />
+            <CvInfoRow label="Nationality"    value={c.country} />
+            <CvInfoRow label="Date of Birth"  value={c.dob} />
+            <CvInfoRow label="Age"            value={age} />
+            <CvInfoRow label="Gender"         value={c.gender} />
+            <CvInfoRow label="Religion"       value={c.religion} />
+            <CvInfoRow label="Marital Status" value={c.marital_status} />
+            <CvInfoRow label="Children"       value={c.children} />
+            <CvInfoRow label="Birth Place"    value={c.birth_place} />
+            <CvInfoRow label="Living Town"    value={c.living_town} />
+            <CvInfoRow label="Weight"         value={c.weight != null ? `${c.weight} kg` : null} />
+            <CvInfoRow label="Height"         value={c.height != null ? `${c.height} cm` : null} />
+          </CvDetailSection>
+
+          <CvDetailSection title="Passport">
+            <CvInfoRow label="Passport No."   value={c.passport_number} />
+            <CvInfoRow label="Issue Date"     value={c.passport_issue_date} />
+            <CvInfoRow label="Expiry Date"    value={c.passport_expiry_date} />
+            <CvInfoRow label="Place of Issue" value={c.place_of_issue} />
+          </CvDetailSection>
+
+          <CvDetailSection title="Language & Education">
+            <CvInfoRow label="English"   value={c.english_level} />
+            <CvInfoRow label="Arabic"    value={c.arabic_level} />
+            <CvInfoRow label="Education" value={c.education} />
+            <CvInfoRow label="Spoken Languages" value={c.spoken_languages} />
+          </CvDetailSection>
+
+          {c.skills && (
+            <CvDetailSection title="Skills">
+              <div className="col-span-3"><CvInfoRow label="Skills" value={c.skills} /></div>
+            </CvDetailSection>
           )}
         </div>
+
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Close</Button>
           {isDocx && (
@@ -582,6 +625,24 @@ function CvViewDialog({ candidate, template, onClose, translatedName }: { candid
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function CvDetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border pb-1">{title}</h3>
+      <div className="grid grid-cols-3 gap-x-6 gap-y-3">{children}</div>
+    </div>
+  );
+}
+
+function CvInfoRow({ label, value }: { label: string; value: string | number | null | undefined }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className="text-[13px] text-foreground">{value ?? "—"}</span>
+    </div>
   );
 }
 
