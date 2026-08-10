@@ -33,8 +33,11 @@ const RELIGION_OPTIONS  = ["Muslim", "Non-muslim"];
 const EXPERIENCE_OPTIONS     = ["Yes", "No", "None"];
 const ENGLISH_LEVEL_OPTIONS  = ["Poor", "Little", "Fair", "Good"];
 
+const YES_NO_OPTIONS = ["Yes", "No"];
+
 const DEFAULT_CV_REQ = {
   medical: "Fit", narrative: "all", experience: "all", coc: "Done",
+  passport_scan: "all", full_size_photo: "all", photo_cv: "all",
 };
 
 function AssignmentsPage() {
@@ -526,10 +529,13 @@ function AssignmentsPage() {
             <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
               {(
                 [
-                  { key: "medical",    label: "Medical",    opts: MEDICAL_OPTIONS },
-                  { key: "narrative",  label: "Narrative",  opts: narrativeOpts },
-                  { key: "experience", label: "Experience", opts: EXPERIENCE_OPTIONS },
-                  { key: "coc",        label: "COC",        opts: COC_OPTIONS },
+                  { key: "medical",         label: "Medical",       opts: MEDICAL_OPTIONS },
+                  { key: "narrative",       label: "Narrative",     opts: narrativeOpts },
+                  { key: "experience",      label: "Experience",    opts: EXPERIENCE_OPTIONS },
+                  { key: "coc",             label: "COC",           opts: COC_OPTIONS },
+                  { key: "passport_scan",   label: "Passport Scan", opts: YES_NO_OPTIONS },
+                  { key: "full_size_photo", label: "Full Size Photo", opts: YES_NO_OPTIONS },
+                  { key: "photo_cv",        label: "Photo CV",      opts: YES_NO_OPTIONS },
                 ] as { key: keyof typeof DEFAULT_CV_REQ; label: string; opts: string[] }[]
               ).map(({ key, label, opts }) => (
                 <div key={key} className="flex items-center gap-2 min-w-0">
