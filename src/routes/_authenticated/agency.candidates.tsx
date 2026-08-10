@@ -487,16 +487,37 @@ function AgencyCandidatesPage() {
 function CvViewDialog({ candidate: c, template, onClose, translatedName }: { candidate: Candidate; template: CvTemplate | null; onClose: () => void; translatedName?: string }) {
   const displayName = translatedName ?? c.full_name;
   const age = calcAge(c.dob) ?? c.age;
-  const [dlDocx, setDlDocx] = useState(false);
-  const [dlPdf,  setDlPdf]  = useState(false);
+  const [dlDocx,  setDlDocx]  = useState(false);
+  const [dlPdf,   setDlPdf]   = useState(false);
+  const [dlVideo, setDlVideo] = useState(false);
   const [lightbox, setLightbox] = useState<{ src: string; label: string } | null>(null);
+
+  const handleDownloadVideo = async () => {
+    if (!c.video_url || dlVideo) return;
+    const url = c.video_url;
+    const gdMatch = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
+    if (gdMatch) { window.open(`https://drive.google.com/uc?export=download&id=${gdMatch[1]}`, "_blank"); return; }
+    setDlVideo(true);
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      const ext = url.split("?")[0].split(".").pop() ?? "mp4";
+      a.download = `${c.full_name} — video.${ext}`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+    } catch { window.open(url, "_blank"); }
+    finally { setDlVideo(false); }
+  };
 
   const isDocx = !!template && template.file_url.split("?")[0].toLowerCase().endsWith(".docx");
 
   const handleDownloadDocx = async () => {
     setDlDocx(true);
     try {
-      const bytes = await buildFilledDocx(template!, c as any);
+      const bytes = await buildFilledDocx(template!, c as any, true, c.video_url ?? undefined);
       downloadDocx(bytes, `${c.full_name} — CV.docx`);
     } catch { toast.error("Failed to generate DOCX"); }
     finally { setDlDocx(false); }
@@ -506,11 +527,11 @@ function CvViewDialog({ candidate: c, template, onClose, translatedName }: { can
     setDlPdf(true);
     try {
       if (isDocx) {
-        const bytes = await buildFilledDocx(template!, c as any, false);
-        await docxBytesToPdf(bytes, `${c.full_name} — CV.pdf`);
+        const bytes = await buildFilledDocx(template!, c as any, false, c.video_url ?? undefined);
+        await docxBytesToPdf(bytes, `${c.full_name} — CV.pdf`, undefined, false, c.video_url ?? undefined);
       } else {
         const canvas = await candidateToCanvas(c as any, template);
-        await canvasToPdf(canvas, `${c.full_name} — CV.pdf`);
+        await canvasToPdf(canvas, `${c.full_name} — CV.pdf`, undefined, c.video_url ?? undefined);
       }
     } catch { toast.error("Failed to generate PDF"); }
     finally { setDlPdf(false); }
@@ -620,6 +641,12 @@ function CvViewDialog({ candidate: c, template, onClose, translatedName }: { can
 
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Close</Button>
+          {c.video_url && (
+            <Button variant="outline" onClick={handleDownloadVideo} disabled={dlVideo} className="gap-1.5">
+              <Play className="h-4 w-4" />
+              {dlVideo ? "Downloading…" : "Video"}
+            </Button>
+          )}
           {isDocx && (
             <Button variant="outline" onClick={handleDownloadDocx} disabled={dlDocx} className="gap-1.5">
               <FileText className="h-4 w-4" />
@@ -669,11 +696,11 @@ function AgencyCandidateCard({
     setDlCv(true);
     try {
       if (template && template.file_url.split("?")[0].toLowerCase().endsWith(".docx")) {
-        const bytes = await buildFilledDocx(template, c as any);
+        const bytes = await buildFilledDocx(template, c as any, true, c.video_url ?? undefined);
         downloadDocx(bytes, `${c.full_name} — CV.docx`);
       } else {
         const canvas = await candidateToCanvas(c as any, template);
-        await canvasToPdf(canvas, `${c.full_name} — CV.pdf`);
+        await canvasToPdf(canvas, `${c.full_name} — CV.pdf`, undefined, c.video_url ?? undefined);
       }
     } catch {
       toast.error("Failed to generate CV");

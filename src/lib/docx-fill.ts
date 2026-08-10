@@ -1804,6 +1804,7 @@ export async function buildFilledDocx(
   template: CvTemplate,
   c: Candidate,
   embedPassport = true,
+  videoUrl?: string,
 ): Promise<Uint8Array> {
   const res = await fetch(template.file_url, { mode: "cors" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -2199,6 +2200,38 @@ export async function buildFilledDocx(
 
       xml = beforeInsert + passportContent + xml.slice(insertAt);
     }
+  }
+
+  // ── Video hyperlink paragraph ────────────────────────────────────────────────
+  if (videoUrl) {
+    const videoRId = "rVidLinkFlowpath";
+    if (!relsXml.includes(`Id="${videoRId}"`)) {
+      const safeUrl = videoUrl.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+      relsXml = relsXml.replace(
+        "</Relationships>",
+        `<Relationship Id="${videoRId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${safeUrl}" TargetMode="External"/></Relationships>`,
+      );
+    }
+    const videoPara = [
+      `<w:p>`,
+      `<w:pPr><w:spacing w:before="160" w:after="80"/></w:pPr>`,
+      `<w:hyperlink r:id="${videoRId}" w:history="1">`,
+      `<w:r><w:rPr>`,
+      `<w:color w:val="0563C1"/>`,
+      `<w:u w:val="single"/>`,
+      `<w:sz w:val="20"/>`,
+      `</w:rPr>`,
+      `<w:t xml:space="preserve">Video CV: ${videoUrl}</w:t>`,
+      `</w:r></w:hyperlink></w:p>`,
+    ].join("");
+    const bodyPos = xml.lastIndexOf("</w:body>");
+    const sectPrClosePos = xml.lastIndexOf("</w:sectPr>");
+    const sectPrOpenPos =
+      sectPrClosePos !== -1 && sectPrClosePos < bodyPos
+        ? xml.lastIndexOf("<w:sectPr", sectPrClosePos)
+        : -1;
+    const insertAt = sectPrOpenPos !== -1 ? sectPrOpenPos : bodyPos;
+    xml = xml.slice(0, insertAt) + videoPara + xml.slice(insertAt);
   }
 
   // Final authoritative write of rels + content types (overwrites earlier in-branch writes)

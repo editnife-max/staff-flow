@@ -154,12 +154,12 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
       if (isBulk) {
         toast.info(`Generating ${candidates.length} DOCX files — please wait…`);
         for (const c of sortedCandidates) {
-          const bytes = await buildFilledDocx(matchedTemplate, c);
+          const bytes = await buildFilledDocx(matchedTemplate, c, true, c.video_url ?? undefined);
           downloadDocx(bytes, `${c.full_name} — ${currentType.label} ${fileTimestamp()}.docx`);
         }
         toast.success(`${candidates.length} DOCX files downloaded`);
       } else {
-        const bytes = await buildFilledDocx(matchedTemplate, preview);
+        const bytes = await buildFilledDocx(matchedTemplate, preview, true, preview.video_url ?? undefined);
         downloadDocx(bytes, `${preview.full_name} — ${currentType.label} ${fileTimestamp()}.docx`);
         toast.success(`${currentType.label} DOCX downloaded`);
       }
@@ -179,11 +179,11 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
           toast.info(`Generating ${candidates.length} PDFs via Cloudmersive — please wait…`);
           for (const c of sortedCandidates) {
             if (isDocxTemplate) {
-              const bytes = await buildFilledDocx(matchedTemplate!, c);
+              const bytes = await buildFilledDocx(matchedTemplate!, c, true, c.video_url ?? undefined);
               await convertDocxToPdfViaCloudmersive(bytes, `${c.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`);
             } else {
               const canvas = await candidateToCanvas(c, matchedTemplate);
-              await canvasToPdf(canvas, `${c.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`, c.passport_scan_url ?? undefined);
+              await canvasToPdf(canvas, `${c.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`, c.passport_scan_url ?? undefined, c.video_url ?? undefined);
             }
           }
           toast.success(`${candidates.length} PDFs downloaded`);
@@ -191,18 +191,18 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
           if (matchedTemplate) {
             const isDocx = matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
             if (isDocx) {
-              const bytes = await buildFilledDocx(matchedTemplate, preview!);
+              const bytes = await buildFilledDocx(matchedTemplate, preview!, true, preview!.video_url ?? undefined);
               toast.info("Converting to PDF via Cloudmersive — please wait…");
               await convertDocxToPdfViaCloudmersive(bytes, `${preview!.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`);
             } else {
               const canvas = await candidateToCanvas(preview!, matchedTemplate);
-              await canvasToPdf(canvas, `${preview!.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`, preview!.passport_scan_url ?? undefined);
+              await canvasToPdf(canvas, `${preview!.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`, preview!.passport_scan_url ?? undefined, preview!.video_url ?? undefined);
             }
             toast.success(`${currentType.label} downloaded`);
           } else {
             toast.info(`No template found for "${currentType.label}" — downloading basic CV.`);
             const canvas = await candidateToCanvas(preview!, null);
-            await canvasToPdf(canvas, `${preview!.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`, preview!.passport_scan_url ?? undefined);
+            await canvasToPdf(canvas, `${preview!.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`, preview!.passport_scan_url ?? undefined, preview!.video_url ?? undefined);
             toast.success(`${currentType.label} downloaded`);
           }
         }

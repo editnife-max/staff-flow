@@ -135,7 +135,25 @@ export async function docxBytesToPdfPrint(
   });
 }
 
-export async function docxBytesToPdf(bytes: Uint8Array, filename: string, passportUrl?: string, skipPassportPage = false) {
+function addVideoLinkPage(pdf: jsPDF, videoUrl: string): void {
+  pdf.addPage([794, 1123]);
+  pdf.setFontSize(20);
+  pdf.setTextColor(26, 58, 82);
+  pdf.text("Video CV", 397, 200, { align: "center" });
+  pdf.setFontSize(12);
+  pdf.setTextColor(100, 100, 100);
+  pdf.text("Watch the video interview:", 397, 270, { align: "center" });
+  pdf.setFontSize(11);
+  pdf.setTextColor(5, 99, 193);
+  const label = videoUrl.length > 90 ? videoUrl.slice(0, 87) + "…" : videoUrl;
+  const lw = pdf.getTextWidth(label);
+  const lx = 397 - lw / 2;
+  const ly = 310;
+  pdf.text(label, lx, ly);
+  pdf.link(lx, ly - 14, lw, 18, { url: videoUrl });
+}
+
+export async function docxBytesToPdf(bytes: Uint8Array, filename: string, passportUrl?: string, skipPassportPage = false, videoUrl?: string) {
   const container = document.createElement("div");
   container.style.cssText = "position:absolute;top:0;left:-9999px;width:794px;background:#fff;overflow:visible;";
   document.body.appendChild(container);
@@ -198,6 +216,7 @@ export async function docxBytesToPdf(bytes: Uint8Array, filename: string, passpo
 
     // Only append a raw passport page when the DOCX template did not already include one.
     if (!skipPassportPage && passportUrl) await addPassportScanPage(pdf, passportUrl);
+    if (videoUrl) addVideoLinkPage(pdf, videoUrl);
 
     pdf.save(filename);
   } finally {
@@ -254,11 +273,12 @@ export function downloadDocx(bytes: Uint8Array, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
-export async function canvasToPdf(canvas: HTMLCanvasElement, filename: string, passportUrl?: string): Promise<void> {
+export async function canvasToPdf(canvas: HTMLCanvasElement, filename: string, passportUrl?: string, videoUrl?: string): Promise<void> {
   const w = Math.round(canvas.width / 2);
   const h = Math.round(canvas.height / 2);
   const pdf = new jsPDF({ unit: "px", format: [w, h] });
   pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, w, h);
   if (passportUrl) await addPassportScanPage(pdf, passportUrl);
+  if (videoUrl) addVideoLinkPage(pdf, videoUrl);
   pdf.save(filename);
 }

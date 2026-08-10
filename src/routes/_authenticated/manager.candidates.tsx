@@ -5073,6 +5073,15 @@ function CandidateDetailDialog({ candidate, onClose, agencyPhones = {} }: { cand
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Close</Button>
+          {candidate.video_url && (
+            <Button variant="outline" className="gap-1.5" onClick={() => {
+              const url = candidate.video_url!;
+              const gdMatch = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
+              window.open(gdMatch ? `https://drive.google.com/uc?export=download&id=${gdMatch[1]}` : url, "_blank");
+            }}>
+              <Play className="h-4 w-4" /> Video
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
