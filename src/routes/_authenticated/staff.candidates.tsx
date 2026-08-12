@@ -4082,7 +4082,7 @@ function FilterSelect({
   return (
     <div className="flex items-center gap-0.5">
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="border-0 bg-transparent shadow-none h-auto w-auto px-0 gap-1 text-[13px] font-bold text-black hover:opacity-70 transition-opacity [&>svg]:shrink-0">
+        <SelectTrigger className="border-0 bg-transparent shadow-none h-auto w-auto px-0 gap-1 text-[13px] font-bold text-foreground hover:opacity-70 transition-opacity [&>svg]:shrink-0">
           {Icon && <Icon className="h-3 w-3 shrink-0" />}
           {isReset ? (
             <span>{placeholder}</span>
@@ -4103,7 +4103,7 @@ function FilterSelect({
                 ) : color ? (
                   <OptionPill label={o.label} />
                 ) : (
-                  <span className="text-[14px] text-black">{o.label}</span>
+                  <span className="text-[14px] text-foreground">{o.label}</span>
                 )}
               </SelectItem>
             );

@@ -4169,7 +4169,7 @@ function FilterSelect({
   return (
     <div className="flex items-center gap-0.5">
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="border-0 bg-transparent shadow-none h-auto w-auto px-0 gap-1 text-[13px] font-bold text-black hover:opacity-70 transition-opacity [&>svg]:shrink-0">
+        <SelectTrigger className="border-0 bg-transparent shadow-none h-auto w-auto px-0 gap-1 text-[13px] font-bold text-foreground hover:opacity-70 transition-opacity [&>svg]:shrink-0">
           {Icon && <Icon className="h-3 w-3 shrink-0" />}
           {isReset ? (
             <span>{placeholder}</span>
@@ -4190,7 +4190,7 @@ function FilterSelect({
                 ) : color ? (
                   <OptionPill label={o.label} />
                 ) : (
-                  <span className="text-[14px] text-black">{o.label}</span>
+                  <span className="text-[14px] text-foreground">{o.label}</span>
                 )}
               </SelectItem>
             );
@@ -4241,7 +4241,7 @@ function MultiFilterSelect({
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="flex items-center gap-1 bg-transparent border-0 text-[13px] font-bold text-black hover:opacity-70 transition-opacity px-0"
+            className="flex items-center gap-1 bg-transparent border-0 text-[13px] font-bold text-foreground hover:opacity-70 transition-opacity px-0"
           >
             {Icon && <Icon className="h-3 w-3 shrink-0" />}
             <span>{triggerLabel}</span>
@@ -4273,7 +4273,7 @@ function MultiFilterSelect({
                   {color ? (
                     <span className={cn("text-[13px] font-medium px-1.5 py-0.5", color)}>{o.label}</span>
                   ) : (
-                    <span className="text-[13px] text-black">{o.label}</span>
+                    <span className="text-[13px] text-foreground">{o.label}</span>
                   )}
                 </button>
               );
