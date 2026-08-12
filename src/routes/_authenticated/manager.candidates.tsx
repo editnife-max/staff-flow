@@ -1601,6 +1601,7 @@ function ManagerCandidatesPage() {
           onEdit={openEdit}
           compact={tab === "arrived"}
           cancelMode={tab === "available"}
+          showCvBadge={tab === "available"}
           onDelete={(id) =>
             tab === "available"
               ? fieldMut.mutate({ id, field: "status", value: "canceled" })
@@ -2203,9 +2204,22 @@ type EditableField =
   | "availability_type" | "coc_agency_name" | "coc_agency_phone" | "insurance_date"
   | "video_url" | "delete_reason" | "ticket_pdf_url" | "visa_pdf_url" | "qr_url";
 
+const CV_REQ_KEY_MGR = "cv-page-requirements";
+
+function checkMeetsCvReq(c: Candidate, req: Record<string, string>): boolean {
+  if (req.medical && req.medical !== "all" && c.medical_status !== req.medical) return false;
+  if (req.coc && req.coc !== "all" && c.coc_status !== req.coc) return false;
+  if (req.narrative && req.narrative !== "all" && c.narrative !== req.narrative) return false;
+  if (req.experience && req.experience !== "all" && c.experience !== req.experience) return false;
+  if (req.passport_scan === "Yes" && !c.passport_scan_url) return false;
+  if (req.full_size_photo === "Yes" && !c.full_photo_url) return false;
+  if (req.photo_cv === "Yes" && !c.photo_url) return false;
+  return true;
+}
+
 function CandidateCardList({
   candidates, selected, onToggleSelect, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo,
-  countryMeta, officesByCountry, agencyOptions, agencyPhones, compact, narrativeSuggestions,
+  countryMeta, officesByCountry, agencyOptions, agencyPhones, compact, narrativeSuggestions, showCvBadge,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -2217,6 +2231,7 @@ function CandidateCardList({
   onUpdateField: (id: string, field: string, value: string | null) => void;
   cancelMode?: boolean;
   compact?: boolean;
+  showCvBadge?: boolean;
   onReturn?: (id: string) => void;
   onUndo?: (id: string, c: Candidate) => void;
   countryMeta: Array<{ name: string; flag: string }>;
@@ -2225,6 +2240,13 @@ function CandidateCardList({
   agencyPhones: Record<string, string>;
   narrativeSuggestions?: string[];
 }) {
+  const cvReq = useMemo(() => {
+    if (!showCvBadge) return null;
+    try {
+      const saved = localStorage.getItem(CV_REQ_KEY_MGR);
+      return saved ? JSON.parse(saved) as Record<string, string> : null;
+    } catch { return null; }
+  }, [showCvBadge]);
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
     try {
@@ -2443,6 +2465,7 @@ function CandidateCardList({
                   visibleCols={visibleCols}
                   cancelMode={cancelMode}
                   compact={compact}
+                  meetsCvReq={cvReq ? checkMeetsCvReq(c, cvReq) : false}
                   onToggleSelect={() => onToggleSelect(c.id)}
                   onViewPhotos={() => setViewingPhotos(c)}
                   onView={() => onView(c)}
@@ -2726,13 +2749,14 @@ function CandidateHistoryDialog({ candidateId, candidateName, createdAt, created
 }
 
 function CandidateCard({
-  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo, agencyOptions, agencyPhones, countryOptions, compact, narrativeSuggestions,
+  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo, agencyOptions, agencyPhones, countryOptions, compact, narrativeSuggestions, meetsCvReq,
 }: {
   candidate: Candidate;
   selected: boolean;
   visibleCols: readonly string[];
   cancelMode?: boolean;
   compact?: boolean;
+  meetsCvReq?: boolean;
   onToggleSelect: () => void;
   onViewPhotos: () => void;
   onView: () => void;
@@ -2829,6 +2853,11 @@ function CandidateCard({
           {candidate.availability_type?.toLowerCase() === "unavailable" && (
             <span className="inline-flex items-center rounded-sm bg-red-400 text-red-700 dark:bg-red-900/40 dark:text-red-300 text-[10px] font-semibold px-1.5 py-0.5 leading-none">
               Unavailable
+            </span>
+          )}
+          {meetsCvReq && (
+            <span className="inline-flex items-center gap-0.5 rounded-sm bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 text-[10px] font-semibold px-1.5 py-0.5 leading-none">
+              ✓ CV Ready
             </span>
           )}
         </div>

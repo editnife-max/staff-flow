@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect } from "react";
@@ -478,7 +478,9 @@ function AssignmentsPage() {
           <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30 shrink-0">
             <CircleDot className="h-4 w-4 text-primary shrink-0" />
             <span className="text-sm font-semibold">CV Page Requirements</span>
-            <span className="ml-auto text-xs text-muted-foreground">applied on CV page load</span>
+            <Link to="/manager/candidates" search={{ tab: "available" }} className="ml-auto text-xs text-primary hover:underline flex items-center gap-1">
+              <ExternalLink className="h-3 w-3" /> View Qualifying
+            </Link>
           </div>
           <div className="p-3 space-y-2 flex-1 overflow-y-auto">
             {/* CV Requirement Days */}

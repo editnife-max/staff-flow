@@ -199,13 +199,6 @@ function getCvReqDefaults() {
   } catch { return defaults; }
 }
 
-const initialFilters = {
-  sort: "newest",
-  ...getCvReqDefaults(),
-  from: "",
-  to: "",
-};
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 function CvGeneratorPage() {
@@ -214,7 +207,12 @@ function CvGeneratorPage() {
   const search   = Route.useSearch();
   const [query,       setQuery]       = useState("");
   const [showFilters, setShowFilters] = useState(true);
-  const [filters,     setFilters]     = useState(initialFilters);
+  const [filters,     setFilters]     = useState(() => ({
+    sort: "newest",
+    ...getCvReqDefaults(),
+    from: "",
+    to: "",
+  }));
   const activeCount = Object.entries(filters).filter(([k, v]) => k !== "sort" && v && v !== "all").length;
   const [selected,    setSelected]    = useState<Set<string>>(new Set());
   const [sendOffice,       setSendOffice]        = useState("");
