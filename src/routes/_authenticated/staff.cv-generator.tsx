@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Search, FileText, User, ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight,
+  Search, FileText, User, ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
   Send, ClipboardPaste, X, RotateCcw, Stethoscope, Briefcase, FileCheck,
-  Globe, BookOpen, Users, Calendar, Trash2,
+  Globe, BookOpen, Users, Calendar, Trash2, Play,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
@@ -52,6 +52,7 @@ const OPTION_COLORS: Record<string, string> = {
 function CvCandidateCard({
   candidate: c, selected, onToggleSelect, onAction, onRemoveFromAgency, overdueDays, lockedDaysLeft,
 }: { candidate: Candidate; selected: boolean; onToggleSelect: () => void; onAction: () => void; onRemoveFromAgency: () => void; overdueDays?: number; lockedDaysLeft?: number }) {
+  const [viewing, setViewing] = useState(false);
   type FieldDef = { label: string; value: string; bold?: boolean; badge?: boolean };
   const fields: FieldDef[] = [
     { label: "CANDIDATE CODE", value: c.candidate_code ?? "—" },
@@ -142,8 +143,11 @@ function CvCandidateCard({
 
         {/* Sticky right: actions */}
         <div className="sticky right-0 z-10 self-stretch shrink-0 flex flex-col justify-center items-center gap-1.5 px-4 border-l border-border" style={{ background: bg }}>
-          <Button size="sm" onClick={onAction} className="w-full px-5 h-8 rounded text-xs font-semibold tracking-wide">
+          <Button size="sm" onClick={() => setViewing(true)} className="w-full px-5 h-8 rounded text-xs font-semibold tracking-wide">
             VIEW
+          </Button>
+          <Button size="sm" variant="outline" onClick={onAction} className="w-full px-5 h-8 rounded text-xs font-semibold tracking-wide">
+            ACTION
           </Button>
           {c.cv_sent_to && (
             <button
@@ -157,6 +161,7 @@ function CvCandidateCard({
           )}
         </div>
       </div>
+      <CandidateDetailDialog candidate={viewing ? c : null} onClose={() => setViewing(false)} />
     </div>
   );
 }
@@ -164,7 +169,6 @@ function CvCandidateCard({
 const MEDICAL_OPTIONS = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired"];
 
 const CV_REQ_KEY = "cv-page-requirements";
-const PAGE_SIZE = 20;
 
 function toArr(val: string | undefined, fallback: string[] = []): string[] {
   if (!val || val === "all") return fallback;
@@ -210,6 +214,7 @@ function CvGeneratorPage() {
     k !== "sort" && (Array.isArray(v) ? v.length > 0 : !!v)
   ).length;
   const [page,        setPage]        = useState(1);
+  const [pageSize,    setPageSize]    = useState(20);
   const [selected,    setSelected]    = useState<Set<string>>(new Set());
   const [sendOffice,       setSendOffice]        = useState("");
   const [actionCandidates, setActionCandidates] = useState<Candidate[]>([]);
@@ -392,10 +397,10 @@ function CvGeneratorPage() {
     [filtered, candidateStatus],
   );
 
-  useEffect(() => { setPage(1); }, [filtered.length]);
+  useEffect(() => { setPage(1); }, [filtered.length, pageSize]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pagedList  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const pagedList  = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   const allSel  = selectableFiltered.length > 0 && selectableFiltered.every((c) => selected.has(c.id));
   const someSel = !allSel && selectableFiltered.some((c) => selected.has(c.id));
@@ -594,9 +599,24 @@ function CvGeneratorPage() {
                 <ChevronRight className="h-3.5 w-3.5" />
               </Button>
             </div>
-            <span className="text-xs text-muted-foreground">
-              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
-            </span>
+            <div className="flex items-center gap-1">
+              {[5, 10, 50, 100, 500].map((s) => (
+                <Button key={s} size="sm" variant={pageSize === s ? "default" : "outline"}
+                  className="h-7 px-2 rounded-none text-xs"
+                  onClick={() => { setPageSize(s); setPage(1); }}>
+                  {s}
+                </Button>
+              ))}
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground">
+                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filtered.length)} of {filtered.length}
+              </span>
+              <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs font-bold"
+                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
+                <ChevronUp className="h-3.5 w-3.5" /> Back to top
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -794,5 +814,154 @@ function CvDateField({ label, value, onChange }: { label: string; value: string;
         </button>
       )}
     </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string | number | null | undefined }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className="text-[13px] text-foreground">{value || "—"}</span>
+    </div>
+  );
+}
+
+function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border pb-1">{title}</h3>
+      <div className="grid grid-cols-3 gap-x-6 gap-y-3">{children}</div>
+    </div>
+  );
+}
+
+type Status = "available" | "processing" | "arrived" | "canceled" | "returned";
+
+function CandidateDetailDialog({ candidate, onClose }: { candidate: Candidate | null; onClose: () => void }) {
+  if (!candidate) return null;
+  const statusStyles: Record<Status, string> = {
+    available:  "bg-emerald-400 text-emerald-800",
+    processing: "bg-amber-400 text-amber-800",
+    arrived:    "bg-blue-400 text-blue-800",
+    canceled:   "bg-red-400 text-red-800",
+    returned:   "bg-orange-400 text-orange-800",
+  };
+  const statusKey = (candidate.status as Status) ?? "available";
+  return (
+    <Dialog open={!!candidate} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-3">
+            <span>{candidate.full_name}</span>
+            {candidate.candidate_code && (
+              <span className="text-xs font-mono font-normal text-muted-foreground">{candidate.candidate_code}</span>
+            )}
+            <span className={cn("ml-auto text-[11px] font-semibold px-2 py-0.5 rounded-none capitalize", statusStyles[statusKey])}>
+              {statusKey}
+            </span>
+          </DialogTitle>
+        </DialogHeader>
+        <div className="max-h-[70vh] overflow-y-auto pr-1 space-y-5">
+          {(candidate.photo_url || (candidate as any).full_photo_url || candidate.passport_scan_url) && (
+            <div className="flex gap-3">
+              {candidate.photo_url && (
+                <div className="flex flex-col items-center gap-1">
+                  <img src={candidate.photo_url} alt="Photo" className="h-24 w-20 object-cover border border-border" />
+                  <span className="text-[10px] text-muted-foreground">Photo</span>
+                </div>
+              )}
+              {(candidate as any).full_photo_url && (
+                <div className="flex flex-col items-center gap-1">
+                  <img src={(candidate as any).full_photo_url} alt="Full Photo" className="h-24 w-20 object-cover border border-border" />
+                  <span className="text-[10px] text-muted-foreground">Full Photo</span>
+                </div>
+              )}
+              {candidate.passport_scan_url && (
+                <div className="flex flex-col items-center gap-1">
+                  <img src={candidate.passport_scan_url} alt="Passport" className="h-24 w-20 object-cover border border-border" />
+                  <span className="text-[10px] text-muted-foreground">Passport Scan</span>
+                </div>
+              )}
+            </div>
+          )}
+          <DetailSection title="Personal">
+            <InfoRow label="Full Name"      value={candidate.full_name} />
+            <InfoRow label="First Name"     value={candidate.first_name} />
+            <InfoRow label="Last Name"      value={candidate.last_name} />
+            <InfoRow label="Date of Birth"  value={candidate.dob} />
+            <InfoRow label="Age"            value={calcAge(candidate.dob) ?? candidate.age} />
+            <InfoRow label="Gender"         value={candidate.gender} />
+            <InfoRow label="Religion"       value={candidate.religion} />
+            <InfoRow label="Marital Status" value={candidate.marital_status} />
+            <InfoRow label="Children"       value={candidate.children} />
+            <InfoRow label="Birth Place"    value={candidate.birth_place} />
+            <InfoRow label="Living Town"    value={candidate.living_town} />
+            <InfoRow label="Country"        value={candidate.country} />
+            <InfoRow label="Occupation"     value={candidate.occupation} />
+            <InfoRow label="Education"      value={candidate.education} />
+            <InfoRow label="Experience"     value={candidate.experience} />
+          </DetailSection>
+          <DetailSection title="Passport">
+            <InfoRow label="Passport Number" value={candidate.passport_number} />
+            <InfoRow label="Passport Status" value={candidate.passport_status} />
+            <InfoRow label="Issue Date"      value={candidate.passport_issue_date} />
+            <InfoRow label="Expiry Date"     value={candidate.passport_expiry_date} />
+            <InfoRow label="Place of Issue"  value={candidate.place_of_issue} />
+            <InfoRow label="Labour ID"       value={candidate.labour_id} />
+          </DetailSection>
+          <DetailSection title="Languages & Physical">
+            <InfoRow label="Spoken Languages" value={candidate.spoken_languages} />
+            <InfoRow label="English Level"    value={candidate.english_level} />
+            <InfoRow label="Arabic Level"     value={candidate.arabic_level} />
+            <InfoRow label="Weight (kg)"      value={candidate.weight} />
+            <InfoRow label="Height (cm)"      value={candidate.height} />
+          </DetailSection>
+          <DetailSection title="Status">
+            <InfoRow label="Medical Status" value={candidate.medical_status} />
+            <InfoRow label="Medical Date"   value={candidate.medical_date} />
+            <InfoRow label="COC Status"     value={candidate.coc_status} />
+            <InfoRow label="Country"        value={candidate.musaned_status} />
+            <InfoRow label="Passport Status" value={candidate.passport_status} />
+            <InfoRow label="Office"         value={candidate.office} />
+            <InfoRow label="Selected By"    value={candidate.selected_by} />
+            <InfoRow label="Contract Date"  value={candidate.contract_date} />
+            <InfoRow label="CV Sent To"     value={candidate.cv_sent_to} />
+            <InfoRow label="CV Sent Date"   value={candidate.cv_sent_date} />
+            <InfoRow label="Narrative"      value={candidate.narrative} />
+            <InfoRow label="Narrative Phone" value={candidate.narrative_phone} />
+          </DetailSection>
+          <DetailSection title="Logistics & Processing">
+            <InfoRow label="Tasheer Status" value={candidate.tasheer_status} />
+            <InfoRow label="Tasheer Date"   value={candidate.tasheer_date} />
+            <InfoRow label="Wokala Status"  value={candidate.wokala_status} />
+            <InfoRow label="Visa Status"    value={candidate.visa_status} />
+            <InfoRow label="Ticket Status"  value={candidate.ticket_status} />
+            <InfoRow label="Ticket Date"    value={candidate.ticket_date} />
+            <InfoRow label="Arrival City"   value={candidate.arrival_city} />
+            <InfoRow label="LMIS Status"    value={candidate.lmis_status} />
+            <InfoRow label="Insurance"      value={candidate.insurance_status} />
+          </DetailSection>
+          {(candidate.skills || candidate.notes || candidate.remark) && (
+            <DetailSection title="Other">
+              {candidate.skills  && <div className="col-span-3"><InfoRow label="Skills"  value={candidate.skills} /></div>}
+              {candidate.notes   && <div className="col-span-3"><InfoRow label="Notes"   value={candidate.notes} /></div>}
+              {candidate.remark  && <div className="col-span-3"><InfoRow label="Remark"  value={candidate.remark} /></div>}
+            </DetailSection>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Close</Button>
+          {candidate.video_url && (
+            <Button variant="outline" className="gap-1.5" onClick={() => {
+              const url = candidate.video_url!;
+              const gdMatch = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
+              window.open(gdMatch ? `https://drive.google.com/uc?export=download&id=${gdMatch[1]}` : url, "_blank");
+            }}>
+              <Play className="h-4 w-4" /> Video
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
