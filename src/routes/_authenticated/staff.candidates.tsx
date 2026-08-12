@@ -649,10 +649,8 @@ function StaffCandidatesPage() {
     }
     if (field === "visa_status" && value === "Arrived KSA")
       fieldMut.mutate({ id, field: "status", value: "arrived" });
-    if (field === "tasheer_status" && (value === "No" || !value)) {
-      const c = qc.getQueryData<Candidate[]>(["staff-candidates", user?.id])?.find((c) => c.id === id);
-      if (!c?.tasheer_date) fieldMut.mutate({ id, field: "tasheer_date", value: null });
-    }
+    if (field === "tasheer_status" && !value)
+      fieldMut.mutate({ id, field: "tasheer_date", value: null });
     // Tasheer Done + Wokala Paid → Visa "Ready for embassy"
     if (field === "tasheer_status" && value === "Done") {
       const c = qc.getQueryData<Candidate[]>(["staff-candidates", user?.id])?.find((c) => c.id === id);
@@ -2080,14 +2078,48 @@ function ProcessingEditDialog({
             <ProcInput label="Processing Note" k="processing_notes" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">TICKET PDF</label>
-            <TicketPdfSection
-              ticketUrl={(candidate as any).ticket_pdf_url ?? null}
-              visaUrl={(candidate as any).visa_pdf_url ?? null}
-              qrUrl={(candidate as any).qr_url ?? null}
-              candidateId={candidate.id}
-              onUpdate={(field, value) => onUpdateField(field, value)}
-            />
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">TICKET FILES</label>
+            <div className="grid grid-cols-3 gap-3">
+              <LmisDocSection
+                label="Ticket PDF"
+                url={(candidate as any).ticket_pdf_url ?? ""}
+                onUpload={async (f) => {
+                  const ext = f.name.split(".").pop() ?? "pdf";
+                  const path = `ticket-pdfs/${candidate.id}/ticket_${Date.now()}.${ext}`;
+                  const { error } = await supabase.storage.from("candidate-files").upload(path, f, { upsert: true });
+                  if (error) throw error;
+                  const { data } = supabase.storage.from("candidate-files").getPublicUrl(path);
+                  onUpdateField("ticket_pdf_url", data.publicUrl);
+                }}
+                onRemove={() => onUpdateField("ticket_pdf_url", null)}
+              />
+              <LmisDocSection
+                label="QR"
+                url={(candidate as any).qr_url ?? ""}
+                onUpload={async (f) => {
+                  const ext = f.name.split(".").pop() ?? "pdf";
+                  const path = `ticket-pdfs/${candidate.id}/qr_${Date.now()}.${ext}`;
+                  const { error } = await supabase.storage.from("candidate-files").upload(path, f, { upsert: true });
+                  if (error) throw error;
+                  const { data } = supabase.storage.from("candidate-files").getPublicUrl(path);
+                  onUpdateField("qr_url", data.publicUrl);
+                }}
+                onRemove={() => onUpdateField("qr_url", null)}
+              />
+              <LmisDocSection
+                label="Visa"
+                url={(candidate as any).visa_pdf_url ?? ""}
+                onUpload={async (f) => {
+                  const ext = f.name.split(".").pop() ?? "pdf";
+                  const path = `ticket-pdfs/${candidate.id}/visa_${Date.now()}.${ext}`;
+                  const { error } = await supabase.storage.from("candidate-files").upload(path, f, { upsert: true });
+                  if (error) throw error;
+                  const { data } = supabase.storage.from("candidate-files").getPublicUrl(path);
+                  onUpdateField("visa_pdf_url", data.publicUrl);
+                }}
+                onRemove={() => onUpdateField("visa_pdf_url", null)}
+              />
+            </div>
           </div>
           {countryOptions.length > 0 && (
             <div className="grid grid-cols-2 gap-3">
@@ -2821,6 +2853,7 @@ function CandidateCard({
   const [cocEditName, setCocEditName] = useState("");
   const [cocEditPhone, setCocEditPhone] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [ticketFilesOpen, setTicketFilesOpen] = useState(false);
   const statusKey = (["available","processing","arrived","canceled","returned"].includes(candidate.status ?? "")
     ? candidate.status : "available") as Status;
 
@@ -2912,16 +2945,34 @@ function CandidateCard({
                 );
               }
               if (colLabel === "TICKET PDF") {
+                const ca = candidate as any;
+                const ticketItems: React.ReactNode[] = [];
+                if (ca.ticket_pdf_url) ticketItems.push(
+                  <div key="ticket" className="flex items-center gap-1">
+                    <button type="button" onClick={() => setTicketFilesOpen(true)} className="text-[10px] font-semibold text-blue-700 dark:text-blue-400 hover:underline shrink-0">PDF</button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(ca.ticket_pdf_url); }} className="text-blue-700 dark:text-blue-400 hover:opacity-70"><Download className="h-3 w-3" /></button>
+                  </div>
+                );
+                if (ca.qr_url) ticketItems.push(
+                  <div key="qr" className="flex items-center gap-1">
+                    <button type="button" onClick={() => setTicketFilesOpen(true)} className="text-[10px] font-semibold text-green-700 dark:text-green-400 hover:underline shrink-0">QR</button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(ca.qr_url); }} className="text-green-700 dark:text-green-400 hover:opacity-70"><Download className="h-3 w-3" /></button>
+                  </div>
+                );
+                if (ca.visa_pdf_url) ticketItems.push(
+                  <div key="visa" className="flex items-center gap-1">
+                    <button type="button" onClick={() => setTicketFilesOpen(true)} className="text-[10px] font-semibold text-purple-700 dark:text-purple-400 hover:underline shrink-0">VISA</button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(ca.visa_pdf_url); }} className="text-purple-700 dark:text-purple-400 hover:opacity-70"><Download className="h-3 w-3" /></button>
+                  </div>
+                );
                 return (
                   <div key="TICKET PDF" className="shrink-0">
                     <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">TICKET FILES</div>
-                    <TicketPdfSection
-                      ticketUrl={(candidate as any).ticket_pdf_url ?? null}
-                      visaUrl={(candidate as any).visa_pdf_url ?? null}
-                      qrUrl={(candidate as any).qr_url ?? null}
-                      candidateId={candidate.id}
-                      onUpdate={(field, value) => onUpdateField(field, value)}
-                    />
+                    <div className="flex flex-col gap-0.5">
+                      {ticketItems.length > 0
+                        ? ticketItems
+                        : <button type="button" onClick={() => setTicketFilesOpen(true)} className="text-muted-foreground text-sm">—</button>}
+                    </div>
                   </div>
                 );
               }
@@ -3102,6 +3153,13 @@ function CandidateCard({
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
       />
+      {ticketFilesOpen && (
+        <TicketFilesDialog
+          candidate={candidate}
+          onUpdateField={(field, value) => onUpdateField(field, value)}
+          onClose={() => setTicketFilesOpen(false)}
+        />
+      )}
     </>
   );
 }
@@ -3669,6 +3727,7 @@ function ProcessingCard({
   const [ticketHoldOpen, setTicketHoldOpen] = useState(false);
   const [ticketHoldReason, setTicketHoldReason] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [ticketFilesOpen, setTicketFilesOpen] = useState(false);
   function handleColUpdate(colKey: string, value: string | null) {
     if (colKey === "coc_status" && value === "Placed") {
       setCocPlacedOpen(true);
@@ -3880,13 +3939,35 @@ function ProcessingCard({
                         onSave={(v) => handleColUpdate(col.key, v)}
                       />
                     ) : col.type === "upload" ? (
-                      <TicketPdfSection
-                        ticketUrl={(candidate as any).ticket_pdf_url ?? null}
-                        visaUrl={(candidate as any).visa_pdf_url ?? null}
-                        qrUrl={(candidate as any).qr_url ?? null}
-                        candidateId={candidate.id}
-                        onUpdate={(field, value) => onUpdateField(field, value)}
-                      />
+                      (() => {
+                        const ca = candidate as any;
+                        const ticketItems: React.ReactNode[] = [];
+                        if (ca.ticket_pdf_url) ticketItems.push(
+                          <div key="ticket" className="flex items-center gap-1">
+                            <button type="button" onClick={() => setTicketFilesOpen(true)} className="text-[10px] font-semibold text-blue-700 dark:text-blue-400 hover:underline shrink-0">PDF</button>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(ca.ticket_pdf_url); }} className="text-blue-700 dark:text-blue-400 hover:opacity-70"><Download className="h-3 w-3" /></button>
+                          </div>
+                        );
+                        if (ca.qr_url) ticketItems.push(
+                          <div key="qr" className="flex items-center gap-1">
+                            <button type="button" onClick={() => setTicketFilesOpen(true)} className="text-[10px] font-semibold text-green-700 dark:text-green-400 hover:underline shrink-0">QR</button>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(ca.qr_url); }} className="text-green-700 dark:text-green-400 hover:opacity-70"><Download className="h-3 w-3" /></button>
+                          </div>
+                        );
+                        if (ca.visa_pdf_url) ticketItems.push(
+                          <div key="visa" className="flex items-center gap-1">
+                            <button type="button" onClick={() => setTicketFilesOpen(true)} className="text-[10px] font-semibold text-purple-700 dark:text-purple-400 hover:underline shrink-0">VISA</button>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(ca.visa_pdf_url); }} className="text-purple-700 dark:text-purple-400 hover:opacity-70"><Download className="h-3 w-3" /></button>
+                          </div>
+                        );
+                        return (
+                          <div className="flex flex-col gap-0.5">
+                            {ticketItems.length > 0
+                              ? ticketItems
+                              : <button type="button" onClick={() => setTicketFilesOpen(true)} className="text-muted-foreground text-sm">—</button>}
+                          </div>
+                        );
+                      })()
                     ) : null}
                   </div>
                 </div>
@@ -4118,6 +4199,13 @@ function ProcessingCard({
       open={historyOpen}
       onClose={() => setHistoryOpen(false)}
     />
+    {ticketFilesOpen && (
+      <TicketFilesDialog
+        candidate={candidate}
+        onUpdateField={(field, value) => onUpdateField(field, value)}
+        onClose={() => setTicketFilesOpen(false)}
+      />
+    )}
     </>
   );
 }
@@ -4500,185 +4588,6 @@ function PhotoUpload({
   );
 }
 
-function parseTicketUrls(val: string | null): string[] {
-  if (!val) return [];
-  try {
-    const parsed = JSON.parse(val);
-    if (Array.isArray(parsed)) return parsed.filter(Boolean);
-    return [val];
-  } catch {
-    return [val];
-  }
-}
-
-function MultiTicketCell({ value, candidateId, onUpdate }: {
-  value: string | null;
-  candidateId: string;
-  onUpdate: (serialized: string | null) => void;
-}) {
-  const urls = parseTicketUrls(value);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(null);
-
-  const SLOT_LABELS = ["Ticket PDF", "QR", "Visa"];
-  const slotLabel = (i: number) => SLOT_LABELS[i] ?? `PDF ${i + 1}`;
-  const nextLabel = slotLabel(urls.length);
-
-  const serialize = (arr: string[]) => arr.length === 0 ? null : JSON.stringify(arr);
-
-  const doUpload = async (file: File) => {
-    setUploading(true);
-    try {
-      const ext = file.name.split(".").pop() ?? "pdf";
-      const path = `ticket-pdfs/${candidateId}/${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("candidate-files").upload(path, file, { upsert: true });
-      if (error) throw error;
-      const { data } = supabase.storage.from("candidate-files").getPublicUrl(path);
-      onUpdate(serialize([...urls, data.publicUrl]));
-    } catch {
-      toast.error("Upload failed");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  return (
-    <>
-      <div className="flex items-center gap-2 flex-wrap">
-        {urls.map((url, i) => (
-          <div key={i} className="flex items-center gap-1">
-            <button type="button" onClick={() => downloadFile(url)}
-              className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5">
-              <FileText className="h-3 w-3" />
-              {slotLabel(i)}
-            </button>
-            <button type="button" title="Remove"
-              onClick={() => setPendingRemoveIndex(i)}
-              className="text-muted-foreground hover:text-destructive">
-              <X className="h-3 w-3" />
-            </button>
-          </div>
-        ))}
-        {urls.length < SLOT_LABELS.length && (
-          <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
-            className="flex items-center gap-0.5 text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
-            title={`Upload ${nextLabel}`}>
-            {uploading
-              ? <Loader2 className="h-3 w-3 animate-spin" />
-              : urls.length > 0
-                ? <Plus className="h-3 w-3" />
-                : <Upload className="h-3 w-3" />}
-            {!uploading && urls.length === 0 && "Upload"}
-            {uploading && "…"}
-          </button>
-        )}
-        <input ref={inputRef} type="file" accept="application/pdf,image/*" className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) setPendingFile(f); e.target.value = ""; }} />
-      </div>
-
-      {pendingFile && (
-        <Dialog open onOpenChange={(o) => { if (!o) setPendingFile(null); }}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader><DialogTitle>Upload {nextLabel}</DialogTitle></DialogHeader>
-            <p className="text-sm text-muted-foreground">Are you sure you want to upload <strong>{pendingFile.name}</strong> as <strong>{nextLabel}</strong>?</p>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setPendingFile(null)}>No</Button>
-              <Button onClick={() => { doUpload(pendingFile); setPendingFile(null); }}>Yes</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {pendingRemoveIndex !== null && (
-        <Dialog open onOpenChange={(o) => { if (!o) setPendingRemoveIndex(null); }}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader><DialogTitle>Remove {slotLabel(pendingRemoveIndex)}</DialogTitle></DialogHeader>
-            <p className="text-sm text-muted-foreground">Are you sure you want to remove <strong>{slotLabel(pendingRemoveIndex)}</strong>?</p>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => setPendingRemoveIndex(null)}>No</Button>
-              <Button variant="destructive" onClick={() => { onUpdate(serialize(urls.filter((_, j) => j !== pendingRemoveIndex))); setPendingRemoveIndex(null); }}>Yes</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-    </>
-  );
-}
-
-function TicketPdfCell({ url, candidateId, folder, label = "File", onUpload, onRemove }: {
-  url: string | null;
-  candidateId: string;
-  folder: string;
-  label?: string;
-  onUpload: (url: string) => void;
-  onRemove: () => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const isImage = url ? /\.(jpg|jpeg|png|webp|gif|svg)(\?|$)/i.test(url) : false;
-  const handleFile = async (file: File) => {
-    setUploading(true);
-    try {
-      const ext = file.name.split(".").pop() ?? "bin";
-      const path = `${folder}/${candidateId}/${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("candidate-files").upload(path, file, { upsert: true });
-      if (error) throw error;
-      const { data } = supabase.storage.from("candidate-files").getPublicUrl(path);
-      onUpload(data.publicUrl);
-    } catch {
-      toast.error("Upload failed");
-    } finally {
-      setUploading(false);
-    }
-  };
-  return (
-    <div className="flex items-center gap-1 flex-wrap">
-      {url ? (
-        <>
-          {isImage ? (
-            <a href={url} target="_blank" rel="noopener noreferrer">
-              <img src={url} alt={label} className="h-8 w-8 object-cover rounded border" />
-            </a>
-          ) : (
-            <button type="button" onClick={() => downloadFile(url)} className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5">
-              <FileText className="h-3 w-3" /> {label}
-            </button>
-          )}
-          <button type="button" onClick={() => { inputRef.current?.click(); }} title="Replace" className="text-muted-foreground hover:text-primary">
-            <Upload className="h-3 w-3" />
-          </button>
-          <button type="button" onClick={onRemove} title="Remove" className="text-muted-foreground hover:text-destructive">
-            <X className="h-3 w-3" />
-          </button>
-        </>
-      ) : (
-        <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
-          className="flex items-center gap-0.5 text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50">
-          {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
-          {uploading ? "…" : "Upload"}
-        </button>
-      )}
-      <input ref={inputRef} type="file" accept="application/pdf,image/*" className="hidden"
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
-    </div>
-  );
-}
-
-function TicketPdfSection({ ticketUrl, candidateId, onUpdate }: {
-  ticketUrl: string | null;
-  visaUrl?: string | null;
-  qrUrl?: string | null;
-  candidateId: string;
-  onUpdate: (field: "ticket_pdf_url" | "visa_pdf_url" | "qr_url", value: string | null) => void;
-}) {
-  return (
-    <MultiTicketCell value={ticketUrl} candidateId={candidateId}
-      onUpdate={(v) => onUpdate("ticket_pdf_url", v)} />
-  );
-}
-
 function LmisDocSection({
   label, url, onUpload, onRemove,
 }: {
@@ -4790,6 +4699,44 @@ function LmisFilesDialog({
           <LmisDocSection label={hasBothIds ? "ID'S — Relative" : "ID (Relative)"} url={idRelUrl}
             onUpload={(f) => upload(f, "lmis_id_relative_url")}
             onRemove={() => onUpdateField("lmis_id_relative_url", null)} />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function TicketFilesDialog({
+  candidate, onUpdateField, onClose,
+}: {
+  candidate: Candidate;
+  onUpdateField: (field: string, value: string | null) => void;
+  onClose: () => void;
+}) {
+  const c = candidate as any;
+  const upload = async (file: File, field: string) => {
+    const ext = file.name.split(".").pop() ?? "pdf";
+    const path = `ticket-pdfs/${candidate.id}/${field}_${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("candidate-files").upload(path, file, { upsert: true });
+    if (error) throw error;
+    const { data } = supabase.storage.from("candidate-files").getPublicUrl(path);
+    onUpdateField(field, data.publicUrl);
+  };
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-2xl rounded-none">
+        <DialogHeader>
+          <DialogTitle className="text-base">Ticket Documents — {candidate.full_name}</DialogTitle>
+        </DialogHeader>
+        <div className="grid grid-cols-3 gap-4 pt-1">
+          <LmisDocSection label="Ticket PDF" url={c.ticket_pdf_url ?? ""}
+            onUpload={(f) => upload(f, "ticket_pdf_url")}
+            onRemove={() => onUpdateField("ticket_pdf_url", null)} />
+          <LmisDocSection label="QR" url={c.qr_url ?? ""}
+            onUpload={(f) => upload(f, "qr_url")}
+            onRemove={() => onUpdateField("qr_url", null)} />
+          <LmisDocSection label="Visa" url={c.visa_pdf_url ?? ""}
+            onUpload={(f) => upload(f, "visa_pdf_url")}
+            onRemove={() => onUpdateField("visa_pdf_url", null)} />
         </div>
       </DialogContent>
     </Dialog>
