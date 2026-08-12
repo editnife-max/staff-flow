@@ -2683,6 +2683,9 @@ function CandidateCard({
   const [returnOpen, setReturnOpen] = useState(false);
   const [medDateOpen, setMedDateOpen] = useState(false);
   const [pendingMedDate, setPendingMedDate] = useState("");
+  const [cocEditOpen, setCocEditOpen] = useState(false);
+  const [cocEditName, setCocEditName] = useState("");
+  const [cocEditPhone, setCocEditPhone] = useState("");
   const statusKey = (["available","processing","arrived","canceled","returned"].includes(candidate.status ?? "")
     ? candidate.status : "available") as Status;
 
@@ -2799,19 +2802,24 @@ function CandidateCard({
                       <InlineDate value={f.value} display={f.display} showDays={"showDays" in f ? f.showDays : undefined} onSave={(v) => onUpdateField(f.field, v)} />
                     ) : "edit" in f && f.edit === "select" ? (
                       colLabel === "COC STATUS" && f.value === "Placed" ? (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div>
-                                <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent className="rounded-none text-xs p-2 space-y-0.5">
-                              <div className="font-semibold">{(candidate as any).coc_agency_name || "—"}</div>
-                              <div>{(candidate as any).coc_agency_phone || "No phone"}</div>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        <div className="flex items-center gap-1">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div>
+                                  <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent className="rounded-none text-xs p-2 space-y-0.5">
+                                <div className="font-semibold">{(candidate as any).coc_agency_name || "—"}</div>
+                                <div>{(candidate as any).coc_agency_phone || "No phone"}</div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setCocEditName((candidate as any).coc_agency_name ?? ""); setCocEditPhone((candidate as any).coc_agency_phone ?? ""); setCocEditOpen(true); }}>
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                        </div>
                       ) : colLabel === "MEDICAL STATUS" ? (
                         <InlineSelect value={f.value} options={f.options} onSave={(v) => {
                           if (v === "Fit" && !candidate.medical_date) {
@@ -2919,6 +2927,21 @@ function CandidateCard({
                 onUpdateField("medical_status", status);
                 setMedDateOpen(false);
               }}>Confirm</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+      {cocEditOpen && (
+        <Dialog open onOpenChange={(o) => { if (!o) setCocEditOpen(false); }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>Edit COC Agency Details</DialogTitle></DialogHeader>
+            <div className="space-y-3 py-2">
+              <Input placeholder="Agency Name" value={cocEditName} onChange={(e) => setCocEditName(e.target.value)} className="rounded-none h-9" />
+              <Input placeholder="Phone Number" value={cocEditPhone} onChange={(e) => setCocEditPhone(e.target.value)} className="rounded-none h-9" />
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setCocEditOpen(false)}>Cancel</Button>
+              <Button disabled={!cocEditName.trim() || !cocEditPhone.trim()} onClick={() => { onUpdateField("coc_agency_name", cocEditName.trim()); onUpdateField("coc_agency_phone", cocEditPhone.trim()); setCocEditOpen(false); }}>Save</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -3496,7 +3519,9 @@ function ProcessingCard({
   const [ticketHoldReason, setTicketHoldReason] = useState("");
   function handleColUpdate(colKey: string, value: string | null) {
     if (colKey === "coc_status" && value === "Placed") {
-      setCocPlacedOpen(true); setCocPlacedName(""); setCocPlacedPhone("");
+      setCocPlacedOpen(true);
+      setCocPlacedName((candidate as any).coc_agency_name ?? "");
+      setCocPlacedPhone((candidate as any).coc_agency_phone ?? "");
       return;
     }
     if (colKey === "insurance_status" && value === "Done") {
@@ -3660,19 +3685,24 @@ function ProcessingCard({
                           })()}
                         </div>
                       ) : col.key === "coc_status" && strVal === "Placed" ? (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div>
-                                <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent className="rounded-none text-xs p-2 space-y-0.5">
-                              <div className="font-semibold">{(candidate as any).coc_agency_name || "—"}</div>
-                              <div>{(candidate as any).coc_agency_phone || "No phone"}</div>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        <div className="flex items-center gap-1">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div>
+                                  <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent className="rounded-none text-xs p-2 space-y-0.5">
+                                <div className="font-semibold">{(candidate as any).coc_agency_name || "—"}</div>
+                                <div>{(candidate as any).coc_agency_phone || "No phone"}</div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => { setCocPlacedName((candidate as any).coc_agency_name ?? ""); setCocPlacedPhone((candidate as any).coc_agency_phone ?? ""); setCocPlacedOpen(true); }}>
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                        </div>
                       ) : col.key === "insurance_status" && strVal === "Done" ? (
                         <TooltipProvider>
                           <Tooltip>
@@ -3876,11 +3906,11 @@ function ProcessingCard({
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCocPlacedOpen(false)}>Cancel</Button>
             <Button
-              disabled={!cocPlacedName.trim()}
+              disabled={!cocPlacedName.trim() || !cocPlacedPhone.trim()}
               onClick={() => {
                 onUpdateField("coc_status", "Placed");
                 onUpdateField("coc_agency_name", cocPlacedName.trim());
-                if (cocPlacedPhone.trim()) onUpdateField("coc_agency_phone", cocPlacedPhone.trim());
+                onUpdateField("coc_agency_phone", cocPlacedPhone.trim());
                 setCocPlacedOpen(false);
               }}
             >
