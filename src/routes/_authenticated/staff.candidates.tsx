@@ -1591,12 +1591,12 @@ function StaffCandidatesPage() {
             <DialogFooter>
               <Button variant="ghost" onClick={() => setCocPlacedPending(null)}>Cancel</Button>
               <Button
-                disabled={!cocPlacedName.trim()}
+                disabled={!cocPlacedName.trim() || !cocPlacedPhone.trim()}
                 onClick={() => {
                   const { id } = cocPlacedPending;
                   handleUpdateField(id, "coc_status", "Placed");
                   handleUpdateField(id, "coc_agency_name", cocPlacedName.trim());
-                  if (cocPlacedPhone.trim()) handleUpdateField(id, "coc_agency_phone", cocPlacedPhone.trim());
+                  handleUpdateField(id, "coc_agency_phone", cocPlacedPhone.trim());
                   setCocPlacedPending(null);
                 }}
               >

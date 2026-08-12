@@ -1651,12 +1651,12 @@ function ManagerCandidatesPage() {
             <DialogFooter>
               <Button variant="ghost" onClick={() => setCocPlacedPending(null)}>Cancel</Button>
               <Button
-                disabled={!cocPlacedName.trim()}
+                disabled={!cocPlacedName.trim() || !cocPlacedPhone.trim()}
                 onClick={() => {
                   const { id } = cocPlacedPending;
                   handleUpdateField(id, "coc_status", "Placed");
                   handleUpdateField(id, "coc_agency_name", cocPlacedName.trim());
-                  if (cocPlacedPhone.trim()) handleUpdateField(id, "coc_agency_phone", cocPlacedPhone.trim());
+                  handleUpdateField(id, "coc_agency_phone", cocPlacedPhone.trim());
                   setCocPlacedPending(null);
                 }}
               >
@@ -3972,11 +3972,11 @@ function ProcessingCard({
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCocPlacedOpen(false)}>Cancel</Button>
             <Button
-              disabled={!cocPlacedName.trim()}
+              disabled={!cocPlacedName.trim() || !cocPlacedPhone.trim()}
               onClick={() => {
                 onUpdateField("coc_status", "Placed");
                 onUpdateField("coc_agency_name", cocPlacedName.trim());
-                if (cocPlacedPhone.trim()) onUpdateField("coc_agency_phone", cocPlacedPhone.trim());
+                onUpdateField("coc_agency_phone", cocPlacedPhone.trim());
                 setCocPlacedOpen(false);
               }}
             >
