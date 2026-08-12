@@ -4351,10 +4351,12 @@ function MultiTicketCell({ value, candidateId, onUpdate }: {
   const urls = parseTicketUrls(value);
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(null);
 
   const serialize = (arr: string[]) => arr.length === 0 ? null : JSON.stringify(arr);
 
-  const handleFile = async (file: File) => {
+  const doUpload = async (file: File) => {
     setUploading(true);
     try {
       const ext = file.name.split(".").pop() ?? "pdf";
@@ -4371,35 +4373,63 @@ function MultiTicketCell({ value, candidateId, onUpdate }: {
   };
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      {urls.map((url, i) => (
-        <div key={i} className="flex items-center gap-1">
-          <button type="button" onClick={() => downloadFile(url)}
-            className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5">
-            <FileText className="h-3 w-3" />
-            {urls.length > 1 ? `PDF ${i + 1}` : "PDF"}
-          </button>
-          <button type="button" title="Remove"
-            onClick={() => onUpdate(serialize(urls.filter((_, j) => j !== i)))}
-            className="text-muted-foreground hover:text-destructive">
-            <X className="h-3 w-3" />
-          </button>
-        </div>
-      ))}
-      <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
-        className="flex items-center gap-0.5 text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
-        title={urls.length > 0 ? "Add another ticket" : "Upload ticket"}>
-        {uploading
-          ? <Loader2 className="h-3 w-3 animate-spin" />
-          : urls.length > 0
-            ? <Plus className="h-3 w-3" />
-            : <Upload className="h-3 w-3" />}
-        {!uploading && urls.length === 0 && "Upload"}
-        {uploading && "…"}
-      </button>
-      <input ref={inputRef} type="file" accept="application/pdf,image/*" className="hidden"
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
-    </div>
+    <>
+      <div className="flex items-center gap-2 flex-wrap">
+        {urls.map((url, i) => (
+          <div key={i} className="flex items-center gap-1">
+            <button type="button" onClick={() => downloadFile(url)}
+              className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5">
+              <FileText className="h-3 w-3" />
+              {urls.length > 1 ? `PDF ${i + 1}` : "PDF"}
+            </button>
+            <button type="button" title="Remove"
+              onClick={() => setPendingRemoveIndex(i)}
+              className="text-muted-foreground hover:text-destructive">
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ))}
+        <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
+          className="flex items-center gap-0.5 text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+          title={urls.length > 0 ? "Add another ticket" : "Upload ticket"}>
+          {uploading
+            ? <Loader2 className="h-3 w-3 animate-spin" />
+            : urls.length > 0
+              ? <Plus className="h-3 w-3" />
+              : <Upload className="h-3 w-3" />}
+          {!uploading && urls.length === 0 && "Upload"}
+          {uploading && "…"}
+        </button>
+        <input ref={inputRef} type="file" accept="application/pdf,image/*" className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) setPendingFile(f); e.target.value = ""; }} />
+      </div>
+
+      {pendingFile && (
+        <Dialog open onOpenChange={(o) => { if (!o) setPendingFile(null); }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>Upload Ticket PDF</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">Are you sure you want to upload <strong>{pendingFile.name}</strong>?</p>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setPendingFile(null)}>No</Button>
+              <Button onClick={() => { doUpload(pendingFile); setPendingFile(null); }}>Yes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {pendingRemoveIndex !== null && (
+        <Dialog open onOpenChange={(o) => { if (!o) setPendingRemoveIndex(null); }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>Remove Ticket PDF</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">Are you sure you want to remove {urls.length > 1 ? `PDF ${pendingRemoveIndex + 1}` : "this PDF"}?</p>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setPendingRemoveIndex(null)}>No</Button>
+              <Button variant="destructive" onClick={() => { onUpdate(serialize(urls.filter((_, j) => j !== pendingRemoveIndex))); setPendingRemoveIndex(null); }}>Yes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }
 
