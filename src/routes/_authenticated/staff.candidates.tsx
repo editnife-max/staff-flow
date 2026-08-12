@@ -4157,7 +4157,7 @@ function MultiFilterSelect({
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="flex items-center gap-1 bg-transparent border-0 text-[13px] font-bold text-black hover:opacity-70 transition-opacity px-0"
+            className="flex items-center gap-1 bg-transparent border-0 text-[13px] font-bold text-foreground hover:opacity-70 transition-opacity px-0"
           >
             {Icon && <Icon className="h-3 w-3 shrink-0" />}
             <span>{triggerLabel}</span>
@@ -4189,7 +4189,7 @@ function MultiFilterSelect({
                   {color ? (
                     <span className={cn("text-[13px] font-medium px-1.5 py-0.5", color)}>{o.label}</span>
                   ) : (
-                    <span className="text-[13px] text-black">{o.label}</span>
+                    <span className="text-[13px] text-foreground">{o.label}</span>
                   )}
                 </button>
               );
