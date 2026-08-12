@@ -4442,6 +4442,10 @@ function MultiTicketCell({ value, candidateId, onUpdate }: {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(null);
 
+  const SLOT_LABELS = ["Ticket PDF", "QR", "Visa"];
+  const slotLabel = (i: number) => SLOT_LABELS[i] ?? `PDF ${i + 1}`;
+  const nextLabel = slotLabel(urls.length);
+
   const serialize = (arr: string[]) => arr.length === 0 ? null : JSON.stringify(arr);
 
   const doUpload = async (file: File) => {
@@ -4468,7 +4472,7 @@ function MultiTicketCell({ value, candidateId, onUpdate }: {
             <button type="button" onClick={() => downloadFile(url)}
               className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5">
               <FileText className="h-3 w-3" />
-              {urls.length > 1 ? `PDF ${i + 1}` : "PDF"}
+              {slotLabel(i)}
             </button>
             <button type="button" title="Remove"
               onClick={() => setPendingRemoveIndex(i)}
@@ -4477,17 +4481,19 @@ function MultiTicketCell({ value, candidateId, onUpdate }: {
             </button>
           </div>
         ))}
-        <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
-          className="flex items-center gap-0.5 text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
-          title={urls.length > 0 ? "Add another ticket" : "Upload ticket"}>
-          {uploading
-            ? <Loader2 className="h-3 w-3 animate-spin" />
-            : urls.length > 0
-              ? <Plus className="h-3 w-3" />
-              : <Upload className="h-3 w-3" />}
-          {!uploading && urls.length === 0 && "Upload"}
-          {uploading && "…"}
-        </button>
+        {urls.length < SLOT_LABELS.length && (
+          <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
+            className="flex items-center gap-0.5 text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+            title={`Upload ${nextLabel}`}>
+            {uploading
+              ? <Loader2 className="h-3 w-3 animate-spin" />
+              : urls.length > 0
+                ? <Plus className="h-3 w-3" />
+                : <Upload className="h-3 w-3" />}
+            {!uploading && urls.length === 0 && "Upload"}
+            {uploading && "…"}
+          </button>
+        )}
         <input ref={inputRef} type="file" accept="application/pdf,image/*" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) setPendingFile(f); e.target.value = ""; }} />
       </div>
@@ -4495,8 +4501,8 @@ function MultiTicketCell({ value, candidateId, onUpdate }: {
       {pendingFile && (
         <Dialog open onOpenChange={(o) => { if (!o) setPendingFile(null); }}>
           <DialogContent className="max-w-sm">
-            <DialogHeader><DialogTitle>Upload Ticket PDF</DialogTitle></DialogHeader>
-            <p className="text-sm text-muted-foreground">Are you sure you want to upload <strong>{pendingFile.name}</strong>?</p>
+            <DialogHeader><DialogTitle>Upload {nextLabel}</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">Are you sure you want to upload <strong>{pendingFile.name}</strong> as <strong>{nextLabel}</strong>?</p>
             <DialogFooter>
               <Button variant="ghost" onClick={() => setPendingFile(null)}>No</Button>
               <Button onClick={() => { doUpload(pendingFile); setPendingFile(null); }}>Yes</Button>
@@ -4508,8 +4514,8 @@ function MultiTicketCell({ value, candidateId, onUpdate }: {
       {pendingRemoveIndex !== null && (
         <Dialog open onOpenChange={(o) => { if (!o) setPendingRemoveIndex(null); }}>
           <DialogContent className="max-w-sm">
-            <DialogHeader><DialogTitle>Remove Ticket PDF</DialogTitle></DialogHeader>
-            <p className="text-sm text-muted-foreground">Are you sure you want to remove {urls.length > 1 ? `PDF ${pendingRemoveIndex + 1}` : "this PDF"}?</p>
+            <DialogHeader><DialogTitle>Remove {slotLabel(pendingRemoveIndex)}</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">Are you sure you want to remove <strong>{slotLabel(pendingRemoveIndex)}</strong>?</p>
             <DialogFooter>
               <Button variant="ghost" onClick={() => setPendingRemoveIndex(null)}>No</Button>
               <Button variant="destructive" onClick={() => { onUpdate(serialize(urls.filter((_, j) => j !== pendingRemoveIndex))); setPendingRemoveIndex(null); }}>Yes</Button>
