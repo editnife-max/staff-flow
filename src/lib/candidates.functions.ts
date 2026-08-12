@@ -300,8 +300,8 @@ export const updateCandidateField = createServerFn({ method: "POST" })
       payload[FIELD_TS_MAP[data.field]] = raw !== null ? new Date().toISOString() : null;
     }
 
-    if (data.field === "cv_sent_to" && raw) {
-      payload.cv_sent_date = new Date().toISOString().split("T")[0];
+    if (data.field === "cv_sent_to") {
+      payload.cv_sent_date = raw ? new Date().toISOString().split("T")[0] : null;
     }
 
     // Clear ticket_date whenever ticket_status changes to anything other than "Booked"
@@ -455,8 +455,9 @@ export const bulkUpdateField = createServerFn({ method: "POST" })
     const coercedBulk =
       data.field === "passport_accepted" && raw !== null ? raw === "true" : raw;
     const patch: Record<string, unknown> = { [data.field]: coercedBulk };
-    if (data.field === "cv_sent_to" && raw) {
-      patch.cv_sent_date = new Date().toISOString().split("T")[0];
+    if (data.field === "cv_sent_to") {
+      patch.cv_sent_date = raw ? new Date().toISOString().split("T")[0] : null;
+      if (!raw) patch.status = "canceled";
     }
     const { error, count } = await supabaseAdmin
       .from("candidates")

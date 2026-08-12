@@ -819,11 +819,12 @@ function StaffCandidatesPage() {
   });
 
   const bulkDeleteMut = useMutation({
-    mutationFn: async () => bulkDel({ data: { ids: Array.from(selected) } }),
+    mutationFn: async () => bulkStatus({ data: { ids: Array.from(selected), status: "canceled" } }),
     onSuccess: (r) => {
-      toast.success(`Deleted ${r.count} candidate(s)`);
+      toast.success(`Moved ${r.count} candidate(s) to Canceled`);
       qc.invalidateQueries({ queryKey: ["staff-candidates"] });
       clearSelection();
+      setTab("canceled");
     },
     onError: (e: Error) => toast.error(e.message),
   });
