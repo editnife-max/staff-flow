@@ -20,6 +20,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DarkModeToggle } from "@/components/dark-mode-toggle";
 
 export const Route = createFileRoute("/_authenticated/manager")({
   component: ManagerLayout,
@@ -341,6 +342,7 @@ function ManagerLayout() {
             })}
           </nav>
 
+          <DarkModeToggle />
           <ManagerBell />
 
           <DropdownMenu>

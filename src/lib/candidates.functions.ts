@@ -336,10 +336,10 @@ export const updateCandidateField = createServerFn({ method: "POST" })
           .then((r: any) => r.data)
       : null;
 
-    // When tasheer_status changes, clear downstream fields.
-    // Preserve tasheer_date when setting to "Booked" or "Done".
-    if (data.field === "tasheer_status" && raw !== "Booked" && raw !== "Done") {
-      if (!cur?.tasheer_date) payload.tasheer_date = null;
+    // Clear tasheer_date only when tasheer_status is explicitly cleared (set to null/empty).
+    // Preserve it for all named values: "No", "Booked", "Done", "Ready", etc.
+    if (data.field === "tasheer_status" && !raw) {
+      payload.tasheer_date = null;
     }
 
     // Auto-assign cv_sent_to when the Country (musaned_status) field is set

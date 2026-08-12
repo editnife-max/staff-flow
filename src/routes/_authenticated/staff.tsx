@@ -27,6 +27,7 @@ import {
 } from "@/lib/notifications.functions";
 import { updateCandidateField } from "@/lib/candidates.functions";
 import { useStaffSession } from "@/hooks/use-staff-session";
+import { DarkModeToggle } from "@/components/dark-mode-toggle";
 
 export const Route = createFileRoute("/_authenticated/staff")({
   component: StaffLayout,
@@ -334,6 +335,7 @@ function StaffLayout() {
             </PopoverContent>
           </Popover>
 
+          <DarkModeToggle />
           {/* User menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

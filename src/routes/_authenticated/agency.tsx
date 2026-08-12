@@ -4,6 +4,7 @@ import { useState, createContext, useContext } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DarkModeToggle } from "@/components/dark-mode-toggle";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -147,6 +148,7 @@ function AgencyLayout() {
             })}
           </nav>
 
+          <DarkModeToggle />
           {/* Language toggle */}
           <button
             type="button"

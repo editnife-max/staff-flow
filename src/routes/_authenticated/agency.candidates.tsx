@@ -94,8 +94,9 @@ const AR_VALUES: Record<string, string> = {
 
 function tv(val: string | number | null | undefined, lang: "en" | "ar"): string {
   if (val == null || val === "") return "—";
-  if (lang === "ar") return AR_VALUES[String(val)] ?? String(val);
-  return String(val);
+  const normalized = String(val) === "None" ? "No" : String(val);
+  if (lang === "ar") return AR_VALUES[normalized] ?? normalized;
+  return normalized;
 }
 
 const UI = {
@@ -625,7 +626,7 @@ function CvViewDialog({ candidate: c, template, onClose, translatedName }: { can
           </CvDetailSection>
 
           <CvDetailSection title="Experience">
-            <CvInfoRow label="Experience"         value={c.experience} />
+            <CvInfoRow label="Experience"         value={c.experience === "None" ? "No" : c.experience} />
             <CvInfoRow label="Experience Country" value={c.experience_country} />
             <CvInfoRow label="Experience Years"   value={c.experience_years} />
           </CvDetailSection>

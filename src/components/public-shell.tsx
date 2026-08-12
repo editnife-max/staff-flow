@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Building2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { DarkModeToggle } from "@/components/dark-mode-toggle";
 
 export function PublicShell({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -16,6 +17,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
             <span className="font-semibold tracking-tight">Staff-Flow</span>
           </Link>
           <nav className="flex items-center gap-6 text-sm">
+            <DarkModeToggle className="h-8 w-8 text-primary-foreground hover:text-primary-foreground hover:bg-primary/80" />
             <Link to="/about" className="hover:text-accent">About</Link>
             <Link to="/faq" className="hover:text-accent">FAQ</Link>
             <Link to="/contact" className="hover:text-accent">Contact</Link>

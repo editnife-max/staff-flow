@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { DarkModeToggle } from "@/components/dark-mode-toggle";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Sign in — Staff-Flow Agency" }] }),
@@ -54,7 +55,8 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen grid place-items-center bg-muted/40 p-6">
+    <div className="min-h-screen grid place-items-center bg-muted/40 p-6 relative">
+      <div className="absolute top-4 right-4"><DarkModeToggle /></div>
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <Link to="/" className="mx-auto mb-3 flex items-center gap-2">
