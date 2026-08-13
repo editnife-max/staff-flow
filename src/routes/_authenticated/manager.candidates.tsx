@@ -1596,7 +1596,7 @@ function ManagerCandidatesPage() {
           onView={(c) => setViewing(c)}
           onAction={(c) => setActionCandidates([c])}
           onEdit={openEdit}
-          compact={tab === "arrived"}
+          compact={tab === "arrived" || tab === "returned"}
           cancelMode={tab === "available"}
           showCvBadge={tab === "available"}
           onDelete={(id) =>
@@ -2358,8 +2358,8 @@ function CandidateCardList({
   const allSel = paginated.length > 0 && paginated.every((c) => selected.has(c.id));
   const someSel = !allSel && paginated.some((c) => selected.has(c.id));
   const visibleCols = (CANDIDATE_CARD_COLS as readonly string[]).filter((l) => {
+    if (l === "TICKET PDF") return !!compact;
     if (hiddenCols.has(l)) return false;
-    if (l === "TICKET PDF" && !compact) return false;
     return true;
   });
 
