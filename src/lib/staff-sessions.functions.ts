@@ -41,6 +41,9 @@ export const startStaffSession = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
+    if (data.deviceType !== "desktop") {
+      throw new Error("Attendance tracking is only available on desktop devices");
+    }
     const userId = context.userId;
 
     const { data: roleRow, error: roleErr } = await supabaseAdmin
@@ -116,6 +119,7 @@ export const getMySessionStats = createServerFn({ method: "GET" })
       .from("staff_sessions" as any)
       .select("id, started_at, ended_at, last_heartbeat_at")
       .eq("staff_user_id", userId)
+      .eq("device_type", "desktop")
       .gte("started_at", yearAgo.toISOString())
       .order("started_at", { ascending: false }) as any);
     if (error) throw new Error(error.message);
@@ -289,6 +293,7 @@ export const getTeamActivity = createServerFn({ method: "GET" })
       .from("staff_sessions" as any)
       .select("id, staff_user_id, started_at, ended_at, last_heartbeat_at")
       .eq("manager_id", managerId)
+      .eq("device_type", "desktop")
       .gte("started_at", yearAgo.toISOString()) as any);
     if (sessErr) throw new Error(sessErr.message);
 

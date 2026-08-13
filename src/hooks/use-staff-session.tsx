@@ -21,8 +21,12 @@ const ACTIVITY_EVENTS = [
 function detectDeviceType(): "desktop" | "mobile" | "tablet" {
   if (typeof window === "undefined") return "desktop";
   const ua = navigator.userAgent;
-  if (/Mobi|Android|iPhone|iPod/.test(ua)) return "mobile";
-  if (/iPad|Tablet/.test(ua)) return "tablet";
+  // Strong mobile UA signals
+  if (/Mobi|Android.*Mobile|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua)) return "mobile";
+  // Tablet UA (iPad, Android tablet, Silk)
+  if (/Android|iPad|Tablet|PlayBook|Silk/i.test(ua)) return "tablet";
+  // Coarse pointer (touchscreen) on a small screen = mobile/tablet even if UA looks like desktop
+  if (typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches && window.screen.width < 1280) return "tablet";
   return "desktop";
 }
 
@@ -43,6 +47,7 @@ export function useStaffSession(isStaff: boolean): {
 
   useEffect(() => {
     if (!isStaff) return;
+    if (detectDeviceType() !== "desktop") return; // attendance only on desktop
 
     const recordActivity = () => {
       lastActivityRef.current = Date.now();
