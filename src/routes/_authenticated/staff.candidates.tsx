@@ -3156,7 +3156,7 @@ function CandidateCard({
       {ticketFilesOpen && (
         <TicketFilesDialog
           candidate={candidate}
-          onUpdateField={(field, value) => onUpdateField(field, value)}
+          onUpdateField={(field, value) => onUpdateField(field as EditableField, value)}
           onClose={() => setTicketFilesOpen(false)}
         />
       )}
