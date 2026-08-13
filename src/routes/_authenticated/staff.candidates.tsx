@@ -2147,7 +2147,8 @@ type EditableField =
   | "visa_status" | "insurance_status" | "unfilled_lmis" | "lmis_status"
   | "ticket_status" | "ticket_date" | "arrival_city" | "emergency_contact"
   | "processing_notes" | "remark" | "cv_sent_to" | "coc_agency_name" | "coc_agency_phone" | "insurance_date"
-  | "availability_type" | "video_url" | "ticket_pdf_url" | "visa_pdf_url" | "qr_url";
+  | "availability_type" | "video_url" | "ticket_pdf_url" | "visa_pdf_url" | "qr_url"
+  | "return_ticket_url" | "stamp_url";
 
 function CandidateCardList({
   candidates, selected, onToggleSelect, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo,
@@ -2946,6 +2947,7 @@ function CandidateCard({
               }
               if (colLabel === "TICKET PDF") {
                 const ca = candidate as any;
+                const isReturned = candidate.status === "returned";
                 const ticketItems: React.ReactNode[] = [];
                 if (ca.ticket_pdf_url) ticketItems.push(
                   <div key="ticket" className="flex items-center gap-1">
@@ -2963,6 +2965,18 @@ function CandidateCard({
                   <div key="visa" className="flex items-center gap-1">
                     <button type="button" onClick={() => setTicketFilesOpen(true)} className="text-[10px] font-semibold text-purple-700 dark:text-purple-400 hover:underline shrink-0">VISA</button>
                     <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(ca.visa_pdf_url); }} className="text-purple-700 dark:text-purple-400 hover:opacity-70"><Download className="h-3 w-3" /></button>
+                  </div>
+                );
+                if (isReturned && ca.return_ticket_url) ticketItems.push(
+                  <div key="return" className="flex items-center gap-1">
+                    <button type="button" onClick={() => setTicketFilesOpen(true)} className="text-[10px] font-semibold text-orange-700 dark:text-orange-400 hover:underline shrink-0">RTN</button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(ca.return_ticket_url); }} className="text-orange-700 dark:text-orange-400 hover:opacity-70"><Download className="h-3 w-3" /></button>
+                  </div>
+                );
+                if (isReturned && ca.stamp_url) ticketItems.push(
+                  <div key="stamp" className="flex items-center gap-1">
+                    <button type="button" onClick={() => setTicketFilesOpen(true)} className="text-[10px] font-semibold text-rose-700 dark:text-rose-400 hover:underline shrink-0">STAMP</button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); downloadFile(ca.stamp_url); }} className="text-rose-700 dark:text-rose-400 hover:opacity-70"><Download className="h-3 w-3" /></button>
                   </div>
                 );
                 return (
@@ -3158,6 +3172,7 @@ function CandidateCard({
           candidate={candidate}
           onUpdateField={(field, value) => onUpdateField(field as EditableField, value)}
           onClose={() => setTicketFilesOpen(false)}
+          showReturnFiles={candidate.status === "returned"}
         />
       )}
     </>
@@ -4706,11 +4721,12 @@ function LmisFilesDialog({
 }
 
 function TicketFilesDialog({
-  candidate, onUpdateField, onClose,
+  candidate, onUpdateField, onClose, showReturnFiles,
 }: {
   candidate: Candidate;
   onUpdateField: (field: string, value: string | null) => void;
   onClose: () => void;
+  showReturnFiles?: boolean;
 }) {
   const c = candidate as any;
   const upload = async (file: File, field: string) => {
@@ -4738,6 +4754,19 @@ function TicketFilesDialog({
             onUpload={(f) => upload(f, "visa_pdf_url")}
             onRemove={() => onUpdateField("visa_pdf_url", null)} />
         </div>
+        {showReturnFiles && (
+          <>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground border-t border-border pt-3">Return Documents</p>
+            <div className="grid grid-cols-3 gap-4">
+              <LmisDocSection label="Return Ticket" url={c.return_ticket_url ?? ""}
+                onUpload={(f) => upload(f, "return_ticket_url")}
+                onRemove={() => onUpdateField("return_ticket_url", null)} />
+              <LmisDocSection label="Stamp" url={c.stamp_url ?? ""}
+                onUpload={(f) => upload(f, "stamp_url")}
+                onRemove={() => onUpdateField("stamp_url", null)} />
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
