@@ -218,12 +218,40 @@ function CvGeneratorPage() {
   const [hiddenCols,       setHiddenCols]        = useState<Set<string>>(new Set());
   const [showColPicker,    setShowColPicker]      = useState(false);
   const colPickerRef = useRef<HTMLDivElement>(null);
+  const scrollRef    = useRef<HTMLDivElement>(null);
+  const fadeRef      = useRef<HTMLDivElement>(null);
+  const mirrorRef    = useRef<HTMLDivElement>(null);
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (colPickerRef.current && !colPickerRef.current.contains(e.target as Node)) setShowColPicker(false);
     }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
+  }, []);
+  useEffect(() => {
+    const el = scrollRef.current;
+    const mirror = mirrorRef.current;
+    if (!el) return;
+    const sync = () => {
+      const atEnd = el.scrollLeft >= el.scrollWidth - el.clientWidth - 1;
+      if (fadeRef.current) fadeRef.current.style.opacity = (!atEnd && el.scrollWidth > el.clientWidth) ? "1" : "0";
+      if (mirror) mirror.scrollLeft = el.scrollLeft;
+    };
+    const syncWidth = () => {
+      if (mirror) {
+        const inner = mirror.firstElementChild as HTMLElement;
+        if (inner) inner.style.width = el.scrollWidth + "px";
+      }
+    };
+    const onMirrorScroll = () => { if (mirror) el.scrollLeft = mirror.scrollLeft; };
+    sync(); syncWidth();
+    const raf = requestAnimationFrame(() => { sync(); syncWidth(); });
+    el.addEventListener("scroll", sync, { passive: true });
+    if (mirror) mirror.addEventListener("scroll", onMirrorScroll, { passive: true });
+    const ro = new ResizeObserver(() => { sync(); syncWidth(); });
+    ro.observe(el);
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+    return () => { cancelAnimationFrame(raf); el.removeEventListener("scroll", sync); mirror?.removeEventListener("scroll", onMirrorScroll); ro.disconnect(); };
   }, []);
 
   const toggleSelect = (id: string) =>
@@ -645,7 +673,8 @@ function CvGeneratorPage() {
       )}
 
       {/* Card list */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 min-h-0 relative">
+        <div ref={scrollRef} className="h-full overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="min-w-max space-y-1.5">
           {pagedList.map((c) => {
             const status = candidateStatus.get(c.id);
@@ -670,11 +699,14 @@ function CvGeneratorPage() {
             </div>
           )}
         </div>
+        </div>
+        <div ref={fadeRef} aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-background to-transparent opacity-0 transition-opacity duration-200" />
       </div>
 
       {/* Pagination footer */}
-      {filtered.length > 0 && (
-        <div className="sticky bottom-0 z-10 bg-background shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
+      <div className={cn("sticky bottom-0 z-10 bg-background", filtered.length > 0 && "shadow-[0_-1px_3px_rgba(0,0,0,0.06)]")}>
+        <div ref={mirrorRef} className="w-full" style={{ overflowX: filtered.length > 0 ? "scroll" : "hidden", overflowY: "hidden", height: filtered.length > 0 ? 16 : 0 }}><div style={{ height: 1 }} /></div>
+        {filtered.length > 0 && (
           <div className="flex items-center justify-between px-4 py-2 flex-wrap gap-2">
             <div className="flex items-center gap-1">
               <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
@@ -717,8 +749,8 @@ function CvGeneratorPage() {
               </Button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {actionCandidates.length > 0 && (
         <BulkActionDialog candidates={actionCandidates} onClose={() => setActionCandidates([])} />
