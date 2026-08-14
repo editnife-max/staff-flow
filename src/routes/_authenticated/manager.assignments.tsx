@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -61,7 +61,7 @@ function AssignmentsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("cv_days_threshold")
+        .select("cv_days_threshold, cv_page_requirements")
         .eq("id", user!.id)
         .maybeSingle();
       if (error) throw error;
@@ -97,16 +97,30 @@ function AssignmentsPage() {
   const [newOfficeName, setNewOfficeName] = useState("");
 
   // ── CV page requirements ─────────────────────────────────────────────────────
-  const [cvReq, setCvReq] = useState(() => {
-    try {
-      const saved = localStorage.getItem(CV_REQ_KEY);
-      return saved ? { ...DEFAULT_CV_REQ, ...JSON.parse(saved) } : { ...DEFAULT_CV_REQ };
-    } catch { return { ...DEFAULT_CV_REQ }; }
-  });
+  const cvReq = useMemo(() => {
+    const saved = (profile as any)?.cv_page_requirements;
+    return saved ? { ...DEFAULT_CV_REQ, ...saved } : { ...DEFAULT_CV_REQ };
+  }, [profile]);
 
-  useEffect(() => {
-    localStorage.setItem(CV_REQ_KEY, JSON.stringify(cvReq));
-  }, [cvReq]);
+  const saveCvReq = useMutation({
+    mutationFn: async (req: typeof DEFAULT_CV_REQ) => {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ cv_page_requirements: req } as any)
+        .eq("id", user!.id);
+      if (error) throw error;
+    },
+    onMutate: async (req) => {
+      await qc.cancelQueries({ queryKey: ["manager-profile", user?.id] });
+      const prev = qc.getQueryData(["manager-profile", user?.id]);
+      qc.setQueryData(["manager-profile", user?.id], (old: any) => ({ ...old, cv_page_requirements: req }));
+      return { prev };
+    },
+    onError: (_e, _req, ctx) => {
+      qc.setQueryData(["manager-profile", user?.id], (ctx as any)?.prev);
+      toast.error("Failed to save CV requirements");
+    },
+  });
 
   // ── pagination ───────────────────────────────────────────────────────────────
   const PAGE = 5;
@@ -545,7 +559,7 @@ function AssignmentsPage() {
                     "text-sm w-20 shrink-0 truncate",
                     cvReq[key] !== "all" ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-muted-foreground",
                   )}>{label}</span>
-                  <Select value={cvReq[key]} onValueChange={(v) => setCvReq((p: typeof cvReq) => ({ ...p, [key]: v }))}>
+                  <Select value={cvReq[key]} onValueChange={(v) => saveCvReq.mutate({ ...cvReq, [key]: v })}>
                     <SelectTrigger className="h-7 flex-1 rounded-none text-xs min-w-0">
                       <SelectValue />
                     </SelectTrigger>

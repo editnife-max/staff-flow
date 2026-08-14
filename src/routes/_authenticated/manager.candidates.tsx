@@ -2860,7 +2860,7 @@ function CandidateCard({
 
     { label: "SELECTED BY", value: candidate.selected_by ?? "", edit: "select", field: "selected_by", options: agencyOptions },
     { label: "CONTRACT DATE", value: candidate.contract_date ?? "", edit: "date", field: "contract_date", showDays: true },
-    { label: "CV SENT TO", value: agencyOptions.includes(candidate.cv_sent_to ?? "") ? candidate.cv_sent_to ?? "" : "" },
+    { label: "CV SENT TO", value: agencyOptions.includes(candidate.cv_sent_to ?? "") ? candidate.cv_sent_to ?? "" : "", edit: "select" as const, field: "cv_sent_to" as const, options: agencyOptions },
     { label: "CV SENT DATE", value: agencyOptions.includes(candidate.cv_sent_to ?? "") && candidate.cv_sent_date ? new Date(candidate.cv_sent_date).toLocaleDateString() : "—" },
     { label: "NARRATIVE", value: candidate.narrative ?? "", edit: "text", field: "narrative", long: true },
     { label: "NARRATIVE PHONE", value: candidate.narrative_phone ?? "", edit: "text", field: "narrative_phone" },

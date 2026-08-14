@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, FileText, User, ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
   Send, ClipboardPaste, X, RotateCcw, Stethoscope, Briefcase, FileCheck,
-  Globe, BookOpen, Users, Calendar, Trash2, Play, SlidersHorizontal,
+  Globe, BookOpen, Users, Calendar, Trash2, Play, SlidersHorizontal, Lock,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
@@ -183,32 +183,6 @@ function CvCandidateCard({
 
 const MEDICAL_OPTIONS = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired"];
 
-const CV_REQ_KEY = "cv-page-requirements";
-
-function toArr(val: string | undefined, fallback: string[] = []): string[] {
-  if (!val || val === "all") return fallback;
-  return [val];
-}
-
-function getCvReqDefaults() {
-  try {
-    const saved = localStorage.getItem(CV_REQ_KEY);
-    const req = saved ? JSON.parse(saved) : {};
-    return {
-      medical:      toArr(req.medical,      ["Fit"]),
-      coc:          toArr(req.coc,          ["Done"]),
-      narrative:    toArr(req.narrative),
-      experience:   toArr(req.experience),
-      musaned:      toArr(req.musaned),
-      selected_by:  toArr(req.selected_by),
-      cv_sent_to:   toArr(req.cv_sent_to),
-      english_level:toArr(req.english_level),
-    };
-  } catch {
-    return { medical: ["Fit"], coc: ["Done"], narrative: [], experience: [], musaned: [], selected_by: [], cv_sent_to: [], english_level: [] };
-  }
-}
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 function CvGeneratorPage() {
@@ -216,15 +190,22 @@ function CvGeneratorPage() {
   const qc       = useQueryClient();
   const search   = Route.useSearch();
   const [query,   setQuery]   = useState("");
-  const [filters, setFilters] = useState(() => ({
+  const [filters, setFilters] = useState({
     sort:          "newest",
     age:           [] as string[],
     gender:        [] as string[],
     religion:      [] as string[],
     from:          "",
     to:            "",
-    ...getCvReqDefaults(),
-  }));
+    medical:       [] as string[],
+    coc:           [] as string[],
+    narrative:     [] as string[],
+    experience:    [] as string[],
+    musaned:       [] as string[],
+    selected_by:   [] as string[],
+    cv_sent_to:    [] as string[],
+    english_level: [] as string[],
+  });
   const activeCount = Object.entries(filters).filter(([k, v]) =>
     k !== "sort" && (Array.isArray(v) ? v.length > 0 : !!v)
   ).length;
@@ -325,7 +306,7 @@ function CvGeneratorPage() {
     },
   });
 
-  const { data: cvDaysThreshold = 7 } = useQuery({
+  const { data: managerCvData = { threshold: 7, requirements: null as Record<string, string> | null, managerId: null as string | null } } = useQuery({
     queryKey: ["staff-manager-cv-threshold", user?.id],
     enabled: !!user,
     queryFn: async () => {
@@ -335,15 +316,55 @@ function CvGeneratorPage() {
         .eq("user_id", user!.id)
         .eq("role", "staff")
         .maybeSingle();
-      if (!roleRow?.manager_id) return 7;
+      if (!roleRow?.manager_id) return { threshold: 7, requirements: null as Record<string, string> | null, managerId: null as string | null };
       const { data: profileRow } = await supabase
         .from("profiles")
-        .select("cv_days_threshold")
+        .select("cv_days_threshold, cv_page_requirements")
         .eq("id", roleRow.manager_id)
         .maybeSingle();
-      return profileRow?.cv_days_threshold ?? 7;
+      return {
+        threshold:   profileRow?.cv_days_threshold ?? 7,
+        requirements: (profileRow as any)?.cv_page_requirements as Record<string, string> | null ?? null,
+        managerId:   roleRow.manager_id,
+      };
     },
   });
+  const cvDaysThreshold = managerCvData.threshold;
+
+  const lockedFilters = useMemo(() => {
+    const req = managerCvData.requirements;
+    const lock = (k: string) => req?.[k] && req[k] !== "all" ? [req[k]] : [];
+    return {
+      medical:    lock("medical"),
+      coc:        lock("coc"),
+      narrative:  lock("narrative"),
+      experience: lock("experience"),
+    };
+  }, [managerCvData.requirements]);
+
+  useEffect(() => {
+    const updates: Partial<typeof filters> = {};
+    if (lockedFilters.medical.length > 0)    updates.medical    = lockedFilters.medical;
+    if (lockedFilters.coc.length > 0)        updates.coc        = lockedFilters.coc;
+    if (lockedFilters.narrative.length > 0)  updates.narrative  = lockedFilters.narrative;
+    if (lockedFilters.experience.length > 0) updates.experience = lockedFilters.experience;
+    if (Object.keys(updates).length > 0) setFilters((f) => ({ ...f, ...updates }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lockedFilters]);
+
+  useEffect(() => {
+    const managerId = managerCvData.managerId;
+    if (!managerId) return;
+    const channel = supabase.channel("staff-manager-profile-rt")
+      .on("postgres_changes" as any, {
+        event: "UPDATE", schema: "public", table: "profiles",
+        filter: `id=eq.${managerId}`,
+      }, () => {
+        qc.invalidateQueries({ queryKey: ["staff-manager-cv-threshold", user?.id] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [managerCvData.managerId]);
 
   const opts = useMemo(() => {
     const uniq = (k: keyof typeof candidates[0]) =>
@@ -464,16 +485,20 @@ function CvGeneratorPage() {
               options={[{ value: "Muslim", label: "Muslim" }, { value: "Non-muslim", label: "Non-muslim" }]} />
             <MultiFilterSelect placeholder="Medical" values={filters.medical} icon={Stethoscope}
               onChange={(v) => setFilters({ ...filters, medical: v })}
-              options={[{ value: "", label: "Not Selected" }, ...MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))]} />
+              options={[{ value: "", label: "Not Selected" }, ...MEDICAL_OPTIONS.map((o) => ({ value: o, label: o }))]}
+              locked={lockedFilters.medical.length > 0} />
             <MultiFilterSelect placeholder="Narrative" values={filters.narrative} icon={FileText}
               onChange={(v) => setFilters({ ...filters, narrative: v })}
-              options={opts.narrative.map((o) => ({ value: o, label: o }))} />
+              options={opts.narrative.map((o) => ({ value: o, label: o }))}
+              locked={lockedFilters.narrative.length > 0} />
             <MultiFilterSelect placeholder="Experience" values={filters.experience} icon={Briefcase}
               onChange={(v) => setFilters({ ...filters, experience: v })}
-              options={[{ value: "Yes", label: "Yes" }, { value: "No", label: "No" }, { value: "None", label: "None" }]} />
+              options={[{ value: "Yes", label: "Yes" }, { value: "No", label: "No" }, { value: "None", label: "None" }]}
+              locked={lockedFilters.experience.length > 0} />
             <MultiFilterSelect placeholder="COC" values={filters.coc} icon={FileCheck}
               onChange={(v) => setFilters({ ...filters, coc: v })}
-              options={[{ value: "", label: "Not Selected" }, ...["Done","No","Booked","Placed","Yitazez","Pending Release"].map((o) => ({ value: o, label: o }))]} />
+              options={[{ value: "", label: "Not Selected" }, ...["Done","No","Booked","Placed","Yitazez","Pending Release"].map((o) => ({ value: o, label: o }))]}
+              locked={lockedFilters.coc.length > 0} />
             <MultiFilterSelect placeholder="Country" values={filters.musaned} icon={Globe}
               onChange={(v) => setFilters({ ...filters, musaned: v })}
               options={assignCountries.map((c) => ({ value: c.name, label: c.name }))} />
@@ -503,7 +528,17 @@ function CvGeneratorPage() {
               <span className="font-semibold text-foreground">{filtered.length}</span> candidate{filtered.length !== 1 ? "s" : ""} found
             </span>
             <Button size="sm" variant="ghost" className="h-6 gap-1 text-xs font-bold"
-              onClick={() => { setFilters({ sort: "newest", age: [], gender: [], religion: [], from: "", to: "", ...getCvReqDefaults() }); setQuery(""); }}
+              onClick={() => {
+                setFilters({
+                  sort: "newest", age: [], gender: [], religion: [], from: "", to: "",
+                  medical:    lockedFilters.medical.length > 0 ? lockedFilters.medical : [],
+                  coc:        lockedFilters.coc.length > 0 ? lockedFilters.coc : [],
+                  narrative:  lockedFilters.narrative.length > 0 ? lockedFilters.narrative : [],
+                  experience: lockedFilters.experience.length > 0 ? lockedFilters.experience : [],
+                  musaned: [], selected_by: [], cv_sent_to: [], english_level: [],
+                });
+                setQuery("");
+              }}
               disabled={activeCount === 0 && !query}>
               <RotateCcw className="h-3 w-3" /> Reset
             </Button>
@@ -765,13 +800,14 @@ function CvFilterSelect({
 }
 
 function MultiFilterSelect({
-  values, onChange, options, placeholder, icon: Icon,
+  values, onChange, options, placeholder, icon: Icon, locked,
 }: {
   values: string[];
   onChange: (v: string[]) => void;
   options: { value: string; label: string }[];
   placeholder?: string;
   icon?: React.ElementType;
+  locked?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -789,6 +825,16 @@ function MultiFilterSelect({
     : values.length === 1
       ? (options.find((o) => o.value === values[0])?.label ?? values[0])
       : `${placeholder} (${values.length})`;
+
+  if (locked) {
+    return (
+      <div className="flex items-center gap-1 text-[13px] font-bold text-muted-foreground cursor-not-allowed select-none">
+        {Icon && <Icon className="h-3 w-3 shrink-0" />}
+        <span>{triggerLabel}</span>
+        <Lock className="h-3 w-3 shrink-0 opacity-60" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-0.5">

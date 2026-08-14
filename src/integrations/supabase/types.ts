@@ -590,6 +590,7 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           cv_days_threshold: number
+          cv_page_requirements: Json | null
           full_name: string | null
           id: string
           updated_at: string
@@ -599,6 +600,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           cv_days_threshold?: number
+          cv_page_requirements?: Json | null
           full_name?: string | null
           id: string
           updated_at?: string
@@ -608,6 +610,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           cv_days_threshold?: number
+          cv_page_requirements?: Json | null
           full_name?: string | null
           id?: string
           updated_at?: string

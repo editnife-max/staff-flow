@@ -137,7 +137,8 @@
       "mcp__ide__getDiagnostics",
       "PowerShell($raw = Get-Content \"C:\\\\Users\\\\VICTUS\\\\.claude\\\\projects\\\\C--Project-flowpath-suite\\\\85ec89aa-6555-42cd-96d1-5533eb954d84\\\\tool-results\\\\toolu_01KF7PWWYnj5L2bm7b3gdLEo.json\" -Raw | ConvertFrom-Json; $text = $raw[0].text | ConvertFrom-Json; $errs = $text[0].diagnostics | Where-Object { $_.severity -eq 'Error' }; Write-Host \"Error count: $\\($errs.Count\\)\"; $errs | ForEach-Object { Write-Host \"Line $\\($_.range.start.line + 1\\): $\\($_.message\\)\" })",
       "PowerShell($raw = Get-Content \"C:\\\\Users\\\\VICTUS\\\\.claude\\\\projects\\\\C--Project-flowpath-suite\\\\85ec89aa-6555-42cd-96d1-5533eb954d84\\\\tool-results\\\\toolu_01KF7PWWYnj5L2bm7b3gdLEo.json\" -Raw | ConvertFrom-Json; $text = $raw[0].text | ConvertFrom-Json; $errs = $text[0].diagnostics | Where-Object { $_.severity -eq 'Error' -and $_.source -eq 'ts' }; Write-Host \"TS Error count: $\\($errs.Count\\)\"; $errs | ForEach-Object { Write-Host \"Line $\\($_.range.start.line + 1\\): $\\($_.message\\)\" })",
-      "Bash(where npx *)"
+      "Bash(where npx *)",
+      "PowerShell(supabase *)"
     ]
   },
   "enableAllProjectMcpServers": true,
