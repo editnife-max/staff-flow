@@ -95,7 +95,6 @@ const BULK_FIELD_DEFS = [
   { key: "lmis_status",      label: "LMIS",         processingOnly: true },
   { key: "ticket_status",    label: "Ticket",       processingOnly: true },
   { key: "arrival_city",     label: "Arrival City", processingOnly: true },
-  { key: "cv_sent_to",      label: "CV Sent To",   processingOnly: false, availableOnly: true },
 ];
 
 const BULK_FIELD_OPTIONS: Partial<Record<string, string[]>> = {
