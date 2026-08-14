@@ -333,6 +333,7 @@ function ManagerCvGeneratorPage() {
   const { data: managerProfile } = useQuery({
     queryKey: ["mgr-cv-profile", user?.id],
     enabled: !!user,
+    staleTime: 0,
     queryFn: async () => {
       const { data } = await supabase
         .from("profiles")
@@ -355,23 +356,32 @@ function ManagerCvGeneratorPage() {
     };
   }, [managerProfile]);
 
-  // Apply locked filters whenever they change
+  // Apply locked filters whenever they change (also clears when a lock is removed)
   useEffect(() => {
     setFilters((prev) => ({
       ...prev,
-      ...(lockedFilters.medical.length    ? { medical:    lockedFilters.medical }    : {}),
-      ...(lockedFilters.coc.length        ? { coc:        lockedFilters.coc }        : {}),
-      ...(lockedFilters.narrative.length  ? { narrative:  lockedFilters.narrative }  : {}),
-      ...(lockedFilters.experience.length ? { experience: lockedFilters.experience } : {}),
+      medical:    lockedFilters.medical.length    ? lockedFilters.medical    : [],
+      coc:        lockedFilters.coc.length        ? lockedFilters.coc        : [],
+      narrative:  lockedFilters.narrative.length  ? lockedFilters.narrative  : [],
+      experience: lockedFilters.experience.length ? lockedFilters.experience : [],
     }));
   }, [lockedFilters]);
 
   useEffect(() => {
     if (!user) return;
     const channel = supabase
-      .channel("mgr-own-profile")
-      .on("postgres_changes" as any, { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` },
-        () => { qc.invalidateQueries({ queryKey: ["mgr-cv-profile", user.id] }); })
+      .channel("mgr-cv-req-rt")
+      .on<any>("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` },
+        (payload) => {
+          const row = payload.new;
+          if (row) {
+            qc.setQueryData(["mgr-cv-profile", user.id], (old: any) => ({
+              ...old,
+              cv_page_requirements: row.cv_page_requirements ?? null,
+              cv_days_threshold: row.cv_days_threshold ?? 7,
+            }));
+          }
+        })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user?.id]);

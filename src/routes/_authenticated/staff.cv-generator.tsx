@@ -337,6 +337,7 @@ function CvGeneratorPage() {
   const { data: managerCvData = { threshold: 7, requirements: null as Record<string, string> | null, managerId: null as string | null } } = useQuery({
     queryKey: ["staff-manager-cv-threshold", user?.id],
     enabled: !!user,
+    staleTime: 0,
     queryFn: async () => {
       const { data: roleRow } = await supabase
         .from("user_roles")
@@ -371,24 +372,31 @@ function CvGeneratorPage() {
   }, [managerCvData.requirements]);
 
   useEffect(() => {
-    const updates: Partial<typeof filters> = {};
-    if (lockedFilters.medical.length > 0)    updates.medical    = lockedFilters.medical;
-    if (lockedFilters.coc.length > 0)        updates.coc        = lockedFilters.coc;
-    if (lockedFilters.narrative.length > 0)  updates.narrative  = lockedFilters.narrative;
-    if (lockedFilters.experience.length > 0) updates.experience = lockedFilters.experience;
-    if (Object.keys(updates).length > 0) setFilters((f) => ({ ...f, ...updates }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    setFilters((f) => ({
+      ...f,
+      medical:    lockedFilters.medical.length > 0    ? lockedFilters.medical    : [],
+      coc:        lockedFilters.coc.length > 0        ? lockedFilters.coc        : [],
+      narrative:  lockedFilters.narrative.length > 0  ? lockedFilters.narrative  : [],
+      experience: lockedFilters.experience.length > 0 ? lockedFilters.experience : [],
+    }));
   }, [lockedFilters]);
 
   useEffect(() => {
     const managerId = managerCvData.managerId;
-    if (!managerId) return;
-    const channel = supabase.channel("staff-manager-profile-rt")
-      .on("postgres_changes" as any, {
+    if (!managerId || !user) return;
+    const channel = supabase.channel(`staff-cv-req-rt:${managerId}`)
+      .on<any>("postgres_changes", {
         event: "UPDATE", schema: "public", table: "profiles",
         filter: `id=eq.${managerId}`,
-      }, () => {
-        qc.invalidateQueries({ queryKey: ["staff-manager-cv-threshold", user?.id] });
+      }, (payload) => {
+        const row = payload.new;
+        if (row) {
+          qc.setQueryData(["staff-manager-cv-threshold", user.id], (old: any) => ({
+            ...old,
+            requirements: row.cv_page_requirements ?? null,
+            threshold: row.cv_days_threshold ?? 7,
+          }));
+        }
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };

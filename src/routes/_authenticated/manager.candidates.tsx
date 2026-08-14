@@ -3070,29 +3070,18 @@ function CandidateCard({
                 <Undo2 className="h-3 w-3" /> Undo
               </button>
             )}
-            {deletePending ? (
-              <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                ⏳ Pending Deletion
-              </span>
-            ) : (
-              <button
-                onClick={() => setDeleteRequestOpen(true)}
-                className="text-xs text-destructive hover:underline"
-              >
-                Delete
-              </button>
-            )}
+            <button
+              onClick={() => setDeleteRequestOpen(true)}
+              className="text-xs text-destructive hover:underline"
+            >
+              Delete
+            </button>
           </div>
         </div>
       </div>
-      {deletePending && (
-        <div className="mx-2 mb-1 px-2 py-1 bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-700 text-[11px] text-amber-800 dark:text-amber-300 rounded-none">
-          <span className="font-semibold">Deletion reason:</span> {(candidate as any).delete_reason}
-        </div>
-      )}
       {deleteRequestOpen && (
-        <DeleteReasonDialog
-          onConfirm={(reason) => { onUpdateField("delete_reason", reason); setDeleteRequestOpen(false); }}
+        <CancelReasonDialog
+          onConfirm={(reason) => { onUpdateField("notes", reason); onDelete(); setDeleteRequestOpen(false); }}
           onClose={() => setDeleteRequestOpen(false)}
         />
       )}
