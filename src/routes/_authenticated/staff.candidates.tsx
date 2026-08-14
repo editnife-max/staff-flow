@@ -2889,8 +2889,8 @@ function CandidateCard({
 
     { label: "SELECTED BY", value: candidate.selected_by ?? "", edit: "select", field: "selected_by", options: agencyOptions },
     { label: "CONTRACT DATE", value: candidate.contract_date ? (() => { const d = new Date(candidate.contract_date + "T00:00:00"); const days = Math.floor((Date.now() - d.getTime()) / 86_400_000); return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) + ` (${days} day${days !== 1 ? "s" : ""})`; })() : "" },
-    { label: "CV SENT TO", value: candidate.cv_sent_to ?? "", edit: "select", field: "cv_sent_to", options: agencyOptions },
-    { label: "CV SENT DATE", value: candidate.cv_sent_date ? new Date(candidate.cv_sent_date).toLocaleDateString() : "—" },
+    { label: "CV SENT TO", value: agencyOptions.includes(candidate.cv_sent_to ?? "") ? candidate.cv_sent_to ?? "" : "" },
+    { label: "CV SENT DATE", value: agencyOptions.includes(candidate.cv_sent_to ?? "") && candidate.cv_sent_date ? new Date(candidate.cv_sent_date).toLocaleDateString() : "—" },
     { label: "NARRATIVE", value: candidate.narrative ?? "", edit: "text", field: "narrative", long: true },
     { label: "NARRATIVE PHONE", value: candidate.narrative_phone ?? "", edit: "text", field: "narrative_phone" },
     { label: "NOTES", value: candidate.notes ?? "", edit: "text", field: "notes", long: true },
