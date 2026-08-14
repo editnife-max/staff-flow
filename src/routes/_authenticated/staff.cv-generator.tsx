@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, FileText, User, ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
   Send, ClipboardPaste, X, RotateCcw, Stethoscope, Briefcase, FileCheck,
-  Globe, BookOpen, Users, Calendar, Trash2, Play,
+  Globe, BookOpen, Users, Calendar, Trash2, Play, SlidersHorizontal,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
@@ -47,34 +47,43 @@ const OPTION_COLORS: Record<string, string> = {
   "Pending release":"bg-amber-100/50 text-[#181A27] dark:bg-amber-900/40 dark:text-amber-300",
 };
 
+const CV_GENERATOR_COLS = [
+  "CANDIDATE CODE", "PASSPORT NUMBER", "LABOUR ID",
+  "AGE", "VIDEO", "MARITAL STATUS",
+  "NARRATIVE PHONE", "NARRATIVE", "RELIGION",
+  "CV SENT TO", "CV SENT DATE",
+  "PASSPORT STATUS", "COC STATUS", "COUNTRY", "MEDICAL STATUS", "MEDICAL DATE",
+  "EXPERIENCE", "NOTES", "AVAILABILITY", "SELECTED BY",
+] as const;
+
 // ── Candidate card ─────────────────────────────────────────────────────────────
 
 function CvCandidateCard({
-  candidate: c, selected, onToggleSelect, onAction, onRemoveFromAgency, overdueDays, lockedDaysLeft,
-}: { candidate: Candidate; selected: boolean; onToggleSelect: () => void; onAction: () => void; onRemoveFromAgency: () => void; overdueDays?: number; lockedDaysLeft?: number }) {
+  candidate: c, selected, onToggleSelect, onAction, onRemoveFromAgency, overdueDays, lockedDaysLeft, visibleCols,
+}: { candidate: Candidate; selected: boolean; onToggleSelect: () => void; onAction: () => void; onRemoveFromAgency: () => void; overdueDays?: number; lockedDaysLeft?: number; visibleCols: readonly string[] }) {
   const [viewing, setViewing] = useState(false);
-  type FieldDef = { label: string; value: string; bold?: boolean; badge?: boolean };
+  type FieldDef = { label: string; value: string; bold?: boolean; badge?: boolean; video?: boolean };
   const fields: FieldDef[] = [
-    { label: "CANDIDATE CODE", value: c.candidate_code ?? "—" },
-    { label: "GENDER",         value: c.gender ?? "—" },
-    { label: "AGE",            value: String(calcAge(c.dob) ?? c.age ?? "—") },
-    { label: "RELIGION",       value: c.religion ?? "—" },
-    { label: "MARITAL STATUS", value: c.marital_status ?? "—" },
-    { label: "BIRTH PLACE",    value: c.birth_place ?? "—" },
-    { label: "LIVING TOWN",    value: c.living_town ?? "—" },
-    { label: "OCCUPATION",     value: c.occupation ?? "—" },
-    { label: "NATIONALITY",    value: c.country ?? "—" },
-    { label: "PASSPORT #",     value: c.passport_number ?? "—" },
-    { label: "DOB",            value: c.dob ?? "—" },
-    { label: "OFFICE",         value: c.office ?? "—" },
-    { label: "COC STATUS",     value: c.coc_status ?? "—",     badge: true },
-    { label: "MEDICAL STATUS", value: c.medical_status ?? "—", badge: true },
-    { label: "MEDICAL DATE",   value: c.medical_date ? new Date(c.medical_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) : "—" },
-    { label: "NARRATIVE",      value: c.narrative ?? "—" },
-    { label: "EXPERIENCE",     value: c.experience ?? "—" },
-    { label: "SELECTED BY",    value: c.selected_by ?? "—" },
-    { label: "CV SENT TO",     value: c.cv_sent_to ?? "—" },
-    { label: "CV SENT DATE",   value: c.cv_sent_date ? new Date(c.cv_sent_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) : "—" },
+    { label: "CANDIDATE CODE",  value: c.candidate_code ?? "—" },
+    { label: "PASSPORT NUMBER", value: c.passport_number ?? "—" },
+    { label: "LABOUR ID",       value: (c as any).labour_id ?? "—" },
+    { label: "AGE",             value: String(calcAge(c.dob) ?? c.age ?? "—") },
+    { label: "VIDEO",           value: c.video_url ?? "", video: true },
+    { label: "MARITAL STATUS",  value: c.marital_status ?? "—" },
+    { label: "NARRATIVE PHONE", value: (c as any).narrative_phone ?? "—" },
+    { label: "NARRATIVE",       value: c.narrative ?? "—" },
+    { label: "RELIGION",        value: c.religion ?? "—" },
+    { label: "CV SENT TO",      value: c.cv_sent_to ?? "—" },
+    { label: "CV SENT DATE",    value: c.cv_sent_date ? new Date(c.cv_sent_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) : "—" },
+    { label: "PASSPORT STATUS", value: (c as any).passport_status ?? "—" },
+    { label: "COC STATUS",      value: c.coc_status ?? "—",     badge: true },
+    { label: "COUNTRY",         value: (c as any).musaned_status ?? "—" },
+    { label: "MEDICAL STATUS",  value: c.medical_status ?? "—", badge: true },
+    { label: "MEDICAL DATE",    value: c.medical_date ? new Date(c.medical_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) : "—" },
+    { label: "EXPERIENCE",      value: c.experience ?? "—" },
+    { label: "NOTES",           value: (c as any).notes ?? "—" },
+    { label: "AVAILABILITY",    value: (() => { const v = (c as any).availability_type ?? "available"; return v.charAt(0).toUpperCase() + v.slice(1); })() },
+    { label: "SELECTED BY",     value: c.selected_by ?? "—" },
   ];
 
   const bg = selected ? "var(--selected-bg)" : "var(--card)";
@@ -120,12 +129,18 @@ function CvCandidateCard({
 
         {/* Scrollable field columns */}
         <div className="flex-1 flex items-start gap-2">
-          {fields.map((f) => (
+          {fields.filter((f) => visibleCols.includes(f.label)).map((f) => (
             <div key={f.label} className="shrink-0 w-[110px]">
               <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">
                 {f.label}
               </div>
-              {f.badge && f.value && f.value !== "—" ? (
+              {f.video ? (
+                f.value ? (
+                  <a href={f.value} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-primary hover:underline text-xs">
+                    <Play className="h-3 w-3" /> Play
+                  </a>
+                ) : <div className="text-sm text-foreground">—</div>
+              ) : f.badge && f.value && f.value !== "—" ? (
                 <span className={cn(
                   "text-[11px] font-semibold px-1.5 py-0.5 rounded-sm whitespace-nowrap",
                   OPTION_COLORS[f.value] ?? "bg-zinc-100/50 text-foreground dark:bg-zinc-800 dark:text-zinc-300",
@@ -219,6 +234,16 @@ function CvGeneratorPage() {
   const [sendOffice,       setSendOffice]        = useState("");
   const [actionCandidates, setActionCandidates] = useState<Candidate[]>([]);
   const [removeTarget,     setRemoveTarget]      = useState<Candidate | null>(null);
+  const [hiddenCols,       setHiddenCols]        = useState<Set<string>>(new Set());
+  const [showColPicker,    setShowColPicker]      = useState(false);
+  const colPickerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (colPickerRef.current && !colPickerRef.current.contains(e.target as Node)) setShowColPicker(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const toggleSelect = (id: string) =>
     setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -496,54 +521,91 @@ function CvGeneratorPage() {
             />
             Select all ({selectableFiltered.length}{selectableFiltered.length < filtered.length ? ` of ${filtered.length}` : ""})
           </label>
-          {selected.size > 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-muted-foreground shrink-0">{selected.size} selected</span>
-              <Select value={sendOffice} onValueChange={setSendOffice}>
-                <SelectTrigger className="h-8 w-44 rounded-none text-xs">
-                  <SelectValue placeholder="Send CV to office…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {agencyOptions.map((o) => (
-                    <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5 text-xs h-8 rounded-none"
-                disabled={!sendOffice || sendToOfficeMut.isPending}
-                onClick={() => {
-                  const ids = filtered
-                    .filter((c) => selected.has(c.id) && !candidateStatus.get(c.id)?.lockedDaysLeft)
-                    .map((c) => c.id);
-                  if (ids.length === 0) {
-                    toast.info("Selected candidates are still within the requirement period — cannot resend yet");
-                    return;
-                  }
-                  sendToOfficeMut.mutate({ ids, office: sendOffice });
-                }}
-              >
-                <Send className="h-3.5 w-3.5" />
-                {sendToOfficeMut.isPending ? "Sending…" : "Send CV"}
+          <div className="flex items-center gap-2 flex-wrap">
+            {hiddenCols.size > 0 && (
+              <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs text-muted-foreground" onClick={() => setHiddenCols(new Set())}>
+                <RotateCcw className="h-3 w-3" /> Reset columns
               </Button>
-              <Button
-                size="sm"
-                className="gap-2 text-xs h-8 rounded-none"
-                onClick={() => {
-                  const sel = filtered.filter((c) => selected.has(c.id));
-                  if (sel.length > 0) setActionCandidates(sel);
-                }}
-              >
-                <FileText className="h-4 w-4" />
-                Action ({selected.size})
+            )}
+            <div className="relative" ref={colPickerRef}>
+              <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={() => setShowColPicker((v) => !v)}>
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Columns
+                {hiddenCols.size > 0 && (
+                  <span className="ml-1 rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+                    {hiddenCols.size} hidden
+                  </span>
+                )}
               </Button>
-              <Button size="sm" variant="ghost" className="h-8 gap-1 text-xs rounded-none" onClick={clearSelection}>
-                <X className="h-4 w-4" /> Clear
-              </Button>
+              {showColPicker && (
+                <div className="absolute right-0 top-8 z-50 bg-popover border border-border rounded-none shadow-xl p-3 w-[340px]">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Columns</span>
+                    <button type="button" onClick={() => setHiddenCols(new Set())} className="text-[11px] text-primary hover:underline disabled:opacity-40" disabled={hiddenCols.size === 0}>Reset</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                    {CV_GENERATOR_COLS.map((label) => (
+                      <label key={label} className="flex items-center gap-1.5 text-xs cursor-pointer py-1 hover:text-primary">
+                        <Checkbox
+                          checked={!hiddenCols.has(label)}
+                          onCheckedChange={(v) => setHiddenCols((prev) => { const n = new Set(prev); v ? n.delete(label) : n.add(label); return n; })}
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+            {selected.size > 0 && (
+              <>
+                <span className="text-xs text-muted-foreground shrink-0">{selected.size} selected</span>
+                <Select value={sendOffice} onValueChange={setSendOffice}>
+                  <SelectTrigger className="h-8 w-44 rounded-none text-xs">
+                    <SelectValue placeholder="Send CV to office…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {agencyOptions.map((o) => (
+                      <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 text-xs h-8 rounded-none"
+                  disabled={!sendOffice || sendToOfficeMut.isPending}
+                  onClick={() => {
+                    const ids = filtered
+                      .filter((c) => selected.has(c.id) && !candidateStatus.get(c.id)?.lockedDaysLeft)
+                      .map((c) => c.id);
+                    if (ids.length === 0) {
+                      toast.info("Selected candidates are still within the requirement period — cannot resend yet");
+                      return;
+                    }
+                    sendToOfficeMut.mutate({ ids, office: sendOffice });
+                  }}
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  {sendToOfficeMut.isPending ? "Sending…" : "Send CV"}
+                </Button>
+                <Button
+                  size="sm"
+                  className="gap-2 text-xs h-8 rounded-none"
+                  onClick={() => {
+                    const sel = filtered.filter((c) => selected.has(c.id));
+                    if (sel.length > 0) setActionCandidates(sel);
+                  }}
+                >
+                  <FileText className="h-4 w-4" />
+                  Action ({selected.size})
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 gap-1 text-xs rounded-none" onClick={clearSelection}>
+                  <X className="h-4 w-4" /> Clear
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -552,6 +614,7 @@ function CvGeneratorPage() {
         <div className="min-w-max space-y-1.5">
           {pagedList.map((c) => {
             const status = candidateStatus.get(c.id);
+            const visibleCols = (CV_GENERATOR_COLS as readonly string[]).filter((l) => !hiddenCols.has(l));
             return (
               <CvCandidateCard
                 key={c.id}
@@ -562,6 +625,7 @@ function CvGeneratorPage() {
                 onRemoveFromAgency={() => setRemoveTarget(c)}
                 overdueDays={status?.overdueDays}
                 lockedDaysLeft={status?.lockedDaysLeft}
+                visibleCols={visibleCols}
               />
             );
           })}
