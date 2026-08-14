@@ -37,7 +37,7 @@ import {
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@/components/ui/command";
-import { UserCheck, X, Download, Play, Undo2, Lock, History } from "lucide-react";
+import { UserCheck, X, Download, Play, Undo2, Lock } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import * as XLSX from "xlsx";
 
@@ -2689,140 +2689,6 @@ function CandidateDetailDialog({ candidate, onClose, agencyPhones = {} }: { cand
   );
 }
 
-// ─── Candidate history dialog ─────────────────────────────────────────────────
-const HISTORY_FIELD_LABELS: Record<string, string> = {
-  visa_status:      "Visa Status",
-  ticket_status:    "Ticket Status",
-  ticket_date:      "Ticket Date",
-  arrival_city:     "Arrival City",
-  medical_status:   "Medical Status",
-  medical_date:     "Medical Date",
-  tasheer_status:   "Tasheer Status",
-  tasheer_date:     "Tasheer Date",
-  wokala_status:    "Wokala Status",
-  lmis_status:      "LMIS Status",
-  coc_status:       "COC Status",
-  insurance_status: "Insurance",
-  insurance_date:   "Insurance Date",
-  status:           "Availability",
-  selected_by:      "Selected By",
-  processing_notes: "Notes",
-  passport_accepted: "Passport Accepted",
-  coc_agency_name:  "COC Agency",
-  coc_agency_phone: "COC Phone",
-  embassy_date:     "Embassy Date",
-  contract_date:    "Contract Date",
-  destination_country: "Destination",
-  office:           "Office",
-  narrative:        "Narrative",
-  remark:           "Remark",
-  ticket_status_hold: "Ticket Hold",
-};
-
-function CandidateHistoryDialog({
-  candidateId, candidateName, createdAt, createdByName, createdByUserId, open, onClose,
-}: {
-  candidateId: string;
-  candidateName: string;
-  createdAt: string;
-  createdByName: string | null | undefined;
-  createdByUserId: string | null | undefined;
-  open: boolean;
-  onClose: () => void;
-}) {
-  const { user } = useAuth();
-  const { data: logs = [], isLoading } = useQuery({
-    queryKey: ["candidate-history", candidateId],
-    enabled: open,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("candidate_field_log")
-        .select("id, field, old_value, new_value, changed_by_name, changed_by_user_id, changed_at")
-        .eq("candidate_id", candidateId)
-        .order("changed_at", { ascending: true });
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
-  const fmtTs = (iso: string) =>
-    new Date(iso).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-
-  const DATE_FIELDS = new Set(["ticket_date", "tasheer_date", "medical_date", "insurance_date", "contract_date", "embassy_date", "coc_booked_date"]);
-  const fmtVal = (field: string, val: string | null) => {
-    if (!val) return null;
-    if (DATE_FIELDS.has(field))
-      return new Date(val + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-    return val;
-  };
-
-  const totalEntries = 1 + logs.length;
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-lg rounded-none">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <History className="h-4 w-4 text-muted-foreground" />
-            Change History — {candidateName}
-          </DialogTitle>
-        </DialogHeader>
-        {isLoading ? (
-          <div className="py-8 text-center text-sm text-muted-foreground">Loading…</div>
-        ) : (
-          <div className="max-h-[60vh] overflow-y-auto divide-y divide-border border border-border rounded-none">
-            <div className="flex items-start gap-3 px-4 py-2.5">
-              <div className="flex flex-col items-center shrink-0 pt-[3px]">
-                <div className="w-1.5 h-1.5 rounded-full bg-teal-500/70" />
-                {totalEntries > 1 && <div className="w-px flex-1 bg-border mt-1" style={{ minHeight: 12 }} />}
-              </div>
-              <div className="flex-1 min-w-0 pb-0.5">
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">Candidate Added</div>
-                <div className="text-[11px] text-muted-foreground mt-0.5">
-                  by <span className="font-medium text-foreground">
-                    {createdByUserId === user?.id ? "you" : (createdByName || "—")}
-                  </span>
-                  {" · "}
-                  {fmtTs(createdAt)}
-                </div>
-              </div>
-            </div>
-            {logs.map((log, i) => (
-              <div key={log.id} className="flex items-start gap-3 px-4 py-2.5">
-                <div className="flex flex-col items-center shrink-0 pt-[3px]">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
-                  {i < logs.length - 1 && <div className="w-px flex-1 bg-border mt-1" style={{ minHeight: 12 }} />}
-                </div>
-                <div className="flex-1 min-w-0 pb-0.5">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">
-                    {HISTORY_FIELD_LABELS[log.field] ?? log.field}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
-                    <span className={log.old_value ? "text-muted-foreground line-through" : "text-muted-foreground/50 italic"}>
-                      {fmtVal(log.field, log.old_value) ?? "empty"}
-                    </span>
-                    <span className="text-muted-foreground">→</span>
-                    <span className="font-semibold text-foreground">
-                      {fmtVal(log.field, log.new_value) ?? <em className="font-normal text-muted-foreground/60">cleared</em>}
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5">
-                    by <span className="font-medium text-foreground">
-                      {(log as any).changed_by_user_id === user?.id ? "you" : log.changed_by_name}
-                    </span>
-                    {" · "}
-                    {fmtTs(log.changed_at)}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function CandidateCard({
   candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo, agencyOptions, agencyPhones, countryOptions, compact, narrativeSuggestions,
 }: {
@@ -2852,7 +2718,6 @@ function CandidateCard({
   const [cocEditOpen, setCocEditOpen] = useState(false);
   const [cocEditName, setCocEditName] = useState("");
   const [cocEditPhone, setCocEditPhone] = useState("");
-  const [historyOpen, setHistoryOpen] = useState(false);
   const [ticketFilesOpen, setTicketFilesOpen] = useState(false);
   const statusKey = (["available","processing","arrived","canceled","returned"].includes(candidate.status ?? "")
     ? candidate.status : "available") as Status;
@@ -3077,13 +2942,6 @@ function CandidateCard({
             ) : (
               <button onClick={onEdit} className="text-xs text-primary hover:underline">Edit</button>
             )}
-            <button
-              onClick={() => setHistoryOpen(true)}
-              className="text-xs text-muted-foreground hover:text-foreground hover:underline flex items-center gap-1"
-              title="View update history"
-            >
-              <History className="h-3 w-3" /> History
-            </button>
             {onReturn && (
               <button onClick={() => setReturnOpen(true)} className="text-xs text-orange-600 hover:underline">Return</button>
             )}
@@ -3156,15 +3014,6 @@ function CandidateCard({
         candidate={viewing ? candidate : null}
         onClose={() => setViewing(false)}
         agencyPhones={agencyPhones}
-      />
-      <CandidateHistoryDialog
-        candidateId={candidate.id}
-        candidateName={candidate.full_name}
-        createdAt={candidate.created_at}
-        createdByName={candidate.created_by_name}
-        createdByUserId={candidate.created_by_user_id}
-        open={historyOpen}
-        onClose={() => setHistoryOpen(false)}
       />
       {ticketFilesOpen && (
         <TicketFilesDialog
@@ -3740,7 +3589,6 @@ function ProcessingCard({
   const [embassyOverwriteOpen, setEmbassyOverwriteOpen] = useState(false);
   const [ticketHoldOpen, setTicketHoldOpen] = useState(false);
   const [ticketHoldReason, setTicketHoldReason] = useState("");
-  const [historyOpen, setHistoryOpen] = useState(false);
   const [ticketFilesOpen, setTicketFilesOpen] = useState(false);
   function handleColUpdate(colKey: string, value: string | null) {
     if (colKey === "coc_status" && value === "Placed") {
@@ -3999,13 +3847,6 @@ function ProcessingCard({
               <button onClick={onEdit} className="text-xs text-primary hover:underline">Edit</button>
             )}
             <button
-              onClick={() => setHistoryOpen(true)}
-              className="text-xs text-muted-foreground hover:text-foreground hover:underline flex items-center gap-1"
-              title="View update history"
-            >
-              <History className="h-3 w-3" /> History
-            </button>
-            <button
               onClick={() => setDeleteRequestOpen(true)}
               className="text-xs text-destructive hover:underline"
             >
@@ -4203,15 +4044,6 @@ function ProcessingCard({
       candidate={viewing ? candidate : null}
       onClose={() => setViewing(false)}
       agencyPhones={agencyPhones}
-    />
-    <CandidateHistoryDialog
-      candidateId={candidate.id}
-      candidateName={candidate.full_name}
-      createdAt={candidate.created_at}
-      createdByName={candidate.created_by_name}
-      createdByUserId={candidate.created_by_user_id}
-      open={historyOpen}
-      onClose={() => setHistoryOpen(false)}
     />
     {ticketFilesOpen && (
       <TicketFilesDialog
