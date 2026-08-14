@@ -59,6 +59,7 @@ const ALERT_PILL: Record<string, string> = {
   deletepending:"bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
   tasheer:   "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
   cvoverdue: "bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300",
+  cvlongoverdue: "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300",
   fitlmis:   "bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300",
   arrival:   "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300",
 };
@@ -836,11 +837,12 @@ function ManagerDashboard() {
     queryKey: ["manager-profile", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("cv_days_threshold").eq("id", user!.id).maybeSingle();
+      const { data } = await supabase.from("profiles").select("cv_days_threshold, cv_page_requirements").eq("id", user!.id).maybeSingle();
       return data;
     },
   });
   const managerCvThreshold = profile?.cv_days_threshold ?? 7;
+  const alertAfterDays = parseInt(((profile as any)?.cv_page_requirements as any)?.alert_after_days ?? "90") || 90;
   const countryOptions = assignCountries.map((c) => c.name);
   const [embassyOverwrite, setEmbassyOverwrite] = useState<string | null>(null);
   const [replacePending, setReplacePending] = useState<Candidate | null>(null);
@@ -1040,7 +1042,13 @@ const visaReady = alertCandidates.filter(
   const cvOverdue = alertCandidates.filter((c) => {
     if (!c.cv_sent_to || c.selected_by || !c.cv_sent_date) return false;
     const days = Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000);
-    return days >= managerCvThreshold;
+    return days >= managerCvThreshold && days < alertAfterDays;
+  });
+
+  const cvLongOverdue = alertCandidates.filter((c) => {
+    if (!c.cv_sent_to || c.selected_by || !c.cv_sent_date) return false;
+    const days = Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000);
+    return days >= alertAfterDays;
   });
 
   const hasAlerts = cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 ||
@@ -1048,7 +1056,7 @@ const visaReady = alertCandidates.filter(
     ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 ||
     visaReady.length > 0 || visaReturned.length > 0 ||
     tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 ||
-    cvOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0 ||
+    cvOverdue.length > 0 || cvLongOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0 ||
     lmisDraftImported.length > 0 || noMedical5Days.length > 0 || noTasheer10Days.length > 0 ||
     visaWaitingReplacement.length > 0 || deletePending.length > 0;
 
@@ -1343,6 +1351,21 @@ const visaReady = alertCandidates.filter(
           )}
 
           {/* DATA & MISC */}
+          {cvLongOverdue.length > 0 && (
+            <div className="border border-rose-300 dark:border-rose-800 rounded-none overflow-hidden">
+              <div className="px-3 py-2 bg-rose-50/60 dark:bg-rose-950/40 border-b border-rose-300 dark:border-rose-800">
+                <p className="text-sm font-bold text-rose-700 dark:text-rose-300 uppercase tracking-widest">⚠ Long-Overdue — No Selection</p>
+                <p className="text-xs text-rose-600/80 dark:text-rose-400/80 mt-0.5">CV sent {alertAfterDays}+ days ago with no office selection</p>
+              </div>
+              <div className="divide-y divide-border">
+                <AlertSection icon={Send} title={`Unselected ≥ ${alertAfterDays} days`} iconColor="text-rose-600 dark:text-rose-400" pillKey="cvlongoverdue" candidates={cvLongOverdue} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+                  exportCols={[...BASE, { key: "cv_sent_to", label: "CV Sent To" }, { key: "cv_sent_date", label: "CV Sent Date" }, { key: "musaned_status", label: "Country" }]}
+                  renderBadge={(c) => c.cv_sent_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">{Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000)}d ago</span> : null}
+                />
+              </div>
+            </div>
+          )}
+
           {(cvOverdue.length > 0 || unfilledLmis.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0) && (
             <div className="border border-border rounded-none overflow-hidden">
               <div className="px-3 py-2 bg-muted/20 border-b border-border">

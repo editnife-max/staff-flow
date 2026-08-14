@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock } from "lucide-react";
+import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock, Download, BarChart3, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -38,6 +38,7 @@ const YES_NO_OPTIONS = ["Yes", "No"];
 const DEFAULT_CV_REQ = {
   medical: "Fit", narrative: "all", experience: "all", coc: "Done",
   passport_scan: "all", full_size_photo: "all", photo_cv: "all",
+  alert_after_days: "90",
 };
 
 function AssignmentsPage() {
@@ -54,6 +55,9 @@ function AssignmentsPage() {
   // ── CV requirement days ──────────────────────────────────────────────────────
   const [cvDaysEdit,  setCvDaysEdit]  = useState(false);
   const [cvDaysDraft, setCvDaysDraft] = useState("");
+  const [summaryView, setSummaryView] = useState(false);
+  const [alertEdit, setAlertEdit] = useState(false);
+  const [alertDraft, setAlertDraft] = useState("");
 
   const { data: profile } = useQuery({
     queryKey: ["manager-profile", user?.id],
@@ -129,7 +133,7 @@ function AssignmentsPage() {
   const [templatePage, setTemplatePage] = useState(0);
 
   // reset office page when active country changes
-  useEffect(() => { setOfficePage(0); }, [activeCountryId]);
+  useEffect(() => { setOfficePage(0); setSummaryView(false); }, [activeCountryId]);
 
   // ── cv template form ─────────────────────────────────────────────────────────
   const [newTemplateName, setNewTemplateName] = useState("");
@@ -197,6 +201,38 @@ function AssignmentsPage() {
 
   const activeCountry = countries.find((c) => c.id === activeCountryId) ?? countries[0] ?? null;
   const activeOffices  = offices.filter((o) => o.country_id === activeCountry?.id);
+
+  const { data: summaryCandidates = [] } = useQuery({
+    queryKey: ["office-summary-candidates", user?.id, activeCountry?.id],
+    enabled: !!user && summaryView && !!activeCountry,
+    staleTime: 0,
+    queryFn: async () => {
+      const names = offices.filter(o => o.country_id === activeCountry!.id).map(o => o.name);
+      if (names.length === 0) return [];
+      const { data } = await supabase
+        .from("candidates")
+        .select("id, cv_sent_to, cv_resent_offices, selected_by")
+        .in("cv_sent_to", names);
+      return (data ?? []) as { id: string; cv_sent_to: string | null; cv_resent_offices: string[] | null; selected_by: string | null }[];
+    },
+  });
+
+  const officeStats = useMemo(() => activeOffices.map(o => {
+    const name = o.name;
+    const sent = summaryCandidates.filter(c => c.cv_sent_to === name);
+    const resentReceived = summaryCandidates.filter(c => (c.cv_resent_offices as string[] | null)?.includes(name) ?? false);
+    return { name, sent: sent.length, selected: sent.filter(c => !!c.selected_by).length, pending: sent.filter(c => !c.selected_by).length, resent: resentReceived.length };
+  }), [activeOffices, summaryCandidates]);
+
+  function downloadOfficeCsv() {
+    const header = "Office,Sent,Selected,Pending,Resent\n";
+    const rows = officeStats.map(s => `"${s.name}",${s.sent},${s.selected},${s.pending},${s.resent}`).join("\n");
+    const blob = new Blob([header + rows], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url;
+    a.download = `${activeCountry?.name ?? "offices"}-summary-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  }
 
   // ── mutations ────────────────────────────────────────────────────────────────
   const addCountryMut = useMutation({
@@ -372,7 +408,14 @@ function AssignmentsPage() {
               <span className="text-xs text-muted-foreground truncate">— {activeCountry.flag} {activeCountry.name}</span>
             )}
             {activeCountry && (
-              <span className="ml-auto text-xs text-muted-foreground shrink-0">{activeOffices.length} total</span>
+              <>
+                <span className="ml-auto text-xs text-muted-foreground shrink-0">{activeOffices.length} total</span>
+                <button type="button" onClick={() => setSummaryView(v => !v)}
+                  className={cn("h-6 px-2 text-xs border flex items-center gap-1 rounded-none transition-colors shrink-0",
+                    summaryView ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:bg-muted")}>
+                  <BarChart3 className="h-3 w-3" /> Summary
+                </button>
+              </>
             )}
           </div>
           <div className="p-3 space-y-2 flex-1 overflow-y-auto">
@@ -381,7 +424,52 @@ function AssignmentsPage() {
                 <Globe className="h-7 w-7 mb-2 opacity-20" />
                 <p className="text-sm">Select a country to manage offices.</p>
               </div>
+            ) : summaryView ? (
+              /* ── Summary view ── */
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">{activeOffices.length} offices · {activeCountry.flag} {activeCountry.name}</span>
+                  <button type="button" onClick={downloadOfficeCsv}
+                    className="flex items-center gap-1 text-xs text-primary hover:underline">
+                    <Download className="h-3 w-3" /> Export CSV
+                  </button>
+                </div>
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-1.5 font-semibold text-muted-foreground">Office</th>
+                      <th className="text-right py-1.5 font-semibold text-muted-foreground">Sent</th>
+                      <th className="text-right py-1.5 font-semibold text-emerald-600 dark:text-emerald-400">Selected</th>
+                      <th className="text-right py-1.5 font-semibold text-amber-600 dark:text-amber-400">Pending</th>
+                      <th className="text-right py-1.5 font-semibold text-blue-600 dark:text-blue-400">Resent</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {officeStats.length === 0 ? (
+                      <tr><td colSpan={5} className="text-center py-6 text-muted-foreground">No offices yet</td></tr>
+                    ) : officeStats.map(s => (
+                      <tr key={s.name} className="border-b border-border/40 hover:bg-muted/20">
+                        <td className="py-1.5 font-medium truncate max-w-[110px]">{s.name}</td>
+                        <td className="text-right py-1.5 tabular-nums">{s.sent}</td>
+                        <td className="text-right py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{s.selected}</td>
+                        <td className="text-right py-1.5 tabular-nums text-amber-600 dark:text-amber-400">{s.pending}</td>
+                        <td className="text-right py-1.5 tabular-nums text-blue-600 dark:text-blue-400">{s.resent}</td>
+                      </tr>
+                    ))}
+                    {officeStats.length > 1 && (
+                      <tr className="border-t-2 border-border font-semibold">
+                        <td className="py-1.5">Total</td>
+                        <td className="text-right py-1.5 tabular-nums">{officeStats.reduce((a, s) => a + s.sent, 0)}</td>
+                        <td className="text-right py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{officeStats.reduce((a, s) => a + s.selected, 0)}</td>
+                        <td className="text-right py-1.5 tabular-nums text-amber-600 dark:text-amber-400">{officeStats.reduce((a, s) => a + s.pending, 0)}</td>
+                        <td className="text-right py-1.5 tabular-nums text-blue-600 dark:text-blue-400">{officeStats.reduce((a, s) => a + s.resent, 0)}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             ) : (
+              /* ── List view ── */
               <>
                 <div className="flex gap-1.5">
                   <Input className="h-8 rounded-none text-sm flex-1" placeholder="Office name…"
@@ -529,6 +617,37 @@ function AssignmentsPage() {
                   <span className="text-xs text-muted-foreground">days</span>
                   <button type="button" className="ml-auto text-xs text-primary hover:underline"
                     onClick={() => { setCvDaysDraft(String(cvDaysThreshold)); setCvDaysEdit(true); }}>
+                    Edit
+                  </button>
+                </div>
+              )}
+            </div>
+            {/* Alert after — configurable unselected alert threshold */}
+            <div className="flex items-center gap-2 px-3 py-1.5 border border-orange-200 bg-orange-50/40 dark:border-orange-800/40 dark:bg-orange-900/10">
+              <AlertCircle className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400 shrink-0" />
+              <span className="text-sm text-muted-foreground w-24 shrink-0">Alert after</span>
+              {alertEdit ? (
+                <div className="flex items-center gap-2 flex-1">
+                  <input autoFocus type="number" min={1} value={alertDraft}
+                    onChange={(e) => setAlertDraft(e.target.value)}
+                    className="w-14 border border-input rounded-none px-2 h-7 text-sm"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") { const n = parseInt(alertDraft); if (!isNaN(n) && n > 0) { saveCvReq.mutate({ ...cvReq, alert_after_days: String(n) }); setAlertEdit(false); } }
+                      if (e.key === "Escape") setAlertEdit(false);
+                    }} />
+                  <span className="text-xs text-muted-foreground">days</span>
+                  <Button size="sm" className="h-7 rounded-none px-2 text-xs" disabled={saveCvReq.isPending}
+                    onClick={() => { const n = parseInt(alertDraft); if (!isNaN(n) && n > 0) { saveCvReq.mutate({ ...cvReq, alert_after_days: String(n) }); setAlertEdit(false); } }}>
+                    {saveCvReq.isPending ? "…" : "Save"}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 rounded-none px-2 text-xs" onClick={() => setAlertEdit(false)}>Cancel</Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 flex-1">
+                  <span className="text-base font-bold text-orange-700 dark:text-orange-300">{cvReq.alert_after_days}</span>
+                  <span className="text-xs text-muted-foreground">days</span>
+                  <button type="button" className="ml-auto text-xs text-primary hover:underline"
+                    onClick={() => { setAlertDraft(cvReq.alert_after_days); setAlertEdit(true); }}>
                     Edit
                   </button>
                 </div>

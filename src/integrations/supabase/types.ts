@@ -150,6 +150,8 @@ export type Database = {
           created_by_name: string | null
           created_by_user_id: string | null
           cv_pdf_url: string | null
+          cv_resent_date: string | null
+          cv_resent_offices: Json | null
           cv_sent_date: string | null
           cv_sent_to: string | null
           destination_country: string | null
@@ -237,6 +239,8 @@ export type Database = {
           created_by_name?: string | null
           created_by_user_id?: string | null
           cv_pdf_url?: string | null
+          cv_resent_date?: string | null
+          cv_resent_offices?: Json | null
           cv_sent_date?: string | null
           cv_sent_to?: string | null
           destination_country?: string | null
@@ -324,6 +328,8 @@ export type Database = {
           created_by_name?: string | null
           created_by_user_id?: string | null
           cv_pdf_url?: string | null
+          cv_resent_date?: string | null
+          cv_resent_offices?: Json | null
           cv_sent_date?: string | null
           cv_sent_to?: string | null
           destination_country?: string | null

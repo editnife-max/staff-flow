@@ -5,6 +5,7 @@ import {
   Search, FileText, User, ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
   Send, ClipboardPaste, X, RotateCcw, Stethoscope, Briefcase, FileCheck,
   Globe, BookOpen, Users, Calendar, Trash2, Play, SlidersHorizontal, Lock,
+  GitBranch, RefreshCw,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
@@ -59,8 +60,8 @@ const CV_GENERATOR_COLS = [
 // ── Candidate card ─────────────────────────────────────────────────────────────
 
 function CvCandidateCard({
-  candidate: c, selected, onToggleSelect, onAction, onRemoveFromAgency, overdueDays, visibleCols,
-}: { candidate: Candidate; selected: boolean; onToggleSelect: () => void; onAction: () => void; onRemoveFromAgency: () => void; overdueDays?: number; visibleCols: readonly string[] }) {
+  candidate: c, selected, onToggleSelect, onAction, onRemoveFromAgency, overdueDays, visibleCols, onResend,
+}: { candidate: Candidate; selected: boolean; onToggleSelect: () => void; onAction: () => void; onRemoveFromAgency: () => void; overdueDays?: number; visibleCols: readonly string[]; onResend?: () => void }) {
   const [viewing, setViewing] = useState(false);
   type FieldDef = { label: string; value: string; bold?: boolean; badge?: boolean; video?: boolean };
   const fields: FieldDef[] = [
@@ -102,9 +103,10 @@ function CvCandidateCard({
         />
         <StatusBadge status="available" />
         {overdueDays != null ? (
-          <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 leading-none">
-            Resend · {overdueDays}d
-          </span>
+          <button type="button" onClick={onResend} title="Click to resend CV to all other offices"
+            className="inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 leading-none hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors cursor-pointer">
+            <RefreshCw className="h-2.5 w-2.5" /> Resend · {overdueDays}d
+          </button>
         ) : null}
       </div>
 
@@ -208,6 +210,7 @@ function ManagerCvGeneratorPage() {
   const [pageSize,    setPageSize]    = useState(5);
   const [selected,    setSelected]    = useState<Set<string>>(new Set());
   const [sendOffice,       setSendOffice]        = useState("");
+  const [showDistribute,   setShowDistribute]    = useState(false);
   const [actionCandidates, setActionCandidates] = useState<Candidate[]>([]);
   const [removeTarget,     setRemoveTarget]      = useState<Candidate | null>(null);
   const [hiddenCols,       setHiddenCols]        = useState<Set<string>>(new Set());
@@ -280,6 +283,41 @@ function ManagerCvGeneratorPage() {
       clearSelection();
       setSendOffice("");
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const { data: officesList = [] } = useQuery({
+    queryKey: ["assignment-offices", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data } = await supabase.from("assignment_offices").select("id, name").order("name");
+      return (data ?? []) as { id: string; name: string }[];
+    },
+  });
+
+  const resendMut = useMutation({
+    mutationFn: async (candidateId: string) => {
+      const cand = candidates.find(c => c.id === candidateId);
+      const otherOffices = officesList.map(o => o.name).filter(n => n !== cand?.cv_sent_to);
+      const { error } = await supabase.from("candidates")
+        .update({ cv_resent_offices: otherOffices, cv_resent_date: new Date().toISOString().split("T")[0] } as any)
+        .eq("id", candidateId);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("CV resent to all other offices"); qc.invalidateQueries({ queryKey: ["mgr-cv-candidates"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const distributeMut = useMutation({
+    mutationFn: async (plan: Array<{ name: string; ids: string[] }>) => {
+      const today = new Date().toISOString().split("T")[0];
+      for (const { name, ids } of plan) {
+        if (ids.length === 0) continue;
+        const { error } = await supabase.from("candidates").update({ cv_sent_to: name, cv_sent_date: today }).in("id", ids);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => { toast.success("Candidates distributed to offices"); qc.invalidateQueries({ queryKey: ["mgr-cv-candidates"] }); setShowDistribute(false); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -452,6 +490,29 @@ function ManagerCvGeneratorPage() {
     return result;
   }, [filtered, cvDaysThreshold]);
 
+  const distributionPlan = useMemo(() => {
+    if (!showDistribute || officesList.length === 0) return null;
+    const unsent = filtered.filter(c => !c.cv_sent_to);
+    if (unsent.length === 0) return null;
+    const weights = officesList.map(o => candidates.filter(c => c.status === "processing" && c.cv_sent_to === o.name).length);
+    const totalW = weights.reduce((a, b) => a + b, 0);
+    const eff = totalW === 0 ? officesList.map(() => 1) : weights;
+    const effTotal = eff.reduce((a, b) => a + b, 0);
+    const n = unsent.length;
+    const exact = eff.map(w => n * (w / effTotal));
+    const floors = exact.map(Math.floor);
+    let rem = n - floors.reduce((a, b) => a + b, 0);
+    const fracs = exact.map((e, i) => ({ i, f: e - floors[i] })).sort((a, b) => b.f - a.f);
+    const counts = [...floors];
+    for (let r = 0; r < rem; r++) counts[fracs[r].i]++;
+    let idx = 0;
+    return officesList.map((o, i) => {
+      const slice = unsent.slice(idx, idx + counts[i]);
+      idx += counts[i];
+      return { name: o.name, processing: weights[i], pct: totalW > 0 ? Math.round((weights[i] / totalW) * 100) : Math.round(100 / officesList.length), count: counts[i], ids: slice.map(c => c.id) };
+    });
+  }, [showDistribute, filtered, officesList, candidates]);
+
   useEffect(() => { setPage(1); }, [filtered.length, pageSize]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -556,6 +617,11 @@ function ManagerCvGeneratorPage() {
             Select all ({filtered.length})
           </label>
           <div className="flex items-center gap-2 flex-wrap">
+            <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs rounded-none"
+              disabled={officesList.length === 0}
+              onClick={() => setShowDistribute(true)}>
+              <GitBranch className="h-3.5 w-3.5" /> Distribute to Offices
+            </Button>
             {hiddenCols.size > 0 && (
               <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs text-muted-foreground" onClick={() => setHiddenCols(new Set())}>
                 <RotateCcw className="h-3 w-3" /> Reset columns
@@ -653,6 +719,7 @@ function ManagerCvGeneratorPage() {
                 onAction={() => setActionCandidates([c])}
                 onRemoveFromAgency={() => setRemoveTarget(c)}
                 overdueDays={status?.overdueDays}
+                onResend={status?.overdueDays != null ? () => resendMut.mutate(c.id) : undefined}
                 visibleCols={visibleCols}
               />
             );
@@ -719,6 +786,57 @@ function ManagerCvGeneratorPage() {
       {actionCandidates.length > 0 && (
         <BulkActionDialog candidates={actionCandidates} onClose={() => setActionCandidates([])} />
       )}
+
+      {/* Distribute to Offices dialog */}
+      <Dialog open={showDistribute} onOpenChange={(o) => { if (!o) setShowDistribute(false); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <GitBranch className="h-4 w-4 text-primary" /> Distribute to Offices
+            </DialogTitle>
+          </DialogHeader>
+          {!distributionPlan ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              {officesList.length === 0 ? "No offices configured. Add offices in Assignments first." : "No unsent candidates in current filters."}
+            </p>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground mb-2">
+                Proportional allocation based on each office's current Processing count. {distributionPlan.reduce((a, o) => a + o.count, 0)} candidates will be distributed.
+              </p>
+              <table className="w-full text-xs border-collapse mb-2">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-1.5 font-semibold text-muted-foreground">Office</th>
+                    <th className="text-right py-1.5 font-semibold text-muted-foreground">Processing</th>
+                    <th className="text-right py-1.5 font-semibold text-muted-foreground">Share %</th>
+                    <th className="text-right py-1.5 font-semibold text-primary">Will Receive</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {distributionPlan.map(o => (
+                    <tr key={o.name} className="border-b border-border/40">
+                      <td className="py-1.5 font-medium truncate max-w-[140px]">{o.name}</td>
+                      <td className="text-right py-1.5 tabular-nums">{o.processing}</td>
+                      <td className="text-right py-1.5 tabular-nums">{o.pct}%</td>
+                      <td className="text-right py-1.5 tabular-nums font-semibold text-primary">{o.count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowDistribute(false)}>Cancel</Button>
+            <Button
+              disabled={!distributionPlan || distributeMut.isPending}
+              onClick={() => distributionPlan && distributeMut.mutate(distributionPlan)}
+            >
+              {distributeMut.isPending ? "Distributing…" : "Confirm Distribute"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!removeTarget} onOpenChange={(o) => { if (!o) setRemoveTarget(null); }}>
         <DialogContent className="max-w-sm">
