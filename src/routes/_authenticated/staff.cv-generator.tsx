@@ -148,7 +148,7 @@ function CvCandidateCard({
                   {f.value}
                 </span>
               ) : (
-                <div className={cn("text-sm text-foreground break-words", f.bold && "font-semibold")}>
+                <div className={cn("text-sm text-foreground break-words line-clamp-2", f.bold && "font-semibold")}>
                   {f.value || "—"}
                 </div>
               )}
@@ -210,7 +210,7 @@ function CvGeneratorPage() {
     k !== "sort" && (Array.isArray(v) ? v.length > 0 : !!v)
   ).length;
   const [page,        setPage]        = useState(1);
-  const [pageSize,    setPageSize]    = useState(20);
+  const [pageSize,    setPageSize]    = useState(5);
   const [selected,    setSelected]    = useState<Set<string>>(new Set());
   const [sendOffice,       setSendOffice]        = useState("");
   const [actionCandidates, setActionCandidates] = useState<Candidate[]>([]);
@@ -480,7 +480,7 @@ function CvGeneratorPage() {
   const someSel = !allSel && selectableFiltered.some((c) => selected.has(c.id));
 
   return (
-    <div className="flex flex-col h-[calc(100vh-56px)] mx-[79.6px]">
+    <div className="mx-[79.6px] pb-20">
       <div className="shrink-0 mb-6">
         <PageHeader
           title="CV Page"
@@ -673,8 +673,8 @@ function CvGeneratorPage() {
       )}
 
       {/* Card list */}
-      <div className="flex-1 min-h-0 relative">
-        <div ref={scrollRef} className="h-full overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="relative">
+        <div ref={scrollRef} className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="min-w-max space-y-1.5">
           {pagedList.map((c) => {
             const status = candidateStatus.get(c.id);
