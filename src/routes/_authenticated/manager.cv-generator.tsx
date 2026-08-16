@@ -955,9 +955,16 @@ function MultiFilterSelect({
       <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSearch(""); }}>
         <PopoverTrigger asChild>
           <button type="button"
-            className="flex items-center gap-1 bg-transparent border-0 text-[13px] font-bold text-foreground hover:opacity-70 transition-opacity px-0">
+            className={cn("group flex items-center gap-1 bg-transparent border-0 text-[13px] font-bold transition-opacity px-0", isEmpty ? "text-foreground hover:opacity-70" : "text-primary")}>
             {Icon && <Icon className="h-3 w-3 shrink-0" />}
-            <span>{triggerLabel}</span>
+            {isEmpty ? (
+              <span>{placeholder}</span>
+            ) : (
+              <>
+                <span className="group-hover:hidden">{triggerLabel}</span>
+                <span className="hidden group-hover:inline">{placeholder}</span>
+              </>
+            )}
             <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
           </button>
         </PopoverTrigger>
@@ -972,7 +979,7 @@ function MultiFilterSelect({
               const color = OPTION_COLORS[o.label] ?? OPTION_COLORS[o.value];
               return (
                 <button key={o.value} type="button"
-                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 transition-colors"
+                  className={cn("w-full flex items-center gap-2 px-2 py-1.5 rounded transition-colors", checked ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/50")}
                   onClick={() => toggle(o.value)}>
                   <Checkbox checked={checked} className="h-3.5 w-3.5 pointer-events-none" />
                   {color
