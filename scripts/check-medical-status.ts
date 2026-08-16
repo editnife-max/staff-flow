@@ -88,14 +88,20 @@ async function main() {
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-  // Fetch Ethiopian candidates without "Fit" medical status (up to 50)
+  // Fetch Ethiopian candidates to check — all statuses EXCEPT "Fit":
+  //   "No"          → not yet checked on wafid
+  //   "Booked"      → medical appointment booked, check if result is available
+  //   "Expired"     → was Fit but 90-day window passed; re-confirm on wafid
+  //   "In progress" → medical process ongoing, check current result
+  //   "Unfit" / "Retest" → check if status changed
+  //   null          → captured by the is.null branch of the or()
   const { data: candidates, error } = await supabase
     .from("candidates")
     .select("id, full_name, passport_number, medical_status, country")
-    .or("country.ilike.ethiop%")
+    .ilike("country", "ethiop%")
     .not("passport_number", "is", null)
     .neq("passport_number", "")
-    .neq("medical_status", "Fit")
+    .or("medical_status.is.null,medical_status.neq.Fit")
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -108,7 +114,15 @@ async function main() {
     (c) => c.passport_number && c.passport_number.trim() !== ""
   );
 
-  log(`Checking ${toCheck.length} Ethiopian candidates (non-Fit, up to 50 per run)`);
+  const statusCounts = toCheck.reduce<Record<string, number>>((acc, c) => {
+    const k = c.medical_status ?? "none";
+    acc[k] = (acc[k] ?? 0) + 1;
+    return acc;
+  }, {});
+  log(
+    `Checking ${toCheck.length} Ethiopian candidates: ` +
+    Object.entries(statusCounts).map(([k, v]) => `${k}×${v}`).join(", ")
+  );
 
   if (toCheck.length === 0) {
     log("Nothing to check. Exiting.");
