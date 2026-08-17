@@ -145,7 +145,8 @@
       "PowerShell(New-Item *)",
       "PowerShell(Get-ScheduledTask *)",
       "Bash(Get-Command bun *)",
-      "Bash(Select-Object -ExpandProperty Source)"
+      "Bash(Select-Object -ExpandProperty Source)",
+      "Bash(./node_modules/.bin/tsc --noEmit)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -612,22 +612,23 @@ export const searchCandidates = createServerFn({ method: "GET" })
     }>;
   });
 
-const WAFID_NATIONALITY: Record<string, string> = {
-  ethiop: "60",
-  philippin: "129",
-  "sri lanka": "34",
-  indonesia: "73",
-  bangladesh: "19",
-  kenya: "85",
-  uganda: "170",
-  india: "72",
-  nepal: "114",
-  ghana: "65",
-};
+const WAFID_NATIONALITY: Array<[string, string]> = [
+  ["ethiop", "60"],
+  ["philippin", "177"],
+  ["filipin", "177"],
+  ["sri lanka", "156"],
+  ["indonesia", "81"],
+  ["bangladesh", "15"],
+  ["kenya", "92"],
+  ["uganda", "166"],
+  ["india", "1"],
+  ["nepal", "125"],
+  ["ghana", "69"],
+];
 
 function wafidNationality(country: string | null): string {
   const lc = (country ?? "").toLowerCase();
-  for (const [key, val] of Object.entries(WAFID_NATIONALITY)) {
+  for (const [key, val] of WAFID_NATIONALITY) {
     if (lc.includes(key)) return val;
   }
   return "60"; // fallback Ethiopian
@@ -790,12 +791,13 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
       status = "Unfit";
     } else if (resultHtml.includes("medical-status-modal-normal") || />\s*retest\s*</i.test(resultHtml)) {
       status = "Retest";
-    } else if (/no[- ]record|not found|invalid passport/i.test(resultHtml)) {
+    } else if (/no active appointment found|no[- ]record|not found|invalid passport/i.test(resultHtml)) {
       message = "No record on Wafid";
-    } else if (/recaptcha|g-recaptcha/i.test(resultHtml) && resultHtml.includes("id_passport")) {
-      message = "Blocked by reCAPTCHA — a solver API key is required (see TWOCAPTCHA_API_KEY)";
+    } else if (/error verifying recaptcha/i.test(resultHtml)) {
+      message = "reCAPTCHA verification failed — please try again";
     } else if (resultHtml.includes("id_passport")) {
-      message = "Form rejected — check search_variant field value";
+      const snippet = resultHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 300);
+      message = `Could not determine status. Response: ${snippet}`;
     } else {
       // Surface a snippet so we can see what wafid actually returned
       const snippet = resultHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 300);
