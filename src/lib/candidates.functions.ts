@@ -664,9 +664,10 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
       "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
       "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
     ].filter(Boolean) as string[];
+    const CDP_PORT = 9224;
     const WAFID_URL = "https://wafid.com/en/medical-status-search/";
 
-    // Dynamic import — succeeds in Node.js/Bun dev mode, caught gracefully in Workers.
+    // Dynamic import — succeeds in Bun dev mode, caught gracefully in Workers.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let puppeteer: any;
     try {
@@ -680,21 +681,29 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
       };
     }
 
-    let status: string | null = null;
-    let date: string | null = null;
-    let message = "";
+    // puppeteer.launch() uses fs.access() internally which is broken for paths
+    // containing spaces under Bun on Windows. Use Bun.spawn instead — it calls
+    // Windows CreateProcess directly and handles spaces correctly.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const BunAPI = (globalThis as any).Bun;
+    if (!BunAPI?.spawn) {
+      return {
+        status: null as string | null,
+        date: null as string | null,
+        message: "Medical check requires Bun runtime",
+      };
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let browser: any = null;
-    // Launch a fresh browser for each check — no fixed port or profile that could
-    // be locked from a previous run. Puppeteer manages the process lifecycle.
-    const launchErrors: string[] = [];
-    for (const executablePath of BROWSER_PATHS) {
+    let chromeProc: any = null;
+    const spawnErrors: string[] = [];
+    for (const bp of BROWSER_PATHS) {
       try {
-        browser = await puppeteer.launch({
-          executablePath,
-          headless: true,
-          args: [
+        chromeProc = BunAPI.spawn({
+          cmd: [
+            bp,
+            `--remote-debugging-port=${CDP_PORT}`,
+            "--headless=new",
             "--no-first-run",
             "--no-default-browser-check",
             "--disable-extensions",
@@ -705,22 +714,48 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
             "--no-sandbox",
             "--disable-blink-features=AutomationControlled",
           ],
-          defaultViewport: { width: 1280, height: 800 },
         });
         break;
       } catch (e) {
-        launchErrors.push(`${executablePath}: ${e}`);
+        spawnErrors.push(`${bp}: ${e}`);
       }
     }
-    if (!browser) {
+    if (!chromeProc) {
       return {
         status: null as string | null,
         date: null as string | null,
-        message: `Chrome failed to start. Tried:\n${launchErrors.join("\n")}`,
+        message: `Chrome failed to start. Tried:\n${spawnErrors.join("\n")}`,
       };
     }
 
+    // Poll until CDP is ready (up to 20 s)
+    const deadline = Date.now() + 20_000;
+    let cdpReady = false;
+    while (Date.now() < deadline) {
+      try {
+        if ((await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`)).ok) {
+          cdpReady = true;
+          break;
+        }
+      } catch {}
+      await new Promise(r => setTimeout(r, 500));
+    }
+    if (!cdpReady) {
+      try { chromeProc.kill(); } catch {}
+      return { status: null as string | null, date: null as string | null, message: "Chrome CDP timed out" };
+    }
+
+    let status: string | null = null;
+    let date: string | null = null;
+    let message = "";
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let browser: any = null;
     try {
+      browser = await puppeteer.connect({
+        browserURL: `http://127.0.0.1:${CDP_PORT}`,
+        defaultViewport: { width: 1280, height: 800 },
+      });
 
       const page = await browser.newPage();
       await page.setUserAgent(
@@ -771,10 +806,11 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
     } finally {
       if (browser) {
         await Promise.race([
-          browser.close(),
+          browser.disconnect(),
           new Promise(r => setTimeout(r, 5000)),
         ]).catch(() => {});
       }
+      try { chromeProc?.kill(); } catch {}
     }
 
     if (status && status !== candidate.medical_status) {
