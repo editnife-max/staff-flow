@@ -654,16 +654,16 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
     const passport = candidate.passport_number.trim().toUpperCase();
     const nationality = wafidNationality(candidate.country);
 
-    const CHROME_PATHS = [
+    const BROWSER_PATHS = [
       "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
       "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
       process.env.LOCALAPPDATA
         ? `${process.env.LOCALAPPDATA}\\Google\\Chrome\\Application\\chrome.exe`
         : null,
+      "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+      "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
       "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
     ].filter(Boolean) as string[];
-    const CDP_PORT = 9224; // separate port from the batch scheduler (9223)
-    const CHROME_PROFILE = "C:\\temp\\flowpath-chrome-single";
     const WAFID_URL = "https://wafid.com/en/medical-status-search/";
 
     // Dynamic import — succeeds in Node.js/Bun dev mode, caught gracefully in Workers.
@@ -680,59 +680,47 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
       };
     }
 
-    // Reuse Chrome if already running on the port; otherwise launch fresh.
-    let cdpLive = false;
-    try {
-      const r = await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`);
-      cdpLive = r.ok;
-    } catch {}
-
     let status: string | null = null;
     let date: string | null = null;
     let message = "";
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let browser: any = null;
-    const CHROME_ARGS = [
-      `--remote-debugging-port=${CDP_PORT}`,
-      "--no-first-run",
-      "--no-default-browser-check",
-      "--disable-extensions",
-      "--disable-background-networking",
-      "--disable-sync",
-      "--disable-translate",
-      "--disable-dev-shm-usage",
-      "--no-sandbox",
-      "--disable-blink-features=AutomationControlled",
-      `--user-data-dir=${CHROME_PROFILE}`,
-    ];
-    try {
-      if (cdpLive) {
-        browser = await puppeteer.connect({
-          browserURL: `http://127.0.0.1:${CDP_PORT}`,
+    // Launch a fresh browser for each check — no fixed port or profile that could
+    // be locked from a previous run. Puppeteer manages the process lifecycle.
+    const launchErrors: string[] = [];
+    for (const executablePath of BROWSER_PATHS) {
+      try {
+        browser = await puppeteer.launch({
+          executablePath,
+          headless: true,
+          args: [
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--disable-extensions",
+            "--disable-background-networking",
+            "--disable-sync",
+            "--disable-translate",
+            "--disable-dev-shm-usage",
+            "--no-sandbox",
+            "--disable-blink-features=AutomationControlled",
+          ],
           defaultViewport: { width: 1280, height: 800 },
         });
-      } else {
-        // Try each known Chrome path in order — puppeteer.launch() handles
-        // Windows paths with spaces correctly unlike child_process.spawn on Bun.
-        let lastErr: unknown = new Error("No Chrome path succeeded");
-        for (const executablePath of CHROME_PATHS) {
-          try {
-            browser = await puppeteer.launch({
-              executablePath,
-              headless: true,
-              args: CHROME_ARGS,
-              defaultViewport: { width: 1280, height: 800 },
-            });
-            break;
-          } catch (e) {
-            lastErr = e;
-          }
-        }
-        if (!browser) {
-          return { status: null as string | null, date: null as string | null, message: `Chrome failed to start: ${lastErr}` };
-        }
+        break;
+      } catch (e) {
+        launchErrors.push(`${executablePath}: ${e}`);
       }
+    }
+    if (!browser) {
+      return {
+        status: null as string | null,
+        date: null as string | null,
+        message: `Chrome failed to start. Tried:\n${launchErrors.join("\n")}`,
+      };
+    }
+
+    try {
 
       const page = await browser.newPage();
       await page.setUserAgent(
@@ -782,9 +770,8 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
       message = `Check error: ${e}`;
     } finally {
       if (browser) {
-        // 5-second timeout on close/disconnect to avoid hanging
         await Promise.race([
-          cdpLive ? browser.disconnect() : browser.close(),
+          browser.close(),
           new Promise(r => setTimeout(r, 5000)),
         ]).catch(() => {});
       }
