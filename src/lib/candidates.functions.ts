@@ -666,18 +666,12 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
     const CHROME_PROFILE = "C:\\temp\\flowpath-chrome-single";
     const WAFID_URL = "https://wafid.com/en/medical-status-search/";
 
-    // Dynamic imports — succeed in Node.js/Bun dev mode, caught gracefully in Workers.
+    // Dynamic import — succeeds in Node.js/Bun dev mode, caught gracefully in Workers.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let puppeteer: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let existsSync: (p: string) => boolean = () => false;
     try {
-      const [pMod, fsMod] = await Promise.all([
-        import("puppeteer-core"),
-        import("fs"),
-      ]);
+      const pMod = await import("puppeteer-core");
       puppeteer = pMod.default ?? pMod;
-      existsSync = fsMod.existsSync;
     } catch {
       return {
         status: null as string | null,
@@ -699,6 +693,19 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let browser: any = null;
+    const CHROME_ARGS = [
+      `--remote-debugging-port=${CDP_PORT}`,
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--disable-extensions",
+      "--disable-background-networking",
+      "--disable-sync",
+      "--disable-translate",
+      "--disable-dev-shm-usage",
+      "--no-sandbox",
+      "--disable-blink-features=AutomationControlled",
+      `--user-data-dir=${CHROME_PROFILE}`,
+    ];
     try {
       if (cdpLive) {
         browser = await puppeteer.connect({
@@ -706,32 +713,25 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
           defaultViewport: { width: 1280, height: 800 },
         });
       } else {
-        // Use puppeteer.launch() — handles Windows paths with spaces correctly,
-        // unlike child_process.spawn which has issues under Bun on Windows.
-        const executablePath = CHROME_PATHS.find((p) => {
-          try { return existsSync(p); } catch { return false; }
-        });
-        if (!executablePath) {
-          return { status: null as string | null, date: null as string | null, message: "Chrome not found on this machine" };
+        // Try each known Chrome path in order — puppeteer.launch() handles
+        // Windows paths with spaces correctly unlike child_process.spawn on Bun.
+        let lastErr: unknown = new Error("No Chrome path succeeded");
+        for (const executablePath of CHROME_PATHS) {
+          try {
+            browser = await puppeteer.launch({
+              executablePath,
+              headless: true,
+              args: CHROME_ARGS,
+              defaultViewport: { width: 1280, height: 800 },
+            });
+            break;
+          } catch (e) {
+            lastErr = e;
+          }
         }
-        browser = await puppeteer.launch({
-          executablePath,
-          headless: true,
-          args: [
-            `--remote-debugging-port=${CDP_PORT}`,
-            "--no-first-run",
-            "--no-default-browser-check",
-            "--disable-extensions",
-            "--disable-background-networking",
-            "--disable-sync",
-            "--disable-translate",
-            "--disable-dev-shm-usage",
-            "--no-sandbox",
-            "--disable-blink-features=AutomationControlled",
-            `--user-data-dir=${CHROME_PROFILE}`,
-          ],
-          defaultViewport: { width: 1280, height: 800 },
-        });
+        if (!browser) {
+          return { status: null as string | null, date: null as string | null, message: `Chrome failed to start: ${lastErr}` };
+        }
       }
 
       const page = await browser.newPage();
