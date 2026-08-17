@@ -143,7 +143,9 @@
       "WebFetch(domain:wafid.leanstg.io)",
       "Bash(npx playwright *)",
       "PowerShell(New-Item *)",
-      "PowerShell(Get-ScheduledTask *)"
+      "PowerShell(Get-ScheduledTask *)",
+      "Bash(Get-Command bun *)",
+      "Bash(Select-Object -ExpandProperty Source)"
     ]
   },
   "enableAllProjectMcpServers": true,

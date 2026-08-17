@@ -33,7 +33,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   upsertCandidate, deleteCandidate, updateCandidateField,
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff, bulkUpdateField,
-  bulkImportCandidates, nextCandidateCode, searchCandidates,
+  bulkImportCandidates, nextCandidateCode, searchCandidates, checkWafidMedical,
 } from "@/lib/candidates.functions";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
@@ -2803,6 +2803,9 @@ function CandidateCard({
   narrativeSuggestions?: string[];
 }) {
   const { user } = useAuth();
+  const qcCard = useQueryClient();
+  const checkWafidFn = useServerFn(checkWafidMedical);
+  const [wafidChecking, setWafidChecking] = useState(false);
   const [viewing, setViewing] = useState(false);
   const [deleteRequestOpen, setDeleteRequestOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
@@ -2998,16 +3001,53 @@ function CandidateCard({
                           </button>
                         </div>
                       ) : colLabel === "MEDICAL STATUS" ? (
-                        <InlineSelect value={f.value} options={f.options} onSave={(v) => {
-                          if (v === "Fit" && !candidate.medical_date) {
-                            setPendingMedDate(""); setMedDateOpen(true);
-                          } else if (v === "Fit" && candidate.medical_date && medDaysAgo(candidate.medical_date) >= 90) {
-                            toast.error("Medical date is over 90 days ago — status set to Expired");
-                            onUpdateField(f.field, "Expired");
-                          } else {
-                            onUpdateField(f.field, v);
-                          }
-                        }} />
+                        <div className="flex items-center gap-1 min-w-0">
+                          <InlineSelect value={f.value} options={f.options} onSave={(v) => {
+                            if (v === "Fit" && !candidate.medical_date) {
+                              setPendingMedDate(""); setMedDateOpen(true);
+                            } else if (v === "Fit" && candidate.medical_date && medDaysAgo(candidate.medical_date) >= 90) {
+                              toast.error("Medical date is over 90 days ago — status set to Expired");
+                              onUpdateField(f.field, "Expired");
+                            } else {
+                              onUpdateField(f.field, v);
+                            }
+                          }} />
+                          {candidate.passport_number && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    disabled={wafidChecking}
+                                    className="shrink-0 text-muted-foreground hover:text-teal-600 disabled:opacity-40 transition-colors"
+                                    onClick={async () => {
+                                      setWafidChecking(true);
+                                      const tid = toast.loading("Connecting to wafid.com…");
+                                      try {
+                                        const res = await checkWafidFn({ data: { candidateId: candidate.id } });
+                                        if (res.status) {
+                                          toast.success(`wafid.com · ${res.message}`, { id: tid });
+                                          qcCard.invalidateQueries({ queryKey: ["manager-candidates"] });
+                                        } else {
+                                          toast.info(`wafid.com · ${res.message}`, { id: tid });
+                                        }
+                                      } catch (e) {
+                                        toast.error(`wafid.com · ${String(e)}`, { id: tid });
+                                      } finally {
+                                        setWafidChecking(false);
+                                      }
+                                    }}
+                                  >
+                                    {wafidChecking ? <Loader2 className="h-3 w-3 animate-spin" /> : <Globe className="h-3 w-3" />}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent className="rounded-none text-xs p-2">
+                                  {wafidChecking ? "Connecting to wafid.com…" : "Check on wafid.com"}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
                       ) : colLabel === "CV SENT TO" && (() => {
                           const ra = (candidate as any).reserved_at;
                           return ra && (Date.now() - new Date(ra).getTime()) < 3 * 86_400_000;
@@ -3703,6 +3743,9 @@ function ProcessingCard({
   const [ticketFilesOpen, setTicketFilesOpen] = useState(false);
   const [ticketHoldOpen, setTicketHoldOpen] = useState(false);
   const [ticketHoldReason, setTicketHoldReason] = useState("");
+  const qcProc = useQueryClient();
+  const checkWafidProcFn = useServerFn(checkWafidMedical);
+  const [wafidProcChecking, setWafidProcChecking] = useState(false);
   function handleColUpdate(colKey: string, value: string | null) {
     if (colKey === "coc_status" && value === "Placed") {
       setCocPlacedOpen(true);
@@ -3896,6 +3939,45 @@ function ProcessingCard({
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
+                      ) : col.key === "medical_status" ? (
+                        <div className="flex items-center gap-1 min-w-0">
+                          <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
+                          {candidate.passport_number && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    disabled={wafidProcChecking}
+                                    className="shrink-0 text-muted-foreground hover:text-teal-600 disabled:opacity-40 transition-colors"
+                                    onClick={async () => {
+                                      setWafidProcChecking(true);
+                                      const tid = toast.loading("Connecting to wafid.com…");
+                                      try {
+                                        const res = await checkWafidProcFn({ data: { candidateId: candidate.id } });
+                                        if (res.status) {
+                                          toast.success(`wafid.com · ${res.message}`, { id: tid });
+                                          qcProc.invalidateQueries({ queryKey: ["manager-candidates"] });
+                                        } else {
+                                          toast.info(`wafid.com · ${res.message}`, { id: tid });
+                                        }
+                                      } catch (e) {
+                                        toast.error(`wafid.com · ${String(e)}`, { id: tid });
+                                      } finally {
+                                        setWafidProcChecking(false);
+                                      }
+                                    }}
+                                  >
+                                    {wafidProcChecking ? <Loader2 className="h-3 w-3 animate-spin" /> : <Globe className="h-3 w-3" />}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent className="rounded-none text-xs p-2">
+                                  {wafidProcChecking ? "Connecting to wafid.com…" : "Check on wafid.com"}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
                       ) : (
                         <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
                       )

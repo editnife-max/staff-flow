@@ -611,3 +611,203 @@ export const searchCandidates = createServerFn({ method: "GET" })
       country: string | null;
     }>;
   });
+
+const WAFID_NATIONALITY: Record<string, string> = {
+  ethiop: "60",
+  philippin: "129",
+  "sri lanka": "34",
+  indonesia: "73",
+  bangladesh: "19",
+  kenya: "85",
+  uganda: "170",
+  india: "72",
+  nepal: "114",
+  ghana: "65",
+};
+
+function wafidNationality(country: string | null): string {
+  const lc = (country ?? "").toLowerCase();
+  for (const [key, val] of Object.entries(WAFID_NATIONALITY)) {
+    if (lc.includes(key)) return val;
+  }
+  return "60"; // fallback Ethiopian
+}
+
+export const checkWafidMedical = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ candidateId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const managerId = await resolveManagerId(context.userId);
+
+    const { data: candidate, error } = await supabaseAdmin
+      .from("candidates")
+      .select("id, passport_number, country, medical_status, manager_id")
+      .eq("id", data.candidateId)
+      .eq("manager_id", managerId)
+      .single();
+
+    if (error || !candidate) throw new Error("Candidate not found");
+    if (!candidate.passport_number?.trim()) throw new Error("No passport number on file");
+
+    const passport = candidate.passport_number.trim().toUpperCase();
+    const nationality = wafidNationality(candidate.country);
+
+    const CHROME_PATH = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+    const CDP_PORT = 9224; // separate port from the batch scheduler (9223)
+    const CHROME_PROFILE = "C:\\temp\\flowpath-chrome-single";
+    const WAFID_URL = "https://wafid.com/en/medical-status-search/";
+
+    // Dynamic imports — succeed in Node.js dev mode, caught gracefully in Workers.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let puppeteer: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let spawnFn: any;
+    try {
+      const [pMod, cpMod] = await Promise.all([
+        import("puppeteer-core"),
+        import("child_process"),
+      ]);
+      puppeteer = pMod.default ?? pMod;
+      spawnFn = cpMod.spawn;
+    } catch {
+      return {
+        status: null as string | null,
+        date: null as string | null,
+        message: "Puppeteer not available in this environment",
+      };
+    }
+
+    // Reuse Chrome if already running on the port; otherwise spawn fresh.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let chromeProc: any = null;
+    let cdpLive = false;
+    try {
+      const r = await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`);
+      cdpLive = r.ok;
+    } catch {}
+
+    if (!cdpLive) {
+      try {
+        chromeProc = await new Promise<unknown>((resolve, reject) => {
+          const proc = spawnFn(CHROME_PATH, [
+            `--remote-debugging-port=${CDP_PORT}`,
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--disable-extensions",
+            "--disable-background-networking",
+            "--disable-sync",
+            "--disable-translate",
+            "--disable-dev-shm-usage",
+            "--headless=new",
+            "--no-sandbox",
+            "--disable-blink-features=AutomationControlled",
+            `--user-data-dir=${CHROME_PROFILE}`,
+          ], { detached: false, stdio: "ignore" });
+          proc.on("error", reject);
+          const deadline = Date.now() + 20_000;
+          const poll = async () => {
+            if (Date.now() > deadline) { reject(new Error("Chrome CDP timed out after 20s")); return; }
+            try {
+              const r = await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`);
+              if (r.ok) { resolve(proc); return; }
+            } catch {}
+            setTimeout(poll, 500);
+          };
+          setTimeout(poll, 1000);
+        });
+      } catch (e) {
+        return {
+          status: null as string | null,
+          date: null as string | null,
+          message: `Chrome failed to start: ${e}`,
+        };
+      }
+    }
+
+    let status: string | null = null;
+    let date: string | null = null;
+    let message = "";
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let browser: any = null;
+    try {
+      browser = await puppeteer.connect({
+        browserURL: `http://127.0.0.1:${CDP_PORT}`,
+        defaultViewport: { width: 1280, height: 800 },
+      });
+
+      const page = await browser.newPage();
+      await page.setUserAgent(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+      );
+      await page.goto(WAFID_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await page.$eval("#id_search_variant_0", (el: any) => el.click());
+      await page.focus("#id_passport");
+      await page.keyboard.type(passport, { delay: 40 });
+      await page.select("#id_nationality", nationality);
+      await new Promise(r => setTimeout(r, 3000));
+      await page.click("#med-status-form-submit");
+      await page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
+      await new Promise(r => setTimeout(r, 2000));
+
+      const html = await page.content();
+
+      if (html.includes("medical-status-modal-acceptance") || />\s*fit\s*</i.test(html)) {
+        status = "Fit";
+        try {
+          const dateText = await page.$$eval(
+            ".medical-status-table .field_value",
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (els: any[]) => els.map((e: any) => e.textContent ?? "").join(" ")
+          );
+          const m = (dateText as string).match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/);
+          if (m) {
+            const parts = m[0].split(/[\/\-]/).map((p: string) => p.padStart(2, "0"));
+            date = parts[2].length === 4
+              ? `${parts[2]}-${parts[1]}-${parts[0]}`
+              : m[0];
+          }
+        } catch {}
+      } else if (html.includes("medical-status-modal-rejection") || />\s*unfit\s*</i.test(html)) {
+        status = "Unfit";
+      } else if (html.includes("medical-status-modal-normal") || />\s*retest\s*</i.test(html)) {
+        status = "Retest";
+      } else if (/no record|not found|invalid passport/i.test(html)) {
+        message = "No record on Wafid";
+      } else {
+        message = "Could not determine status";
+      }
+
+      await page.close();
+    } catch (e) {
+      message = `Check error: ${e}`;
+    } finally {
+      if (browser) {
+        // 5-second timeout on disconnect to avoid hanging
+        await Promise.race([
+          browser.disconnect(),
+          new Promise(r => setTimeout(r, 5000)),
+        ]).catch(() => {});
+      }
+      if (chromeProc) {
+        try { chromeProc.kill(); } catch {}
+      }
+    }
+
+    if (status && status !== candidate.medical_status) {
+      const today = new Date().toISOString().split("T")[0];
+      await supabaseAdmin
+        .from("candidates")
+        .update({ medical_status: status, medical_date: date ?? today })
+        .eq("id", data.candidateId);
+    }
+
+    return {
+      status: status as string | null,
+      date: date as string | null,
+      message: message || (status ? `${status}${date ? ` · ${date}` : ""}` : "No result"),
+    };
+  });
