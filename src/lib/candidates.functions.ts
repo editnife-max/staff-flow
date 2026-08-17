@@ -667,12 +667,19 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
     const CDP_PORT = 9224;
     const WAFID_URL = "https://wafid.com/en/medical-status-search/";
 
-    // Dynamic import — succeeds in Bun dev mode, caught gracefully in Workers.
+    // Load puppeteer-core via createRequire (bypasses Vite's module graph / fs polyfills).
+    // Only use it for connect() — we launch Chrome ourselves via shell spawn so that
+    // cmd.exe handles the quoted path, avoiding the child_process ENOENT bug on Windows
+    // for executables with spaces in the path.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let puppeteer: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let spawnShell: any;
     try {
-      const pMod = await import("puppeteer-core");
-      puppeteer = pMod.default ?? pMod;
+      const [modMod, cpMod] = await Promise.all([import("module"), import("child_process")]);
+      const nativeRequire = modMod.createRequire(import.meta.url);
+      puppeteer = nativeRequire("puppeteer-core");
+      spawnShell = cpMod.spawn;
     } catch {
       return {
         status: null as string | null,
@@ -681,41 +688,33 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
       };
     }
 
-    // puppeteer.launch() uses fs.access() internally which is broken for paths
-    // containing spaces under Bun on Windows. Use Bun.spawn instead — it calls
-    // Windows CreateProcess directly and handles spaces correctly.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const BunAPI = (globalThis as any).Bun;
-    if (!BunAPI?.spawn) {
-      return {
-        status: null as string | null,
-        date: null as string | null,
-        message: "Medical check requires Bun runtime",
-      };
-    }
+    const CHROME_ARGS = [
+      `--remote-debugging-port=${CDP_PORT}`,
+      "--headless=new",
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--disable-extensions",
+      "--disable-background-networking",
+      "--disable-sync",
+      "--disable-translate",
+      "--disable-dev-shm-usage",
+      "--no-sandbox",
+      "--disable-blink-features=AutomationControlled",
+    ];
 
+    // Spawn Chrome via shell so cmd.exe handles the quoted path (spaces in Program Files).
+    // Pass the whole command line as a single string — no args array — so quoting is exact.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let chromeProc: any = null;
     const spawnErrors: string[] = [];
     for (const bp of BROWSER_PATHS) {
       try {
-        chromeProc = BunAPI.spawn({
-          cmd: [
-            bp,
-            `--remote-debugging-port=${CDP_PORT}`,
-            "--headless=new",
-            "--no-first-run",
-            "--no-default-browser-check",
-            "--disable-extensions",
-            "--disable-background-networking",
-            "--disable-sync",
-            "--disable-translate",
-            "--disable-dev-shm-usage",
-            "--no-sandbox",
-            "--disable-blink-features=AutomationControlled",
-          ],
-        });
-        break;
+        const cmdLine = `"${bp}" ${CHROME_ARGS.join(" ")}`;
+        const proc = spawnShell(cmdLine, [], { shell: true, stdio: "ignore", detached: false });
+        // Give the process a moment to fail immediately (bad path) vs stay alive
+        await new Promise(r => setTimeout(r, 800));
+        if (proc.exitCode === null) { chromeProc = proc; break; }
+        spawnErrors.push(`${bp}: exited immediately (code ${proc.exitCode})`);
       } catch (e) {
         spawnErrors.push(`${bp}: ${e}`);
       }
@@ -733,10 +732,7 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
     let cdpReady = false;
     while (Date.now() < deadline) {
       try {
-        if ((await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`)).ok) {
-          cdpReady = true;
-          break;
-        }
+        if ((await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`)).ok) { cdpReady = true; break; }
       } catch {}
       await new Promise(r => setTimeout(r, 500));
     }
