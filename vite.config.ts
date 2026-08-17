@@ -18,7 +18,6 @@ export default defineConfig(({ mode }) => {
     },
     ssr: {
       noExternal: ['xlsx-js-style'],
-      external: ['puppeteer-core', 'child_process'],
     },
     plugins: [
       tailwindcss(),

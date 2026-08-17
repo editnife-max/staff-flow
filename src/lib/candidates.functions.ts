@@ -654,169 +654,89 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
     const passport = candidate.passport_number.trim().toUpperCase();
     const nationality = wafidNationality(candidate.country);
 
-    const BROWSER_PATHS = [
-      "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-      "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
-      process.env.LOCALAPPDATA
-        ? `${process.env.LOCALAPPDATA}\\Google\\Chrome\\Application\\chrome.exe`
-        : null,
-      "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-      "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
-      "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
-    ].filter(Boolean) as string[];
-    const CDP_PORT = 9224;
     const WAFID_URL = "https://wafid.com/en/medical-status-search/";
+    const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
-    // Wafid check requires a local Chrome installation — Vercel runs on Linux, not Windows.
-    if (process.platform !== "win32") {
-      return {
-        status: null as string | null,
-        date: null as string | null,
-        message: "Wafid check is only available on the local dev server (requires Chrome on Windows)",
-      };
-    }
-
-    // node: prefix forces Vite to use Node's native loader instead of its browser shims.
-    // createRequire(cwd/package.json) gives a require that resolves from the project root.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let puppeteer: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let spawnShell: any;
+    // Step 1: GET the search page to obtain the CSRF token + session cookie.
+    let pageHtml: string;
+    let cookieStr: string;
     try {
-      const [{ createRequire }, { spawn }] = await Promise.all([
-        import("node:module"),
-        import("node:child_process"),
-      ]);
-      const nativeRequire = createRequire(process.cwd() + "/package.json");
-      puppeteer = nativeRequire("puppeteer-core");
-      spawnShell = spawn;
-    } catch (e) {
-      return {
-        status: null as string | null,
-        date: null as string | null,
-        message: `Setup failed: ${e}`,
-      };
-    }
-
-    const CHROME_ARGS = [
-      `--remote-debugging-port=${CDP_PORT}`,
-      "--headless=new",
-      "--no-first-run",
-      "--no-default-browser-check",
-      "--disable-extensions",
-      "--disable-background-networking",
-      "--disable-sync",
-      "--disable-translate",
-      "--disable-dev-shm-usage",
-      "--no-sandbox",
-      "--disable-blink-features=AutomationControlled",
-    ];
-
-    // Spawn Chrome via shell so cmd.exe handles the quoted path (spaces in Program Files).
-    // Pass the whole command line as a single string — no args array — so quoting is exact.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let chromeProc: any = null;
-    const spawnErrors: string[] = [];
-    for (const bp of BROWSER_PATHS) {
-      try {
-        const cmdLine = `"${bp}" ${CHROME_ARGS.join(" ")}`;
-        const proc = spawnShell(cmdLine, [], { shell: true, stdio: "ignore", detached: false });
-        // Give the process a moment to fail immediately (bad path) vs stay alive
-        await new Promise(r => setTimeout(r, 800));
-        if (proc.exitCode === null) { chromeProc = proc; break; }
-        spawnErrors.push(`${bp}: exited immediately (code ${proc.exitCode})`);
-      } catch (e) {
-        spawnErrors.push(`${bp}: ${e}`);
+      const getRes = await fetch(WAFID_URL, {
+        headers: {
+          "User-Agent": UA,
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+      });
+      if (!getRes.ok) {
+        return { status: null as string | null, date: null as string | null, message: `wafid.com unreachable (HTTP ${getRes.status})` };
       }
-    }
-    if (!chromeProc) {
-      return {
-        status: null as string | null,
-        date: null as string | null,
-        message: `Chrome failed to start. Tried:\n${spawnErrors.join("\n")}`,
-      };
+      pageHtml = await getRes.text();
+      // getSetCookie() returns each Set-Cookie header separately (Node 18+ / Bun).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rawCookies: string[] = typeof (getRes.headers as any).getSetCookie === "function"
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ? (getRes.headers as any).getSetCookie()
+        : [getRes.headers.get("set-cookie") ?? ""];
+      cookieStr = rawCookies.map(h => h.split(";")[0].trim()).filter(Boolean).join("; ");
+    } catch (e) {
+      return { status: null as string | null, date: null as string | null, message: `Network error reaching wafid.com: ${e}` };
     }
 
-    // Poll until CDP is ready (up to 20 s)
-    const deadline = Date.now() + 20_000;
-    let cdpReady = false;
-    while (Date.now() < deadline) {
-      try {
-        if ((await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`)).ok) { cdpReady = true; break; }
-      } catch {}
-      await new Promise(r => setTimeout(r, 500));
+    const csrfMatch = pageHtml.match(/name=["']csrfmiddlewaretoken["'][^>]*value=["']([^"']+)["']|value=["']([^"']+)["'][^>]*name=["']csrfmiddlewaretoken["']/);
+    const csrf = csrfMatch?.[1] ?? csrfMatch?.[2];
+    if (!csrf) {
+      return { status: null as string | null, date: null as string | null, message: "Could not read CSRF token from wafid.com" };
     }
-    if (!cdpReady) {
-      try { chromeProc.kill(); } catch {}
-      return { status: null as string | null, date: null as string | null, message: "Chrome CDP timed out" };
+
+    // Step 2: POST the form — same fields the browser would send.
+    const formBody = new URLSearchParams({
+      csrfmiddlewaretoken: csrf,
+      search_variant: "passport",
+      passport,
+      nationality,
+    });
+
+    let resultHtml: string;
+    try {
+      const postRes = await fetch(WAFID_URL, {
+        method: "POST",
+        headers: {
+          "User-Agent": UA,
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Referer": WAFID_URL,
+          "Origin": "https://wafid.com",
+          "Cookie": cookieStr,
+          "X-CSRFToken": csrf,
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+        body: formBody.toString(),
+      });
+      resultHtml = await postRes.text();
+    } catch (e) {
+      return { status: null as string | null, date: null as string | null, message: `POST to wafid.com failed: ${e}` };
     }
 
     let status: string | null = null;
     let date: string | null = null;
     let message = "";
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let browser: any = null;
-    try {
-      browser = await puppeteer.connect({
-        browserURL: `http://127.0.0.1:${CDP_PORT}`,
-        defaultViewport: { width: 1280, height: 800 },
-      });
-
-      const page = await browser.newPage();
-      await page.setUserAgent(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
-      );
-      await page.goto(WAFID_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await page.$eval("#id_search_variant_0", (el: any) => el.click());
-      await page.focus("#id_passport");
-      await page.keyboard.type(passport, { delay: 40 });
-      await page.select("#id_nationality", nationality);
-      await new Promise(r => setTimeout(r, 3000));
-      await page.click("#med-status-form-submit");
-      await page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
-      await new Promise(r => setTimeout(r, 2000));
-
-      const html = await page.content();
-
-      if (html.includes("medical-status-modal-acceptance") || />\s*fit\s*</i.test(html)) {
-        status = "Fit";
-        try {
-          const dateText = await page.$$eval(
-            ".medical-status-table .field_value",
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (els: any[]) => els.map((e: any) => e.textContent ?? "").join(" ")
-          );
-          const m = (dateText as string).match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/);
-          if (m) {
-            const parts = m[0].split(/[\/\-]/).map((p: string) => p.padStart(2, "0"));
-            date = parts[2].length === 4
-              ? `${parts[2]}-${parts[1]}-${parts[0]}`
-              : m[0];
-          }
-        } catch {}
-      } else if (html.includes("medical-status-modal-rejection") || />\s*unfit\s*</i.test(html)) {
-        status = "Unfit";
-      } else if (html.includes("medical-status-modal-normal") || />\s*retest\s*</i.test(html)) {
-        status = "Retest";
-      } else if (/no record|not found|invalid passport/i.test(html)) {
-        message = "No record on Wafid";
-      } else {
-        message = "Could not determine status";
+    if (resultHtml.includes("medical-status-modal-acceptance") || />\s*fit\s*</i.test(resultHtml)) {
+      status = "Fit";
+      const dateMatch = resultHtml.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/);
+      if (dateMatch) {
+        const parts = dateMatch[0].split(/[\/\-]/).map((p: string) => p.padStart(2, "0"));
+        date = parts[2].length === 4 ? `${parts[2]}-${parts[1]}-${parts[0]}` : dateMatch[0];
       }
-
-      await page.close();
-    } catch (e) {
-      message = `Check error: ${e}`;
-    } finally {
-      if (browser) {
-        await Promise.race([
-          browser.disconnect(),
-          new Promise(r => setTimeout(r, 5000)),
-        ]).catch(() => {});
-      }
-      try { chromeProc?.kill(); } catch {}
+    } else if (resultHtml.includes("medical-status-modal-rejection") || />\s*unfit\s*</i.test(resultHtml)) {
+      status = "Unfit";
+    } else if (resultHtml.includes("medical-status-modal-normal") || />\s*retest\s*</i.test(resultHtml)) {
+      status = "Retest";
+    } else if (/no[- ]record|not found|invalid passport/i.test(resultHtml)) {
+      message = "No record on Wafid";
+    } else {
+      message = "Could not determine status";
     }
 
     if (status && status !== candidate.medical_status) {
