@@ -667,6 +667,15 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
     const CDP_PORT = 9224;
     const WAFID_URL = "https://wafid.com/en/medical-status-search/";
 
+    // Wafid check requires a local Chrome installation — Vercel runs on Linux, not Windows.
+    if (process.platform !== "win32") {
+      return {
+        status: null as string | null,
+        date: null as string | null,
+        message: "Wafid check is only available on the local dev server (requires Chrome on Windows)",
+      };
+    }
+
     // node: prefix forces Vite to use Node's native loader instead of its browser shims.
     // createRequire(cwd/package.json) gives a require that resolves from the project root.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
