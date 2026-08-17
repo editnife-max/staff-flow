@@ -667,24 +667,25 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
     const CDP_PORT = 9224;
     const WAFID_URL = "https://wafid.com/en/medical-status-search/";
 
-    // Load puppeteer-core via createRequire (bypasses Vite's module graph / fs polyfills).
-    // Only use it for connect() — we launch Chrome ourselves via shell spawn so that
-    // cmd.exe handles the quoted path, avoiding the child_process ENOENT bug on Windows
-    // for executables with spaces in the path.
+    // node: prefix forces Vite to use Node's native loader instead of its browser shims.
+    // createRequire(cwd/package.json) gives a require that resolves from the project root.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let puppeteer: any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let spawnShell: any;
     try {
-      const [modMod, cpMod] = await Promise.all([import("module"), import("child_process")]);
-      const nativeRequire = modMod.createRequire(import.meta.url);
+      const [{ createRequire }, { spawn }] = await Promise.all([
+        import("node:module"),
+        import("node:child_process"),
+      ]);
+      const nativeRequire = createRequire(process.cwd() + "/package.json");
       puppeteer = nativeRequire("puppeteer-core");
-      spawnShell = cpMod.spawn;
-    } catch {
+      spawnShell = spawn;
+    } catch (e) {
       return {
         status: null as string | null,
         date: null as string | null,
-        message: "Puppeteer not available in this environment",
+        message: `Setup failed: ${e}`,
       };
     }
 
