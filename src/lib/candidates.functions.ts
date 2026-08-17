@@ -689,12 +689,69 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
       return { status: null as string | null, date: null as string | null, message: "Could not read CSRF token from wafid.com" };
     }
 
-    // Step 2: POST the form — same fields the browser would send.
+    // Step 2: Solve the reCAPTCHA v3 via 2captcha so wafid.com accepts the POST.
+    const TWOCAPTCHA_KEY = process.env.TWOCAPTCHA_API_KEY;
+    if (!TWOCAPTCHA_KEY) {
+      return {
+        status: null as string | null,
+        date: null as string | null,
+        message: "TWOCAPTCHA_API_KEY env var not set — required for wafid.com reCAPTCHA",
+      };
+    }
+
+    const RECAPTCHA_SITE_KEY = "6LflPAwnAAAAAL2wBGi6tSyGUyj-xFvftINOR9xp";
+
+    let recaptchaToken: string | null = null;
+    try {
+      // Submit task using the 2captcha JSON API
+      const submitRes = await fetch("https://api.2captcha.com/createTask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientKey: TWOCAPTCHA_KEY,
+          task: {
+            type: "RecaptchaV3TaskProxyless",
+            websiteURL: WAFID_URL,
+            websiteKey: RECAPTCHA_SITE_KEY,
+            minScore: 0.1,
+            pageAction: "form",
+          },
+        }),
+      });
+      const submitData = await submitRes.json() as { errorId: number; errorCode?: string; taskId?: number };
+      if (submitData.errorId !== 0) throw new Error(submitData.errorCode ?? "createTask failed");
+      const taskId = submitData.taskId!;
+
+      // Poll up to 90 s (2captcha typically resolves in 15-30 s)
+      for (let i = 0; i < 18; i++) {
+        await new Promise(r => setTimeout(r, 5000));
+        const pollRes = await fetch("https://api.2captcha.com/getTaskResult", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clientKey: TWOCAPTCHA_KEY, taskId }),
+        });
+        const pollData = await pollRes.json() as {
+          errorId: number; errorCode?: string;
+          status: string; solution?: { gRecaptchaResponse: string };
+        };
+        if (pollData.errorId !== 0) throw new Error(pollData.errorCode ?? "getTaskResult failed");
+        if (pollData.status === "ready") { recaptchaToken = pollData.solution!.gRecaptchaResponse; break; }
+      }
+    } catch (e) {
+      return { status: null as string | null, date: null as string | null, message: `reCAPTCHA solve failed: ${e}` };
+    }
+
+    if (!recaptchaToken) {
+      return { status: null as string | null, date: null as string | null, message: "reCAPTCHA solve timed out" };
+    }
+
+    // Step 3: POST the form with the solved reCAPTCHA token.
     const formBody = new URLSearchParams({
       csrfmiddlewaretoken: csrf,
       search_variant: "passport",
       passport,
       nationality,
+      captcha: recaptchaToken,
     });
 
     let resultHtml: string;
@@ -735,8 +792,14 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
       status = "Retest";
     } else if (/no[- ]record|not found|invalid passport/i.test(resultHtml)) {
       message = "No record on Wafid";
+    } else if (/recaptcha|g-recaptcha/i.test(resultHtml) && resultHtml.includes("id_passport")) {
+      message = "Blocked by reCAPTCHA — a solver API key is required (see TWOCAPTCHA_API_KEY)";
+    } else if (resultHtml.includes("id_passport")) {
+      message = "Form rejected — check search_variant field value";
     } else {
-      message = "Could not determine status";
+      // Surface a snippet so we can see what wafid actually returned
+      const snippet = resultHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 300);
+      message = `Could not determine status. Response: ${snippet}`;
     }
 
     if (status && status !== candidate.medical_status) {
