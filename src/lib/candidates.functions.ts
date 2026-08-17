@@ -654,23 +654,30 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
     const passport = candidate.passport_number.trim().toUpperCase();
     const nationality = wafidNationality(candidate.country);
 
-    const CHROME_PATH = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+    const CHROME_PATHS = [
+      "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+      "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+      process.env.LOCALAPPDATA
+        ? `${process.env.LOCALAPPDATA}\\Google\\Chrome\\Application\\chrome.exe`
+        : null,
+      "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
+    ].filter(Boolean) as string[];
     const CDP_PORT = 9224; // separate port from the batch scheduler (9223)
     const CHROME_PROFILE = "C:\\temp\\flowpath-chrome-single";
     const WAFID_URL = "https://wafid.com/en/medical-status-search/";
 
-    // Dynamic imports — succeed in Node.js dev mode, caught gracefully in Workers.
+    // Dynamic imports — succeed in Node.js/Bun dev mode, caught gracefully in Workers.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let puppeteer: any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let spawnFn: any;
+    let existsSync: (p: string) => boolean = () => false;
     try {
-      const [pMod, cpMod] = await Promise.all([
+      const [pMod, fsMod] = await Promise.all([
         import("puppeteer-core"),
-        import("child_process"),
+        import("fs"),
       ]);
       puppeteer = pMod.default ?? pMod;
-      spawnFn = cpMod.spawn;
+      existsSync = fsMod.existsSync;
     } catch {
       return {
         status: null as string | null,
@@ -679,52 +686,12 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
       };
     }
 
-    // Reuse Chrome if already running on the port; otherwise spawn fresh.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let chromeProc: any = null;
+    // Reuse Chrome if already running on the port; otherwise launch fresh.
     let cdpLive = false;
     try {
       const r = await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`);
       cdpLive = r.ok;
     } catch {}
-
-    if (!cdpLive) {
-      try {
-        chromeProc = await new Promise<unknown>((resolve, reject) => {
-          const proc = spawnFn(CHROME_PATH, [
-            `--remote-debugging-port=${CDP_PORT}`,
-            "--no-first-run",
-            "--no-default-browser-check",
-            "--disable-extensions",
-            "--disable-background-networking",
-            "--disable-sync",
-            "--disable-translate",
-            "--disable-dev-shm-usage",
-            "--headless=new",
-            "--no-sandbox",
-            "--disable-blink-features=AutomationControlled",
-            `--user-data-dir=${CHROME_PROFILE}`,
-          ], { detached: false, stdio: "ignore" });
-          proc.on("error", reject);
-          const deadline = Date.now() + 20_000;
-          const poll = async () => {
-            if (Date.now() > deadline) { reject(new Error("Chrome CDP timed out after 20s")); return; }
-            try {
-              const r = await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`);
-              if (r.ok) { resolve(proc); return; }
-            } catch {}
-            setTimeout(poll, 500);
-          };
-          setTimeout(poll, 1000);
-        });
-      } catch (e) {
-        return {
-          status: null as string | null,
-          date: null as string | null,
-          message: `Chrome failed to start: ${e}`,
-        };
-      }
-    }
 
     let status: string | null = null;
     let date: string | null = null;
@@ -733,10 +700,39 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let browser: any = null;
     try {
-      browser = await puppeteer.connect({
-        browserURL: `http://127.0.0.1:${CDP_PORT}`,
-        defaultViewport: { width: 1280, height: 800 },
-      });
+      if (cdpLive) {
+        browser = await puppeteer.connect({
+          browserURL: `http://127.0.0.1:${CDP_PORT}`,
+          defaultViewport: { width: 1280, height: 800 },
+        });
+      } else {
+        // Use puppeteer.launch() — handles Windows paths with spaces correctly,
+        // unlike child_process.spawn which has issues under Bun on Windows.
+        const executablePath = CHROME_PATHS.find((p) => {
+          try { return existsSync(p); } catch { return false; }
+        });
+        if (!executablePath) {
+          return { status: null as string | null, date: null as string | null, message: "Chrome not found on this machine" };
+        }
+        browser = await puppeteer.launch({
+          executablePath,
+          headless: true,
+          args: [
+            `--remote-debugging-port=${CDP_PORT}`,
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--disable-extensions",
+            "--disable-background-networking",
+            "--disable-sync",
+            "--disable-translate",
+            "--disable-dev-shm-usage",
+            "--no-sandbox",
+            "--disable-blink-features=AutomationControlled",
+            `--user-data-dir=${CHROME_PROFILE}`,
+          ],
+          defaultViewport: { width: 1280, height: 800 },
+        });
+      }
 
       const page = await browser.newPage();
       await page.setUserAgent(
@@ -786,14 +782,11 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
       message = `Check error: ${e}`;
     } finally {
       if (browser) {
-        // 5-second timeout on disconnect to avoid hanging
+        // 5-second timeout on close/disconnect to avoid hanging
         await Promise.race([
-          browser.disconnect(),
+          cdpLive ? browser.disconnect() : browser.close(),
           new Promise(r => setTimeout(r, 5000)),
         ]).catch(() => {});
-      }
-      if (chromeProc) {
-        try { chromeProc.kill(); } catch {}
       }
     }
 
