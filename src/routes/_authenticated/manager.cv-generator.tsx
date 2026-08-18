@@ -81,7 +81,7 @@ function CvCandidateCard({
     { label: "COUNTRY",         value: (c as any).musaned_status ?? "—" },
     { label: "MEDICAL STATUS",  value: c.medical_status ?? "—", badge: true },
     { label: "MEDICAL DATE",    value: c.medical_date ? new Date(c.medical_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }) : "—" },
-    { label: "EXPERIENCE",      value: c.experience ?? "—" },
+    { label: "EXPERIENCE",      value: (c.experience === "None" ? "No" : c.experience) ?? "—" },
     { label: "NOTES",           value: (c as any).notes ?? "—" },
     { label: "AVAILABILITY",    value: (() => { const v = (c as any).availability_type ?? "available"; return v.charAt(0).toUpperCase() + v.slice(1); })() },
     { label: "SELECTED BY",     value: c.selected_by ?? "—" },
@@ -1197,7 +1197,7 @@ function CandidateDetailDialog({ candidate, onClose }: { candidate: Candidate | 
             <InfoRow label="Country"        value={candidate.country} />
             <InfoRow label="Occupation"     value={candidate.occupation} />
             <InfoRow label="Education"      value={candidate.education} />
-            <InfoRow label="Experience"     value={candidate.experience} />
+            <InfoRow label="Experience"     value={candidate.experience === "None" ? "No" : candidate.experience} />
           </DetailSection>
           <DetailSection title="Passport">
             <InfoRow label="Passport Number" value={candidate.passport_number} />

@@ -102,7 +102,7 @@ export function CvPreview({ candidate: c, template }: { candidate: Candidate; te
           <DataRow lbl="ARABIC"    val={c.arabic_level}  ar="اللغة العربية"    bg1={WHITE} bg2={GRAY}  />
           <DataRow lbl="EDUCATION" val={c.education}     ar="التعليم"           bg1={GRAY}  bg2={WHITE} />
           <SectionHdr en="EXPERIENCE ABROAD  |" ar="الخبرة خارج البلد" />
-          <DataRow lbl="EXPERIENCE" val={c.experience} ar="الخبرة" span bg1={GRAY} bg2={WHITE} />
+          <DataRow lbl="EXPERIENCE" val={c.experience === "None" ? "No" : c.experience} ar="الخبرة" span bg1={GRAY} bg2={WHITE} />
           <SectionHdr en="PERSONAL DATA  |" ar="معلومات شخصية" />
           <DataRow lbl="NATIONALITY"    val={c.country}        ar="الجنسية"           bg1={GRAY}  bg2={WHITE} />
           <DataRow lbl="RELIGION"       val={toEnglish(c.religion, EN_RELIGION)}       ar="الديانة"           bg1={WHITE} bg2={GRAY}  />

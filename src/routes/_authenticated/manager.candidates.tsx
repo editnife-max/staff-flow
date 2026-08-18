@@ -589,7 +589,7 @@ function ManagerCandidatesPage() {
       if (filters.religion.length > 0) list = list.filter((c) => filters.religion.includes(c.religion ?? ""));
       if (filters.medical.length > 0) list = list.filter((c) => filters.medical.includes(c.medical_status ?? ""));
       if (filters.narrative.length > 0) list = list.filter((c) => filters.narrative.includes(c.narrative ?? ""));
-      if (filters.experience.length > 0) list = list.filter((c) => filters.experience.includes(c.experience ?? ""));
+      if (filters.experience.length > 0) list = list.filter((c) => filters.experience.includes(c.experience === "None" ? "No" : (c.experience ?? "")));
       if (filters.coc.length > 0) list = list.filter((c) => filters.coc.includes(c.coc_status ?? ""));
       if (filters.musaned.length > 0) list = list.filter((c) => filters.musaned.includes(c.musaned_status ?? ""));
       if (filters.cv_sent_to.length > 0) list = list.filter((c) => filters.cv_sent_to.includes(c.cv_sent_to ?? ""));
@@ -629,7 +629,7 @@ function ManagerCandidatesPage() {
     if (filters.religion.length > 0) list = list.filter((c) => filters.religion.includes(c.religion ?? ""));
     if (filters.medical.length > 0) list = list.filter((c) => filters.medical.includes(c.medical_status ?? ""));
     if (filters.narrative.length > 0) list = list.filter((c) => filters.narrative.includes(c.narrative ?? ""));
-    if (filters.experience.length > 0) list = list.filter((c) => filters.experience.includes(c.experience ?? ""));
+    if (filters.experience.length > 0) list = list.filter((c) => filters.experience.includes(c.experience === "None" ? "No" : (c.experience ?? "")));
     if (filters.coc.length > 0) list = list.filter((c) => filters.coc.includes(c.coc_status ?? ""));
     if (filters.musaned.length > 0) list = list.filter((c) => filters.musaned.includes(c.musaned_status ?? ""));
     if (filters.cv_sent_to.length > 0) list = list.filter((c) => filters.cv_sent_to.includes(c.cv_sent_to ?? ""));
@@ -764,7 +764,7 @@ function ManagerCandidatesPage() {
       gender: uniq("gender"),
       religion: uniq("religion"),
       narrative: uniq("narrative"),
-      experience: uniq("experience"),
+      experience: Array.from(new Set(candidates.map((c) => c.experience === "None" ? "No" : (c.experience ?? "")).filter(Boolean))).sort(),
       cv_sent_to: uniq("cv_sent_to"),
       coc: uniq("coc_status"),
       musaned: uniq("musaned_status"),
@@ -813,7 +813,7 @@ function ManagerCandidatesPage() {
     if (filters.religion.length > 0) list = list.filter((c) => filters.religion.includes(c.religion ?? ""));
     if (filters.medical.length > 0) list = list.filter((c) => filters.medical.includes(c.medical_status ?? ""));
     if (filters.narrative.length > 0) list = list.filter((c) => filters.narrative.includes(c.narrative ?? ""));
-    if (filters.experience.length > 0) list = list.filter((c) => filters.experience.includes(c.experience ?? ""));
+    if (filters.experience.length > 0) list = list.filter((c) => filters.experience.includes(c.experience === "None" ? "No" : (c.experience ?? "")));
     if (filters.coc.length > 0) list = list.filter((c) => filters.coc.includes(c.coc_status ?? ""));
     if (filters.musaned.length > 0) list = list.filter((c) => filters.musaned.includes(c.musaned_status ?? ""));
     if (filters.cv_sent_to.length > 0) list = list.filter((c) => filters.cv_sent_to.includes(c.cv_sent_to ?? ""));
@@ -1224,7 +1224,8 @@ function ManagerCandidatesPage() {
                         }
                         if (toView) {
                           setTab(toView.status as Status);
-                          setViewing(toView);
+                          // Let the search dialog finish closing before mounting the detail dialog
+                          setTimeout(() => setViewing(toView!), 200);
                         }
                       }}
                       className="flex items-center gap-3 cursor-pointer"
@@ -2850,7 +2851,7 @@ function CandidateCard({
     { label: "COUNTRY", value: candidate.musaned_status ?? "", edit: "select", field: "musaned_status", options: countryOptions },
     { label: "MEDICAL STATUS", value: candidate.medical_status ?? "", edit: "select", field: "medical_status", options: MEDICAL_OPTIONS },
     { label: "MEDICAL DATE", value: candidate.medical_date ?? "", edit: "date", field: "medical_date", display: candidate.medical_date && candidate.medical_status === "Fit" ? `${Math.max(1, Math.floor((Date.now() - new Date(candidate.medical_date + "T00:00:00").getTime()) / 86400000))} days ago` : undefined },
-    { label: "EXPERIENCE", value: candidate.experience ?? "—" },
+    { label: "EXPERIENCE", value: (candidate.experience === "None" ? "No" : candidate.experience) ?? "—" },
     ...(candidate.experience === "Yes" ? (() => {
       const countries = (candidate.experience_country ?? "").split("|").filter(Boolean);
       const years = (candidate.experience_years ?? "").split("|");
@@ -5164,7 +5165,7 @@ function CandidateDetailDialog({ candidate, onClose, agencyPhones = {} }: { cand
             <InfoRow label="Country" value={candidate.country} />
             <InfoRow label="Occupation" value={candidate.occupation} />
             <InfoRow label="Education" value={candidate.education} />
-            <InfoRow label="Experience" value={candidate.experience} />
+            <InfoRow label="Experience" value={candidate.experience === "None" ? "No" : candidate.experience} />
           </DetailSection>
           <DetailSection title="Passport">
             <InfoRow label="Passport Number" value={candidate.passport_number} />

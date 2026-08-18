@@ -30,7 +30,7 @@ const COC_OPTIONS       = ["Done", "No", "Booked", "Placed", "Yitazez", "Pending
 const AGE_OPTIONS       = ["18-25", "26-35", "36-45", "46-99"];
 const GENDER_OPTIONS    = ["Male", "Female"];
 const RELIGION_OPTIONS  = ["Muslim", "Non-muslim"];
-const EXPERIENCE_OPTIONS     = ["Yes", "No", "None"];
+const EXPERIENCE_OPTIONS     = ["Yes", "No"];
 const ENGLISH_LEVEL_OPTIONS  = ["Poor", "Little", "Fair", "Good"];
 
 const YES_NO_OPTIONS = ["Yes", "No"];
