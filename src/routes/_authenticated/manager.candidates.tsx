@@ -2902,6 +2902,20 @@ function CandidateCard({
               ✓ CV Ready
             </span>
           )}
+          {candidate.medical_status && (
+            <span className={cn(
+              "inline-flex items-center gap-0.5 rounded-sm text-[10px] font-semibold px-1.5 py-0.5 leading-none",
+              candidate.medical_status === "Fit"         && "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+              candidate.medical_status === "Unfit"       && "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+              candidate.medical_status === "Expired"     && "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+              candidate.medical_status === "Booked"      && "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+              candidate.medical_status === "In progress" && "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+              candidate.medical_status === "No"          && "bg-muted text-muted-foreground",
+            )}>
+              <Stethoscope className="h-2.5 w-2.5" />
+              {candidate.medical_status}
+            </span>
+          )}
         </div>
         {/* Main content row */}
         <div className="flex items-center pb-3 pt-1">

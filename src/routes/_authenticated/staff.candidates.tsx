@@ -32,7 +32,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   upsertCandidate, deleteCandidate, updateCandidateField,
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff, bulkUpdateField,
-  bulkImportCandidates, nextCandidateCode, searchCandidates,
+  bulkImportCandidates, nextCandidateCode, searchCandidates, checkWafidMedical,
 } from "@/lib/candidates.functions";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
@@ -2718,6 +2718,9 @@ function CandidateCard({
   countryOptions: string[];
   narrativeSuggestions?: string[];
 }) {
+  const qcCard = useQueryClient();
+  const checkWafidFn = useServerFn(checkWafidMedical);
+  const [wafidChecking, setWafidChecking] = useState(false);
   const [viewing, setViewing] = useState(false);
   const [deleteRequestOpen, setDeleteRequestOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
@@ -2787,6 +2790,20 @@ function CandidateCard({
           {candidate.availability_type?.toLowerCase() === "unavailable" && (
             <span className="inline-flex items-center rounded-sm bg-red-400 text-red-700 dark:bg-red-900/40 dark:text-red-300 text-[10px] font-semibold px-1.5 py-0.5 leading-none">
               Unavailable
+            </span>
+          )}
+          {candidate.medical_status && (
+            <span className={cn(
+              "inline-flex items-center gap-0.5 rounded-sm text-[10px] font-semibold px-1.5 py-0.5 leading-none",
+              candidate.medical_status === "Fit"         && "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+              candidate.medical_status === "Unfit"       && "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+              candidate.medical_status === "Expired"     && "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+              candidate.medical_status === "Booked"      && "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+              candidate.medical_status === "In progress" && "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+              candidate.medical_status === "No"          && "bg-muted text-muted-foreground",
+            )}>
+              <Stethoscope className="h-2.5 w-2.5" />
+              {candidate.medical_status}
             </span>
           )}
         </div>
@@ -2893,16 +2910,53 @@ function CandidateCard({
                           </button>
                         </div>
                       ) : colLabel === "MEDICAL STATUS" ? (
-                        <InlineSelect value={f.value} options={f.options} onSave={(v) => {
-                          if (v === "Fit" && !candidate.medical_date) {
-                            setPendingMedDate(""); setMedDateOpen(true);
-                          } else if (v === "Fit" && candidate.medical_date && medDaysAgo(candidate.medical_date) >= 90) {
-                            toast.error("Medical date is over 90 days ago — status set to Expired");
-                            onUpdateField(f.field, "Expired");
-                          } else {
-                            onUpdateField(f.field, v);
-                          }
-                        }} />
+                        <div className="flex items-center gap-1 min-w-0">
+                          <InlineSelect value={f.value} options={f.options} onSave={(v) => {
+                            if (v === "Fit" && !candidate.medical_date) {
+                              setPendingMedDate(""); setMedDateOpen(true);
+                            } else if (v === "Fit" && candidate.medical_date && medDaysAgo(candidate.medical_date) >= 90) {
+                              toast.error("Medical date is over 90 days ago — status set to Expired");
+                              onUpdateField(f.field, "Expired");
+                            } else {
+                              onUpdateField(f.field, v);
+                            }
+                          }} />
+                          {candidate.passport_number && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    disabled={wafidChecking}
+                                    className="shrink-0 text-muted-foreground hover:text-teal-600 disabled:opacity-40 transition-colors"
+                                    onClick={async () => {
+                                      setWafidChecking(true);
+                                      const tid = toast.loading("Connecting to wafid.com…");
+                                      try {
+                                        const res = await checkWafidFn({ data: { candidateId: candidate.id } });
+                                        if (res.status) {
+                                          toast.success(`wafid.com · ${res.message}`, { id: tid });
+                                          qcCard.invalidateQueries({ queryKey: ["staff-candidates"] });
+                                        } else {
+                                          toast.info(`wafid.com · ${res.message}`, { id: tid });
+                                        }
+                                      } catch (e) {
+                                        toast.error(`wafid.com · ${String(e)}`, { id: tid });
+                                      } finally {
+                                        setWafidChecking(false);
+                                      }
+                                    }}
+                                  >
+                                    {wafidChecking ? <Loader2 className="h-3 w-3 animate-spin" /> : <Globe className="h-3 w-3" />}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent className="rounded-none text-xs p-2">
+                                  {wafidChecking ? "Connecting to wafid.com…" : "Check on wafid.com"}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
                       ) : colLabel === "CV SENT TO" && (() => {
                           const ra = (candidate as any).reserved_at;
                           return ra && (Date.now() - new Date(ra).getTime()) < 3 * 86_400_000;
