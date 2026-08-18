@@ -789,6 +789,8 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
       }
     } else if (resultHtml.includes("medical-status-modal-rejection") || />\s*unfit\s*</i.test(resultHtml)) {
       status = "Unfit";
+    } else if (/>\s*in[\s-]*progress\s*</i.test(resultHtml) || /class="status"[^>]*>\s*in[\s-]*progress/i.test(resultHtml)) {
+      status = "In progress";
     } else if (resultHtml.includes("medical-status-modal-normal") || />\s*retest\s*</i.test(resultHtml)) {
       status = "Retest";
     } else if (/no active appointment found|no[- ]record|not found|invalid passport/i.test(resultHtml)) {

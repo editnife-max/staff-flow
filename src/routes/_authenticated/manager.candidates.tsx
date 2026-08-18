@@ -1189,12 +1189,16 @@ function ManagerCandidatesPage() {
 
       {/* Global deep-search dialog */}
       <Dialog open={globalSearchOpen} onOpenChange={(o) => { setGlobalSearchOpen(o); if (!o) { setGlobalQ(""); setGlobalResults([]); } }}>
-        <DialogContent className="p-0 max-w-lg overflow-hidden">
+        <DialogContent
+          className="p-0 max-w-lg overflow-hidden [&>button:last-child]:hidden"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <Command shouldFilter={false} className="rounded-lg">
             <CommandInput
               placeholder="Search name, passport, code, labour ID…"
               value={globalQ}
               onValueChange={setGlobalQ}
+              autoFocus
             />
             <CommandList className="max-h-80">
               {globalQ.length >= 2 && !globalSearching && globalResults.length === 0 && (
@@ -1207,37 +1211,39 @@ function ManagerCandidatesPage() {
               )}
               {globalResults.length > 0 && (
                 <CommandGroup heading={`${globalResults.length} result${globalResults.length !== 1 ? "s" : ""}`}>
-                  {globalResults.map((r) => {
-                    const found = candidates.find((c) => c.id === r.id);
-                    return (
-                      <CommandItem
-                        key={r.id}
-                        value={r.id}
-                        onSelect={() => {
-                          setGlobalSearchOpen(false);
-                          if (found) {
-                            setTab(found.status as Status);
-                            setViewing(found);
-                          }
-                        }}
-                        className="flex items-center gap-3 cursor-pointer"
-                      >
-                        <Avatar className="h-7 w-7 shrink-0">
-                          {r.photo_url && <AvatarImage src={r.photo_url} />}
-                          <AvatarFallback className="text-[10px]">
-                            {(r.full_name ?? "?")[0]}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{r.full_name ?? "—"}</p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {[r.candidate_code, r.occupation, r.country].filter(Boolean).join(" · ")}
-                          </p>
-                        </div>
-                        <StatusBadge status={r.status as Status} />
-                      </CommandItem>
-                    );
-                  })}
+                  {globalResults.map((r) => (
+                    <CommandItem
+                      key={r.id}
+                      value={r.id}
+                      onSelect={async () => {
+                        setGlobalSearchOpen(false);
+                        let toView: Candidate | null = candidates.find((c) => c.id === r.id) ?? null;
+                        if (!toView) {
+                          const { data } = await supabase.from("candidates").select("*").eq("id", r.id).single();
+                          if (data) toView = data as Candidate;
+                        }
+                        if (toView) {
+                          setTab(toView.status as Status);
+                          setViewing(toView);
+                        }
+                      }}
+                      className="flex items-center gap-3 cursor-pointer"
+                    >
+                      <Avatar className="h-7 w-7 shrink-0">
+                        {r.photo_url && <AvatarImage src={r.photo_url} />}
+                        <AvatarFallback className="text-[10px]">
+                          {(r.full_name ?? "?")[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{r.full_name ?? "—"}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {[r.candidate_code, r.occupation, r.country].filter(Boolean).join(" · ")}
+                        </p>
+                      </div>
+                      <StatusBadge status={r.status as Status} />
+                    </CommandItem>
+                  ))}
                 </CommandGroup>
               )}
             </CommandList>
