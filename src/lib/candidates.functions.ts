@@ -220,10 +220,10 @@ export const upsertCandidate = createServerFn({ method: "POST" })
 
       return { ok: true, id: data.id };
     }
-    // Resolve name, next/validate code, and duplicate checks — all in parallel
+    // Resolve name, next/validate code, duplicate checks, and staff ID — all in parallel
     const passportTrim = data.data.passport_number?.trim();
     const manualCode   = data.data.candidate_code?.trim() || null;
-    const [createdByName, codeResult, passportDup, codeDup] = await Promise.all([
+    const [createdByName, codeResult, passportDup, codeDup, staffRow] = await Promise.all([
       resolveCreatedByName(context.userId),
       manualCode
         ? Promise.resolve({ data: manualCode, error: null })
@@ -243,6 +243,8 @@ export const upsertCandidate = createServerFn({ method: "POST" })
             .eq("candidate_code", manualCode)
             .maybeSingle()
         : Promise.resolve({ data: null }),
+      // Look up staff record so candidate is assigned to the registering staff member
+      supabaseAdmin.from("staff").select("id").eq("user_id", context.userId).maybeSingle(),
     ]);
 
     if (codeResult.error) throw new Error(codeResult.error.message);
@@ -257,6 +259,8 @@ export const upsertCandidate = createServerFn({ method: "POST" })
       throw new Error(`Candidate code "${candidateCode}" is already used by ${label}. Please choose a different code.`);
     }
 
+    const assignedStaffId = (staffRow.data as { id: string } | null)?.id ?? null;
+
     const { data: row, error } = await supabaseAdmin
       .from("candidates")
       .insert({
@@ -265,6 +269,7 @@ export const upsertCandidate = createServerFn({ method: "POST" })
         manager_id: managerId,
         created_by_user_id: context.userId,
         created_by_name: createdByName,
+        assigned_staff_id: assignedStaffId,
       } as never)
       .select("id")
       .single();
