@@ -24,6 +24,11 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Playwright
+test-results/
+playwright-report/
+tests/e2e/.auth/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
