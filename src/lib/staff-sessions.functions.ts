@@ -289,28 +289,52 @@ export const getTeamActivity = createServerFn({ method: "GET" })
       .eq("status", "active");
     if (staffErr) throw new Error(staffErr.message);
 
-    const { data: allSessions, error: sessErr } = await (supabaseAdmin
-      .from("staff_sessions" as any)
-      .select("id, staff_user_id, started_at, ended_at, last_heartbeat_at")
-      .eq("manager_id", managerId)
-      .eq("device_type", "desktop")
-      .gte("started_at", yearAgo.toISOString()) as any);
-    if (sessErr) throw new Error(sessErr.message);
+    // Paginate sessions (newest first) so we always capture the most-recent
+    // sessions first even if total rows exceed PostgREST's max-rows cap.
+    type SessionRow = {
+      id: string; staff_user_id: string;
+      started_at: string; ended_at: string | null; last_heartbeat_at: string;
+    };
+    const allSessionRows: SessionRow[] = [];
+    {
+      const PAGE = 1000;
+      let from = 0;
+      for (let page = 0; page < 20; page++) {
+        const { data, error } = await (supabaseAdmin
+          .from("staff_sessions" as any)
+          .select("id, staff_user_id, started_at, ended_at, last_heartbeat_at")
+          .eq("manager_id", managerId)
+          .eq("device_type", "desktop")
+          .gte("started_at", yearAgo.toISOString())
+          .order("started_at", { ascending: false })
+          .range(from, from + PAGE - 1) as any);
+        if (error) throw new Error(error.message);
+        allSessionRows.push(...(data as SessionRow[]));
+        if ((data as SessionRow[]).length < PAGE) break;
+        from += PAGE;
+      }
+    }
 
-    const { data: allCandidates, error: candErr } = await supabaseAdmin
-      .from("candidates")
-      .select("created_by_user_id, created_at")
-      .eq("manager_id", managerId)
-      .gte("created_at", yearAgo.toISOString());
-    if (candErr) throw new Error(candErr.message);
-
-    const sessions = (allSessions ?? []) as Array<{
-      id: string;
-      staff_user_id: string;
-      started_at: string;
-      ended_at: string | null;
-      last_heartbeat_at: string;
-    }>;
+    // Paginate candidates (lightweight — only 2 cols) for accurate per-staff counts.
+    type CandRow = { created_by_user_id: string | null; created_at: string };
+    const allCandidateRows: CandRow[] = [];
+    {
+      const PAGE = 1000;
+      let from = 0;
+      for (let page = 0; page < 50; page++) {
+        const { data, error } = await (supabaseAdmin
+          .from("candidates")
+          .select("created_by_user_id, created_at")
+          .eq("manager_id", managerId)
+          .gte("created_at", yearAgo.toISOString())
+          .order("created_at", { ascending: false })
+          .range(from, from + PAGE - 1) as any);
+        if (error) throw new Error(error.message);
+        allCandidateRows.push(...(data as CandRow[]));
+        if ((data as CandRow[]).length < PAGE) break;
+        from += PAGE;
+      }
+    }
 
     const todayStart = new Date(now);
     todayStart.setHours(0, 0, 0, 0);
@@ -320,10 +344,9 @@ export const getTeamActivity = createServerFn({ method: "GET" })
 
     return (staffList ?? []).map((staff) => {
       const uid = staff.user_id ?? "";
-      const staffSessions = sessions.filter((s) => s.staff_user_id === uid);
-      const staffCandidates = (allCandidates ?? []).filter(
-        (c) => c.created_by_user_id === uid,
-      );
+      // Sessions already sorted newest-first from the query
+      const staffSessions = allSessionRows.filter((s) => s.staff_user_id === uid);
+      const staffCandidates = allCandidateRows.filter((c) => c.created_by_user_id === uid);
 
       let hoursToday = 0;
       let hoursWeek = 0;
@@ -352,9 +375,8 @@ export const getTeamActivity = createServerFn({ method: "GET" })
         }
       }
 
-      const latestSession = staffSessions.sort(
-        (a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime(),
-      )[0] ?? null;
+      // staffSessions[0] is already the most-recent session (sorted desc above)
+      const latestSession = staffSessions[0] ?? null;
 
       let isOnline = false;
       let lastSeen: string | null = null;
@@ -364,7 +386,10 @@ export const getTeamActivity = createServerFn({ method: "GET" })
         if (!latestSession.ended_at && Date.now() - hb <= HEARTBEAT_STALE_MS) {
           isOnline = true;
         }
-        lastSeen = latestSession.last_heartbeat_at;
+        // Prefer the explicit logout time; fall back to the last heartbeat
+        // so "Last seen" reflects when they actually left, not when the
+        // heartbeat happened to fire beforehand.
+        lastSeen = latestSession.ended_at ?? latestSession.last_heartbeat_at;
       }
 
       const candidatesToday = staffCandidates.filter(
