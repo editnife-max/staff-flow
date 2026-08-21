@@ -577,6 +577,32 @@ export const logFlightReadiness = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// Fetches ALL candidates for the manager by paginating through Supabase's
+// default 1000-row PostgREST cap using .range() so no candidate is silently dropped.
+export const getCandidates = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    const PAGE = 1000;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const all: any[] = [];
+    let from = 0;
+    for (let page = 0; page < 50; page++) { // safety cap: 50 000 candidates max
+      const { data, error } = await (supabaseAdmin.from("candidates") as any)
+        .select("*")
+        .eq("manager_id", managerId)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (error) throw new Error(error.message);
+      all.push(...data);
+      if (data.length < PAGE) break;
+      from += PAGE;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return all as any[];
+  });
+
 // Fast full-text search across all candidates for a manager.
 // Uses pg_trgm GIN indexes added in 20260807130000 for sub-10ms ILIKE on large tables.
 export const searchCandidates = createServerFn({ method: "GET" })

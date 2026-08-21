@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { DialogFooter } from "@/components/ui/dialog";
 import { cn, calcAge } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
-import { updateCandidateField, deleteCandidate, logFlightReadiness } from "@/lib/candidates.functions";
+import { updateCandidateField, deleteCandidate, logFlightReadiness, getCandidates } from "@/lib/candidates.functions";
 
 type Candidate = Database["public"]["Tables"]["candidates"]["Row"];
 
@@ -800,17 +800,11 @@ function ManagerDashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
+  const fetchCandidates = useServerFn(getCandidates);
   const { data: candidates = [] } = useQuery({
-    queryKey: ["dashboard-candidates", user?.id],
+    queryKey: ["manager-candidates", user?.id],
     enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("candidates")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as Candidate[];
-    },
+    queryFn: () => fetchCandidates({}) as Promise<Candidate[]>,
   });
 
   const { data: assignCountries = [] } = useQuery({
@@ -858,11 +852,11 @@ function ManagerDashboard() {
   const fieldMut = useMutation({
     mutationFn: (vars: { id: string; field: string; value: string | null }) =>
       updateCandidateField({ data: vars as never }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dashboard-candidates", user?.id] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["manager-candidates"] }),
   });
   const removeMut = useMutation({
     mutationFn: (id: string) => removeFn({ data: { id } }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dashboard-candidates", user?.id] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["manager-candidates"] }),
   });
 
   const handleUpdateField = (id: string, field: string, value: string | null) => {

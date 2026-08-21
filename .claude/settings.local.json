@@ -146,7 +146,10 @@
       "PowerShell(Get-ScheduledTask *)",
       "Bash(Get-Command bun *)",
       "Bash(Select-Object -ExpandProperty Source)",
-      "Bash(./node_modules/.bin/tsc --noEmit)"
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(node_modules/.bin/playwright install *)",
+      "PowerShell(bun x *)",
+      "PowerShell(cd \"C:\\\\Project\\\\flowpath-suite\"; $proc = Start-Process -FilePath \"bun\" -ArgumentList \"dev\" -PassThru -WindowStyle Hidden -RedirectStandardOutput \"C:\\\\temp\\\\dev-out.txt\" -RedirectStandardError \"C:\\\\temp\\\\dev-err.txt\"; Start-Sleep -Seconds 15; Get-Content \"C:\\\\temp\\\\dev-out.txt\" -ErrorAction SilentlyContinue; Get-Content \"C:\\\\temp\\\\dev-err.txt\" -ErrorAction SilentlyContinue; $proc.Kill\\(\\))"
     ]
   },
   "enableAllProjectMcpServers": true,

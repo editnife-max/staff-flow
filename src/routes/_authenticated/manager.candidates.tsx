@@ -34,6 +34,7 @@ import {
   upsertCandidate, deleteCandidate, updateCandidateField,
   bulkDeleteCandidates, bulkUpdateStatus, bulkAssignStaff, bulkUpdateField,
   bulkImportCandidates, nextCandidateCode, searchCandidates, checkWafidMedical,
+  getCandidates,
 } from "@/lib/candidates.functions";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
@@ -406,13 +407,14 @@ function ManagerCandidatesPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { tab: tabParam } = Route.useSearch();
-  const upsert      = useServerFn(upsertCandidate);
-  const remove      = useServerFn(deleteCandidate);
-  const bulkDel     = useServerFn(bulkDeleteCandidates);
-  const bulkStatus  = useServerFn(bulkUpdateStatus);
-  const bulkAssign  = useServerFn(bulkAssignStaff);
-  const bulkField   = useServerFn(bulkUpdateField);
-  const getNextCode = useServerFn(nextCandidateCode);
+  const upsert         = useServerFn(upsertCandidate);
+  const remove         = useServerFn(deleteCandidate);
+  const bulkDel        = useServerFn(bulkDeleteCandidates);
+  const bulkStatus     = useServerFn(bulkUpdateStatus);
+  const bulkAssign     = useServerFn(bulkAssignStaff);
+  const bulkField      = useServerFn(bulkUpdateField);
+  const getNextCode    = useServerFn(nextCandidateCode);
+  const fetchCandidates = useServerFn(getCandidates);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const toggleSelect = (id: string) =>
     setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -471,11 +473,7 @@ function ManagerCandidatesPage() {
   const { data: candidates = [] } = useQuery({
     queryKey: ["manager-candidates", user?.id],
     enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("candidates").select("*").order("created_at", { ascending: true }).order("id", { ascending: true });
-      if (error) throw error;
-      return data as Candidate[];
-    },
+    queryFn: () => fetchCandidates({}) as Promise<Candidate[]>,
   });
 
   const { data: staffList = [] } = useQuery({
