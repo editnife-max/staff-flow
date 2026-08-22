@@ -867,8 +867,9 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
       status = "In progress";
     } else if (resultHtml.includes("medical-status-modal-normal") || />\s*retest\s*</i.test(resultHtml)) {
       status = "Retest";
-    } else if (/no active appointment found|no[- ]record|not found|invalid passport/i.test(resultHtml)) {
-      message = "No record on Wafid";
+    } else if (/no medical report found|no active appointment found|no[- ]record|not found|invalid passport/i.test(resultHtml)) {
+      status = "No";
+      message = "No record on Wafid — status set to No";
     } else if (/error verifying recaptcha/i.test(resultHtml)) {
       message = "reCAPTCHA verification failed — please try again";
     } else if (resultHtml.includes("id_passport")) {
@@ -886,7 +887,10 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
       if (status === "Fit" || candidate.medical_status === "Expired" || status !== candidate.medical_status) {
         await supabaseAdmin
           .from("candidates")
-          .update({ medical_status: status, medical_date: date ?? today })
+          .update({
+            medical_status: status,
+            medical_date: status === "No" ? null : (date ?? today),
+          })
           .eq("id", data.candidateId);
       }
     }
