@@ -1,6 +1,6 @@
 # setup-medical-scheduler.ps1
 # Registers a Windows Task Scheduler task to run the Wafid medical status check
-# twice daily: 8:00 AM and 2:00 PM.
+# twice daily: 7:00 AM and 2:00 PM — checks all Available/Processing candidates.
 #
 # Run once as Administrator:
 #   powershell -ExecutionPolicy Bypass -File "scripts\setup-medical-scheduler.ps1"
@@ -22,8 +22,8 @@ if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
     Write-Host "Removed existing task: $TaskName"
 }
 
-# Morning trigger: 8:00 AM daily
-$triggerMorning   = New-ScheduledTaskTrigger -Daily -At "08:00"
+# Morning trigger: 7:00 AM daily
+$triggerMorning   = New-ScheduledTaskTrigger -Daily -At "07:00"
 # Afternoon trigger: 2:00 PM daily
 $triggerAfternoon = New-ScheduledTaskTrigger -Daily -At "14:00"
 
@@ -47,13 +47,13 @@ $task = New-ScheduledTask `
     -Trigger @($triggerMorning, $triggerAfternoon) `
     -Settings $settings `
     -Principal $principal `
-    -Description "Checks Wafid medical status for Ethiopian candidates and updates FlowPath database"
+    -Description "Checks Wafid medical status for Available/Processing candidates and updates FlowPath database"
 
 Register-ScheduledTask -TaskName $TaskName -InputObject $task -Force
 
 Write-Host ""
 Write-Host "Task registered: $TaskName"
-Write-Host "  Runs at: 8:00 AM and 2:00 PM daily"
+Write-Host "  Runs at: 7:00 AM and 2:00 PM daily"
 Write-Host "  Script:  $ScriptPath"
 Write-Host "  Logs:    $logsDir\medical-check-scheduler.log"
 Write-Host ""

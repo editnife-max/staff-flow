@@ -149,7 +149,9 @@
       "Bash(./node_modules/.bin/tsc --noEmit)",
       "Bash(node_modules/.bin/playwright install *)",
       "PowerShell(bun x *)",
-      "PowerShell(cd \"C:\\\\Project\\\\flowpath-suite\"; $proc = Start-Process -FilePath \"bun\" -ArgumentList \"dev\" -PassThru -WindowStyle Hidden -RedirectStandardOutput \"C:\\\\temp\\\\dev-out.txt\" -RedirectStandardError \"C:\\\\temp\\\\dev-err.txt\"; Start-Sleep -Seconds 15; Get-Content \"C:\\\\temp\\\\dev-out.txt\" -ErrorAction SilentlyContinue; Get-Content \"C:\\\\temp\\\\dev-err.txt\" -ErrorAction SilentlyContinue; $proc.Kill\\(\\))"
+      "PowerShell(cd \"C:\\\\Project\\\\flowpath-suite\"; $proc = Start-Process -FilePath \"bun\" -ArgumentList \"dev\" -PassThru -WindowStyle Hidden -RedirectStandardOutput \"C:\\\\temp\\\\dev-out.txt\" -RedirectStandardError \"C:\\\\temp\\\\dev-err.txt\"; Start-Sleep -Seconds 15; Get-Content \"C:\\\\temp\\\\dev-out.txt\" -ErrorAction SilentlyContinue; Get-Content \"C:\\\\temp\\\\dev-err.txt\" -ErrorAction SilentlyContinue; $proc.Kill\\(\\))",
+      "PowerShell(powershell -ExecutionPolicy Bypass -File \"C:\\\\Project\\\\flowpath-suite\\\\scripts\\\\setup-medical-scheduler.ps1\")",
+      "Bash(bunx wrangler *)"
     ]
   },
   "enableAllProjectMcpServers": true,

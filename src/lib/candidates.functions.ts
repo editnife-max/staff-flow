@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { checkWafidForCandidate, wafidNationality } from "@/lib/wafid-check";
 
 const StatusEnum = z.enum(["available", "processing", "arrived", "canceled", "returned"]);
 
@@ -643,28 +644,6 @@ export const searchCandidates = createServerFn({ method: "GET" })
     }>;
   });
 
-const WAFID_NATIONALITY: Array<[string, string]> = [
-  ["ethiop", "60"],
-  ["philippin", "177"],
-  ["filipin", "177"],
-  ["sri lanka", "156"],
-  ["indonesia", "81"],
-  ["bangladesh", "15"],
-  ["kenya", "92"],
-  ["uganda", "166"],
-  ["india", "1"],
-  ["nepal", "125"],
-  ["ghana", "69"],
-];
-
-function wafidNationality(country: string | null): string {
-  const lc = (country ?? "").toLowerCase();
-  for (const [key, val] of WAFID_NATIONALITY) {
-    if (lc.includes(key)) return val;
-  }
-  return "60"; // fallback Ethiopian
-}
-
 export const checkWafidMedical = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
@@ -685,219 +664,29 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
 
     const passport = candidate.passport_number.trim().toUpperCase();
     const nationality = wafidNationality(candidate.country);
+    const result = await checkWafidForCandidate(passport, nationality);
 
-    const WAFID_URL = "https://wafid.com/en/medical-status-search/";
-    const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-
-    // Step 1: GET the search page to obtain the CSRF token + session cookie.
-    let pageHtml: string;
-    let cookieStr: string;
-    try {
-      const getRes = await fetch(WAFID_URL, {
-        headers: {
-          "User-Agent": UA,
-          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "en-US,en;q=0.9",
-        },
-      });
-      if (!getRes.ok) {
-        return { status: null as string | null, date: null as string | null, message: `wafid.com unreachable (HTTP ${getRes.status})` };
-      }
-      pageHtml = await getRes.text();
-      // getSetCookie() returns each Set-Cookie header separately (Node 18+ / Bun).
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const rawCookies: string[] = typeof (getRes.headers as any).getSetCookie === "function"
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ? (getRes.headers as any).getSetCookie()
-        : [getRes.headers.get("set-cookie") ?? ""];
-      cookieStr = rawCookies.map(h => h.split(";")[0].trim()).filter(Boolean).join("; ");
-    } catch (e) {
-      return { status: null as string | null, date: null as string | null, message: `Network error reaching wafid.com: ${e}` };
-    }
-
-    const csrfMatch = pageHtml.match(/name=["']csrfmiddlewaretoken["'][^>]*value=["']([^"']+)["']|value=["']([^"']+)["'][^>]*name=["']csrfmiddlewaretoken["']/);
-    const csrf = csrfMatch?.[1] ?? csrfMatch?.[2];
-    if (!csrf) {
-      return { status: null as string | null, date: null as string | null, message: "Could not read CSRF token from wafid.com" };
-    }
-
-    // Step 2: Solve the reCAPTCHA v3 via 2captcha so wafid.com accepts the POST.
-    const TWOCAPTCHA_KEY = process.env.TWOCAPTCHA_API_KEY;
-    if (!TWOCAPTCHA_KEY) {
-      return {
-        status: null as string | null,
-        date: null as string | null,
-        message: "TWOCAPTCHA_API_KEY env var not set — required for wafid.com reCAPTCHA",
-      };
-    }
-
-    const RECAPTCHA_SITE_KEY = "6LflPAwnAAAAAL2wBGi6tSyGUyj-xFvftINOR9xp";
-
-    let recaptchaToken: string | null = null;
-    try {
-      // Submit task using the 2captcha JSON API
-      const submitRes = await fetch("https://api.2captcha.com/createTask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientKey: TWOCAPTCHA_KEY,
-          task: {
-            type: "RecaptchaV3TaskProxyless",
-            websiteURL: WAFID_URL,
-            websiteKey: RECAPTCHA_SITE_KEY,
-            minScore: 0.1,
-            pageAction: "form",
-          },
-        }),
-      });
-      const submitData = await submitRes.json() as { errorId: number; errorCode?: string; taskId?: number };
-      if (submitData.errorId !== 0) throw new Error(submitData.errorCode ?? "createTask failed");
-      const taskId = submitData.taskId!;
-
-      // Poll up to 90 s (2captcha typically resolves in 15-30 s)
-      for (let i = 0; i < 18; i++) {
-        await new Promise(r => setTimeout(r, 5000));
-        const pollRes = await fetch("https://api.2captcha.com/getTaskResult", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ clientKey: TWOCAPTCHA_KEY, taskId }),
-        });
-        const pollData = await pollRes.json() as {
-          errorId: number; errorCode?: string;
-          status: string; solution?: { gRecaptchaResponse: string };
-        };
-        if (pollData.errorId !== 0) throw new Error(pollData.errorCode ?? "getTaskResult failed");
-        if (pollData.status === "ready") { recaptchaToken = pollData.solution!.gRecaptchaResponse; break; }
-      }
-    } catch (e) {
-      return { status: null as string | null, date: null as string | null, message: `reCAPTCHA solve failed: ${e}` };
-    }
-
-    if (!recaptchaToken) {
-      return { status: null as string | null, date: null as string | null, message: "reCAPTCHA solve timed out" };
-    }
-
-    // Step 3: POST the form with the solved reCAPTCHA token.
-    const formBody = new URLSearchParams({
-      csrfmiddlewaretoken: csrf,
-      search_variant: "passport",
-      passport,
-      nationality,
-      captcha: recaptchaToken,
-    });
-
-    let resultHtml: string;
-    try {
-      const postRes = await fetch(WAFID_URL, {
-        method: "POST",
-        headers: {
-          "User-Agent": UA,
-          "Content-Type": "application/x-www-form-urlencoded",
-          "Referer": WAFID_URL,
-          "Origin": "https://wafid.com",
-          "Cookie": cookieStr,
-          "X-CSRFToken": csrf,
-          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "en-US,en;q=0.9",
-        },
-        body: formBody.toString(),
-      });
-      resultHtml = await postRes.text();
-    } catch (e) {
-      return { status: null as string | null, date: null as string | null, message: `POST to wafid.com failed: ${e}` };
-    }
-
-    let status: string | null = null;
-    let date: string | null = null;
-    let message = "";
-
-    if (resultHtml.includes("medical-status-modal-acceptance") || />\s*fit\s*</i.test(resultHtml)) {
-      status = "Fit";
-      const DATE_RE  = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/;
-      const DATE_RE_G = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/g;
-      let rawDate: string | undefined;
-
-      // Strategy 1: field_name / field_value in same <tr> (flexible class matching)
-      for (const rowMatch of resultHtml.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)) {
-        const row = rowMatch[1];
-        const nameEl = row.match(/class=["'][^"']*field_name[^"']*["'][^>]*>([\s\S]*?)<\/(?:td|th|div|span)/i);
-        if (!nameEl) continue;
-        const nameText = nameEl[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-        if (!/examination\s*date/i.test(nameText)) continue;
-        const valEl = row.match(/class=["'][^"']*field_value[^"']*["'][^>]*>([\s\S]*?)<\/(?:td|th|div|span)/i);
-        if (!valEl) continue;
-        rawDate = valEl[1].replace(/<[^>]+>/g, " ").trim().match(DATE_RE)?.[0];
-        if (rawDate) break;
-      }
-
-      // Strategy 2: plain-text scan — strip all tags, find "examination date" label,
-      // take the date in the immediately following ~80 characters.
-      if (!rawDate) {
-        const plain = resultHtml
-          .replace(/<[^>]+>/g, " ")
-          .replace(/&[a-zA-Z]+;/g, " ")
-          .replace(/\s+/g, " ");
-        const idx = plain.search(/examination\s*date\s*:?/i);
-        if (idx !== -1) rawDate = plain.slice(idx, idx + 80).match(DATE_RE)?.[0];
-      }
-
-      // Strategy 3: year-range heuristic over the full HTML.
-      // Medical Examination Date is always recent (≤ currentYear+1).
-      // Fitness Validity Date is ~4 years ahead (e.g. 2030) — excluded by the range.
-      // Scans the full page because on Wafid the data table renders BEFORE the
-      // modal-acceptance class, so a post-modal slice would miss the dates.
-      if (!rawDate) {
-        const currentYear = new Date().getFullYear();
-        rawDate = [...resultHtml.matchAll(DATE_RE_G)]
-          .map(m => m[0])
-          .find(d => {
-            const parts = d.split(/[\/\-]/);
-            const yr = parseInt(parts.find((p: string) => p.length === 4) ?? "0");
-            return yr >= currentYear - 1 && yr <= currentYear + 1;
-          });
-      }
-
-      if (rawDate) {
-        const parts = rawDate.split(/[\/\-]/).map((p: string) => p.padStart(2, "0"));
-        date = parts[2].length === 4 ? `${parts[2]}-${parts[1]}-${parts[0]}` : rawDate;
-      }
-    } else if (resultHtml.includes("medical-status-modal-rejection") || />\s*unfit\s*</i.test(resultHtml)) {
-      status = "Unfit";
-    } else if (/>\s*in[\s-]*progress\s*</i.test(resultHtml) || /class="status"[^>]*>\s*in[\s-]*progress/i.test(resultHtml)) {
-      status = "In progress";
-    } else if (resultHtml.includes("medical-status-modal-normal") || />\s*retest\s*</i.test(resultHtml)) {
-      status = "Retest";
-    } else if (/no medical report found|no active appointment found|no[- ]record|not found|invalid passport/i.test(resultHtml)) {
-      status = "No";
-      message = "No record on Wafid — status set to No";
-    } else if (/error verifying recaptcha/i.test(resultHtml)) {
-      message = "reCAPTCHA verification failed — please try again";
-    } else if (resultHtml.includes("id_passport")) {
-      const snippet = resultHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 300);
-      message = `Could not determine status. Response: ${snippet}`;
-    } else {
-      // Surface a snippet so we can see what wafid actually returned
-      const snippet = resultHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 300);
-      message = `Could not determine status. Response: ${snippet}`;
-    }
-
-    if (status) {
+    if (result.status) {
       const today = new Date().toISOString().split("T")[0];
-      // Always write Fit/Expired examination date; for other statuses only write on change.
-      if (status === "Fit" || candidate.medical_status === "Expired" || status !== candidate.medical_status) {
+      if (
+        result.status === "Fit" ||
+        candidate.medical_status === "Expired" ||
+        result.status !== candidate.medical_status
+      ) {
         await supabaseAdmin
           .from("candidates")
           .update({
-            medical_status: status,
-            medical_date: status === "No" ? null : (date ?? today),
+            medical_status: result.status,
+            medical_date: result.status === "No" ? null : (result.date ?? today),
           })
           .eq("id", data.candidateId);
       }
     }
 
     return {
-      status: status as string | null,
-      date: date as string | null,
-      message: message || (status ? `${status}${date ? ` · ${date}` : ""}` : "No result"),
+      status: result.status as string | null,
+      date: result.date as string | null,
+      message: result.message,
     };
   });
+
