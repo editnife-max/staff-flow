@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { Building2, ShieldCheck } from "lucide-react";
@@ -113,10 +114,10 @@ function SetupAdminPage() {
               <p className="text-emerald-700 mb-3">
                 Sign in with the credentials above — you will land directly on the Admin Panel.
               </p>
-              <a href="/login"
+              <Link to="/login"
                 className="block w-full text-center rounded-md bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-4 text-sm font-medium transition-colors">
                 Go to Login →
-              </a>
+              </Link>
             </div>
           )}
         </CardContent>

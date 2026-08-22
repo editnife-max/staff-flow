@@ -421,9 +421,25 @@ function ManagerCandidatesPage() {
   const clearSelection = () => setSelected(new Set());
   const [actionCandidates, setActionCandidates] = useState<Candidate[]>([]);
 
+  const filterCache = useRef<Map<string, { f: typeof initialFilters; p: string }>>((() => {
+    try {
+      const raw = sessionStorage.getItem("mgr-filter-cache");
+      if (raw) return new Map(Object.entries(JSON.parse(raw)));
+    } catch {}
+    return new Map();
+  })());
+  const saveFilterCache = (t: string, f: typeof initialFilters, p: string) => {
+    filterCache.current.set(t, { f, p });
+    try { sessionStorage.setItem("mgr-filter-cache", JSON.stringify(Object.fromEntries(filterCache.current))); } catch {}
+  };
   const [tab, setTab] = useState<Status>(tabParam ?? "available");
   useEffect(() => { if (tabParam) setTab(tabParam); }, [tabParam]);
-  const [passport, setPassport] = useState("");
+  const [passport, setPassport] = useState(() => {
+    try { return filterCache.current.get(tabParam ?? "available")?.p ?? ""; } catch { return ""; }
+  });
+  const [filters, setFilters] = useState<typeof initialFilters>(() => {
+    try { return filterCache.current.get(tabParam ?? "available")?.f ?? initialFilters; } catch { return initialFilters; }
+  });
 
   // Global deep search
   const doSearch = useServerFn(searchCandidates);
@@ -452,11 +468,15 @@ function ManagerCandidatesPage() {
     }, 300);
     return () => clearTimeout(t);
   }, [globalQ, globalSearchOpen]);
-  const [filters, setFilters] = useState(initialFilters);
   const activeCount = Object.entries(filters).filter(([k, v]) =>
     k !== "sort" && (Array.isArray(v) ? v.length > 0 : v && v !== "all")
   ).length;
-  useEffect(() => { setFilters(initialFilters); setPassport(""); }, [tab]);
+  // Restore per-tab filters when tab changes (save happens in the tab-click handler)
+  useEffect(() => {
+    const cached = filterCache.current.get(tab);
+    setFilters(cached?.f ?? initialFilters);
+    setPassport(cached?.p ?? "");
+  }, [tab]);
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Candidate | null>(null);
@@ -470,10 +490,23 @@ function ManagerCandidatesPage() {
   const [lmisNeededId, setLmisNeededId] = useState<string | null>(null);
   const [lmisNeededSel, setLmisNeededSel] = useState<string[]>([]);
 
-  const { data: candidates = [] } = useQuery({
+  const [preloadedCandidates] = useState<Candidate[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = sessionStorage.getItem("mgr-cands-v1");
+      if (!raw) return [];
+      const { ts, d } = JSON.parse(raw);
+      return Date.now() - ts < 15 * 60 * 1000 ? (d as Candidate[]) : [];
+    } catch { return []; }
+  });
+  const { data: candidates = preloadedCandidates } = useQuery({
     queryKey: ["manager-candidates", user?.id],
     enabled: !!user,
-    queryFn: () => fetchCandidates({}) as Promise<Candidate[]>,
+    queryFn: async () => {
+      const result = await (fetchCandidates({}) as Promise<Candidate[]>);
+      try { sessionStorage.setItem("mgr-cands-v1", JSON.stringify({ ts: Date.now(), d: result })); } catch {}
+      return result;
+    },
   });
 
   const { data: staffList = [] } = useQuery({
@@ -1347,7 +1380,12 @@ function ManagerCandidatesPage() {
             {TABS.map((t) => (
               <button
                 key={t.key}
-                onClick={() => { setTab(t.key); clearSelection(); }}
+                onClick={() => {
+                  saveFilterCache(tab, filters, passport);
+                  navigate({ to: "/manager/candidates", search: { tab: t.key }, replace: true });
+                  setTab(t.key);
+                  clearSelection();
+                }}
                 className={cn(
                   "pb-2 text-[16px] font-medium transition-colors",
                   tab === t.key
@@ -1573,6 +1611,8 @@ function ManagerCandidatesPage() {
 
       {tab === "processing" ? (
         <ProcessingTable
+          key={tab}
+          pageKey={tab}
           candidates={filtered}
           selected={selected}
           onToggleSelect={toggleSelect}
@@ -1594,6 +1634,8 @@ function ManagerCandidatesPage() {
         />
       ) : (
         <CandidateCardList
+          key={tab}
+          pageKey={tab}
           candidates={filtered}
           selected={selected}
           onToggleSelect={toggleSelect}
@@ -2255,7 +2297,7 @@ function checkMeetsCvReq(c: Candidate, req: Record<string, string>): boolean {
 
 function CandidateCardList({
   candidates, selected, onToggleSelect, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo,
-  countryMeta, officesByCountry, agencyOptions, agencyPhones, compact, narrativeSuggestions, showCvBadge,
+  countryMeta, officesByCountry, agencyOptions, agencyPhones, compact, narrativeSuggestions, showCvBadge, pageKey,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -2275,6 +2317,7 @@ function CandidateCardList({
   agencyOptions: string[];
   agencyPhones: Record<string, string>;
   narrativeSuggestions?: string[];
+  pageKey: string;
 }) {
   const cvReq = useMemo(() => {
     if (!showCvBadge) return null;
@@ -2355,9 +2398,19 @@ function CandidateCardList({
     return list;
   }, [candidates, activeCountryTab, activeOfficeTab]);
 
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(5);
-  useEffect(() => { setPage(1); }, [filtered.length, pageSize]);
+  const [page, setPage] = useState(() => {
+    try { return Math.max(1, parseInt(sessionStorage.getItem(`mgr-card-page-${pageKey}`) || "1", 10)); } catch { return 1; }
+  });
+  const [pageSize, setPageSize] = useState(() => {
+    try { return parseInt(sessionStorage.getItem(`mgr-card-pgsz-${pageKey}`) || "5", 10) || 5; } catch { return 5; }
+  });
+  useEffect(() => { try { sessionStorage.setItem(`mgr-card-page-${pageKey}`, String(page)); } catch {} }, [page, pageKey]);
+  useEffect(() => { try { sessionStorage.setItem(`mgr-card-pgsz-${pageKey}`, String(pageSize)); } catch {} }, [pageSize, pageKey]);
+  const firstMountCardRef = useRef(true);
+  useEffect(() => {
+    if (firstMountCardRef.current) { firstMountCardRef.current = false; return; }
+    setPage(1);
+  }, [filtered.length, pageSize]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
   const allSel = paginated.length > 0 && paginated.every((c) => selected.has(c.id));
@@ -3233,7 +3286,7 @@ const INITIAL_PROC_FILTERS = {
 
 function ProcessingTable({
   candidates, selected, onToggleSelect, onAction, onUpdateField, onEdit, onDelete, cancelMode,
-  countryMeta, officesByCountry, agencyPhones, agencyOptions,
+  countryMeta, officesByCountry, agencyPhones, agencyOptions, pageKey,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -3247,6 +3300,7 @@ function ProcessingTable({
   officesByCountry: Record<string, string[]>;
   agencyPhones: Record<string, string>;
   agencyOptions: string[];
+  pageKey: string;
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
@@ -3363,9 +3417,19 @@ function ProcessingTable({
       f.visa_status, f.insurance_status, f.unfilled_lmis, f.lmis_status,
       f.ticket_status, f.arrival_city, f.selected_by]);
 
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(5);
-  useEffect(() => { setPage(1); }, [filteredCandidates.length, pageSize]);
+  const [page, setPage] = useState(() => {
+    try { return Math.max(1, parseInt(sessionStorage.getItem(`mgr-proc-page-${pageKey}`) || "1", 10)); } catch { return 1; }
+  });
+  const [pageSize, setPageSize] = useState(() => {
+    try { return parseInt(sessionStorage.getItem(`mgr-proc-pgsz-${pageKey}`) || "5", 10) || 5; } catch { return 5; }
+  });
+  useEffect(() => { try { sessionStorage.setItem(`mgr-proc-page-${pageKey}`, String(page)); } catch {} }, [page, pageKey]);
+  useEffect(() => { try { sessionStorage.setItem(`mgr-proc-pgsz-${pageKey}`, String(pageSize)); } catch {} }, [pageSize, pageKey]);
+  const firstMountProcRef = useRef(true);
+  useEffect(() => {
+    if (firstMountProcRef.current) { firstMountProcRef.current = false; return; }
+    setPage(1);
+  }, [filteredCandidates.length, pageSize]);
   const totalPages = Math.max(1, Math.ceil(filteredCandidates.length / pageSize));
   const paginated = filteredCandidates.slice((page - 1) * pageSize, page * pageSize);
   const visibleCols = allCols.filter((col) => !hiddenCols.has(col.key));

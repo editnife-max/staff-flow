@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { z } from "zod";
 import { ActionDialog } from "@/components/action-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -47,6 +48,7 @@ type Candidate = Database["public"]["Tables"]["candidates"]["Row"];
 
 export const Route = createFileRoute("/_authenticated/staff/candidates")({
   head: () => ({ meta: [{ title: "Candidates — Staff-Flow" }] }),
+  validateSearch: z.object({ tab: z.enum(["available", "processing", "arrived", "returned", "canceled"]).optional() }),
   component: StaffCandidatesPage,
 });
 
@@ -447,13 +449,35 @@ function StaffCandidatesPage() {
   const clearSelection = () => setSelected(new Set());
   const [actionCandidates, setActionCandidates] = useState<Candidate[]>([]);
 
-  const [tab, setTab] = useState<Status>("available");
-  const [passport, setPassport] = useState("");
-  const [filters, setFilters] = useState(initialFilters);
+  const { tab: tabParam } = Route.useSearch();
+  const filterCache = useRef<Map<string, { f: typeof initialFilters; p: string }>>((() => {
+    try {
+      const raw = sessionStorage.getItem("stf-filter-cache");
+      if (raw) return new Map(Object.entries(JSON.parse(raw)));
+    } catch {}
+    return new Map();
+  })());
+  const saveFilterCache = (t: string, f: typeof initialFilters, p: string) => {
+    filterCache.current.set(t, { f, p });
+    try { sessionStorage.setItem("stf-filter-cache", JSON.stringify(Object.fromEntries(filterCache.current))); } catch {}
+  };
+  const [tab, setTab] = useState<Status>(tabParam ?? "available");
+  useEffect(() => { if (tabParam) setTab(tabParam); }, [tabParam]);
+  const [passport, setPassport] = useState(() => {
+    try { return filterCache.current.get(tabParam ?? "available")?.p ?? ""; } catch { return ""; }
+  });
+  const [filters, setFilters] = useState<typeof initialFilters>(() => {
+    try { return filterCache.current.get(tabParam ?? "available")?.f ?? initialFilters; } catch { return initialFilters; }
+  });
   const activeCount = Object.entries(filters).filter(([k, v]) =>
     k !== "sort" && (Array.isArray(v) ? v.length > 0 : v && v !== "all")
   ).length;
-  useEffect(() => { setFilters(initialFilters); setPassport(""); }, [tab]);
+  // Restore per-tab filters when tab changes (save happens in the tab-click handler)
+  useEffect(() => {
+    const cached = filterCache.current.get(tab);
+    setFilters(cached?.f ?? initialFilters);
+    setPassport(cached?.p ?? "");
+  }, [tab]);
 
   // Global deep search
   const doSearch = useServerFn(searchCandidates);
@@ -494,10 +518,23 @@ function StaffCandidatesPage() {
   const [lmisNeededId, setLmisNeededId] = useState<string | null>(null);
   const [lmisNeededSel, setLmisNeededSel] = useState<string[]>([]);
 
-  const { data: candidates = [] } = useQuery({
+  const [preloadedCandidates] = useState<Candidate[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = sessionStorage.getItem("stf-cands-v1");
+      if (!raw) return [];
+      const { ts, d } = JSON.parse(raw);
+      return Date.now() - ts < 15 * 60 * 1000 ? (d as Candidate[]) : [];
+    } catch { return []; }
+  });
+  const { data: candidates = preloadedCandidates } = useQuery({
     queryKey: ["staff-candidates", user?.id],
     enabled: !!user,
-    queryFn: () => fetchCandidates({}) as Promise<Candidate[]>,
+    queryFn: async () => {
+      const result = await (fetchCandidates({}) as Promise<Candidate[]>);
+      try { sessionStorage.setItem("stf-cands-v1", JSON.stringify({ ts: Date.now(), d: result })); } catch {}
+      return result;
+    },
   });
 
   const { data: staffList = [] } = useQuery({
@@ -1260,7 +1297,12 @@ function StaffCandidatesPage() {
             {TABS.map((t) => (
               <button
                 key={t.key}
-                onClick={() => { setTab(t.key); clearSelection(); }}
+                onClick={() => {
+                  saveFilterCache(tab, filters, passport);
+                  navigate({ to: "/staff/candidates", search: { tab: t.key }, replace: true });
+                  setTab(t.key);
+                  clearSelection();
+                }}
                 className={cn(
                   "pb-2 text-[16px] font-medium transition-colors",
                   tab === t.key
@@ -1485,6 +1527,8 @@ function StaffCandidatesPage() {
       {/* Candidate cards / Processing table */}
       {tab === "processing" ? (
         <ProcessingTable
+          key={tab}
+          pageKey={tab}
           candidates={filtered}
           selected={selected}
           onToggleSelect={toggleSelect}
@@ -1544,6 +1588,8 @@ function StaffCandidatesPage() {
         />
       ) : (
         <CandidateCardList
+          key={tab}
+          pageKey={tab}
           candidates={filtered}
           selected={selected}
           onToggleSelect={toggleSelect}
@@ -2157,7 +2203,7 @@ type EditableField =
 
 function CandidateCardList({
   candidates, selected, onToggleSelect, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo,
-  countryMeta, officesByCountry, agencyOptions, agencyPhones, compact, narrativeSuggestions,
+  countryMeta, officesByCountry, agencyOptions, agencyPhones, compact, narrativeSuggestions, pageKey,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -2175,6 +2221,7 @@ function CandidateCardList({
   agencyOptions: string[];
   agencyPhones: Record<string, string>;
   narrativeSuggestions?: string[];
+  pageKey: string;
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
@@ -2248,9 +2295,19 @@ function CandidateCardList({
     return list;
   }, [candidates, activeCountryTab, activeOfficeTab]);
 
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(5);
-  useEffect(() => { setPage(1); }, [filtered.length, pageSize]);
+  const [page, setPage] = useState(() => {
+    try { return Math.max(1, parseInt(sessionStorage.getItem(`stf-card-page-${pageKey}`) || "1", 10)); } catch { return 1; }
+  });
+  const [pageSize, setPageSize] = useState(() => {
+    try { return parseInt(sessionStorage.getItem(`stf-card-pgsz-${pageKey}`) || "5", 10) || 5; } catch { return 5; }
+  });
+  useEffect(() => { try { sessionStorage.setItem(`stf-card-page-${pageKey}`, String(page)); } catch {} }, [page, pageKey]);
+  useEffect(() => { try { sessionStorage.setItem(`stf-card-pgsz-${pageKey}`, String(pageSize)); } catch {} }, [pageSize, pageKey]);
+  const firstMountCardRef = useRef(true);
+  useEffect(() => {
+    if (firstMountCardRef.current) { firstMountCardRef.current = false; return; }
+    setPage(1);
+  }, [filtered.length, pageSize]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
   const allSel = paginated.length > 0 && paginated.every((c) => selected.has(c.id));
@@ -3105,7 +3162,7 @@ const INITIAL_PROC_FILTERS = {
 
 function ProcessingTable({
   candidates, selected, onToggleSelect, onAction, onUpdateField, onEdit, onDelete, cancelMode,
-  countryMeta, officesByCountry, agencyPhones, agencyOptions,
+  countryMeta, officesByCountry, agencyPhones, agencyOptions, pageKey,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -3119,6 +3176,7 @@ function ProcessingTable({
   officesByCountry: Record<string, string[]>;
   agencyPhones: Record<string, string>;
   agencyOptions: string[];
+  pageKey: string;
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
@@ -3235,9 +3293,19 @@ function ProcessingTable({
       f.visa_status, f.insurance_status, f.unfilled_lmis, f.lmis_status,
       f.ticket_status, f.arrival_city, f.selected_by, activeCountryTab, activeOfficeTab]);
 
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(5);
-  useEffect(() => { setPage(1); }, [filteredCandidates.length, pageSize]);
+  const [page, setPage] = useState(() => {
+    try { return Math.max(1, parseInt(sessionStorage.getItem(`stf-proc-page-${pageKey}`) || "1", 10)); } catch { return 1; }
+  });
+  const [pageSize, setPageSize] = useState(() => {
+    try { return parseInt(sessionStorage.getItem(`stf-proc-pgsz-${pageKey}`) || "5", 10) || 5; } catch { return 5; }
+  });
+  useEffect(() => { try { sessionStorage.setItem(`stf-proc-page-${pageKey}`, String(page)); } catch {} }, [page, pageKey]);
+  useEffect(() => { try { sessionStorage.setItem(`stf-proc-pgsz-${pageKey}`, String(pageSize)); } catch {} }, [pageSize, pageKey]);
+  const firstMountProcRef = useRef(true);
+  useEffect(() => {
+    if (firstMountProcRef.current) { firstMountProcRef.current = false; return; }
+    setPage(1);
+  }, [filteredCandidates.length, pageSize]);
   const totalPages = Math.max(1, Math.ceil(filteredCandidates.length / pageSize));
 
   const arrivedChecked = useRef<Set<string>>(new Set());
