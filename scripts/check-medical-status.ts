@@ -185,19 +185,35 @@ async function main() {
       ) {
         medicalStatus = "Fit";
         try {
-          const dateText = await page.$$eval(
-            ".medical-status-table .field_value",
-            (els) => els.map((el) => el.textContent ?? "").join(" ")
-          );
-          const m = dateText.match(
-            /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/
-          );
-          if (m) {
-            const parts = m[0].split(/[\/\-]/).map((p) => p.padStart(2, "0"));
-            examDate = parts[2].length === 4
-              ? `${parts[2]}-${parts[1]}-${parts[0]}`
-              : m[0];
-          }
+          // Find the field_name that contains "Medical Examination Date" and read
+          // its sibling field_value element for the actual date.
+          examDate = await page.evaluate(() => {
+            const DATE_RE = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/;
+            const labels = Array.from(document.querySelectorAll(".medical-status-table .field_name"));
+            for (const label of labels) {
+              if (/medical\s+examination\s+date/i.test(label.textContent ?? "")) {
+                const valueEl = label.closest("tr")?.querySelector(".field_value")
+                  ?? label.nextElementSibling;
+                const text = valueEl?.textContent ?? "";
+                const m = text.match(DATE_RE);
+                if (m) {
+                  const parts = m[0].split(/[\/\-]/).map((p) => p.padStart(2, "0"));
+                  return parts[2].length === 4
+                    ? `${parts[2]}-${parts[1]}-${parts[0]}`
+                    : m[0];
+                }
+              }
+            }
+            // Fallback: first date in any field_value
+            const allValues = Array.from(document.querySelectorAll(".medical-status-table .field_value"))
+              .map((el) => el.textContent ?? "").join(" ");
+            const fm = allValues.match(DATE_RE);
+            if (fm) {
+              const parts = fm[0].split(/[\/\-]/).map((p) => p.padStart(2, "0"));
+              return parts[2].length === 4 ? `${parts[2]}-${parts[1]}-${parts[0]}` : fm[0];
+            }
+            return null;
+          });
         } catch {}
       } else if (
         pageContent.includes("medical-status-modal-rejection") ||
@@ -222,7 +238,8 @@ async function main() {
 
       log(`  → Status: ${medicalStatus}${examDate ? ` (${examDate})` : ""}`);
 
-      if (candidate.medical_status === medicalStatus) {
+      // Always write Fit/Expired examination date; for other statuses skip if unchanged.
+      if (medicalStatus !== "Fit" && candidate.medical_status !== "Expired" && candidate.medical_status === medicalStatus) {
         unchanged++;
         continue;
       }
@@ -237,7 +254,7 @@ async function main() {
         log(`  ERROR updating ${candidate.full_name}: ${updateError.message}`);
         failed++;
       } else {
-        log(`  ✓ Updated ${candidate.full_name} → ${medicalStatus}`);
+        log(`  ✓ Updated ${candidate.full_name} → ${medicalStatus}${examDate ? ` (${examDate})` : ""}`);
         updated++;
       }
 

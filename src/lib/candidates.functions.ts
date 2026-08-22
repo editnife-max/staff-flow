@@ -813,10 +813,53 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
 
     if (resultHtml.includes("medical-status-modal-acceptance") || />\s*fit\s*</i.test(resultHtml)) {
       status = "Fit";
-      const dateMatch = resultHtml.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/);
-      if (dateMatch) {
-        const parts = dateMatch[0].split(/[\/\-]/).map((p: string) => p.padStart(2, "0"));
-        date = parts[2].length === 4 ? `${parts[2]}-${parts[1]}-${parts[0]}` : dateMatch[0];
+      const DATE_RE  = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/;
+      const DATE_RE_G = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/g;
+      let rawDate: string | undefined;
+
+      // Strategy 1: field_name / field_value in same <tr> (flexible class matching)
+      for (const rowMatch of resultHtml.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)) {
+        const row = rowMatch[1];
+        const nameEl = row.match(/class=["'][^"']*field_name[^"']*["'][^>]*>([\s\S]*?)<\/(?:td|th|div|span)/i);
+        if (!nameEl) continue;
+        const nameText = nameEl[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+        if (!/examination\s*date/i.test(nameText)) continue;
+        const valEl = row.match(/class=["'][^"']*field_value[^"']*["'][^>]*>([\s\S]*?)<\/(?:td|th|div|span)/i);
+        if (!valEl) continue;
+        rawDate = valEl[1].replace(/<[^>]+>/g, " ").trim().match(DATE_RE)?.[0];
+        if (rawDate) break;
+      }
+
+      // Strategy 2: plain-text scan — strip all tags, find "examination date" label,
+      // take the date in the immediately following ~80 characters.
+      if (!rawDate) {
+        const plain = resultHtml
+          .replace(/<[^>]+>/g, " ")
+          .replace(/&[a-zA-Z]+;/g, " ")
+          .replace(/\s+/g, " ");
+        const idx = plain.search(/examination\s*date\s*:?/i);
+        if (idx !== -1) rawDate = plain.slice(idx, idx + 80).match(DATE_RE)?.[0];
+      }
+
+      // Strategy 3: year-range heuristic over the full HTML.
+      // Medical Examination Date is always recent (≤ currentYear+1).
+      // Fitness Validity Date is ~4 years ahead (e.g. 2030) — excluded by the range.
+      // Scans the full page because on Wafid the data table renders BEFORE the
+      // modal-acceptance class, so a post-modal slice would miss the dates.
+      if (!rawDate) {
+        const currentYear = new Date().getFullYear();
+        rawDate = [...resultHtml.matchAll(DATE_RE_G)]
+          .map(m => m[0])
+          .find(d => {
+            const parts = d.split(/[\/\-]/);
+            const yr = parseInt(parts.find((p: string) => p.length === 4) ?? "0");
+            return yr >= currentYear - 1 && yr <= currentYear + 1;
+          });
+      }
+
+      if (rawDate) {
+        const parts = rawDate.split(/[\/\-]/).map((p: string) => p.padStart(2, "0"));
+        date = parts[2].length === 4 ? `${parts[2]}-${parts[1]}-${parts[0]}` : rawDate;
       }
     } else if (resultHtml.includes("medical-status-modal-rejection") || />\s*unfit\s*</i.test(resultHtml)) {
       status = "Unfit";
@@ -837,12 +880,15 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
       message = `Could not determine status. Response: ${snippet}`;
     }
 
-    if (status && status !== candidate.medical_status) {
+    if (status) {
       const today = new Date().toISOString().split("T")[0];
-      await supabaseAdmin
-        .from("candidates")
-        .update({ medical_status: status, medical_date: date ?? today })
-        .eq("id", data.candidateId);
+      // Always write Fit/Expired examination date; for other statuses only write on change.
+      if (status === "Fit" || candidate.medical_status === "Expired" || status !== candidate.medical_status) {
+        await supabaseAdmin
+          .from("candidates")
+          .update({ medical_status: status, medical_date: date ?? today })
+          .eq("id", data.candidateId);
+      }
     }
 
     return {

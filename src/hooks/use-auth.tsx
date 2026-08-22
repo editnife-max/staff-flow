@@ -85,10 +85,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => {
       setSession(s);
       if (s?.user) {
+        setLoading(true);
         // Defer to avoid Supabase client deadlock
-        setTimeout(() => fetchRole(s.user.id), 0);
+        setTimeout(() => fetchRole(s.user.id).finally(() => setLoading(false)), 0);
       } else {
         setRole(null);
+        setLoading(false);
       }
     });
     supabase.auth.getSession().then(({ data: { session: s } }) => {

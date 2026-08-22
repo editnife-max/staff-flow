@@ -712,8 +712,8 @@ function ManagerCandidatesPage() {
       if (fill.office && !c?.office)
         fieldMut.mutate({ id, field: "office", value: fill.office });
     }
-    // Clear medical date when status changes away from Fit or is unselected
-    if (field === "medical_status" && value !== "Fit") {
+    // Clear medical date when status changes away from Fit (keep it for Expired)
+    if (field === "medical_status" && value !== "Fit" && value !== "Expired") {
       if (current()?.medical_status === "Fit" || !value) fieldMut.mutate({ id, field: "medical_date", value: null });
     }
     // Visa arrived → set status to arrived

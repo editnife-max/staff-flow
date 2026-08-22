@@ -1054,8 +1054,8 @@ function StaffDashboard() {
 
   const handleUpdateField = (id: string, field: EditableField, value: string | null) => {
     fieldMut.mutate({ id, field, value });
-    // Undo medical Fit → clear medical date
-    if (field === "medical_status" && value !== "Fit") {
+    // Undo medical Fit → clear medical date (keep it when transitioning to Expired)
+    if (field === "medical_status" && value !== "Fit" && value !== "Expired") {
       const c = candidates.find((c) => c.id === id);
       if (c?.medical_status === "Fit") fieldMut.mutate({ id, field: "medical_date", value: null });
     }

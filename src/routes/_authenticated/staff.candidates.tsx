@@ -640,7 +640,7 @@ function StaffCandidatesPage() {
       if (fill.office && !current?.office)
         fieldMut.mutate({ id, field: "office", value: fill.office });
     }
-    if (field === "medical_status" && value !== "Fit") {
+    if (field === "medical_status" && value !== "Fit" && value !== "Expired") {
       const current = qc.getQueryData<Candidate[]>(["staff-candidates", user?.id])?.find((c) => c.id === id);
       if (current?.medical_status === "Fit" || !value) fieldMut.mutate({ id, field: "medical_date", value: null });
     }
@@ -1495,7 +1495,7 @@ function StaffCandidatesPage() {
               fieldMut.mutate({ id, field: "lmis_status", value: "Placed" });
             if (field === "medical_status" && value === "Fit")
               fieldMut.mutate({ id, field: "lmis_status", value: "Not tested" });
-            if (field === "medical_status" && value !== "Fit") {
+            if (field === "medical_status" && value !== "Fit" && value !== "Expired") {
               const c = qc.getQueryData<Candidate[]>(["staff-candidates", user?.id])?.find((c) => c.id === id);
               if (c?.medical_status === "Fit" || !value) fieldMut.mutate({ id, field: "medical_date", value: null });
             }

@@ -861,7 +861,7 @@ function ManagerDashboard() {
 
   const handleUpdateField = (id: string, field: string, value: string | null) => {
     fieldMut.mutate({ id, field, value });
-    if (field === "medical_status" && value !== "Fit") {
+    if (field === "medical_status" && value !== "Fit" && value !== "Expired") {
       const c = candidates.find((c) => c.id === id);
       if (c?.medical_status === "Fit") fieldMut.mutate({ id, field: "medical_date", value: null });
     }

@@ -17,14 +17,22 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, role, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  const ROLE_ROUTES: Record<string, string> = {
+    admin: "/admin/dashboard",
+    manager: "/manager/dashboard",
+    staff: "/staff/dashboard",
+    agency: "/agency/candidates",
+  };
+  const ROLE_PRIORITY = ["admin", "manager", "staff", "agency"] as const;
+
   useEffect(() => {
-    if (!loading && user) navigate({ to: "/dashboard" });
-  }, [loading, user, navigate]);
+    if (!loading && user && role) navigate({ to: ROLE_ROUTES[role] ?? "/dashboard" });
+  }, [loading, user, role, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +43,6 @@ function LoginPage() {
       toast.error(error.message);
       return;
     }
-    // Block access if the account has no role assigned
     const userId = signInData.user?.id;
     if (userId) {
       const { data: roleData } = await supabase
@@ -48,6 +55,11 @@ function LoginPage() {
         toast.error("Your account has been deactivated. Contact your administrator.");
         return;
       }
+      const resolved = ROLE_PRIORITY.find((r) => roleData.some((rd) => rd.role === r));
+      setSubmitting(false);
+      toast.success("Welcome back!");
+      navigate({ to: resolved ? (ROLE_ROUTES[resolved] ?? "/dashboard") : "/dashboard" });
+      return;
     }
     setSubmitting(false);
     toast.success("Welcome back!");
