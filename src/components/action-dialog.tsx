@@ -34,8 +34,7 @@ export const EXPORT_COLUMNS: { key: keyof Candidate; label: string }[] = [
   { key: "narrative_phone",    label: "Narrative Phone No." },
   { key: "coc_status",         label: "COC Status" },
   { key: "ticket_status",      label: "Ticket" },
-  { key: "ticket_date",        label: "Kuwait Ticket Date" },
-  { key: "ticket_date",        label: "Saudi Ticket Date" },
+  { key: "ticket_date",        label: "Ticket Date" },
   { key: "lmis_status",        label: "LMIS" },
   { key: "age",                label: "Age" },
   { key: "wokala_status",      label: "Wokala" },
@@ -53,14 +52,29 @@ export const EXPORT_COLUMNS: { key: keyof Candidate; label: string }[] = [
   { key: "insurance_status",   label: "Insurance" },
 ];
 
+// Columns shown and used when "Download Excel for Ticket" is selected.
+// Uses dedicated labels for ticket-context fields.
+export const TICKET_EXPORT_COLUMNS: { key: keyof Candidate; label: string }[] = [
+  { key: "full_name",            label: "Full Name" },
+  { key: "passport_number",      label: "Passport No." },
+  { key: "passport_expiry_date", label: "Passport Expiry" },
+  { key: "dob",                  label: "Date of Birth" },
+  { key: "country",              label: "Nationality" },
+  { key: "occupation",           label: "Occupation" },
+  { key: "destination_country",  label: "Destination" },
+  { key: "office",               label: "Office" },
+  { key: "ticket_date",          label: "Ticket Date" },
+  { key: "ticket_status",        label: "Ticket Status" },
+  { key: "arrival_city",         label: "Arrival City" },
+];
+
 export const DEFAULT_EXPORT_COLS = new Set<string>([
   "full_name", "passport_number", "labour_id", "narrative",
 ]);
 
-export const TICKET_DEFAULT_COLS: (keyof Candidate)[] = [
-  "full_name", "passport_number", "passport_expiry_date",
-  "dob", "country", "occupation", "destination_country", "office",
-];
+export const TICKET_DEFAULT_COLS = new Set<string>(
+  TICKET_EXPORT_COLUMNS.map((c) => c.key as string),
+);
 
 export const SORT_FIELDS = [
   { key: "full_name",      label: "Full Name" },
@@ -116,11 +130,18 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
   const isBulk = candidates.length > 1;
   const preview = candidates[0] ?? null;
 
+  // Reset selected columns to sensible defaults whenever the download type changes.
   useEffect(() => {
     if (downloadType === "excel-ticket") {
-      setSelectedCols(new Set(TICKET_DEFAULT_COLS as string[]));
+      setSelectedCols(new Set(TICKET_DEFAULT_COLS));
+    } else if (downloadType === "excel") {
+      setSelectedCols(new Set(DEFAULT_EXPORT_COLS));
     }
   }, [downloadType]);
+
+  // Active column definitions depend on the download type.
+  const activeColDefs =
+    downloadType === "excel-ticket" ? TICKET_EXPORT_COLUMNS : EXPORT_COLUMNS;
 
   const allDownloadTypes = [
     ...DOWNLOAD_TYPES,
@@ -209,6 +230,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
 
       } else if (downloadType === "summary-pdf") {
         const cols = EXPORT_COLUMNS.filter((col) => selectedCols.has(col.key as string));
+        // summary-pdf always uses EXPORT_COLUMNS (not ticket columns)
         if (cols.length === 0) throw new Error("Select at least one column to export.");
         const tableEl = document.createElement("div");
         tableEl.style.cssText = "position:absolute;left:-9999px;top:0;width:900px;padding:24px;background:#fff;font-family:Arial,sans-serif";
@@ -241,30 +263,43 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
       } else {
         // Excel → .xlsx with styled header + row numbers
         const XLSX = await import("xlsx-js-style");
-        const cols = EXPORT_COLUMNS.filter((col) => selectedCols.has(col.key as string));
+        const cols = activeColDefs.filter((col) => selectedCols.has(col.key as string));
         if (cols.length === 0) throw new Error("Select at least one column to export.");
 
-        const PRIMARY_C   = "1A3A52";
-        const SECONDARY_C = "5CB8C4";
-        const WHITE_C     = "FFFFFF";
+        const GREEN_HDR  = "16a34a"; // success green — all headers
+        const GREEN_NUM  = "4ade80"; // lighter green — number data cells
+        const GREEN_DARK = "14532d"; // dark green text for number cells
+        const WHITE_C    = "FFFFFF";
+
+        const hdrBorder = { style: "medium", color: { rgb: GREEN_DARK } };
         const hdrStyle = {
-          fill: { fgColor: { rgb: PRIMARY_C } },
+          fill: { fgColor: { rgb: GREEN_HDR } },
           font: { bold: true, color: { rgb: WHITE_C }, sz: 11 },
           alignment: { horizontal: "center", vertical: "center", wrapText: true },
         };
-        const numHdrStyle = { ...hdrStyle, fill: { fgColor: { rgb: SECONDARY_C } } };
-        const numStyle = {
-          fill: { fgColor: { rgb: SECONDARY_C } },
-          font: { bold: true, color: { rgb: WHITE_C }, sz: 10 },
+        // "Number" header matches the other column headers exactly
+        const numHdrStyle = {
+          fill: { fgColor: { rgb: GREEN_HDR } },
+          font: { bold: true, color: { rgb: WHITE_C }, sz: 11 },
           alignment: { horizontal: "center", vertical: "center" },
+          border: { top: hdrBorder, bottom: hdrBorder, left: hdrBorder, right: hdrBorder },
         };
         const cellStyle = { alignment: { vertical: "center" }, font: { sz: 10 } };
+        const numCellBorder = { style: "thin", color: { rgb: GREEN_DARK } };
 
         const sc = (v: string | number, s: object) => ({ v, t: typeof v === "number" ? "n" : "s", s });
 
-        const headerRow = [sc("#", numHdrStyle), ...cols.map((col) => sc(col.label, hdrStyle))];
+        // Each number cell gets its own independent style object with border.
+        const makeNumStyle = () => ({
+          fill: { fgColor: { rgb: GREEN_NUM } },
+          font: { bold: true, color: { rgb: GREEN_DARK }, sz: 11 },
+          alignment: { horizontal: "center", vertical: "center" },
+          border: { top: numCellBorder, bottom: numCellBorder, left: numCellBorder, right: numCellBorder },
+        });
+
+        const headerRow = [sc("Number", numHdrStyle), ...cols.map((col) => sc(col.label, hdrStyle))];
         const dataRows  = sortedCandidates.map((cand, i) => [
-          sc(i + 1, numStyle),
+          sc(i + 1, makeNumStyle()),
           ...cols.map((col) => {
             const v = cand[col.key];
             return sc(v == null ? "" : typeof v === "number" ? v : String(v), cellStyle);
@@ -272,8 +307,8 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
         ]);
 
         const ws = XLSX.utils.aoa_to_sheet([headerRow, ...dataRows]);
-        ws["!cols"] = ["#", ...cols.map((c) => c.label)].map((h, i) => ({
-          wch: i === 0 ? 5 : Math.max(h.length, ...dataRows.map((r) => String((r[i] as any)?.v ?? "").length), 12),
+        ws["!cols"] = ["Number", ...cols.map((c) => c.label)].map((h, i) => ({
+          wch: i === 0 ? 9 : Math.max(h.length, ...dataRows.map((r) => String((r[i] as any)?.v ?? "").length), 12),
         }));
         ws["!freeze"] = { xSplit: 0, ySplit: 1 };
 
@@ -284,8 +319,8 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
         const url  = URL.createObjectURL(blob);
         const a = document.createElement("a");
         const fileName = isBulk
-          ? `${candidates.length} Candidates — ${currentType.label} ${fileTimestamp()}.xlsx`
-          : `${preview!.full_name} — ${currentType.label} ${fileTimestamp()}.xlsx`;
+          ? `${candidates.length} Candidates — ${currentType.label}.xlsx`
+          : `${preview!.full_name} — ${currentType.label}.xlsx`;
         a.href = url; a.download = fileName;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 30_000);
@@ -383,15 +418,18 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
               {colsOpen && (
                 <div className="px-4 pb-4 overflow-y-auto flex-1">
                   <div className="flex gap-3 mb-3">
-                    <button type="button" onClick={() => setSelectedCols(new Set(EXPORT_COLUMNS.map((c) => c.key as string)))}
+                    <button type="button"
+                      onClick={() => setSelectedCols(new Set(activeColDefs.map((c) => c.key as string)))}
                       className="text-xs text-primary hover:underline font-medium">All</button>
-                    <button type="button" onClick={() => setSelectedCols(new Set(DEFAULT_EXPORT_COLS))}
-                      className="text-xs text-muted-foreground hover:underline">Default</button>
+                    {downloadType !== "excel-ticket" && (
+                      <button type="button" onClick={() => setSelectedCols(new Set(DEFAULT_EXPORT_COLS))}
+                        className="text-xs text-muted-foreground hover:underline">Default</button>
+                    )}
                     <button type="button" onClick={() => setSelectedCols(new Set())}
                       className="text-xs text-muted-foreground hover:underline">None</button>
                   </div>
                   <div className="grid grid-cols-4 gap-x-2 gap-y-1.5">
-                    {EXPORT_COLUMNS.map((col) => {
+                    {activeColDefs.map((col) => {
                       const checked = selectedCols.has(col.key as string);
                       return (
                         <label key={col.label}
