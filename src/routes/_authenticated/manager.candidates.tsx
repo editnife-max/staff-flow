@@ -417,7 +417,8 @@ function ManagerCandidatesPage() {
   const fetchCandidates = useServerFn(getCandidates);
   const [selected, setSelected] = useState<Set<string>>(() => {
     try {
-      const t = tabParam ?? "available";
+      // Match the same tab resolution used by the tab state initializer
+      const t = tabParam ?? sessionStorage.getItem("mgr-last-tab") ?? "available";
       const s = sessionStorage.getItem(`mgr-selected-${t}`);
       if (s) return new Set(JSON.parse(s));
     } catch {}
@@ -448,6 +449,12 @@ function ManagerCandidatesPage() {
     } catch {}
     return "available";
   });
+  // Ref that always reflects the current tab synchronously during render,
+  // used by the selection-save effect so it saves to the right tab key
+  // even if tab and selected change in the same React batch.
+  const currentTabRef = useRef(tab);
+  currentTabRef.current = tab;
+
   useEffect(() => { if (tabParam) setTab(tabParam); }, [tabParam]);
   useEffect(() => { try { sessionStorage.setItem("mgr-last-tab", tab); } catch {} }, [tab]);
   const [passport, setPassport] = useState(() => {
@@ -487,9 +494,13 @@ function ManagerCandidatesPage() {
   const activeCount = Object.entries(filters).filter(([k, v]) =>
     k !== "sort" && (Array.isArray(v) ? v.length > 0 : v && v !== "all")
   ).length;
+  // Save selection only when it genuinely changes (not when tab changes).
+  // Using the ref avoids the race where tab has already flipped to the new value
+  // while selected still holds the previous tab's items.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    try { sessionStorage.setItem(`mgr-selected-${tab}`, JSON.stringify([...selected])); } catch {}
-  }, [selected, tab]);
+    try { sessionStorage.setItem(`mgr-selected-${currentTabRef.current}`, JSON.stringify([...selected])); } catch {}
+  }, [selected]);
 
   // Restore per-tab filters and selection when tab changes (save happens in the tab-click handler)
   useEffect(() => {
@@ -965,6 +976,8 @@ function ManagerCandidatesPage() {
     onSuccess: (r, status) => {
       toast.success(`Updated ${r.count} candidate(s)`);
       qc.invalidateQueries({ queryKey: ["manager-candidates"] });
+      clearSelection();
+      setLastBulkOp(null);
       setTab(status);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -1002,7 +1015,6 @@ function ManagerCandidatesPage() {
       return bulkField({ data: { ids, field: field as any, value } });
     },
     onSuccess: (r, { field, value }, context) => {
-      if (context) setLastBulkOp(context);
       toast.success(`Updated ${r.count} candidate(s)`);
       qc.invalidateQueries({ queryKey: ["manager-candidates"] });
       if (field === "coc_status" && value === "Done")
@@ -1014,6 +1026,8 @@ function ManagerCandidatesPage() {
         const isMulti = ["medical", "musaned"].includes(fk);
         setFilters((prev) => ({ ...prev, [fk]: isMulti ? [value] : value }));
       }
+      clearSelection();
+      if (context) setLastBulkOp(context);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -1024,6 +1038,12 @@ function ManagerCandidatesPage() {
   const [bulkNarrativeText, setBulkNarrativeText] = useState("");
   const [bulkNarrativePhone, setBulkNarrativePhone] = useState("");
   const [lastBulkOp, setLastBulkOp] = useState<{ field: string; prevs: Array<{ id: string; value: string | null }> } | null>(null);
+  useEffect(() => {
+    if (!lastBulkOp) return;
+    const t = setTimeout(() => setLastBulkOp(null), 60_000);
+    return () => clearTimeout(t);
+  }, [lastBulkOp]);
+  const [pendingBulk, setPendingBulk] = useState<{ title: string; description: string; action: () => void } | null>(null);
 
   const undoBulkMut = useMutation({
     mutationFn: async () => {
@@ -1058,6 +1078,8 @@ function ManagerCandidatesPage() {
       qc.invalidateQueries({ queryKey: ["manager-candidates"] });
       setTicketDateOpen(false);
       setTicketDate("");
+      clearSelection();
+      setLastBulkOp(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -1076,6 +1098,8 @@ function ManagerCandidatesPage() {
       qc.invalidateQueries({ queryKey: ["manager-candidates"] });
       setTasheerDateOpen(false);
       setTasheerDate("");
+      clearSelection();
+      setLastBulkOp(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -1094,6 +1118,8 @@ function ManagerCandidatesPage() {
       qc.invalidateQueries({ queryKey: ["manager-candidates"] });
       setVisaReturnedOpen(false);
       setVisaReturnedReason("");
+      clearSelection();
+      setLastBulkOp(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -1122,6 +1148,8 @@ function ManagerCandidatesPage() {
       setTasheerDoneOpen(false);
       setTasheerDoneStep("ask");
       setTasheerDoneReason("");
+      clearSelection();
+      setLastBulkOp(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -1406,9 +1434,11 @@ function ManagerCandidatesPage() {
                 key={t.key}
                 onClick={() => {
                   saveFilterCache(tab, filters, passport);
+                  // Persist selection for the tab we're leaving before the ref flips
+                  try { sessionStorage.setItem(`mgr-selected-${tab}`, JSON.stringify([...selected])); } catch {}
                   navigate({ to: "/manager/candidates", search: { tab: t.key }, replace: true });
                   setTab(t.key);
-                  clearSelection();
+                  // Don't clearSelection — the tab-change useEffect restores each tab's own selection
                 }}
                 className={cn(
                   "pb-2 text-[16px] font-medium transition-colors",
@@ -1533,13 +1563,17 @@ function ManagerCandidatesPage() {
         </Card>
       )}
 
-      {(selected.size > 0 || !!lastBulkOp) && (
+      {selected.size > 0 && (
         <Card className="border-primary/40 bg-primary/5">
           <CardContent className="p-3 flex flex-wrap items-center gap-3">
             {selected.size > 0 && <span className="text-sm font-semibold pl-1">{selected.size} selected</span>}
             <div className="ml-auto flex flex-wrap items-center gap-2">
             {selected.size > 0 && (<>
-              <Select onValueChange={(v) => bulkStatusMut.mutate(v as Status)}>
+              <Select onValueChange={(v) => setPendingBulk({
+                title: "Change Status",
+                description: `Set status to "${v}" for ${selected.size} candidate${selected.size !== 1 ? "s" : ""}?`,
+                action: () => bulkStatusMut.mutate(v as Status),
+              })}>
                 <SelectTrigger className="h-9 w-[150px]">
                   <SelectValue placeholder="Status…" />
                 </SelectTrigger>
@@ -1566,10 +1600,15 @@ function ManagerCandidatesPage() {
                 return (
                   <Select key={fd.key} onValueChange={(v) => {
                     if (v === "__clear__") {
-                      bulkFieldMut.mutateAsync({ field: fd.key, value: null })
-                        .then(() => { if (fd.key === "visa_status") bulkFieldMut.mutate({ field: "embassy_date", value: null }); });
+                      setPendingBulk({
+                        title: `Clear ${fd.label}`,
+                        description: `Clear ${fd.label} for ${selected.size} candidate${selected.size !== 1 ? "s" : ""}?`,
+                        action: () => bulkFieldMut.mutateAsync({ field: fd.key, value: null })
+                          .then(() => { if (fd.key === "visa_status") bulkFieldMut.mutate({ field: "embassy_date", value: null }); }),
+                      });
                       return;
                     }
+                    // These have their own dedicated dialogs — no extra confirm needed
                     if (fd.key === "ticket_status" && v === "Booked") { setTicketDateOpen(true); }
                     else if (fd.key === "tasheer_status" && v === "Booked") { setTasheerDateOpen(true); }
                     else if (fd.key === "tasheer_status" && v === "Done") {
@@ -1580,17 +1619,17 @@ function ManagerCandidatesPage() {
                       if (blocked > 0) { toast.error(`${blocked} candidate(s) must be Processing with Tasheer = Done and either Passport Accepted or Wokala = Paid`); }
                       else { setVisaReturnedOpen(true); setVisaReturnedReason(""); }
                     }
+                    // All other field updates go through the confirmation dialog
                     else if (fd.key === "visa_status" && v === "Ready for embassy") {
                       const blocked = candidates.filter((c) => selected.has(c.id) && (c.status !== "processing" || c.tasheer_status !== "Done" || (c.wokala_status !== "Paid" && c.passport_accepted !== true)));
                       if (blocked.length > 0) { toast.error(`${blocked.length} candidate(s) must be Processing with Tasheer = Done and either Passport Accepted or Wokala = Paid`); }
-                      else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
+                      else { setPendingBulk({ title: `Set ${fd.label}`, description: `Set ${fd.label} to "${v}" for ${selected.size} candidate${selected.size !== 1 ? "s" : ""}?`, action: () => bulkFieldMut.mutate({ field: fd.key, value: v }) }); }
                     }
                     else if (fd.key === "visa_status" && v === "Sent to Embassy") {
                       const today = new Date().toISOString().split("T")[0];
-                      bulkFieldMut.mutateAsync({ field: "visa_status", value: v })
-                        .then(() => bulkFieldMut.mutate({ field: "embassy_date", value: today }));
+                      setPendingBulk({ title: `Set ${fd.label}`, description: `Set ${fd.label} to "${v}" for ${selected.size} candidate${selected.size !== 1 ? "s" : ""}?`, action: () => bulkFieldMut.mutateAsync({ field: "visa_status", value: v }).then(() => bulkFieldMut.mutate({ field: "embassy_date", value: today })) });
                     }
-                    else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
+                    else { setPendingBulk({ title: `Set ${fd.label}`, description: `Set ${fd.label} to "${v}" for ${selected.size} candidate${selected.size !== 1 ? "s" : ""}?`, action: () => bulkFieldMut.mutate({ field: fd.key, value: v }) }); }
                   }}>
                     <SelectTrigger className="h-9 w-[120px]">
                       <SelectValue placeholder={fd.label} />
@@ -1612,10 +1651,11 @@ function ManagerCandidatesPage() {
               <Button
                 size="sm" variant="destructive" className="gap-1"
                 disabled={bulkDeleteMut.isPending}
-                onClick={() => {
-                  if (confirm(`Delete ${selected.size} candidate(s)? This cannot be undone.`))
-                    bulkDeleteMut.mutate();
-                }}
+                onClick={() => setPendingBulk({
+                  title: "Delete Candidates",
+                  description: `Permanently move ${selected.size} candidate${selected.size !== 1 ? "s" : ""} to Canceled? This cannot be undone.`,
+                  action: () => bulkDeleteMut.mutate(),
+                })}
               >
                 <Trash2 className="h-4 w-4" /> Delete
               </Button>
@@ -1623,7 +1663,7 @@ function ManagerCandidatesPage() {
                 <X className="h-4 w-4" /> Clear
               </Button>
             </>)}
-            {lastBulkOp && (
+            {lastBulkOp && selected.size > 0 && (
               <Button size="sm" variant="outline" className="gap-1" disabled={undoBulkMut.isPending} onClick={() => undoBulkMut.mutate()}>
                 <Undo2 className="h-3.5 w-3.5" /> Undo
               </Button>
@@ -2096,6 +2136,27 @@ function ManagerCandidatesPage() {
             </Button>
             <Button variant="outline" disabled={tasheerDoneMut.isPending} onClick={() => tasheerDoneMut.mutate(false)}>
               {tasheerDoneMut.isPending ? "Updating…" : "No — Not Accepted"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk action confirmation dialog */}
+      <Dialog open={!!pendingBulk} onOpenChange={(o) => { if (!o) setPendingBulk(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{pendingBulk?.title}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{pendingBulk?.description}</p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setPendingBulk(null)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                pendingBulk?.action();
+                setPendingBulk(null);
+              }}
+            >
+              Confirm
             </Button>
           </DialogFooter>
         </DialogContent>

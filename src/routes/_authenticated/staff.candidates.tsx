@@ -443,13 +443,20 @@ function StaffCandidatesPage() {
   const bulkField       = useServerFn(bulkUpdateField);
   const getNextCode     = useServerFn(nextCandidateCode);
   const fetchCandidates = useServerFn(getCandidates);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const { tab: tabParam } = Route.useSearch();
+  const [selected, setSelected] = useState<Set<string>>(() => {
+    try {
+      const t = tabParam ?? sessionStorage.getItem("stf-last-tab") ?? "available";
+      const s = sessionStorage.getItem(`stf-selected-${t}`);
+      if (s) return new Set(JSON.parse(s));
+    } catch {}
+    return new Set();
+  });
   const toggleSelect = (id: string) =>
     setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const clearSelection = () => setSelected(new Set());
   const [actionCandidates, setActionCandidates] = useState<Candidate[]>([]);
-
-  const { tab: tabParam } = Route.useSearch();
   const filterCache = useRef<Map<string, { f: typeof initialFilters; p: string }>>((() => {
     try {
       const raw = sessionStorage.getItem("stf-filter-cache");
@@ -461,8 +468,20 @@ function StaffCandidatesPage() {
     filterCache.current.set(t, { f, p });
     try { sessionStorage.setItem("stf-filter-cache", JSON.stringify(Object.fromEntries(filterCache.current))); } catch {}
   };
-  const [tab, setTab] = useState<Status>(tabParam ?? "available");
+  const [tab, setTab] = useState<Status>(() => {
+    if (tabParam) return tabParam;
+    try {
+      const saved = sessionStorage.getItem("stf-last-tab");
+      if (saved && (["available","processing","arrived","returned","canceled"] as string[]).includes(saved))
+        return saved as Status;
+    } catch {}
+    return "available";
+  });
+  const currentTabRef = useRef(tab);
+  currentTabRef.current = tab;
+
   useEffect(() => { if (tabParam) setTab(tabParam); }, [tabParam]);
+  useEffect(() => { try { sessionStorage.setItem("stf-last-tab", tab); } catch {} }, [tab]);
   const [passport, setPassport] = useState(() => {
     try { return filterCache.current.get(tabParam ?? "available")?.p ?? ""; } catch { return ""; }
   });
@@ -472,11 +491,20 @@ function StaffCandidatesPage() {
   const activeCount = Object.entries(filters).filter(([k, v]) =>
     k !== "sort" && (Array.isArray(v) ? v.length > 0 : v && v !== "all")
   ).length;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    try { sessionStorage.setItem(`stf-selected-${currentTabRef.current}`, JSON.stringify([...selected])); } catch {}
+  }, [selected]);
+
   // Restore per-tab filters when tab changes (save happens in the tab-click handler)
   useEffect(() => {
     const cached = filterCache.current.get(tab);
     setFilters(cached?.f ?? initialFilters);
     setPassport(cached?.p ?? "");
+    try {
+      const s = sessionStorage.getItem(`stf-selected-${tab}`);
+      setSelected(s ? new Set(JSON.parse(s)) : new Set());
+    } catch { setSelected(new Set()); }
   }, [tab]);
 
   // Global deep search
@@ -872,6 +900,8 @@ function StaffCandidatesPage() {
     onSuccess: (r, status) => {
       toast.success(`Updated ${r.count} candidate(s)`);
       qc.invalidateQueries({ queryKey: ["staff-candidates"] });
+      clearSelection();
+      setLastBulkOp(null);
       setTab(status);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -912,6 +942,7 @@ function StaffCandidatesPage() {
       if (context) setLastBulkOp(context);
       toast.success(`Updated ${r.count} candidate(s)`);
       qc.invalidateQueries({ queryKey: ["staff-candidates"] });
+      clearSelection();
       if (field === "coc_status" && value === "Done")
         bulkField({ data: { ids: Array.from(selected), field: "lmis_status", value: "Placed" } });
       const fk = BULK_FIELD_TO_FILTER[field];
@@ -929,6 +960,12 @@ function StaffCandidatesPage() {
   const [bulkNarrativeText, setBulkNarrativeText] = useState("");
   const [bulkNarrativePhone, setBulkNarrativePhone] = useState("");
   const [lastBulkOp, setLastBulkOp] = useState<{ field: string; prevs: Array<{ id: string; value: string | null }> } | null>(null);
+  useEffect(() => {
+    if (!lastBulkOp) return;
+    const t = setTimeout(() => setLastBulkOp(null), 60_000);
+    return () => clearTimeout(t);
+  }, [lastBulkOp]);
+  const [pendingBulk, setPendingBulk] = useState<{ title: string; description: string; action: () => void } | null>(null);
 
   const undoBulkMut = useMutation({
     mutationFn: async () => {
@@ -961,6 +998,8 @@ function StaffCandidatesPage() {
     onSuccess: () => {
       toast.success(`Updated ${selected.size} candidate(s)`);
       qc.invalidateQueries({ queryKey: ["staff-candidates"] });
+      clearSelection();
+      setLastBulkOp(null);
       setTicketDateOpen(false);
       setTicketDate("");
     },
@@ -979,6 +1018,8 @@ function StaffCandidatesPage() {
     onSuccess: () => {
       toast.success(`Updated ${selected.size} candidate(s)`);
       qc.invalidateQueries({ queryKey: ["staff-candidates"] });
+      clearSelection();
+      setLastBulkOp(null);
       setVisaReturnedOpen(false);
       setVisaReturnedReason("");
     },
@@ -1006,6 +1047,8 @@ function StaffCandidatesPage() {
     onSuccess: () => {
       toast.success(`Updated ${selected.size} candidate(s)`);
       qc.invalidateQueries({ queryKey: ["staff-candidates"] });
+      clearSelection();
+      setLastBulkOp(null);
       setTasheerDoneOpen(false);
       setTasheerDoneStep("ask");
       setTasheerDoneReason("");
@@ -1025,6 +1068,8 @@ function StaffCandidatesPage() {
     onSuccess: () => {
       toast.success(`Updated ${selected.size} candidate(s)`);
       qc.invalidateQueries({ queryKey: ["staff-candidates"] });
+      clearSelection();
+      setLastBulkOp(null);
       setTasheerDateOpen(false);
       setTasheerDate("");
     },
@@ -1299,9 +1344,10 @@ function StaffCandidatesPage() {
                 key={t.key}
                 onClick={() => {
                   saveFilterCache(tab, filters, passport);
+                  try { sessionStorage.setItem(`stf-selected-${tab}`, JSON.stringify([...selected])); } catch {}
                   navigate({ to: "/staff/candidates", search: { tab: t.key }, replace: true });
                   setTab(t.key);
-                  clearSelection();
+                  // Don't clearSelection — the tab-change useEffect restores each tab's own selection
                 }}
                 className={cn(
                   "pb-2 text-[16px] font-medium transition-colors",
@@ -1422,13 +1468,17 @@ function StaffCandidatesPage() {
       )}
 
       {/* Bulk actions */}
-      {(selected.size > 0 || !!lastBulkOp) && (
+      {selected.size > 0 && (
         <Card className="border-primary/40 bg-primary/5">
           <CardContent className="p-3 flex flex-wrap items-center gap-3">
             {selected.size > 0 && <span className="text-sm font-semibold pl-1">{selected.size} selected</span>}
             <div className="ml-auto flex flex-wrap items-center gap-2">
             {selected.size > 0 && (<>
-              <Select onValueChange={(v) => bulkStatusMut.mutate(v as Status)}>
+              <Select onValueChange={(v) => setPendingBulk({
+                title: "Change Status",
+                description: `Set status to "${v}" for ${selected.size} candidate${selected.size !== 1 ? "s" : ""}?`,
+                action: () => bulkStatusMut.mutate(v as Status),
+              })}>
                 <SelectTrigger className="h-9 w-[150px]">
                   <SelectValue placeholder="Status…" />
                 </SelectTrigger>
@@ -1455,8 +1505,12 @@ function StaffCandidatesPage() {
                 return (
                   <Select key={fd.key} onValueChange={(v) => {
                     if (v === "__clear__") {
-                      bulkFieldMut.mutateAsync({ field: fd.key, value: null })
-                        .then(() => { if (fd.key === "visa_status") bulkFieldMut.mutate({ field: "embassy_date", value: null }); });
+                      setPendingBulk({
+                        title: `Clear ${fd.label}`,
+                        description: `Clear ${fd.label} for ${selected.size} candidate${selected.size !== 1 ? "s" : ""}?`,
+                        action: () => bulkFieldMut.mutateAsync({ field: fd.key, value: null })
+                          .then(() => { if (fd.key === "visa_status") bulkFieldMut.mutate({ field: "embassy_date", value: null }); }),
+                      });
                       return;
                     }
                     if (fd.key === "ticket_status" && v === "Booked") { setTicketDateOpen(true); }
@@ -1472,14 +1526,26 @@ function StaffCandidatesPage() {
                     else if (fd.key === "visa_status" && v === "Ready for embassy") {
                       const blocked = candidates.filter((c) => selected.has(c.id) && (c.status !== "processing" || c.tasheer_status !== "Done" || (c.wokala_status !== "Paid" && c.passport_accepted !== true)));
                       if (blocked.length > 0) { toast.error(`${blocked.length} candidate(s) must be Processing with Tasheer = Done and either Passport Accepted or Wokala = Paid`); }
-                      else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
+                      else { setPendingBulk({
+                        title: `Set ${fd.label}`,
+                        description: `Set ${fd.label} to "${v}" for ${selected.size} candidate${selected.size !== 1 ? "s" : ""}?`,
+                        action: () => bulkFieldMut.mutate({ field: fd.key, value: v }),
+                      }); }
                     }
                     else if (fd.key === "visa_status" && v === "Sent to Embassy") {
                       const today = new Date().toISOString().split("T")[0];
-                      bulkFieldMut.mutateAsync({ field: "visa_status", value: v })
-                        .then(() => bulkFieldMut.mutate({ field: "embassy_date", value: today }));
+                      setPendingBulk({
+                        title: `Set ${fd.label}`,
+                        description: `Set ${fd.label} to "${v}" for ${selected.size} candidate${selected.size !== 1 ? "s" : ""}?`,
+                        action: () => bulkFieldMut.mutateAsync({ field: "visa_status", value: v })
+                          .then(() => bulkFieldMut.mutate({ field: "embassy_date", value: today })),
+                      });
                     }
-                    else { bulkFieldMut.mutate({ field: fd.key, value: v }); }
+                    else { setPendingBulk({
+                      title: `Set ${fd.label}`,
+                      description: `Set ${fd.label} to "${v}" for ${selected.size} candidate${selected.size !== 1 ? "s" : ""}?`,
+                      action: () => bulkFieldMut.mutate({ field: fd.key, value: v }),
+                    }); }
                   }}>
                     <SelectTrigger className="h-9 w-[120px]">
                       <SelectValue placeholder={fd.label} />
@@ -1503,10 +1569,11 @@ function StaffCandidatesPage() {
                 variant="destructive"
                 className="gap-1"
                 disabled={bulkDeleteMut.isPending}
-                onClick={() => {
-                  if (confirm(`Delete ${selected.size} candidate(s)? This cannot be undone.`))
-                    bulkDeleteMut.mutate();
-                }}
+                onClick={() => setPendingBulk({
+                  title: "Delete Candidates",
+                  description: `Permanently move ${selected.size} candidate${selected.size !== 1 ? "s" : ""} to Canceled? This cannot be undone.`,
+                  action: () => bulkDeleteMut.mutate(),
+                })}
               >
                 <Trash2 className="h-4 w-4" /> Delete
               </Button>
@@ -1514,7 +1581,7 @@ function StaffCandidatesPage() {
                 <X className="h-4 w-4" /> Clear
               </Button>
             </>)}
-            {lastBulkOp && (
+            {lastBulkOp && selected.size > 0 && (
               <Button size="sm" variant="outline" className="gap-1" disabled={undoBulkMut.isPending} onClick={() => undoBulkMut.mutate()}>
                 <Undo2 className="h-3.5 w-3.5" /> Undo
               </Button>
@@ -1998,6 +2065,27 @@ function StaffCandidatesPage() {
         agencyPhones={agencyPhones}
       />
 
+      {/* Bulk action confirmation dialog */}
+      <Dialog open={!!pendingBulk} onOpenChange={(o) => { if (!o) setPendingBulk(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{pendingBulk?.title}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{pendingBulk?.description}</p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setPendingBulk(null)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                pendingBulk?.action();
+                setPendingBulk(null);
+              }}
+            >
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
@@ -2245,8 +2333,14 @@ function CandidateCardList({
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [showColPicker]);
-  const [activeCountryTab, setActiveCountryTab] = useState("all");
-  const [activeOfficeTab, setActiveOfficeTab] = useState("all");
+  const [activeCountryTab, setActiveCountryTab] = useState(() => {
+    try { return sessionStorage.getItem(`stf-card-country-${pageKey}`) || "all"; } catch { return "all"; }
+  });
+  const [activeOfficeTab, setActiveOfficeTab] = useState(() => {
+    try { return sessionStorage.getItem(`stf-card-office-${pageKey}`) || "all"; } catch { return "all"; }
+  });
+  useEffect(() => { try { sessionStorage.setItem(`stf-card-country-${pageKey}`, activeCountryTab); } catch {} }, [activeCountryTab, pageKey]);
+  useEffect(() => { try { sessionStorage.setItem(`stf-card-office-${pageKey}`, activeOfficeTab); } catch {} }, [activeOfficeTab, pageKey]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fadeRef = useRef<HTMLDivElement>(null);
   const mirrorRef = useRef<HTMLDivElement>(null);
@@ -3200,10 +3294,26 @@ function ProcessingTable({
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [showColPicker]);
-  const [search, setSearch] = useState("");
-  const [procFilters, setProcFilters] = useState(INITIAL_PROC_FILTERS);
-  const [activeCountryTab, setActiveCountryTab] = useState("all");
-  const [activeOfficeTab, setActiveOfficeTab] = useState("all");
+  const [search, setSearch] = useState(() => {
+    try { return sessionStorage.getItem(`stf-proc-search-${pageKey}`) || ""; } catch { return ""; }
+  });
+  const [procFilters, setProcFilters] = useState<typeof INITIAL_PROC_FILTERS>(() => {
+    try {
+      const s = sessionStorage.getItem(`stf-proc-filters-${pageKey}`);
+      if (s) return { ...INITIAL_PROC_FILTERS, ...JSON.parse(s) };
+    } catch {}
+    return INITIAL_PROC_FILTERS;
+  });
+  const [activeCountryTab, setActiveCountryTab] = useState(() => {
+    try { return sessionStorage.getItem(`stf-proc-country-${pageKey}`) || "all"; } catch { return "all"; }
+  });
+  const [activeOfficeTab, setActiveOfficeTab] = useState(() => {
+    try { return sessionStorage.getItem(`stf-proc-office-${pageKey}`) || "all"; } catch { return "all"; }
+  });
+  useEffect(() => { try { sessionStorage.setItem(`stf-proc-search-${pageKey}`, search); } catch {} }, [search, pageKey]);
+  useEffect(() => { try { sessionStorage.setItem(`stf-proc-filters-${pageKey}`, JSON.stringify(procFilters)); } catch {} }, [procFilters, pageKey]);
+  useEffect(() => { try { sessionStorage.setItem(`stf-proc-country-${pageKey}`, activeCountryTab); } catch {} }, [activeCountryTab, pageKey]);
+  useEffect(() => { try { sessionStorage.setItem(`stf-proc-office-${pageKey}`, activeOfficeTab); } catch {} }, [activeOfficeTab, pageKey]);
   const f = procFilters;
   const scrollRef = useRef<HTMLDivElement>(null);
   const fadeRef = useRef<HTMLDivElement>(null);
