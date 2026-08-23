@@ -415,7 +415,14 @@ function ManagerCandidatesPage() {
   const bulkField      = useServerFn(bulkUpdateField);
   const getNextCode    = useServerFn(nextCandidateCode);
   const fetchCandidates = useServerFn(getCandidates);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(() => {
+    try {
+      const t = tabParam ?? "available";
+      const s = sessionStorage.getItem(`mgr-selected-${t}`);
+      if (s) return new Set(JSON.parse(s));
+    } catch {}
+    return new Set();
+  });
   const toggleSelect = (id: string) =>
     setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const clearSelection = () => setSelected(new Set());
@@ -432,8 +439,17 @@ function ManagerCandidatesPage() {
     filterCache.current.set(t, { f, p });
     try { sessionStorage.setItem("mgr-filter-cache", JSON.stringify(Object.fromEntries(filterCache.current))); } catch {}
   };
-  const [tab, setTab] = useState<Status>(tabParam ?? "available");
+  const [tab, setTab] = useState<Status>(() => {
+    if (tabParam) return tabParam;
+    try {
+      const saved = sessionStorage.getItem("mgr-last-tab");
+      if (saved && (["available","processing","arrived","returned","canceled"] as string[]).includes(saved))
+        return saved as Status;
+    } catch {}
+    return "available";
+  });
   useEffect(() => { if (tabParam) setTab(tabParam); }, [tabParam]);
+  useEffect(() => { try { sessionStorage.setItem("mgr-last-tab", tab); } catch {} }, [tab]);
   const [passport, setPassport] = useState(() => {
     try { return filterCache.current.get(tabParam ?? "available")?.p ?? ""; } catch { return ""; }
   });
@@ -471,11 +487,19 @@ function ManagerCandidatesPage() {
   const activeCount = Object.entries(filters).filter(([k, v]) =>
     k !== "sort" && (Array.isArray(v) ? v.length > 0 : v && v !== "all")
   ).length;
-  // Restore per-tab filters when tab changes (save happens in the tab-click handler)
+  useEffect(() => {
+    try { sessionStorage.setItem(`mgr-selected-${tab}`, JSON.stringify([...selected])); } catch {}
+  }, [selected, tab]);
+
+  // Restore per-tab filters and selection when tab changes (save happens in the tab-click handler)
   useEffect(() => {
     const cached = filterCache.current.get(tab);
     setFilters(cached?.f ?? initialFilters);
     setPassport(cached?.p ?? "");
+    try {
+      const s = sessionStorage.getItem(`mgr-selected-${tab}`);
+      setSelected(s ? new Set(JSON.parse(s)) : new Set());
+    } catch { setSelected(new Set()); }
   }, [tab]);
 
   const [open, setOpen] = useState(false);
@@ -2348,8 +2372,14 @@ function CandidateCardList({
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [showColPicker]);
-  const [activeCountryTab, setActiveCountryTab] = useState("all");
-  const [activeOfficeTab, setActiveOfficeTab] = useState("all");
+  const [activeCountryTab, setActiveCountryTab] = useState(() => {
+    try { return sessionStorage.getItem(`mgr-card-country-${pageKey}`) || "all"; } catch { return "all"; }
+  });
+  const [activeOfficeTab, setActiveOfficeTab] = useState(() => {
+    try { return sessionStorage.getItem(`mgr-card-office-${pageKey}`) || "all"; } catch { return "all"; }
+  });
+  useEffect(() => { try { sessionStorage.setItem(`mgr-card-country-${pageKey}`, activeCountryTab); } catch {} }, [activeCountryTab, pageKey]);
+  useEffect(() => { try { sessionStorage.setItem(`mgr-card-office-${pageKey}`, activeOfficeTab); } catch {} }, [activeOfficeTab, pageKey]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fadeRef = useRef<HTMLDivElement>(null);
   const mirrorRef = useRef<HTMLDivElement>(null);
@@ -3324,10 +3354,26 @@ function ProcessingTable({
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [showColPicker]);
-  const [search, setSearch] = useState("");
-  const [procFilters, setProcFilters] = useState(INITIAL_PROC_FILTERS);
-  const [activeCountryTab, setActiveCountryTab] = useState("all");
-  const [activeOfficeTab, setActiveOfficeTab] = useState("all");
+  const [search, setSearch] = useState(() => {
+    try { return sessionStorage.getItem(`mgr-proc-search-${pageKey}`) || ""; } catch { return ""; }
+  });
+  const [procFilters, setProcFilters] = useState<typeof INITIAL_PROC_FILTERS>(() => {
+    try {
+      const s = sessionStorage.getItem(`mgr-proc-filters-${pageKey}`);
+      if (s) return { ...INITIAL_PROC_FILTERS, ...JSON.parse(s) };
+    } catch {}
+    return INITIAL_PROC_FILTERS;
+  });
+  const [activeCountryTab, setActiveCountryTab] = useState(() => {
+    try { return sessionStorage.getItem(`mgr-proc-country-${pageKey}`) || "all"; } catch { return "all"; }
+  });
+  const [activeOfficeTab, setActiveOfficeTab] = useState(() => {
+    try { return sessionStorage.getItem(`mgr-proc-office-${pageKey}`) || "all"; } catch { return "all"; }
+  });
+  useEffect(() => { try { sessionStorage.setItem(`mgr-proc-search-${pageKey}`, search); } catch {} }, [search, pageKey]);
+  useEffect(() => { try { sessionStorage.setItem(`mgr-proc-filters-${pageKey}`, JSON.stringify(procFilters)); } catch {} }, [procFilters, pageKey]);
+  useEffect(() => { try { sessionStorage.setItem(`mgr-proc-country-${pageKey}`, activeCountryTab); } catch {} }, [activeCountryTab, pageKey]);
+  useEffect(() => { try { sessionStorage.setItem(`mgr-proc-office-${pageKey}`, activeOfficeTab); } catch {} }, [activeOfficeTab, pageKey]);
   const f = procFilters;
   const scrollRef = useRef<HTMLDivElement>(null);
   const fadeRef = useRef<HTMLDivElement>(null);

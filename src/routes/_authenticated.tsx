@@ -7,7 +7,9 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedLayout() {
   const { user, loading } = useAuth();
-  if (loading) {
+  // Only block rendering during the very first auth check (no user known yet).
+  // Don't unmount children on token-refresh events — that causes a full page flash.
+  if (loading && !user) {
     return (
       <div className="min-h-screen grid place-items-center bg-muted/40">
         <div className="text-sm text-muted-foreground">Loading...</div>

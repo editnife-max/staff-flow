@@ -311,8 +311,10 @@ function ManagerLayout() {
   const { role, loading, user, signOut } = useAuth();
   const navigate = useNavigate();
 
-  if (loading) return <div className="p-8 text-muted-foreground">Loading...</div>;
-  if (role !== "manager" && role !== "admin") return <Navigate to="/dashboard" />;
+  // Only block when we have no role yet (initial load). Skip the guard during
+  // token-refresh events so the layout stays mounted and pages don't flash.
+  if (loading && !role) return <div className="p-8 text-muted-foreground">Loading...</div>;
+  if (!loading && role !== "manager" && role !== "admin") return <Navigate to="/dashboard" />;
 
   const initials = (user?.email ?? "U").slice(0, 2).toUpperCase();
 

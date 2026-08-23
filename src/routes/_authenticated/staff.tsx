@@ -226,8 +226,8 @@ function StaffLayout() {
 
   useStaffSession(role === "staff");
 
-  if (loading) return <div className="p-8 text-muted-foreground">Loading...</div>;
-  if (role !== "staff" && role !== "admin") return <Navigate to="/dashboard" />;
+  if (loading && !role) return <div className="p-8 text-muted-foreground">Loading...</div>;
+  if (!loading && role !== "staff" && role !== "admin") return <Navigate to="/dashboard" />;
   const initials = (user?.email ?? "U").slice(0, 2).toUpperCase();
 
   return (
