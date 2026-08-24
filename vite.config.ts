@@ -14,10 +14,21 @@ export default defineConfig(({ mode }) => {
       'process.env.ANTHROPIC_API_KEY': JSON.stringify(env.ANTHROPIC_API_KEY ?? ''),
     },
     optimizeDeps: {
-      include: ['xlsx-js-style'],
+      include: ['xlsx-js-style', 'xlsx'],
     },
     ssr: {
-      noExternal: ['xlsx-js-style'],
+      noExternal: ['xlsx-js-style', 'xlsx'],
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules/xlsx')) {
+              return 'vendor-xlsx';
+            }
+          },
+        },
+      },
     },
     plugins: [
       tailwindcss(),

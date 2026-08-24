@@ -327,7 +327,12 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
         toast.success(`${currentType.label} downloaded`);
       }
     } catch (e: any) {
-      toast.error(e.message ?? "Download failed");
+      const msg: string = e?.message ?? "";
+      if (msg.includes("Failed to fetch") || msg.includes("dynamically imported")) {
+        toast.error("Download library failed to load — please refresh the page and try again.");
+      } else {
+        toast.error(msg || "Download failed");
+      }
     } finally {
       setDownloading(false);
     }
