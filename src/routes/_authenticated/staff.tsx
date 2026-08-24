@@ -1,6 +1,6 @@
 import { Outlet, createFileRoute, Navigate, Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, Users, FileText, ChevronDown, Building2, Bell, CheckCircle2, XCircle, CalendarClock } from "lucide-react";
-import { useState } from "react";
+import { LogOut, LayoutDashboard, Users, FileText, ChevronDown, Building2, Bell, CheckCircle2, XCircle, CalendarClock, AlertTriangle, ShieldX, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/hooks/use-auth";
@@ -27,6 +27,7 @@ import {
 } from "@/lib/notifications.functions";
 import { updateCandidateField } from "@/lib/candidates.functions";
 import { useStaffSession } from "@/hooks/use-staff-session";
+import { recordStaffLogin } from "@/lib/staff-attendance.functions";
 import { DarkModeToggle } from "@/components/dark-mode-toggle";
 
 export const Route = createFileRoute("/_authenticated/staff")({
@@ -85,6 +86,21 @@ function StaffLayout() {
   const [declineReason, setDeclineReason] = useState("");
   const [activeTasheerCandidateId, setActiveTasheerCandidateId] = useState<string | null>(null);
   const [tasheerStep, setTasheerStep] = useState<"overdue" | "passport">("overdue");
+
+  // ── Attendance / late-login check ─────────────────────────────────────────
+  const doRecordLogin = useServerFn(recordStaffLogin);
+  const loginChecked  = useRef(false);
+  const [loginStatus, setLoginStatus] = useState<{ isLate: boolean; isSuspended: boolean; lateCount: number } | null>(null);
+  const todayKey = new Date().toISOString().split("T")[0];
+  const [warningDismissed, setWarningDismissed] = useState(() => {
+    try { return sessionStorage.getItem(`stf-late-warn-${todayKey}`) === "1"; } catch { return false; }
+  });
+
+  useEffect(() => {
+    if (!user || role !== "staff" || loginChecked.current) return;
+    loginChecked.current = true;
+    doRecordLogin({}).then(setLoginStatus).catch(() => {});
+  }, [user, role]);
 
   // ── Tasheer overdue candidates (computed client-side) ─────────────────────
   const { data: tasheerOverdue = [] } = useQuery<{ id: string; full_name: string; tasheer_date: string | null }[]>({
@@ -357,7 +373,34 @@ function StaffLayout() {
         </div>
       </header>
 
-      <main className="flex-1 p-6"><Outlet /></main>
+      <main className="flex-1 p-6">
+        {/* Late-login warning banner */}
+        {loginStatus?.isLate && !loginStatus.isSuspended && !warningDismissed && (
+          <div className="mb-4 flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-700 dark:bg-amber-950/30">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Late Login Warning</p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                Your first login today is after 09:00 AM. This is late login{" "}
+                <strong>{loginStatus.lateCount}</strong> of 3 this month.
+                After 3 late logins your account will be suspended.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setWarningDismissed(true);
+                try { sessionStorage.setItem(`stf-late-warn-${todayKey}`, "1"); } catch {}
+              }}
+              className="shrink-0 text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+        <Outlet />
+      </main>
 
       <footer className="border-t bg-background">
         <div className="px-6 py-4 text-xs text-muted-foreground flex flex-wrap items-center justify-between gap-2">
@@ -424,6 +467,24 @@ function StaffLayout() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Suspended overlay — blocks all interaction */}
+      {loginStatus?.isSuspended && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-background/95 backdrop-blur-sm p-6">
+          <div className="w-full max-w-sm rounded-xl border border-destructive/30 bg-card p-8 text-center shadow-2xl space-y-5">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+              <ShieldX className="h-8 w-8 text-destructive" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold tracking-tight">Account Suspended</h2>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Your account has been suspended due to 3 or more late logins this month.
+                Please contact your manager to restore access.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Notification detail dialog */}
       <Dialog open={!!activeNotif} onOpenChange={(o) => { if (!o) closeDetail(); }}>

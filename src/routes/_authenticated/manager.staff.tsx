@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Plus, Trash2, KeyRound, ChevronRight, Users, CalendarDays,
-  CalendarRange, Plane, FileCheck, MapPin, Ticket,
+  CalendarRange, Plane, FileCheck, MapPin, Ticket, ShieldX, ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -31,6 +31,7 @@ import {
 import {
   createStaffAccount, deleteStaffAccount, resetStaffPassword,
 } from "@/lib/staff-accounts.functions";
+import { unsuspendStaff } from "@/lib/staff-attendance.functions";
 import { updateCandidateField } from "@/lib/candidates.functions";
 
 export const Route = createFileRoute("/_authenticated/manager/staff")({
@@ -60,6 +61,8 @@ type StaffRow = {
   status: string;
   created_at: string;
   user_id: string | null;
+  is_suspended: boolean;
+  suspended_at: string | null;
 };
 
 type CandidateRow = {
@@ -502,9 +505,10 @@ function StatTile({ icon: Icon, label, value, color }: {
 function StaffPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
-  const create    = useServerFn(createStaffAccount);
-  const remove    = useServerFn(deleteStaffAccount);
-  const doResetPw = useServerFn(resetStaffPassword);
+  const create       = useServerFn(createStaffAccount);
+  const remove       = useServerFn(deleteStaffAccount);
+  const doResetPw    = useServerFn(resetStaffPassword);
+  const doUnsuspend  = useServerFn(unsuspendStaff);
 
   const [open, setOpen]           = useState(false);
   const [name, setName]           = useState("");
@@ -528,7 +532,7 @@ function StaffPage() {
       const { data, error } = await supabase
         .from("staff").select("*").order("created_at", { ascending: false });
       if (error) throw error;
-      return data as StaffRow[];
+      return data as unknown as StaffRow[];
     },
   });
 
@@ -546,6 +550,12 @@ function StaffPage() {
   const removeMut = useMutation({
     mutationFn: async (staffId: string) => remove({ data: { staffId } }),
     onSuccess: () => { toast.success("Removed"); qc.invalidateQueries({ queryKey: ["staff"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const unsuspendMut = useMutation({
+    mutationFn: async (staffId: string) => doUnsuspend({ data: { staffId } }),
+    onSuccess: () => { toast.success("Suspension removed — attendance record cleared"); qc.invalidateQueries({ queryKey: ["staff"] }); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -615,10 +625,26 @@ function StaffPage() {
                   <TableCell className="text-muted-foreground">{s.email ?? "—"}</TableCell>
                   <TableCell>{s.role_title ?? "—"}</TableCell>
                   <TableCell>
-                    <span className="inline-flex bg-success/15 text-success px-2 py-0.5 text-xs">{s.status}</span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="inline-flex bg-success/15 text-success px-2 py-0.5 text-xs">{s.status}</span>
+                      {s.is_suspended && (
+                        <span className="inline-flex items-center gap-1 bg-destructive/10 text-destructive px-2 py-0.5 text-xs font-semibold rounded-sm">
+                          <ShieldX className="h-3 w-3" /> Suspended
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
+                      {s.is_suspended && (
+                        <Button
+                          variant="ghost" size="icon" title="Remove suspension"
+                          disabled={unsuspendMut.isPending}
+                          onClick={() => unsuspendMut.mutate(s.id)}
+                        >
+                          <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost" size="icon" title="Reset password"
                         onClick={() => setResetTarget({ id: s.id, name: s.name })}
