@@ -3806,6 +3806,9 @@ function ProcessingCard({
   agencyPhones: Record<string, string>;
   narrativeSuggestions?: string[];
 }) {
+  const qcCard = useQueryClient();
+  const checkWafidFn = useServerFn(checkWafidMedical);
+  const [wafidChecking, setWafidChecking] = useState(false);
   const [viewing, setViewing] = useState(false);
   const [requireDate, setRequireDate] = useState<{
     field: "ticket_date" | "tasheer_date" | "medical_date" | "insurance_date";
@@ -4029,6 +4032,45 @@ function ProcessingCard({
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
+                      ) : col.key === "medical_status" ? (
+                        <div className="flex items-center gap-1 min-w-0">
+                          <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
+                          {candidate.passport_number && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    disabled={wafidChecking}
+                                    className="shrink-0 text-muted-foreground hover:text-teal-600 disabled:opacity-40 transition-colors"
+                                    onClick={async () => {
+                                      setWafidChecking(true);
+                                      const tid = toast.loading("Connecting to wafid.com…");
+                                      try {
+                                        const res = await checkWafidFn({ data: { candidateId: candidate.id } });
+                                        if (res.status) {
+                                          toast.success(`wafid.com · ${res.message}`, { id: tid });
+                                          qcCard.invalidateQueries({ queryKey: ["staff-candidates"] });
+                                        } else {
+                                          toast.info(`wafid.com · ${res.message}`, { id: tid });
+                                        }
+                                      } catch (e) {
+                                        toast.error(`wafid.com · ${String(e)}`, { id: tid });
+                                      } finally {
+                                        setWafidChecking(false);
+                                      }
+                                    }}
+                                  >
+                                    {wafidChecking ? <Loader2 className="h-3 w-3 animate-spin" /> : <Globe className="h-3 w-3" />}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent className="rounded-none text-xs p-2">
+                                  {wafidChecking ? "Connecting to wafid.com…" : "Check on wafid.com"}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
                       ) : (
                         <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
                       )

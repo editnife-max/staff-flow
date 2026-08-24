@@ -301,24 +301,35 @@ function ManagerCvGeneratorPage() {
       if (!cand) throw new Error("Candidate not found");
       const seen = new Set([cand.cv_sent_to, ...((cand.cv_resent_offices as string[]) ?? [])].filter(Boolean) as string[]);
       const eligible = officesList.filter(o => !seen.has(o.name));
-      if (eligible.length === 0) throw new Error("All offices have already received this candidate's CV");
+      const today = new Date().toISOString().split("T")[0];
+      if (eligible.length === 0) {
+        // All offices exhausted — cycle back to current office with reset history
+        const { error } = await supabase.from("candidates")
+          .update({ cv_sent_to: cand.cv_sent_to, cv_sent_date: today, cv_resent_offices: [], cv_resent_date: today } as any)
+          .eq("id", candidateId);
+        if (error) throw error;
+        return { cycled: true };
+      }
       const best = eligible.reduce((a, b) =>
         candidates.filter(c => c.cv_sent_to === a.name && !c.selected_by).length <=
         candidates.filter(c => c.cv_sent_to === b.name && !c.selected_by).length ? a : b
       );
       const history = [...new Set([...((cand.cv_resent_offices as string[]) ?? []), cand.cv_sent_to])].filter(Boolean);
-      const today = new Date().toISOString().split("T")[0];
       const { error } = await supabase.from("candidates")
         .update({ cv_sent_to: best.name, cv_sent_date: today, cv_resent_offices: history, cv_resent_date: today } as any)
         .eq("id", candidateId);
       if (error) throw error;
+      return { cycled: false };
     },
-    onSuccess: () => { toast.success("CV redistributed to a new office"); qc.invalidateQueries({ queryKey: ["mgr-cv-candidates"] }); },
+    onSuccess: (result) => {
+      toast.success(result?.cycled ? "All offices tried — reset to current office for a new cycle" : "CV redistributed to a new office");
+      qc.invalidateQueries({ queryKey: ["mgr-cv-candidates"] });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const distributeMut = useMutation({
-    mutationFn: async (plan: Array<{ name: string; ids: string[]; overdueEntries: Array<{ id: string; oldOffice: string }> }>) => {
+    mutationFn: async (plan: Array<{ name: string; ids: string[]; overdueEntries: Array<{ id: string; oldOffice: string; cycleReset?: boolean }> }>) => {
       const today = new Date().toISOString().split("T")[0];
       for (const { name, ids, overdueEntries } of plan) {
         if (ids.length === 0) continue;
@@ -328,9 +339,10 @@ function ManagerCvGeneratorPage() {
           const { error } = await supabase.from("candidates").update({ cv_sent_to: name, cv_sent_date: today }).in("id", unsentIds);
           if (error) throw error;
         }
-        for (const { id, oldOffice } of overdueEntries) {
+        for (const { id, oldOffice, cycleReset } of overdueEntries) {
           const cand = candidates.find(c => c.id === id);
-          const history = [...new Set([...((cand?.cv_resent_offices as string[]) ?? []), oldOffice])];
+          // cycleReset: all offices were exhausted — clear history so next round cycles through all offices again
+          const history = cycleReset ? [] : [...new Set([...((cand?.cv_resent_offices as string[]) ?? []), oldOffice])];
           const { error } = await supabase.from("candidates")
             .update({ cv_sent_to: name, cv_sent_date: today, cv_resent_offices: history, cv_resent_date: today } as any)
             .eq("id", id);
@@ -342,7 +354,7 @@ function ManagerCvGeneratorPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const { data: candidates = [] } = useQuery({
+  const { data: candidates = [], refetch: refetchCandidates } = useQuery({
     queryKey: ["mgr-cv-candidates", user?.id],
     enabled: !!user,
     queryFn: async () => {
@@ -350,6 +362,8 @@ function ManagerCvGeneratorPage() {
       if (error) throw error;
       return data;
     },
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 
   const { data: templates = [] } = useQuery({
@@ -512,7 +526,7 @@ function ManagerCvGeneratorPage() {
   }, [filtered, cvDaysThreshold]);
 
   const distributionPlan = useMemo(() => {
-    if (!showDistribute || officesList.length === 0) return null;
+    if (officesList.length === 0) return null;
     const todayMs = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
     const unsent = filtered.filter(c => !c.cv_sent_to);
     const overdue = filtered.filter(c => {
@@ -529,18 +543,31 @@ function ManagerCvGeneratorPage() {
     ]));
 
     // Assign each overdue candidate to the least-loaded eligible office (not in its history)
-    const overdueByOffice = new Map<string, Array<{ id: string; oldOffice: string }>>(officesList.map(o => [o.name, []]));
+    // If all offices exhausted, return to original (current) office and reset history for next cycle
+    const overdueByOffice = new Map<string, Array<{ id: string; oldOffice: string; cycleReset?: boolean }>>(officesList.map(o => [o.name, []]));
     for (const cand of overdue) {
       const seen = new Set([cand.cv_sent_to, ...((cand.cv_resent_offices as string[]) ?? [])].filter(Boolean) as string[]);
       const eligible = officesList.filter(o => !seen.has(o.name));
-      if (eligible.length === 0) continue;
+      if (eligible.length === 0) {
+        // All offices tried — send back to current office and reset history so next cycle starts fresh
+        const orig = cand.cv_sent_to!;
+        if (overdueByOffice.has(orig)) {
+          overdueByOffice.get(orig)!.push({ id: cand.id, oldOffice: orig, cycleReset: true });
+          loads.set(orig, (loads.get(orig) ?? 0) + 1);
+        }
+        continue;
+      }
       const best = eligible.reduce((a, b) => (loads.get(a.name) ?? 0) <= (loads.get(b.name) ?? 0) ? a : b);
       overdueByOffice.get(best.name)!.push({ id: cand.id, oldOffice: cand.cv_sent_to! });
       loads.set(best.name, (loads.get(best.name) ?? 0) + 1);
     }
 
-    // Distribute unsent candidates proportionally using updated loads
-    const weights = officesList.map(o => loads.get(o.name) ?? 0);
+    // Distribution ratio = how many Processing candidates each office has selected
+    const processing = officesList.map(o => candidates.filter(c => c.status === "processing" && c.selected_by === o.name).length);
+    const totalProc = processing.reduce((a, b) => a + b, 0);
+
+    // Distribute unsent candidates proportionally by Processing selected_by share
+    const weights = processing;
     const totalW = weights.reduce((a, b) => a + b, 0);
     const eff = totalW === 0 ? officesList.map(() => 1) : weights;
     const effTotal = eff.reduce((a, b) => a + b, 0);
@@ -553,24 +580,27 @@ function ManagerCvGeneratorPage() {
     for (let r = 0; r < rem; r++) counts[fracs[r].i]++;
     let idx = 0;
 
-    const processing = officesList.map(o => candidates.filter(c => c.status === "processing" && c.cv_sent_to === o.name).length);
-    const totalProc = processing.reduce((a, b) => a + b, 0);
-
     return officesList.map((o, i) => {
       const unsentSlice = unsent.slice(idx, idx + counts[i]);
       idx += counts[i];
       const od = overdueByOffice.get(o.name)!;
+      const cycleCount = od.filter(e => e.cycleReset).length;
+      const movedIn = od.length - cycleCount; // overdue arriving from OTHER offices
       return {
         name: o.name,
         processing: processing[i],
         pct: totalProc > 0 ? Math.round((processing[i] / totalProc) * 100) : Math.round(100 / officesList.length),
+        leavingCount: overdue.filter(c => c.cv_sent_to === o.name).length, // overdue leaving this office
+        cycleCount,                                    // exhausted-cycle candidates returning here
+        newCount: unsentSlice.length,
+        movedIn,                                       // overdue from other offices arriving here
         count: unsentSlice.length + od.length,
         overdueCount: od.length,
         ids: [...unsentSlice.map(c => c.id), ...od.map(a => a.id)],
         overdueEntries: od,
       };
     });
-  }, [showDistribute, filtered, officesList, candidates, cvDaysThreshold]);
+  }, [filtered, officesList, candidates, cvDaysThreshold]);
 
   useEffect(() => { setPage(1); }, [filtered.length, pageSize]);
 
@@ -678,7 +708,7 @@ function ManagerCvGeneratorPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs rounded-none"
               disabled={officesList.length === 0}
-              onClick={() => setShowDistribute(true)}>
+              onClick={async () => { await refetchCandidates(); setShowDistribute(true); }}>
               <GitBranch className="h-3.5 w-3.5" /> Distribute to Offices
             </Button>
             {hiddenCols.size > 0 && (
@@ -862,11 +892,17 @@ function ManagerCvGeneratorPage() {
             <>
               <p className="text-xs text-muted-foreground mb-2">
                 {(() => {
-                  const total = distributionPlan.reduce((a, o) => a + o.count, 0);
-                  const totalOverdue = distributionPlan.reduce((a, o) => a + o.overdueCount, 0);
-                  const unsent = total - totalOverdue;
-                  return `${total} candidate${total !== 1 ? "s" : ""} will be distributed` +
-                    (totalOverdue > 0 ? ` (${unsent} new + ${totalOverdue} overdue → moved to a different office)` : " to offices proportionally.");
+                  const totalNew = distributionPlan.reduce((a, o) => a + o.newCount, 0);
+                  const totalLeaving = distributionPlan.reduce((a, o) => a + o.leavingCount, 0);
+                  const totalCycle = distributionPlan.reduce((a, o) => a + o.cycleCount, 0);
+                  const totalMoved = totalLeaving - totalCycle;
+                  const parts: string[] = [];
+                  if (totalNew > 0) parts.push(`${totalNew} new`);
+                  if (totalMoved > 0) parts.push(`${totalMoved} overdue → new office`);
+                  if (totalCycle > 0) parts.push(`${totalCycle} overdue → back to same office`);
+                  const total = totalNew + totalLeaving;
+                  return `${total} candidate${total !== 1 ? "s" : ""} will be processed` +
+                    (parts.length ? ` (${parts.join(", ")})` : ".");
                 })()}
               </p>
               <table className="w-full text-xs border-collapse mb-2">
@@ -875,8 +911,8 @@ function ManagerCvGeneratorPage() {
                     <th className="text-left py-1.5 font-semibold text-muted-foreground">Office</th>
                     <th className="text-right py-1.5 font-semibold text-muted-foreground">Processing</th>
                     <th className="text-right py-1.5 font-semibold text-muted-foreground">Share %</th>
-                    <th className="text-right py-1.5 font-semibold text-warning">Overdue</th>
-                    <th className="text-right py-1.5 font-semibold text-primary">Will Receive</th>
+                    <th className="text-right py-1.5 font-semibold text-warning">Leaving</th>
+                    <th className="text-right py-1.5 font-semibold text-primary">Receiving</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -885,8 +921,14 @@ function ManagerCvGeneratorPage() {
                       <td className="py-1.5 font-medium truncate max-w-[120px]">{o.name}</td>
                       <td className="text-right py-1.5 tabular-nums">{o.processing}</td>
                       <td className="text-right py-1.5 tabular-nums">{o.pct}%</td>
-                      <td className="text-right py-1.5 tabular-nums text-warning">{o.overdueCount > 0 ? o.overdueCount : "—"}</td>
-                      <td className="text-right py-1.5 tabular-nums font-semibold text-primary">{o.count}</td>
+                      <td className="text-right py-1.5 tabular-nums text-warning">{o.leavingCount > 0 ? o.leavingCount : "—"}</td>
+                      <td className="text-right py-1.5 tabular-nums font-semibold text-primary">
+                        {o.count > 0 ? (
+                          <span title={[o.newCount > 0 && `${o.newCount} new`, o.movedIn > 0 && `${o.movedIn} overdue in`, o.cycleCount > 0 && `${o.cycleCount} cycle reset`].filter(Boolean).join(", ")}>
+                            {o.count}
+                          </span>
+                        ) : "—"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
