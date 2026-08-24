@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   Plus, Trash2, KeyRound, ChevronRight, Users, CalendarDays,
   CalendarRange, Plane, FileCheck, MapPin, Ticket, ShieldX, ShieldCheck,
+  Clock, CalendarClock,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -31,7 +32,7 @@ import {
 import {
   createStaffAccount, deleteStaffAccount, resetStaffPassword,
 } from "@/lib/staff-accounts.functions";
-import { unsuspendStaff } from "@/lib/staff-attendance.functions";
+import { unsuspendStaff, excuseLateDay } from "@/lib/staff-attendance.functions";
 import { updateCandidateField } from "@/lib/candidates.functions";
 
 export const Route = createFileRoute("/_authenticated/manager/staff")({
@@ -242,6 +243,44 @@ function StaffDetailSheet({ staff, open, onClose }: {
     },
   });
 
+  type AttendanceRow = {
+    id: string;
+    date: string;
+    first_login_at: string;
+    is_late: boolean;
+    reason: string | null;
+    excused: boolean;
+    excused_at: string | null;
+  };
+
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString().split("T")[0];
+
+  const { data: attendance = [], refetch: refetchAttendance } = useQuery<AttendanceRow[]>({
+    queryKey: ["staff-attendance", staff?.user_id],
+    enabled: open && !!staff?.user_id,
+    queryFn: async () => {
+      const { data: rows, error } = await supabase
+        .from("staff_daily_attendance" as any)
+        .select("id, date, first_login_at, is_late, reason, excused, excused_at")
+        .eq("staff_user_id", staff!.user_id!)
+        .gte("date", thirtyDaysAgo)
+        .order("date", { ascending: false });
+      if (error) throw error;
+      return (rows ?? []) as unknown as AttendanceRow[];
+    },
+  });
+
+  const doExcuse = useServerFn(excuseLateDay);
+  const excuseMut = useMutation({
+    mutationFn: (attendanceId: string) => doExcuse({ data: { attendanceId } }),
+    onSuccess: () => {
+      toast.success("Late day excused");
+      refetchAttendance();
+      qc.invalidateQueries({ queryKey: ["staff"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const { candidates, logs: fieldLogs } = data;
 
   const weekStart = startOfWeek().toISOString();
@@ -397,6 +436,77 @@ function StaffDetailSheet({ staff, open, onClose }: {
               </div>
             )}
           </div>
+
+          {/* Late-login attendance */}
+          {staff?.user_id && (
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5">
+                <CalendarClock className="h-3.5 w-3.5" />
+                Late Login History — Last 30 Days
+              </p>
+              {(() => {
+                const lateRows = attendance.filter((r) => r.is_late);
+                if (lateRows.length === 0) {
+                  return (
+                    <p className="text-xs text-muted-foreground italic">
+                      No late logins in the past 30 days.
+                    </p>
+                  );
+                }
+                return (
+                  <div className="space-y-2">
+                    {lateRows.map((rec) => {
+                      const loginLocal = new Date(new Date(rec.first_login_at).getTime() + 3 * 60 * 60 * 1000);
+                      const loginTime  = loginLocal.toISOString().slice(11, 16);
+                      return (
+                        <div
+                          key={rec.id}
+                          className="rounded-md border border-border bg-muted/20 px-4 py-3 space-y-1.5"
+                        >
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs font-semibold">{fmtDate(rec.date)}</span>
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                {loginTime} EAT
+                              </span>
+                              {rec.excused ? (
+                                <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-sm text-xs font-medium">
+                                  <ShieldCheck className="h-3 w-3" /> Excused
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-sm text-xs font-medium">
+                                  <ShieldX className="h-3 w-3" /> Late
+                                </span>
+                              )}
+                            </div>
+                            {!rec.excused && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs px-3 text-emerald-600 border-emerald-300 hover:bg-emerald-50"
+                                disabled={excuseMut.isPending}
+                                onClick={() => excuseMut.mutate(rec.id)}
+                              >
+                                Excuse
+                              </Button>
+                            )}
+                          </div>
+                          {rec.reason ? (
+                            <p className="text-xs text-muted-foreground italic leading-snug">
+                              "{rec.reason}"
+                            </p>
+                          ) : !rec.excused ? (
+                            <p className="text-xs text-muted-foreground/50 italic">No reason provided</p>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
 
           {/* Assigned candidates */}
           <div>

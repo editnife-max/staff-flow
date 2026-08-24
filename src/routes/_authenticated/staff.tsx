@@ -27,7 +27,7 @@ import {
 } from "@/lib/notifications.functions";
 import { updateCandidateField } from "@/lib/candidates.functions";
 import { useStaffSession } from "@/hooks/use-staff-session";
-import { recordStaffLogin } from "@/lib/staff-attendance.functions";
+import { recordStaffLogin, submitLateReason } from "@/lib/staff-attendance.functions";
 import { DarkModeToggle } from "@/components/dark-mode-toggle";
 
 export const Route = createFileRoute("/_authenticated/staff")({
@@ -88,13 +88,17 @@ function StaffLayout() {
   const [tasheerStep, setTasheerStep] = useState<"overdue" | "passport">("overdue");
 
   // ── Attendance / late-login check ─────────────────────────────────────────
-  const doRecordLogin = useServerFn(recordStaffLogin);
-  const loginChecked  = useRef(false);
+  const doRecordLogin   = useServerFn(recordStaffLogin);
+  const doSubmitReason  = useServerFn(submitLateReason);
+  const loginChecked    = useRef(false);
   const [loginStatus, setLoginStatus] = useState<{ isLate: boolean; isSuspended: boolean; lateCount: number } | null>(null);
   const todayKey = new Date().toISOString().split("T")[0];
   const [warningDismissed, setWarningDismissed] = useState(() => {
     try { return sessionStorage.getItem(`stf-late-warn-${todayKey}`) === "1"; } catch { return false; }
   });
+  const [lateReason,        setLateReason]        = useState("");
+  const [reasonSubmitting,  setReasonSubmitting]   = useState(false);
+  const [reasonSubmitted,   setReasonSubmitted]    = useState(false);
 
   useEffect(() => {
     if (!user || role !== "staff" || loginChecked.current) return;
@@ -376,27 +380,71 @@ function StaffLayout() {
       <main className="flex-1 p-6">
         {/* Late-login warning banner */}
         {loginStatus?.isLate && !loginStatus.isSuspended && !warningDismissed && (
-          <div className="mb-4 flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-700 dark:bg-amber-950/30">
-            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Late Login Warning</p>
-              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-                Your first login today is after 09:00 AM. This is late login{" "}
-                <strong>{loginStatus.lateCount}</strong> of 3 this month.
-                After 3 late logins your account will be suspended.
-              </p>
+          <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30">
+            <div className="flex items-start gap-3 px-4 py-3">
+              <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Late Login Warning</p>
+                <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                  Your first login today is after 09:00 AM. This is late login{" "}
+                  <strong>{loginStatus.lateCount}</strong> of 3 this month.
+                  After 3 late logins your account will be suspended.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setWarningDismissed(true);
+                  try { sessionStorage.setItem(`stf-late-warn-${todayKey}`, "1"); } catch {}
+                }}
+                className="shrink-0 text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200 transition-colors"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setWarningDismissed(true);
-                try { sessionStorage.setItem(`stf-late-warn-${todayKey}`, "1"); } catch {}
-              }}
-              className="shrink-0 text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200 transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            {/* Reason input */}
+            <div className="border-t border-amber-200 dark:border-amber-700/60 px-4 py-3">
+              {reasonSubmitted ? (
+                <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+                  ✓ Your reason has been submitted. Your manager will review it.
+                </p>
+              ) : (
+                <div className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <label className="text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400 mb-1 block">
+                      Provide a reason (optional)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={lateReason}
+                      onChange={(e) => setLateReason(e.target.value)}
+                      placeholder="Explain why you logged in late…"
+                      className="w-full text-xs rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-amber-950/40 px-2 py-1.5 resize-none text-foreground placeholder:text-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    disabled={!lateReason.trim() || reasonSubmitting}
+                    onClick={async () => {
+                      if (!lateReason.trim()) return;
+                      setReasonSubmitting(true);
+                      try {
+                        await doSubmitReason({ data: { reason: lateReason.trim() } });
+                        setReasonSubmitted(true);
+                      } catch {
+                        // silent — not critical
+                      } finally {
+                        setReasonSubmitting(false);
+                      }
+                    }}
+                    className="shrink-0 h-8 px-3 text-xs font-semibold rounded bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-40 transition-colors"
+                  >
+                    {reasonSubmitting ? "Sending…" : "Submit"}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
         <Outlet />
