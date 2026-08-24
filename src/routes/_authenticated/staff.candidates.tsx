@@ -756,19 +756,20 @@ function StaffCandidatesPage() {
   const opts = useMemo(() => {
     const uniq = (k: keyof Candidate) =>
       Array.from(new Set(candidates.map((c) => (c[k] as string | null) ?? "").filter(Boolean))).sort();
+    const tabCandidates = candidates.filter((c) => c.status === tab);
     return {
       education: uniq("education"),
       marital: uniq("marital_status"),
       gender: uniq("gender"),
       religion: uniq("religion"),
-      narrative: uniq("narrative"),
+      narrative: Array.from(new Set(tabCandidates.map((c) => c.narrative ?? "").filter(Boolean))).sort(),
       experience: Array.from(new Set(candidates.map((c) => c.experience === "None" ? "No" : (c.experience ?? "")).filter(Boolean))).sort(),
       cv_sent_to: uniq("cv_sent_to"),
       coc: uniq("coc_status"),
       musaned: uniq("musaned_status"),
       availability: uniq("status"),
     };
-  }, [candidates]);
+  }, [candidates, tab]);
 
   const passportDuplicate = useMemo(() => {
     const num = form.passport_number?.trim().toUpperCase();

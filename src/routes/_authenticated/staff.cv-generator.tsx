@@ -402,13 +402,9 @@ function CvGeneratorPage() {
     return () => { supabase.removeChannel(channel); };
   }, [managerCvData.managerId]);
 
-  const opts = useMemo(() => {
-    const uniq = (k: keyof typeof candidates[0]) =>
-      Array.from(new Set(candidates.map((c) => (c[k] as string | null) ?? "").filter(Boolean))).sort();
-    return {
-      narrative: uniq("narrative"),
-    };
-  }, [candidates]);
+  const opts = useMemo(() => ({
+    narrative: Array.from(new Set(candidates.filter((c) => c.status === "available").map((c) => c.narrative ?? "").filter(Boolean))).sort(),
+  }), [candidates]);
 
   // Open directly if id param given (e.g. from HR Pool VIEW button)
   const initialised = useRef(false);
