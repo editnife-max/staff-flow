@@ -758,6 +758,20 @@ function ManagerCandidatesPage() {
     return {};
   }, [assignOffices, assignCountries, foreignAgencies, officesByCountry]);
 
+  // Backfill destination_country / office for processing candidates that already have selected_by
+  useEffect(() => {
+    if (!assignOffices.length && !foreignAgencies.length) return;
+    for (const c of candidates) {
+      if (c.status !== "processing" || !c.selected_by) continue;
+      const fill = resolveSelectedBy(c.selected_by);
+      if (fill.destination_country && !c.destination_country)
+        fieldMut.mutate({ id: c.id, field: "destination_country", value: fill.destination_country });
+      if (fill.office && !c.office)
+        fieldMut.mutate({ id: c.id, field: "office", value: fill.office });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidates, resolveSelectedBy]);
+
   const handleUpdateField = useCallback((id: string, field: string, value: string | null) => {
     const target = candidates.find((c) => c.id === id);
     if (target?.visa_status === "Waiting Replacement" && field !== "visa_status" && field !== "delete_reason") {
@@ -3397,13 +3411,13 @@ function ProcessingTable({
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
     try {
-      const s = sessionStorage.getItem("mgr-hidden-cols-proc");
+      const s = sessionStorage.getItem("mgr-hidden-cols-proc-v2");
       if (s) return new Set(JSON.parse(s));
     } catch {}
-    return new Set(["destination_country", "office"]);
+    return new Set<string>();
   });
   useEffect(() => {
-    sessionStorage.setItem("mgr-hidden-cols-proc", JSON.stringify(Array.from(hiddenCols)));
+    sessionStorage.setItem("mgr-hidden-cols-proc-v2", JSON.stringify(Array.from(hiddenCols)));
   }, [hiddenCols]);
   const [showColPicker, setShowColPicker] = useState(false);
   const colPickerRef = useRef<HTMLDivElement>(null);
