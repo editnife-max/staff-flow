@@ -1,14 +1,19 @@
 import { useEffect, useState } from "react";
 
 export function useDarkMode() {
-  const [dark, setDark] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const stored = localStorage.getItem("theme");
-    if (stored) return stored === "dark";
-    return window.matchMedia("(prefers-color-scheme: dark)").matches;
-  });
+  // Always start false so server and client first render agree (no hydration mismatch)
+  const [dark, setDark] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    const stored = localStorage.getItem("theme");
+    const isDark = stored ? stored === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    setDark(isDark);
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     const root = document.documentElement;
     if (dark) {
       root.classList.add("dark");
@@ -17,7 +22,7 @@ export function useDarkMode() {
       root.classList.remove("dark");
       localStorage.setItem("theme", "light");
     }
-  }, [dark]);
+  }, [dark, mounted]);
 
-  return { dark, toggle: () => setDark((d) => !d) };
+  return { dark, mounted, toggle: () => setDark((d) => !d) };
 }

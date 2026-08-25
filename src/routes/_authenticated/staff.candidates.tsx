@@ -66,6 +66,12 @@ const medDaysAgo = (date: string) =>
 const AVAILABILITY_OPTIONS: Status[] = ["available", "processing", "arrived", "returned", "canceled"];
 const COC_OPTIONS = ["Done", "No", "Booked", "Placed", "Yitazez", "Pending release"];
 const MUSANED_OPTIONS: string[] = [];
+const toNumOrNull = (v: string | number | null | undefined): number | null => {
+  if (v === "" || v == null) return null;
+  const n = Number(v);
+  return isNaN(n) ? null : n;
+};
+
 const OFFICE_OPTIONS = ["Riyadh", "Jeddah", "Dammam", "Other"];
 const PASSPORT_OPTIONS = ["Original", "Scan"];
 const TASHEER_OPTIONS = ["No", "Booked", "Done", "Ready"];
@@ -870,9 +876,9 @@ function StaffCandidatesPage() {
         video_url: form.video_url || null,
         passport_issue_date: form.passport_issue_date || null,
         passport_expiry_date: form.passport_expiry_date || null,
-        children: form.children === "" ? null : Number(form.children),
-        weight: form.weight === "" ? null : Number(form.weight),
-        height: form.height === "" ? null : Number(form.height),
+        children: toNumOrNull(form.children),
+        weight: toNumOrNull(form.weight),
+        height: toNumOrNull(form.height),
       };
       return upsert({ data: { id: editing?.id, data: payload } });
     },
@@ -3290,13 +3296,13 @@ function ProcessingTable({
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
     try {
-      const s = sessionStorage.getItem("stf-hidden-cols-proc-v2");
+      const s = sessionStorage.getItem("stf-hidden-cols-proc-v3");
       if (s) return new Set(JSON.parse(s));
     } catch {}
-    return new Set<string>();
+    return new Set(["destination_country", "office"]);
   });
   useEffect(() => {
-    sessionStorage.setItem("stf-hidden-cols-proc-v2", JSON.stringify(Array.from(hiddenCols)));
+    sessionStorage.setItem("stf-hidden-cols-proc-v3", JSON.stringify(Array.from(hiddenCols)));
   }, [hiddenCols]);
   const [showColPicker, setShowColPicker] = useState(false);
   const colPickerRef = useRef<HTMLDivElement>(null);

@@ -27,7 +27,7 @@ import {
 } from "@/lib/notifications.functions";
 import { updateCandidateField } from "@/lib/candidates.functions";
 import { useStaffSession } from "@/hooks/use-staff-session";
-import { recordStaffLogin, submitLateReason } from "@/lib/staff-attendance.functions";
+import { recordStaffLogin } from "@/lib/staff-attendance.functions";
 import { DarkModeToggle } from "@/components/dark-mode-toggle";
 
 export const Route = createFileRoute("/_authenticated/staff")({
@@ -89,16 +89,12 @@ function StaffLayout() {
 
   // ── Attendance / late-login check ─────────────────────────────────────────
   const doRecordLogin   = useServerFn(recordStaffLogin);
-  const doSubmitReason  = useServerFn(submitLateReason);
   const loginChecked    = useRef(false);
   const [loginStatus, setLoginStatus] = useState<{ isLate: boolean; isSuspended: boolean; lateCount: number } | null>(null);
   const todayKey = new Date().toISOString().split("T")[0];
   const [warningDismissed, setWarningDismissed] = useState(() => {
     try { return sessionStorage.getItem(`stf-late-warn-${todayKey}`) === "1"; } catch { return false; }
   });
-  const [lateReason,        setLateReason]        = useState("");
-  const [reasonSubmitting,  setReasonSubmitting]   = useState(false);
-  const [reasonSubmitted,   setReasonSubmitted]    = useState(false);
 
   useEffect(() => {
     if (!user || role !== "staff" || loginChecked.current) return;
@@ -388,7 +384,7 @@ function StaffLayout() {
                 <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
                   Your first login today is after 09:00 AM. This is late login{" "}
                   <strong>{loginStatus.lateCount}</strong> of 3 this month.
-                  After 3 late logins your account will be suspended.
+                  After 3 late logins your account will be permanently suspended.
                 </p>
               </div>
               <button
@@ -402,48 +398,6 @@ function StaffLayout() {
               >
                 <X className="h-4 w-4" />
               </button>
-            </div>
-            {/* Reason input */}
-            <div className="border-t border-amber-200 dark:border-amber-700/60 px-4 py-3">
-              {reasonSubmitted ? (
-                <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
-                  ✓ Your reason has been submitted. Your manager will review it.
-                </p>
-              ) : (
-                <div className="flex items-end gap-2">
-                  <div className="flex-1">
-                    <label className="text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400 mb-1 block">
-                      Provide a reason (optional)
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={lateReason}
-                      onChange={(e) => setLateReason(e.target.value)}
-                      placeholder="Explain why you logged in late…"
-                      className="w-full text-xs rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-amber-950/40 px-2 py-1.5 resize-none text-foreground placeholder:text-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    disabled={!lateReason.trim() || reasonSubmitting}
-                    onClick={async () => {
-                      if (!lateReason.trim()) return;
-                      setReasonSubmitting(true);
-                      try {
-                        await doSubmitReason({ data: { reason: lateReason.trim() } });
-                        setReasonSubmitted(true);
-                      } catch {
-                        // silent — not critical
-                      } finally {
-                        setReasonSubmitting(false);
-                      }
-                    }}
-                    className="shrink-0 h-8 px-3 text-xs font-semibold rounded bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-40 transition-colors"
-                  >
-                    {reasonSubmitting ? "Sending…" : "Submit"}
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         )}

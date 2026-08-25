@@ -6,6 +6,10 @@ import { checkWafidForCandidate, wafidNationality } from "@/lib/wafid-check";
 
 const StatusEnum = z.enum(["available", "processing", "arrived", "canceled", "returned"]);
 
+// Coerce NaN or empty-string to null before numeric validation
+const nanToNull = (v: unknown) =>
+  (typeof v === "number" && isNaN(v)) || v === "" ? null : v;
+
 const CandidateInput = z.object({
   full_name: z.string().min(1).max(200),
   first_name: z.string().max(100).optional().nullable(),
@@ -17,13 +21,13 @@ const CandidateInput = z.object({
   dob: z.string().optional().nullable(),
   occupation: z.string().max(120).optional().nullable(),
   country: z.string().max(120).optional().nullable(),
-  age: z.number().int().min(0).max(120).optional().nullable(),
+  age: z.preprocess(nanToNull, z.number().int().min(0).max(120).optional().nullable()),
   gender: z.string().max(40).optional().nullable(),
   religion: z.string().max(80).optional().nullable(),
   birth_place: z.string().max(120).optional().nullable(),
   living_town: z.string().max(120).optional().nullable(),
   marital_status: z.string().max(40).optional().nullable(),
-  children: z.number().int().min(0).max(30).optional().nullable(),
+  children: z.preprocess(nanToNull, z.number().int().min(0).max(30).optional().nullable()),
   education: z.string().max(120).optional().nullable(),
   passport_issue_date: z.string().optional().nullable(),
   passport_expiry_date: z.string().optional().nullable(),
@@ -34,8 +38,8 @@ const CandidateInput = z.object({
   experience: z.string().max(120).optional().nullable(),
   experience_country: z.string().max(120).optional().nullable(),
   experience_years: z.string().max(40).optional().nullable(),
-  weight: z.number().optional().nullable(),
-  height: z.number().optional().nullable(),
+  weight: z.preprocess(nanToNull, z.number().optional().nullable()),
+  height: z.preprocess(nanToNull, z.number().optional().nullable()),
   passport_status: z.string().max(80).optional().nullable(),
   medical_status: z.string().max(80).optional().nullable(),
   coc_status: z.string().max(80).optional().nullable(),
