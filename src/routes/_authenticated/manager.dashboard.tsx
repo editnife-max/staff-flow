@@ -821,7 +821,7 @@ function ManagerDashboard() {
     queryKey: ["staff-list", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.from("staff").select("id, name, role_title, status").order("name");
+      const { data, error } = await supabase.from("staff").select("id, name, role_title, status").eq("manager_id", user!.id).order("name");
       if (error) throw error;
       return data as { id: string; name: string; role_title: string | null; status: string }[];
     },

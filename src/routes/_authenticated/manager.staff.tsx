@@ -640,7 +640,7 @@ function StaffPage() {
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("staff").select("*").order("created_at", { ascending: false });
+        .from("staff").select("*").eq("manager_id", user!.id).order("created_at", { ascending: false });
       if (error) throw error;
       return data as unknown as StaffRow[];
     },

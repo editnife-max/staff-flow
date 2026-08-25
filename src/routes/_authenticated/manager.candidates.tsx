@@ -554,7 +554,7 @@ function ManagerCandidatesPage() {
     queryKey: ["team-staff", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.from("staff").select("id,name").eq("status", "active");
+      const { data, error } = await supabase.from("staff").select("id,name").eq("manager_id", user!.id).eq("status", "active");
       if (error) throw error;
       return data;
     },
