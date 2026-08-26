@@ -2,10 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { Clock, Users, Wifi, WifiOff, CalendarClock, ShieldCheck, ShieldX, RefreshCw } from "lucide-react";
+import { Clock, Users, Wifi, WifiOff, CalendarClock, ShieldCheck, ShieldX, RefreshCw, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { getTeamActivity } from "@/lib/staff-sessions.functions";
-import { excuseLateDay, unsuspendStaff, backfillStaffAbsents, backfillTeamAbsents } from "@/lib/staff-attendance.functions";
+import { excuseLateDay, unsuspendStaff, backfillStaffAbsents, backfillTeamAbsents, getStaffAttendance, getTodayLateStaff } from "@/lib/staff-attendance.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -97,24 +97,16 @@ function LateLoginDialog({ member, open, onClose }: {
   onClose: () => void;
 }) {
   const qc = useQueryClient();
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString().split("T")[0];
   const doBackfillStaff = useServerFn(backfillStaffAbsents);
+  const doGetAttendance = useServerFn(getStaffAttendance);
 
   const { data: attendance = [], refetch: refetchAttendance } = useQuery<AttendanceRow[]>({
     queryKey: ["staff-attendance", member?.staffUserId],
     enabled: open && !!member?.staffUserId,
     staleTime: 0,
     queryFn: async () => {
-      // Backfill absent weekdays (including yesterday) before fetching
       await doBackfillStaff({ data: { staffUserId: member!.staffUserId } });
-      const { data: rows, error } = await supabase
-        .from("staff_daily_attendance" as any)
-        .select("id, date, first_login_at, is_late, absent, reason, excused, excused_at")
-        .eq("staff_user_id", member!.staffUserId)
-        .gte("date", thirtyDaysAgo)
-        .order("date", { ascending: false });
-      if (error) throw error;
-      return (rows ?? []) as unknown as AttendanceRow[];
+      return doGetAttendance({ data: { staffUserId: member!.staffUserId } });
     },
   });
 
@@ -337,12 +329,21 @@ function StaffActivityPage() {
   const qc                              = useQueryClient();
   const doGetTeamActivity               = useServerFn(getTeamActivity);
   const doBackfill                      = useServerFn(backfillTeamAbsents);
+  const doGetTodayLate                  = useServerFn(getTodayLateStaff);
 
   // Backfill absent records for all staff on every page mount
-  useQuery({
+  const { data: _backfillDone } = useQuery({
     queryKey: ["backfill-absents"],
     queryFn: () => doBackfill(),
     staleTime: 0,
+  });
+
+  // Today's staff who haven't logged in past 9 AM — runs after backfill, refreshes every minute
+  const { data: todayLate = [] } = useQuery({
+    queryKey: ["today-late-staff"],
+    queryFn: () => doGetTodayLate(),
+    staleTime: 0,
+    refetchInterval: 60_000,
   });
 
   const { data: team, isLoading } = useQuery({
@@ -405,6 +406,41 @@ function StaffActivityPage() {
           </Button>
         </div>
       </div>
+
+      {/* Today's no-login alert — shown only past 9 AM EAT when staff haven't logged in */}
+      {todayLate.length > 0 && (
+        <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-sm font-semibold text-amber-800 dark:text-amber-400 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              Late Login — No Login Yet Today ({todayLate.length} staff past 09:00 AM)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="flex flex-wrap gap-2">
+              {todayLate.map((s) => {
+                const member = members.find((m) => m.staffUserId === s.staffUserId) ?? null;
+                return (
+                  <button
+                    key={s.attendanceId}
+                    onClick={() => member && setSelectedMember(member)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white dark:bg-amber-950/40 px-3 py-1.5 text-xs font-medium text-amber-800 dark:text-amber-300 transition-colors",
+                      member ? "hover:bg-amber-100 dark:hover:bg-amber-900/40 cursor-pointer" : "cursor-default opacity-60",
+                    )}
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                    {s.name}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-[11px] text-amber-700/70 dark:text-amber-500/70">
+              These staff members have not logged in today. Click a name to view their attendance history.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
         <TabsList>

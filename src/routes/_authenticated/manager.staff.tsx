@@ -32,7 +32,7 @@ import {
 import {
   createStaffAccount, deleteStaffAccount, resetStaffPassword,
 } from "@/lib/staff-accounts.functions";
-import { unsuspendStaff, excuseLateDay, backfillStaffAbsents } from "@/lib/staff-attendance.functions";
+import { unsuspendStaff, excuseLateDay, backfillStaffAbsents, getStaffAttendance } from "@/lib/staff-attendance.functions";
 import { updateCandidateField } from "@/lib/candidates.functions";
 
 export const Route = createFileRoute("/_authenticated/manager/staff")({
@@ -254,8 +254,8 @@ function StaffDetailSheet({ staff, open, onClose }: {
     excused_at: string | null;
   };
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString().split("T")[0];
   const doBackfillStaff = useServerFn(backfillStaffAbsents);
+  const doGetAttendance = useServerFn(getStaffAttendance);
 
   const { data: attendance = [], refetch: refetchAttendance } = useQuery<AttendanceRow[]>({
     queryKey: ["staff-attendance", staff?.user_id],
@@ -263,14 +263,7 @@ function StaffDetailSheet({ staff, open, onClose }: {
     staleTime: 0,
     queryFn: async () => {
       await doBackfillStaff({ data: { staffUserId: staff!.user_id! } });
-      const { data: rows, error } = await supabase
-        .from("staff_daily_attendance" as any)
-        .select("id, date, first_login_at, is_late, absent, reason, excused, excused_at")
-        .eq("staff_user_id", staff!.user_id!)
-        .gte("date", thirtyDaysAgo)
-        .order("date", { ascending: false });
-      if (error) throw error;
-      return (rows ?? []) as unknown as AttendanceRow[];
+      return doGetAttendance({ data: { staffUserId: staff!.user_id! } });
     },
   });
 
