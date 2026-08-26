@@ -179,6 +179,7 @@ function CvCandidateCard({
 }
 
 const MEDICAL_OPTIONS = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired"];
+const BASE_CANDIDATES_PER_OFFICE = 15;
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -456,6 +457,15 @@ function ManagerCvGeneratorPage() {
     };
   }, [managerProfile]);
 
+  // True once locked filters from cv_page_requirements have been applied to local filter state
+  const filtersApplied = useMemo(() => {
+    if (lockedFilters.medical.length > 0 && !lockedFilters.medical.every(v => filters.medical.includes(v))) return false;
+    if (lockedFilters.coc.length > 0 && !lockedFilters.coc.every(v => filters.coc.includes(v))) return false;
+    if (lockedFilters.narrative.length > 0 && !lockedFilters.narrative.every(v => filters.narrative.includes(v))) return false;
+    if (lockedFilters.experience.length > 0 && !lockedFilters.experience.every(v => filters.experience.includes(v))) return false;
+    return true;
+  }, [lockedFilters, filters]);
+
   // Apply locked filters whenever they change (also clears when a lock is removed)
   useEffect(() => {
     setFilters((prev) => ({
@@ -491,6 +501,7 @@ function ManagerCvGeneratorPage() {
   }), [candidates]);
 
   const initialised = useRef(false);
+  const autoDistributedRef = useRef(false);
   useEffect(() => {
     if (initialised.current || !search.id || candidates.length === 0) return;
     initialised.current = true;
@@ -560,24 +571,25 @@ function ManagerCvGeneratorPage() {
     });
     if (unsent.length === 0 && overdue.length === 0) return null;
 
-    // Live load map — unlocked offices only
     const overdueIdSet = new Set(overdue.map(c => c.id));
-    const loads = new Map<string, number>(activeOfficesList.map(o => [
+
+    // Snapshot of active (non-overdue, non-selected) candidates per office before this distribution
+    const currentLoadSnapshot = new Map<string, number>(activeOfficesList.map(o => [
       o.name,
       candidates.filter(c => c.cv_sent_to === o.name && !c.selected_by && !overdueIdSet.has(c.id)).length,
     ]));
+    const loads = new Map(currentLoadSnapshot);
 
-    // Assign each overdue candidate to the least-loaded eligible unlocked office.
-    // Country filtering: only offices matching destination_country; fallback to all unlocked offices.
-    // If all exhausted, cycle back to original and reset history for the next round.
-    const overdueByOffice = new Map<string, Array<{ id: string; oldOffice: string; cycleReset?: boolean }>>(activeOfficesList.map(o => [o.name, []]));
+    // Overdue: redistribute to least-loaded eligible office (country-filtered, cycle if all exhausted)
+    const overdueByOffice = new Map<string, Array<{ id: string; oldOffice: string; cycleReset?: boolean }>>(
+      activeOfficesList.map(o => [o.name, []])
+    );
     for (const cand of overdue) {
       const seen = new Set([cand.cv_sent_to, ...((cand.cv_resent_offices as string[]) ?? [])].filter(Boolean) as string[]);
       const dc = (cand.destination_country ?? "").toLowerCase().trim();
       const pool = (dc && officeCountryIndex.get(dc)?.length) ? officeCountryIndex.get(dc)! : activeOfficesList;
       const eligible = pool.filter(o => !seen.has(o.name));
       if (eligible.length === 0) {
-        // All offices tried — send back to current office and reset history so next cycle starts fresh
         const orig = cand.cv_sent_to!;
         if (overdueByOffice.has(orig)) {
           overdueByOffice.get(orig)!.push({ id: cand.id, oldOffice: orig, cycleReset: true });
@@ -590,47 +602,29 @@ function ManagerCvGeneratorPage() {
       loads.set(best.name, (loads.get(best.name) ?? 0) + 1);
     }
 
-    // Distribute unsent candidates per destination country — only to unlocked offices.
+    // Unsent: fill each office up to BASE_CANDIDATES_PER_OFFICE (15).
+    // Among offices still below target, pick the least loaded. If all offices are at target,
+    // continue assigning to the least loaded so nothing is left unassigned.
     const unsentByOffice = new Map<string, Candidate[]>(activeOfficesList.map(o => [o.name, []]));
-    const poolGroups = new Map<string, { pool: typeof activeOfficesList; cands: Candidate[] }>();
     for (const cand of unsent) {
       const dc = (cand.destination_country ?? "").toLowerCase().trim();
       const pool = (dc && officeCountryIndex.get(dc)?.length) ? officeCountryIndex.get(dc)! : activeOfficesList;
-      const key = pool.map(o => o.name).sort().join("|");
-      if (!poolGroups.has(key)) poolGroups.set(key, { pool, cands: [] });
-      poolGroups.get(key)!.cands.push(cand);
-    }
-    for (const { pool, cands } of poolGroups.values()) {
-      const pw = pool.map(o => candidates.filter(c => c.status === "processing" && c.selected_by === o.name).length);
-      const twTotal = pw.reduce((a, b) => a + b, 0);
-      const eff = twTotal === 0 ? pool.map(() => 1) : pw;
-      const effTotal = eff.reduce((a, b) => a + b, 0);
-      const exact = eff.map(w => cands.length * (w / effTotal));
-      const floors = exact.map(Math.floor);
-      let rem = cands.length - floors.reduce((a, b) => a + b, 0);
-      const fracs = exact.map((e, fi) => ({ fi, f: e - floors[fi] })).sort((a, b) => b.f - a.f);
-      const counts = [...floors];
-      for (let r = 0; r < rem; r++) counts[fracs[r].fi]++;
-      let ci = 0;
-      for (let pi = 0; pi < pool.length; pi++) {
-        unsentByOffice.get(pool[pi].name)!.push(...cands.slice(ci, ci + counts[pi]));
-        ci += counts[pi];
-      }
+      const withNeed = pool.filter(o => (loads.get(o.name) ?? 0) < BASE_CANDIDATES_PER_OFFICE);
+      const target = (withNeed.length > 0 ? withNeed : pool).reduce((a, b) =>
+        (loads.get(a.name) ?? 0) <= (loads.get(b.name) ?? 0) ? a : b
+      );
+      unsentByOffice.get(target.name)!.push(cand);
+      loads.set(target.name, (loads.get(target.name) ?? 0) + 1);
     }
 
-    // Distribution ratio = how many Processing candidates each unlocked office has selected
-    const processing = activeOfficesList.map(o => candidates.filter(c => c.status === "processing" && c.selected_by === o.name).length);
-    const totalProc = processing.reduce((a, b) => a + b, 0);
-
-    return activeOfficesList.map((o, i) => {
+    return activeOfficesList.map((o) => {
       const unsentSlice = unsentByOffice.get(o.name)!;
       const od = overdueByOffice.get(o.name)!;
       const cycleCount = od.filter(e => e.cycleReset).length;
       const movedIn = od.length - cycleCount;
       return {
         name: o.name,
-        processing: processing[i],
-        pct: totalProc > 0 ? Math.round((processing[i] / totalProc) * 100) : Math.round(100 / activeOfficesList.length),
+        currentLoad: currentLoadSnapshot.get(o.name) ?? 0,
         leavingCount: overdue.filter(c => c.cv_sent_to === o.name).length,
         cycleCount,
         newCount: unsentSlice.length,
@@ -642,6 +636,17 @@ function ManagerCvGeneratorPage() {
       };
     });
   }, [filtered, activeOfficesList, officeCountryIndex, candidates, cvDaysThreshold]);
+
+  // Auto-distribute once on page load when data + CV page requirements are ready
+  useEffect(() => {
+    if (autoDistributedRef.current) return;
+    if (!filtersApplied) return;
+    if (candidates.length === 0 || officesList.length === 0 || managerProfile === undefined) return;
+    if (!distributionPlan || distributionPlan.every(o => o.count === 0)) return;
+    autoDistributedRef.current = true;
+    distributeMut.mutate(distributionPlan);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtersApplied, candidates.length, officesList.length, managerProfile, distributionPlan]);
 
   useEffect(() => { setPage(1); }, [filtered.length, pageSize]);
 
@@ -945,13 +950,14 @@ function ManagerCvGeneratorPage() {
                   return `${total} candidate${total !== 1 ? "s" : ""} will be processed` +
                     (parts.length ? ` (${parts.join(", ")})` : ".");
                 })()}
+                {" "}Target: <strong>{BASE_CANDIDATES_PER_OFFICE}</strong> per office.
               </p>
               <table className="w-full text-xs border-collapse mb-2">
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left py-1.5 font-semibold text-muted-foreground">Office</th>
-                    <th className="text-right py-1.5 font-semibold text-muted-foreground">Processing</th>
-                    <th className="text-right py-1.5 font-semibold text-muted-foreground">Share %</th>
+                    <th className="text-right py-1.5 font-semibold text-muted-foreground">Queue</th>
+                    <th className="text-right py-1.5 font-semibold text-muted-foreground">Target</th>
                     <th className="text-right py-1.5 font-semibold text-warning">Leaving</th>
                     <th className="text-right py-1.5 font-semibold text-primary">Receiving</th>
                   </tr>
@@ -960,13 +966,15 @@ function ManagerCvGeneratorPage() {
                   {distributionPlan.map(o => (
                     <tr key={o.name} className="border-b border-border/40">
                       <td className="py-1.5 font-medium truncate max-w-[120px]">{o.name}</td>
-                      <td className="text-right py-1.5 tabular-nums">{o.processing}</td>
-                      <td className="text-right py-1.5 tabular-nums">{o.pct}%</td>
+                      <td className={cn("text-right py-1.5 tabular-nums", o.currentLoad >= BASE_CANDIDATES_PER_OFFICE ? "text-amber-600 dark:text-amber-400" : "")}>
+                        {o.currentLoad}
+                      </td>
+                      <td className="text-right py-1.5 tabular-nums text-muted-foreground">{BASE_CANDIDATES_PER_OFFICE}</td>
                       <td className="text-right py-1.5 tabular-nums text-warning">{o.leavingCount > 0 ? o.leavingCount : "—"}</td>
                       <td className="text-right py-1.5 tabular-nums font-semibold text-primary">
                         {o.count > 0 ? (
                           <span title={[o.newCount > 0 && `${o.newCount} new`, o.movedIn > 0 && `${o.movedIn} overdue in`, o.cycleCount > 0 && `${o.cycleCount} cycle reset`].filter(Boolean).join(", ")}>
-                            {o.count}
+                            +{o.count}
                           </span>
                         ) : "—"}
                       </td>
