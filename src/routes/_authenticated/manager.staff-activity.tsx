@@ -1,14 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { Clock, Users, Wifi, WifiOff } from "lucide-react";
+import { Clock, Users, Wifi, WifiOff, CalendarClock, ShieldCheck, ShieldX, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import { getTeamActivity } from "@/lib/staff-sessions.functions";
+import { excuseLateDay, unsuspendStaff, backfillStaffAbsents, backfillTeamAbsents } from "@/lib/staff-attendance.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/manager/staff-activity")({
@@ -37,6 +44,17 @@ type TeamMember = {
   workDaysMonth: number;
 };
 
+type AttendanceRow = {
+  id: string;
+  date: string;
+  first_login_at: string | null;
+  is_late: boolean;
+  absent: boolean;
+  reason: string | null;
+  excused: boolean;
+  excused_at: string | null;
+};
+
 function formatTime(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -53,6 +71,11 @@ function formatLastSeen(iso: string | null): string {
   return new Date(iso).toLocaleDateString();
 }
 
+function fmtDate(iso: string | null) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
 function hoursForPeriod(m: TeamMember, period: Period): number {
   if (period === "today") return m.hoursToday;
   if (period === "week") return m.hoursWeek;
@@ -67,12 +90,189 @@ function candidatesForPeriod(m: TeamMember, period: Period): number {
   return m.candidatesYear;
 }
 
-function MemberCard({ member, period }: { member: TeamMember; period: Period }) {
-  const hours = hoursForPeriod(member, period);
+// ─── Late Login Dialog ────────────────────────────────────────────────────────
+function LateLoginDialog({ member, open, onClose }: {
+  member: TeamMember | null;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString().split("T")[0];
+  const doBackfillStaff = useServerFn(backfillStaffAbsents);
+
+  const { data: attendance = [], refetch: refetchAttendance } = useQuery<AttendanceRow[]>({
+    queryKey: ["staff-attendance", member?.staffUserId],
+    enabled: open && !!member?.staffUserId,
+    staleTime: 0,
+    queryFn: async () => {
+      // Backfill absent weekdays (including yesterday) before fetching
+      await doBackfillStaff({ data: { staffUserId: member!.staffUserId } });
+      const { data: rows, error } = await supabase
+        .from("staff_daily_attendance" as any)
+        .select("id, date, first_login_at, is_late, absent, reason, excused, excused_at")
+        .eq("staff_user_id", member!.staffUserId)
+        .gte("date", thirtyDaysAgo)
+        .order("date", { ascending: false });
+      if (error) throw error;
+      return (rows ?? []) as unknown as AttendanceRow[];
+    },
+  });
+
+  const { data: staffInfo, refetch: refetchStaffInfo } = useQuery({
+    queryKey: ["staff-suspension", member?.staffId],
+    enabled: open && !!member?.staffId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("staff")
+        .select("is_suspended")
+        .eq("id", member!.staffId)
+        .maybeSingle();
+      if (error) throw error;
+      return data as { is_suspended: boolean } | null;
+    },
+  });
+
+  const doExcuse = useServerFn(excuseLateDay);
+  const excuseMut = useMutation({
+    mutationFn: (attendanceId: string) => doExcuse({ data: { attendanceId } }),
+    onSuccess: () => {
+      toast.success("Day excused");
+      refetchAttendance();
+      refetchStaffInfo();
+      qc.invalidateQueries({ queryKey: ["team-activity"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const doUnsuspend = useServerFn(unsuspendStaff);
+  const unsuspendMut = useMutation({
+    mutationFn: () => doUnsuspend({ data: { staffId: member!.staffId } }),
+    onSuccess: () => {
+      toast.success("Suspension removed — attendance record cleared");
+      refetchAttendance();
+      refetchStaffInfo();
+      qc.invalidateQueries({ queryKey: ["team-activity"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const incidentRows = attendance.filter((r) => r.is_late || r.absent);
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <CalendarClock className="h-4 w-4" />
+            Late Login History — {member?.name}
+          </DialogTitle>
+        </DialogHeader>
+
+        {staffInfo?.is_suspended && (
+          <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <ShieldX className="h-4 w-4 text-destructive" />
+              <span className="text-sm font-medium text-destructive">Account suspended</span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs px-3 text-emerald-600 border-emerald-300 hover:bg-emerald-50"
+              disabled={unsuspendMut.isPending}
+              onClick={() => unsuspendMut.mutate()}
+            >
+              <ShieldCheck className="h-3 w-3 mr-1" />
+              {unsuspendMut.isPending ? "Removing…" : "Remove suspension"}
+            </Button>
+          </div>
+        )}
+
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+            Last 30 Days
+          </p>
+          {incidentRows.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic">No late logins or absent days in the past 30 days.</p>
+          ) : (
+            <div className="space-y-2">
+              {incidentRows.map((rec) => {
+                const loginTime = rec.first_login_at
+                  ? new Date(new Date(rec.first_login_at).getTime() + 3 * 60 * 60 * 1000)
+                      .toISOString()
+                      .slice(11, 16)
+                  : null;
+                return (
+                  <div
+                    key={rec.id}
+                    className="rounded-md border border-border bg-muted/20 px-4 py-3 space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-semibold">{fmtDate(rec.date)}</span>
+                        {loginTime ? (
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            {loginTime} EAT
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No login</span>
+                        )}
+                        {rec.excused ? (
+                          <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-sm text-xs font-medium">
+                            <ShieldCheck className="h-3 w-3" /> Excused
+                          </span>
+                        ) : rec.absent ? (
+                          <span className="inline-flex items-center gap-1 bg-red-500/10 text-red-600 px-2 py-0.5 rounded-sm text-xs font-medium">
+                            <ShieldX className="h-3 w-3" /> No Login
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-sm text-xs font-medium">
+                            <ShieldX className="h-3 w-3" /> Late
+                          </span>
+                        )}
+                      </div>
+                      {!rec.excused && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs px-3 text-emerald-600 border-emerald-300 hover:bg-emerald-50"
+                          disabled={excuseMut.isPending}
+                          onClick={() => excuseMut.mutate(rec.id)}
+                        >
+                          Excuse
+                        </Button>
+                      )}
+                    </div>
+                    {rec.reason && (
+                      <p className="text-xs text-muted-foreground italic leading-snug">
+                        "{rec.reason}"
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Member Card ──────────────────────────────────────────────────────────────
+function MemberCard({ member, period, onClick }: {
+  member: TeamMember;
+  period: Period;
+  onClick: () => void;
+}) {
+  const hours      = hoursForPeriod(member, period);
   const candidates = candidatesForPeriod(member, period);
 
   return (
-    <Card className="relative">
+    <Card
+      className="relative cursor-pointer hover:border-primary/50 transition-colors"
+      onClick={onClick}
+    >
       <CardContent className="pt-5 pb-4">
         <div className="flex items-start gap-3">
           <div className="relative shrink-0">
@@ -131,8 +331,19 @@ function MemberCard({ member, period }: { member: TeamMember; period: Period }) 
 }
 
 function StaffActivityPage() {
-  const [period, setPeriod] = useState<Period>("today");
-  const doGetTeamActivity = useServerFn(getTeamActivity);
+  const [period, setPeriod]             = useState<Period>("today");
+  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
+  const [syncing, setSyncing]           = useState(false);
+  const qc                              = useQueryClient();
+  const doGetTeamActivity               = useServerFn(getTeamActivity);
+  const doBackfill                      = useServerFn(backfillTeamAbsents);
+
+  // Backfill absent records for all staff on every page mount
+  useQuery({
+    queryKey: ["backfill-absents"],
+    queryFn: () => doBackfill(),
+    staleTime: 0,
+  });
 
   const { data: team, isLoading } = useQuery({
     queryKey: ["team-activity"],
@@ -140,9 +351,27 @@ function StaffActivityPage() {
     refetchInterval: 15_000,
   });
 
+  async function syncAbsences() {
+    setSyncing(true);
+    try {
+      await doBackfill();
+      qc.invalidateQueries({ queryKey: ["staff-attendance"] });
+      toast.success("Absences registered for all staff");
+    } catch {
+      toast.error("Failed to sync absences");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   const members = (team ?? []) as TeamMember[];
-  const onlineCount = members.filter((m) => m.isOnline).length;
-  const totalHoursToday = members.reduce((acc, m) => acc + m.hoursToday, 0);
+  const onlineCount      = members.filter((m) => m.isOnline).length;
+  const totalHoursToday  = members.reduce((acc, m) => acc + m.hoursToday, 0);
+
+  const sorted = [...members].sort((a, b) => {
+    if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
 
   return (
     <div className="space-y-6">
@@ -164,6 +393,16 @@ function StaffActivityPage() {
             <Users className="h-3.5 w-3.5" />
             {members.length} total staff
           </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            disabled={syncing}
+            onClick={syncAbsences}
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", syncing && "animate-spin")} />
+            {syncing ? "Syncing…" : "Sync Absences"}
+          </Button>
         </div>
       </div>
 
@@ -202,19 +441,18 @@ function StaffActivityPage() {
         </Card>
       ) : (
         <>
-          {/* Online first, then sorted by name */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {[...members]
-              .sort((a, b) => {
-                if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
-                return a.name.localeCompare(b.name);
-              })
-              .map((m) => (
-                <MemberCard key={m.staffId} member={m} period={period} />
-              ))}
+            {sorted.map((m) => (
+              <MemberCard
+                key={m.staffId}
+                member={m}
+                period={period}
+                onClick={() => setSelectedMember(m)}
+              />
+            ))}
           </div>
 
-          {/* Summary table for quick comparison */}
+          {/* Summary table */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Summary Table</CardTitle>
@@ -233,31 +471,25 @@ function StaffActivityPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {[...members]
-                      .sort((a, b) => {
-                        if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
-                        return a.name.localeCompare(b.name);
-                      })
-                      .map((m) => (
-                        <tr key={m.staffId} className="hover:bg-muted/30 transition-colors">
-                          <td className="px-4 py-2.5 font-medium">{m.name}</td>
-                          <td className="px-4 py-2.5 text-center">
-                            <span
-                              className={cn(
-                                "inline-flex items-center gap-1 text-xs font-medium",
-                                m.isOnline ? "text-emerald-600" : "text-muted-foreground",
-                              )}
-                            >
-                              <span className={cn("h-1.5 w-1.5 rounded-full", m.isOnline ? "bg-emerald-500" : "bg-zinc-400")} />
-                              {m.isOnline ? "Online" : "Offline"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2.5 text-right tabular-nums">{hoursForPeriod(m, period).toFixed(1)}</td>
-                          <td className="px-4 py-2.5 text-right tabular-nums">{candidatesForPeriod(m, period)}</td>
-                          <td className="px-4 py-2.5 text-right tabular-nums">{m.workDaysMonth}</td>
-                          <td className="px-4 py-2.5 text-right text-muted-foreground">{formatTime(m.firstLoginToday)}</td>
-                        </tr>
-                      ))}
+                    {sorted.map((m) => (
+                      <tr
+                        key={m.staffId}
+                        className="hover:bg-muted/30 transition-colors cursor-pointer"
+                        onClick={() => setSelectedMember(m)}
+                      >
+                        <td className="px-4 py-2.5 font-medium">{m.name}</td>
+                        <td className="px-4 py-2.5 text-center">
+                          <span className={cn("inline-flex items-center gap-1 text-xs font-medium", m.isOnline ? "text-emerald-600" : "text-muted-foreground")}>
+                            <span className={cn("h-1.5 w-1.5 rounded-full", m.isOnline ? "bg-emerald-500" : "bg-zinc-400")} />
+                            {m.isOnline ? "Online" : "Offline"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right tabular-nums">{hoursForPeriod(m, period).toFixed(1)}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums">{candidatesForPeriod(m, period)}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums">{m.workDaysMonth}</td>
+                        <td className="px-4 py-2.5 text-right text-muted-foreground">{formatTime(m.firstLoginToday)}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -265,6 +497,12 @@ function StaffActivityPage() {
           </Card>
         </>
       )}
+
+      <LateLoginDialog
+        member={selectedMember}
+        open={!!selectedMember}
+        onClose={() => setSelectedMember(null)}
+      />
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { confirmInvoicePayment } from "@/lib/invoice.functions";
 import { updateCandidateField } from "@/lib/candidates.functions";
+import { backfillTeamAbsents } from "@/lib/staff-attendance.functions";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -310,6 +311,15 @@ function ManagerBell() {
 function ManagerLayout() {
   const { role, loading, user, signOut } = useAuth();
   const navigate = useNavigate();
+  const doBackfill = useServerFn(backfillTeamAbsents);
+
+  // Register absent days for all staff once per hour automatically
+  useQuery({
+    queryKey: ["backfill-absents-shell"],
+    queryFn: () => doBackfill(),
+    enabled: role === "manager" || role === "admin",
+    staleTime: 60 * 60 * 1000,
+  });
 
   // Only block when we have no role yet (initial load). Skip the guard during
   // token-refresh events so the layout stays mounted and pages don't flash.
