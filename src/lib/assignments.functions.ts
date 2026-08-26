@@ -88,6 +88,22 @@ export const deleteOffice = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const lockOffice = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid(), locked: z.boolean() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    const { error } = await supabaseAdmin
+      .from("assignment_offices")
+      .update({ is_locked: data.locked } as any)
+      .eq("id", data.id)
+      .eq("manager_id", managerId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 // ── CV Templates ─────────────────────────────────────────────────────────────
 
 export const addCvTemplate = createServerFn({ method: "POST" })

@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock, Download, BarChart3, AlertCircle } from "lucide-react";
+import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock, Download, BarChart3, AlertCircle, Lock, Unlock } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
-import { addCountry, deleteCountry, addOffice, deleteOffice, deleteCvTemplate, optimizeCvTemplate } from "@/lib/assignments.functions";
+import { addCountry, deleteCountry, addOffice, deleteOffice, lockOffice, deleteCvTemplate, optimizeCvTemplate } from "@/lib/assignments.functions";
 
 type AssignCountry  = Database["public"]["Tables"]["assignment_countries"]["Row"];
 type AssignOffice   = Database["public"]["Tables"]["assignment_offices"]["Row"];
@@ -49,6 +49,7 @@ function AssignmentsPage() {
   const delCountryFn   = useServerFn(deleteCountry);
   const addOfficeFn    = useServerFn(addOffice);
   const delOfficeFn    = useServerFn(deleteOffice);
+  const lockOfficeFn   = useServerFn(lockOffice);
   const delTemplateFn      = useServerFn(deleteCvTemplate);
   const optimizeTemplateFn = useServerFn(optimizeCvTemplate);
 
@@ -279,6 +280,16 @@ function AssignmentsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const lockOfficeMut = useMutation({
+    mutationFn: ({ id, locked }: { id: string; locked: boolean }) =>
+      lockOfficeFn({ data: { id, locked } }),
+    onSuccess: (_, { locked }) => {
+      toast.success(locked ? "Office locked — will not receive candidates" : "Office unlocked");
+      qc.invalidateQueries({ queryKey: ["assignment-offices"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const delTemplateMut = useMutation({
     mutationFn: (id: string) => delTemplateFn({ data: { id } }),
     onSuccess: () => {
@@ -484,17 +495,45 @@ function AssignmentsPage() {
                 <div className="space-y-0.5">
                   {activeOffices.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">No offices yet.</p>
-                  ) : officeSlice.map((o) => (
-                    <div key={o.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-muted/40 group">
-                      <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <span className="flex-1 truncate text-sm">{o.name}</span>
-                      <button type="button" onClick={() => delOfficeMut.mutate(o.id)}
-                        disabled={delOfficeMut.isPending}
-                        className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
+                  ) : officeSlice.map((o) => {
+                    const isLocked = (o as any).is_locked === true;
+                    return (
+                      <div key={o.id} className={cn(
+                        "flex items-center gap-2 px-3 py-1.5 hover:bg-muted/40 group",
+                        isLocked && "opacity-50",
+                      )}>
+                        {isLocked
+                          ? <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                          : <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        }
+                        <span className={cn("flex-1 truncate text-sm", isLocked && "line-through text-muted-foreground")}>
+                          {o.name}
+                        </span>
+                        {isLocked && (
+                          <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5 rounded-sm shrink-0">
+                            Locked
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          title={isLocked ? "Unlock office" : "Lock office (stop receiving candidates)"}
+                          onClick={() => lockOfficeMut.mutate({ id: o.id, locked: !isLocked })}
+                          disabled={lockOfficeMut.isPending}
+                          className={cn(
+                            "opacity-0 group-hover:opacity-100 transition-opacity",
+                            isLocked ? "text-amber-500 hover:text-amber-600" : "text-muted-foreground hover:text-amber-500",
+                          )}
+                        >
+                          {isLocked ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                        </button>
+                        <button type="button" onClick={() => delOfficeMut.mutate(o.id)}
+                          disabled={delOfficeMut.isPending}
+                          className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
                 <Pager page={officePage} total={activeOffices.length} set={setOfficePage} />
               </>

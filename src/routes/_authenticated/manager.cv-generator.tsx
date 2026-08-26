@@ -290,17 +290,42 @@ function ManagerCvGeneratorPage() {
     queryKey: ["assignment-offices", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data } = await supabase.from("assignment_offices").select("id, name").order("name");
-      return (data ?? []) as { id: string; name: string }[];
+      const { data } = await supabase
+        .from("assignment_offices")
+        .select("id, name, is_locked, assignment_countries(name)")
+        .order("name");
+      return (data ?? []).map((o: any) => ({
+        id:          o.id as string,
+        name:        o.name as string,
+        isLocked:    (o.is_locked ?? false) as boolean,
+        countryName: (o.assignment_countries?.name ?? null) as string | null,
+      }));
     },
   });
+
+  // Only unlocked offices participate in candidate distribution
+  const activeOfficesList = useMemo(() => officesList.filter(o => !o.isLocked), [officesList]);
+
+  // Index: lowercase country name → unlocked offices for that country (used by distribute & resend)
+  const officeCountryIndex = useMemo(() => {
+    const idx = new Map<string, typeof activeOfficesList>();
+    for (const o of activeOfficesList) {
+      const key = (o.countryName ?? "").toLowerCase().trim();
+      if (!key) continue;
+      if (!idx.has(key)) idx.set(key, []);
+      idx.get(key)!.push(o);
+    }
+    return idx;
+  }, [activeOfficesList]);
 
   const resendMut = useMutation({
     mutationFn: async (candidateId: string) => {
       const cand = candidates.find(c => c.id === candidateId);
       if (!cand) throw new Error("Candidate not found");
       const seen = new Set([cand.cv_sent_to, ...((cand.cv_resent_offices as string[]) ?? [])].filter(Boolean) as string[]);
-      const eligible = officesList.filter(o => !seen.has(o.name));
+      const dc = (cand.destination_country ?? "").toLowerCase().trim();
+      const pool = (dc && officeCountryIndex.get(dc)?.length) ? officeCountryIndex.get(dc)! : officesList;
+      const eligible = pool.filter(o => !seen.has(o.name));
       const today = new Date().toISOString().split("T")[0];
       if (eligible.length === 0) {
         // All offices exhausted — cycle back to current office with reset history
@@ -382,11 +407,13 @@ function ManagerCvGeneratorPage() {
     queryFn: async () => {
       const [agenciesRes, officesRes] = await Promise.all([
         supabase.from("foreign_agencies").select("name").order("name"),
-        supabase.from("assignment_offices").select("name").order("name"),
+        supabase.from("assignment_offices").select("name, is_locked").order("name"),
       ]);
       const names = [
         ...(agenciesRes.data ?? []).map((a) => a.name),
-        ...(officesRes.data ?? []).map((o) => o.name),
+        ...(officesRes.data ?? [])
+          .filter((o: any) => !o.is_locked)
+          .map((o: any) => o.name),
       ];
       return [...new Set(names)].filter((n): n is string => !!n).sort();
     },
@@ -524,7 +551,7 @@ function ManagerCvGeneratorPage() {
   }, [filtered, cvDaysThreshold]);
 
   const distributionPlan = useMemo(() => {
-    if (officesList.length === 0) return null;
+    if (activeOfficesList.length === 0) return null;
     const todayMs = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
     const unsent = filtered.filter(c => !c.cv_sent_to);
     const overdue = filtered.filter(c => {
@@ -533,19 +560,22 @@ function ManagerCvGeneratorPage() {
     });
     if (unsent.length === 0 && overdue.length === 0) return null;
 
-    // Live load map excluding overdue candidates that will be moved
+    // Live load map — unlocked offices only
     const overdueIdSet = new Set(overdue.map(c => c.id));
-    const loads = new Map<string, number>(officesList.map(o => [
+    const loads = new Map<string, number>(activeOfficesList.map(o => [
       o.name,
       candidates.filter(c => c.cv_sent_to === o.name && !c.selected_by && !overdueIdSet.has(c.id)).length,
     ]));
 
-    // Assign each overdue candidate to the least-loaded eligible office (not in its history)
-    // If all offices exhausted, return to original (current) office and reset history for next cycle
-    const overdueByOffice = new Map<string, Array<{ id: string; oldOffice: string; cycleReset?: boolean }>>(officesList.map(o => [o.name, []]));
+    // Assign each overdue candidate to the least-loaded eligible unlocked office.
+    // Country filtering: only offices matching destination_country; fallback to all unlocked offices.
+    // If all exhausted, cycle back to original and reset history for the next round.
+    const overdueByOffice = new Map<string, Array<{ id: string; oldOffice: string; cycleReset?: boolean }>>(activeOfficesList.map(o => [o.name, []]));
     for (const cand of overdue) {
       const seen = new Set([cand.cv_sent_to, ...((cand.cv_resent_offices as string[]) ?? [])].filter(Boolean) as string[]);
-      const eligible = officesList.filter(o => !seen.has(o.name));
+      const dc = (cand.destination_country ?? "").toLowerCase().trim();
+      const pool = (dc && officeCountryIndex.get(dc)?.length) ? officeCountryIndex.get(dc)! : activeOfficesList;
+      const eligible = pool.filter(o => !seen.has(o.name));
       if (eligible.length === 0) {
         // All offices tried — send back to current office and reset history so next cycle starts fresh
         const orig = cand.cv_sent_to!;
@@ -560,45 +590,58 @@ function ManagerCvGeneratorPage() {
       loads.set(best.name, (loads.get(best.name) ?? 0) + 1);
     }
 
-    // Distribution ratio = how many Processing candidates each office has selected
-    const processing = officesList.map(o => candidates.filter(c => c.status === "processing" && c.selected_by === o.name).length);
+    // Distribute unsent candidates per destination country — only to unlocked offices.
+    const unsentByOffice = new Map<string, Candidate[]>(activeOfficesList.map(o => [o.name, []]));
+    const poolGroups = new Map<string, { pool: typeof activeOfficesList; cands: Candidate[] }>();
+    for (const cand of unsent) {
+      const dc = (cand.destination_country ?? "").toLowerCase().trim();
+      const pool = (dc && officeCountryIndex.get(dc)?.length) ? officeCountryIndex.get(dc)! : activeOfficesList;
+      const key = pool.map(o => o.name).sort().join("|");
+      if (!poolGroups.has(key)) poolGroups.set(key, { pool, cands: [] });
+      poolGroups.get(key)!.cands.push(cand);
+    }
+    for (const { pool, cands } of poolGroups.values()) {
+      const pw = pool.map(o => candidates.filter(c => c.status === "processing" && c.selected_by === o.name).length);
+      const twTotal = pw.reduce((a, b) => a + b, 0);
+      const eff = twTotal === 0 ? pool.map(() => 1) : pw;
+      const effTotal = eff.reduce((a, b) => a + b, 0);
+      const exact = eff.map(w => cands.length * (w / effTotal));
+      const floors = exact.map(Math.floor);
+      let rem = cands.length - floors.reduce((a, b) => a + b, 0);
+      const fracs = exact.map((e, fi) => ({ fi, f: e - floors[fi] })).sort((a, b) => b.f - a.f);
+      const counts = [...floors];
+      for (let r = 0; r < rem; r++) counts[fracs[r].fi]++;
+      let ci = 0;
+      for (let pi = 0; pi < pool.length; pi++) {
+        unsentByOffice.get(pool[pi].name)!.push(...cands.slice(ci, ci + counts[pi]));
+        ci += counts[pi];
+      }
+    }
+
+    // Distribution ratio = how many Processing candidates each unlocked office has selected
+    const processing = activeOfficesList.map(o => candidates.filter(c => c.status === "processing" && c.selected_by === o.name).length);
     const totalProc = processing.reduce((a, b) => a + b, 0);
 
-    // Distribute unsent candidates proportionally by Processing selected_by share
-    const weights = processing;
-    const totalW = weights.reduce((a, b) => a + b, 0);
-    const eff = totalW === 0 ? officesList.map(() => 1) : weights;
-    const effTotal = eff.reduce((a, b) => a + b, 0);
-    const n = unsent.length;
-    const exact = eff.map(w => n * (w / effTotal));
-    const floors = exact.map(Math.floor);
-    let rem = n - floors.reduce((a, b) => a + b, 0);
-    const fracs = exact.map((e, i) => ({ i, f: e - floors[i] })).sort((a, b) => b.f - a.f);
-    const counts = [...floors];
-    for (let r = 0; r < rem; r++) counts[fracs[r].i]++;
-    let idx = 0;
-
-    return officesList.map((o, i) => {
-      const unsentSlice = unsent.slice(idx, idx + counts[i]);
-      idx += counts[i];
+    return activeOfficesList.map((o, i) => {
+      const unsentSlice = unsentByOffice.get(o.name)!;
       const od = overdueByOffice.get(o.name)!;
       const cycleCount = od.filter(e => e.cycleReset).length;
-      const movedIn = od.length - cycleCount; // overdue arriving from OTHER offices
+      const movedIn = od.length - cycleCount;
       return {
         name: o.name,
         processing: processing[i],
-        pct: totalProc > 0 ? Math.round((processing[i] / totalProc) * 100) : Math.round(100 / officesList.length),
-        leavingCount: overdue.filter(c => c.cv_sent_to === o.name).length, // overdue leaving this office
-        cycleCount,                                    // exhausted-cycle candidates returning here
+        pct: totalProc > 0 ? Math.round((processing[i] / totalProc) * 100) : Math.round(100 / activeOfficesList.length),
+        leavingCount: overdue.filter(c => c.cv_sent_to === o.name).length,
+        cycleCount,
         newCount: unsentSlice.length,
-        movedIn,                                       // overdue from other offices arriving here
+        movedIn,
         count: unsentSlice.length + od.length,
         overdueCount: od.length,
         ids: [...unsentSlice.map(c => c.id), ...od.map(a => a.id)],
         overdueEntries: od,
       };
     });
-  }, [filtered, officesList, candidates, cvDaysThreshold]);
+  }, [filtered, activeOfficesList, officeCountryIndex, candidates, cvDaysThreshold]);
 
   useEffect(() => { setPage(1); }, [filtered.length, pageSize]);
 
@@ -705,7 +748,7 @@ function ManagerCvGeneratorPage() {
           </label>
           <div className="flex items-center gap-2 flex-wrap">
             <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs rounded-none"
-              disabled={officesList.length === 0}
+              disabled={activeOfficesList.length === 0}
               onClick={async () => { await refetchCandidates(); setShowDistribute(true); }}>
               <GitBranch className="h-3.5 w-3.5" /> Distribute to Offices
             </Button>
@@ -884,7 +927,7 @@ function ManagerCvGeneratorPage() {
           </DialogHeader>
           {!distributionPlan ? (
             <p className="text-sm text-muted-foreground py-4 text-center">
-              {officesList.length === 0 ? "No offices configured. Add offices in Assignments first." : "No unsent or overdue candidates in current filters."}
+              {activeOfficesList.length === 0 ? "No unlocked offices available. Unlock or add offices in Assignments first." : "No unsent or overdue candidates in current filters."}
             </p>
           ) : (
             <>
