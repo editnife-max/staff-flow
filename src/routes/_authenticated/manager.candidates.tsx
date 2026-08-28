@@ -3526,7 +3526,17 @@ function ProcessingTable({
     if (f.wokala_status.length > 0)    list = list.filter((c) => f.wokala_status.includes(c.wokala_status ?? ""));
     if (f.visa_status.length > 0)      list = list.filter((c) => f.visa_status.includes(c.visa_status ?? ""));
     if (f.insurance_status.length > 0) list = list.filter((c) => f.insurance_status.includes(c.insurance_status ?? ""));
-    if (f.unfilled_lmis.length > 0)    list = list.filter((c) => f.unfilled_lmis.includes(c.unfilled_lmis ?? ""));
+    if (f.unfilled_lmis.length > 0) {
+      list = list.filter((c) => {
+        const ca = c as any;
+        return f.unfilled_lmis.every((opt) => {
+          if (opt === "INSU") return !ca.lmis_insu_url;
+          if (opt === "COC")  return !ca.lmis_coc_url;
+          if (opt === "ID")   return !ca.lmis_id_url && !ca.lmis_id_relative_url;
+          return true;
+        });
+      });
+    }
     if (f.lmis_status.length > 0)      list = list.filter((c) => f.lmis_status.includes(c.lmis_status ?? ""));
     if (f.ticket_status.length > 0)    list = list.filter((c) => f.ticket_status.includes(c.ticket_status ?? ""));
     if (f.arrival_city.length > 0)     list = list.filter((c) => f.arrival_city.includes(c.arrival_city ?? ""));
