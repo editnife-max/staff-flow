@@ -142,21 +142,23 @@ export const recordStaffLogin = createServerFn({ method: "POST" })
     const userId = context.userId;
     const now    = new Date();
 
-    const { data: staffRow } = await supabaseAdmin
+    const { data: staffRow } = await (supabaseAdmin
       .from("staff")
-      .select("*")
+      .select("id, manager_id, is_suspended, suspended_at")
       .eq("user_id", userId)
-      .maybeSingle() as unknown as {
-        data: {
-          id: string;
-          manager_id: string;
-          is_suspended: boolean;
-          penalty_window_start: string | null;
-        } | null;
-      };
+      .maybeSingle() as any) as { data: {
+        id: string; manager_id: string;
+        is_suspended: boolean; suspended_at: string | null;
+      } | null };
 
     if (!staffRow) return { isLate: false, isSuspended: false, lateCount: 0 };
     if (staffRow.is_suspended) return { isLate: false, isSuspended: true, lateCount: 0 };
+
+    // When a suspension is lifted, suspended_at is set to the lift timestamp.
+    // Use its date as the floor so past incidents don't count toward the next threshold.
+    const windowStart = staffRow.suspended_at
+      ? toEATDateStr(new Date(staffRow.suspended_at))
+      : null;
 
     const eatDate = toEATDateStr(now);
     const isLate  = isLateInEAT(now);
@@ -169,8 +171,7 @@ export const recordStaffLogin = createServerFn({ method: "POST" })
       .maybeSingle() as any);
 
     if (!existing) {
-      // No record yet → create with actual login time
-      await supabaseAdmin.from("staff_daily_attendance" as any).insert({
+      await (supabaseAdmin.from("staff_daily_attendance" as any).insert({
         staff_user_id:  userId,
         manager_id:     staffRow.manager_id,
         staff_id:       staffRow.id,
@@ -178,36 +179,23 @@ export const recordStaffLogin = createServerFn({ method: "POST" })
         first_login_at: now.toISOString(),
         is_late:        isLate,
         absent:         false,
-      });
+      }) as any);
     } else if (!(existing as any).first_login_at) {
-      // Tentative late record exists (no login time yet) → update with actual login
       await (supabaseAdmin
         .from("staff_daily_attendance" as any)
         .update({ first_login_at: now.toISOString(), is_late: isLate, absent: false } as any)
         .eq("id", (existing as any).id) as any);
     }
-    // else: first_login_at already recorded → skip
 
-    // Backfill absent / tentative-late rows for other weekdays (respects penalty window)
-    await backfillAbsentDays(
-      userId,
-      staffRow.id,
-      staffRow.manager_id,
-      now,
-      staffRow.penalty_window_start,
-    );
+    await backfillAbsentDays(userId, staffRow.id, staffRow.manager_id, now, windowStart);
 
-    const lateCount = await countUnexcusedIncidents(
-      userId,
-      now,
-      staffRow.penalty_window_start,
-    );
+    const lateCount = await countUnexcusedIncidents(userId, now, windowStart);
 
     if (lateCount >= MAX_INCIDENTS) {
-      await supabaseAdmin
+      await (supabaseAdmin
         .from("staff")
         .update({ is_suspended: true, suspended_at: now.toISOString() } as any)
-        .eq("id", staffRow.id);
+        .eq("id", staffRow.id) as any);
       return { isLate, isSuspended: true, lateCount };
     }
 
@@ -253,29 +241,51 @@ export const excuseLateDay = createServerFn({ method: "POST" })
       .update({ excused: true, excused_at: new Date().toISOString() })
       .eq("id", data.attendanceId);
 
-    const { data: staffRow } = await supabaseAdmin
+    const { data: staffRow } = await (supabaseAdmin
       .from("staff")
-      .select("penalty_window_start")
+      .select("is_suspended, suspended_at")
       .eq("user_id", (row as any).staff_user_id)
-      .maybeSingle() as unknown as { data: { penalty_window_start: string | null } | null };
+      .maybeSingle() as any) as { data: { is_suspended: boolean; suspended_at: string | null } | null };
+
+    const windowStart = staffRow?.suspended_at && !staffRow?.is_suspended
+      ? toEATDateStr(new Date(staffRow.suspended_at))
+      : null;
 
     const count = await countUnexcusedIncidents(
       (row as any).staff_user_id,
       new Date(),
-      staffRow?.penalty_window_start,
+      windowStart,
     );
     if (count < MAX_INCIDENTS) {
-      await supabaseAdmin
+      await (supabaseAdmin
         .from("staff")
-        .update({ is_suspended: false, suspended_at: null } as any)
-        .eq("user_id", (row as any).staff_user_id);
+        .update({ is_suspended: false, suspended_at: new Date().toISOString() } as any)
+        .eq("user_id", (row as any).staff_user_id) as any);
     }
 
     return { ok: true };
   });
 
-// Manager removes suspension. All existing unexcused incidents are excused so the staff
-// starts a fresh 3-strike window from today — no past days are held against them.
+// Bulk-excuse all unexcused attendance incidents for a staff member.
+// Used when a manager removes a suspension so past incidents don't stay marked as infractions.
+export const excuseAllStaffIncidents = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ staffUserId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const managerId = context.userId;
+    const now = new Date().toISOString();
+
+    await (supabaseAdmin
+      .from("staff_daily_attendance" as any)
+      .update({ excused: true, excused_at: now } as any)
+      .eq("staff_user_id", data.staffUserId)
+      .eq("manager_id", managerId)
+      .eq("excused", false) as any);
+
+    return { ok: true };
+  });
+
+// Manager removes suspension. Incidents are kept as-is; count restarts from today.
 export const unsuspendStaff = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ staffId: z.string().uuid() }).parse(input))
@@ -288,24 +298,22 @@ export const unsuspendStaff = createServerFn({ method: "POST" })
       .eq("id", data.staffId)
       .maybeSingle();
 
-    if (!row || row.manager_id !== managerId) throw new Response("Not found", { status: 404 });
+    if (!row || row.manager_id !== managerId) {
+      return { ok: false, error: "Staff not found or permission denied" };
+    }
 
-    const today = toEATDateStr(new Date());
-
-    // Unsuspend — always works regardless of whether penalty_window_start column exists
-    await supabaseAdmin
+    // Remove suspension. suspended_at is set to NOW (not null) so counting functions
+    // use it as the new window floor — incidents before this timestamp are excluded.
+    const { error: unsuspendErr } = await (supabaseAdmin
       .from("staff")
-      .update({ is_suspended: false, suspended_at: null } as any)
-      .eq("id", data.staffId);
+      .update({ is_suspended: false, suspended_at: new Date().toISOString() } as any)
+      .eq("id", data.staffId) as any);
 
-    // Mark today as the new penalty window start so past incidents are excluded
-    // from future counts — incidents are kept as-is (not excused)
-    await supabaseAdmin
-      .from("staff")
-      .update({ penalty_window_start: today } as any)
-      .eq("id", data.staffId);
+    if (unsuspendErr) {
+      return { ok: false, error: unsuspendErr.message as string };
+    }
 
-    return { ok: true };
+    return { ok: true, error: null };
   });
 
 // Manager fetches attendance history for a staff member (bypasses RLS).
@@ -389,22 +397,25 @@ export const backfillStaffAbsents = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ staffUserId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const managerId = context.userId;
-    const { data: staffRow } = await supabaseAdmin
+    const { data: staffRow } = await (supabaseAdmin
       .from("staff")
-      .select("id, manager_id, penalty_window_start")
+      .select("id, manager_id, is_suspended, suspended_at")
       .eq("user_id", data.staffUserId)
-      .maybeSingle() as unknown as {
-        data: { id: string; manager_id: string; penalty_window_start: string | null } | null;
+      .maybeSingle() as any) as {
+        data: { id: string; manager_id: string; is_suspended: boolean; suspended_at: string | null } | null;
       };
     if (!staffRow || staffRow.manager_id !== managerId) {
       throw new Response("Not found", { status: 404 });
     }
+    const windowStart = staffRow.suspended_at && !staffRow.is_suspended
+      ? toEATDateStr(new Date(staffRow.suspended_at))
+      : null;
     await backfillAbsentDays(
       data.staffUserId,
       staffRow.id,
       managerId,
       new Date(),
-      staffRow.penalty_window_start,
+      windowStart,
     );
     return { ok: true };
   });
@@ -412,7 +423,7 @@ export const backfillStaffAbsents = createServerFn({ method: "POST" })
 // Manager-triggered: backfills ALL staff under this manager.
 // Safe to call repeatedly — ignoreDuplicates skips existing records;
 // tentative-late records from previous days are flipped to absent.
-// Respects each staff member's penalty_window_start if set after an unsuspend.
+// Respects each staff member's suspended_at date as the window floor after an unsuspend.
 export const backfillTeamAbsents = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -422,16 +433,17 @@ export const backfillTeamAbsents = createServerFn({ method: "POST" })
     const cutoffDate   = toEATDateStr(new Date(now.getTime() - LOOKBACK_DAYS * 86_400_000));
     const todayPast9AM = isLateInEAT(now);
 
-    const { data: staffList } = await supabaseAdmin
+    const { data: staffList } = await (supabaseAdmin
       .from("staff")
-      .select("id, user_id, manager_id, penalty_window_start")
+      .select("id, user_id, manager_id, is_suspended, suspended_at")
       .eq("manager_id", managerId)
-      .not("user_id", "is", null) as unknown as {
+      .not("user_id", "is", null) as any) as {
         data: Array<{
           id: string;
           user_id: string;
           manager_id: string;
-          penalty_window_start: string | null;
+          is_suspended: boolean;
+          suspended_at: string | null;
         }> | null;
       };
 
@@ -454,11 +466,13 @@ export const backfillTeamAbsents = createServerFn({ method: "POST" })
     for (const staff of staffList) {
       if (!staff.user_id) continue;
 
-      // Each staff member's window starts at their penalty_window_start (or 30 days ago)
+      // When suspension was lifted, suspended_at holds the lift timestamp.
+      // Use its date as the window floor so pre-unsuspend days aren't backfilled.
+      const windowStart = staff.suspended_at && !staff.is_suspended
+        ? toEATDateStr(new Date(staff.suspended_at))
+        : null;
       const effectiveCutoff =
-        staff.penalty_window_start && staff.penalty_window_start > cutoffDate
-          ? staff.penalty_window_start
-          : cutoffDate;
+        windowStart && windowStart > cutoffDate ? windowStart : cutoffDate;
 
       for (
         let d = new Date(effectiveCutoff + "T00:00:00Z");

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Clock, Users, Wifi, WifiOff, CalendarClock, ShieldCheck, ShieldX, RefreshCw, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { getTeamActivity } from "@/lib/staff-sessions.functions";
-import { excuseLateDay, unsuspendStaff, backfillStaffAbsents, backfillTeamAbsents, getStaffAttendance, getTodayLateStaff } from "@/lib/staff-attendance.functions";
+import { excuseLateDay, excuseAllStaffIncidents, backfillStaffAbsents, backfillTeamAbsents, getStaffAttendance, getTodayLateStaff } from "@/lib/staff-attendance.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,7 @@ type TeamMember = {
   staffUserId: string;
   name: string;
   isOnline: boolean;
+  isSuspended: boolean;
   lastSeen: string | null;
   firstLoginToday: string | null;
   sessionsToday: number;
@@ -110,39 +111,33 @@ function LateLoginDialog({ member, open, onClose }: {
     },
   });
 
-  const { data: staffInfo, refetch: refetchStaffInfo } = useQuery({
-    queryKey: ["staff-suspension", member?.staffId],
-    enabled: open && !!member?.staffId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("staff")
-        .select("is_suspended")
-        .eq("id", member!.staffId)
-        .maybeSingle();
-      if (error) throw error;
-      return data as { is_suspended: boolean } | null;
-    },
-  });
-
   const doExcuse = useServerFn(excuseLateDay);
   const excuseMut = useMutation({
     mutationFn: (attendanceId: string) => doExcuse({ data: { attendanceId } }),
     onSuccess: () => {
       toast.success("Day excused");
       refetchAttendance();
-      refetchStaffInfo();
       qc.invalidateQueries({ queryKey: ["team-activity"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const doUnsuspend = useServerFn(unsuspendStaff);
+  const doExcuseAll = useServerFn(excuseAllStaffIncidents);
+
   const unsuspendMut = useMutation({
-    mutationFn: () => doUnsuspend({ data: { staffId: member!.staffId } }),
+    mutationFn: async () => {
+      // suspended_at = NOW so counting functions use it as the new window floor.
+      const { error } = await (supabase
+        .from("staff")
+        .update({ is_suspended: false, suspended_at: new Date().toISOString() } as any)
+        .eq("id", member!.staffId) as any);
+      if (error) throw new Error(error.message);
+      // Excuse all past unexcused incidents so the history is clean.
+      await doExcuseAll({ data: { staffUserId: member!.staffUserId } });
+    },
     onSuccess: () => {
-      toast.success("Suspension removed — penalty window reset from today");
+      toast.success("Suspension removed — past incidents excused");
       refetchAttendance();
-      refetchStaffInfo();
       qc.invalidateQueries({ queryKey: ["team-activity"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -160,7 +155,7 @@ function LateLoginDialog({ member, open, onClose }: {
           </DialogTitle>
         </DialogHeader>
 
-        {staffInfo?.is_suspended && (
+        {member?.isSuspended && (
           <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3">
             <div className="flex items-center gap-2">
               <ShieldX className="h-4 w-4 text-destructive" />
@@ -324,7 +319,7 @@ function MemberCard({ member, period, onClick }: {
 
 function StaffActivityPage() {
   const [period, setPeriod]             = useState<Period>("today");
-  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
+  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
   const [syncing, setSyncing]           = useState(false);
   const qc                              = useQueryClient();
   const doGetTeamActivity               = useServerFn(getTeamActivity);
@@ -366,6 +361,9 @@ function StaffActivityPage() {
   }
 
   const members: TeamMember[] = Array.isArray(team) ? team : [];
+  // Derive selected member live from the latest query data so suspension changes
+  // are reflected immediately after the team-activity query refetches.
+  const selectedMember = selectedStaffId ? (members.find((m) => m.staffId === selectedStaffId) ?? null) : null;
   const onlineCount      = members.filter((m) => m.isOnline).length;
   const totalHoursToday  = members.reduce((acc, m) => acc + m.hoursToday, 0);
 
@@ -423,7 +421,7 @@ function StaffActivityPage() {
                 return (
                   <button
                     key={s.attendanceId}
-                    onClick={() => member && setSelectedMember(member)}
+                    onClick={() => member && setSelectedStaffId(member.staffId)}
                     className={cn(
                       "inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white dark:bg-amber-950/40 px-3 py-1.5 text-xs font-medium text-amber-800 dark:text-amber-300 transition-colors",
                       member ? "hover:bg-amber-100 dark:hover:bg-amber-900/40 cursor-pointer" : "cursor-default opacity-60",
@@ -483,7 +481,7 @@ function StaffActivityPage() {
                 key={m.staffId}
                 member={m}
                 period={period}
-                onClick={() => setSelectedMember(m)}
+                onClick={() => setSelectedStaffId(m.staffId)}
               />
             ))}
           </div>
@@ -511,7 +509,7 @@ function StaffActivityPage() {
                       <tr
                         key={m.staffId}
                         className="hover:bg-muted/30 transition-colors cursor-pointer"
-                        onClick={() => setSelectedMember(m)}
+                        onClick={() => setSelectedStaffId(m.staffId)}
                       >
                         <td className="px-4 py-2.5 font-medium">{m.name}</td>
                         <td className="px-4 py-2.5 text-center">
@@ -536,8 +534,8 @@ function StaffActivityPage() {
 
       <LateLoginDialog
         member={selectedMember}
-        open={!!selectedMember}
-        onClose={() => setSelectedMember(null)}
+        open={!!selectedStaffId}
+        onClose={() => setSelectedStaffId(null)}
       />
     </div>
   );
