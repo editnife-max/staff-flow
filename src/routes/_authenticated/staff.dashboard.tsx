@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
-import { updateCandidateField, logFlightReadiness } from "@/lib/candidates.functions";
+import { updateCandidateField, logFlightReadiness, getCandidates } from "@/lib/candidates.functions";
 import { acceptCandidatesNotification, declineCandidatesNotification } from "@/lib/notifications.functions";
 import { getMySessionStats } from "@/lib/staff-sessions.functions";
 import { useStaffSession } from "@/hooks/use-staff-session";
@@ -906,17 +906,28 @@ function StaffDashboard() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const updateFieldFn = useServerFn(updateCandidateField);
+  const fetchCandidates = useServerFn(getCandidates);
+
+  const [preloadedCandidates] = useState<Candidate[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = sessionStorage.getItem("stf-dash-cands-v1");
+      if (!raw) return [];
+      const { ts, d } = JSON.parse(raw);
+      return Date.now() - ts < 15 * 60 * 1000 ? (d as Candidate[]) : [];
+    } catch { return []; }
+  });
 
   const { data: candidates = [] } = useQuery({
     queryKey: ["staff-dashboard-candidates", user?.id],
     enabled: !!user,
+    initialData: preloadedCandidates.length ? preloadedCandidates : undefined,
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("candidates")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as Candidate[];
+      const result = await (fetchCandidates({}) as Promise<Candidate[]>);
+      try { sessionStorage.setItem("stf-dash-cands-v1", JSON.stringify({ ts: Date.now(), d: result })); } catch {}
+      return result;
     },
   });
 
@@ -1011,6 +1022,7 @@ function StaffDashboard() {
     mutationFn: (n: typeof agencyNotifs[0]) => doAccept({ data: { notificationId: n.id, candidateIds: n.candidate_ids } }),
     onSuccess: () => {
       toast.success("Candidates moved to Processing");
+      try { sessionStorage.removeItem("stf-dash-cands-v1"); } catch {}
       queryClient.invalidateQueries({ queryKey: ["staff-dashboard-agency-notifs"] });
       queryClient.invalidateQueries({ queryKey: ["staff-dashboard-candidates"] });
       queryClient.invalidateQueries({ queryKey: ["staff-notifications"] });
@@ -1048,8 +1060,10 @@ function StaffDashboard() {
   const fieldMut = useMutation({
     mutationFn: async (input: { id: string; field: string; value: string | null }) =>
       updateFieldFn({ data: input as never }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["staff-dashboard-candidates", user?.id] }),
+    onSuccess: () => {
+      try { sessionStorage.removeItem("stf-dash-cands-v1"); } catch {}
+      queryClient.invalidateQueries({ queryKey: ["staff-dashboard-candidates", user?.id] });
+    },
   });
 
   const handleUpdateField = (id: string, field: EditableField, value: string | null) => {

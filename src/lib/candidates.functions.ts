@@ -136,22 +136,40 @@ const UNTRACKED_FIELDS = new Set([
   "photo_url", "full_photo_url", "passport_scan_url", "medical_days", "ticket_pdf_url", "visa_pdf_url", "qr_url",
 ]);
 
-async function resolveManagerId(userId: string): Promise<string> {
+async function resolveManagerId(userId: string): Promise<string | null> {
   const { data: roles } = await supabaseAdmin
     .from("user_roles")
     .select("role, manager_id")
     .eq("user_id", userId);
+  // Check staff role with a manager_id FIRST — a user who has both "staff" and
+  // "manager" entries must resolve to their manager's candidates, not their own.
+  const staffRole = roles?.find((r) => r.role === "staff" && r.manager_id);
+  if (staffRole?.manager_id) return staffRole.manager_id as string;
   const mgr = roles?.find((r) => r.role === "manager");
   if (mgr) return userId;
-  const staff = roles?.find((r) => r.role === "staff");
-  if (staff?.manager_id) return staff.manager_id;
-  throw new Response("No manager scope", { status: 403 });
+  // Fallback: look up manager_id from the staff table directly
+  const { data: staffRow } = await supabaseAdmin
+    .from("staff")
+    .select("manager_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (staffRow?.manager_id) return staffRow.manager_id as string;
+  return null;
+}
+
+// Used by POST (mutation) server functions — throws Error (not Response) so
+// React Query rejects the promise cleanly without TanStack Start mishandling it.
+async function requireManagerId(userId: string): Promise<string> {
+  const id = await resolveManagerId(userId);
+  if (!id) throw new Error("No manager scope");
+  return id;
 }
 
 export const nextCandidateCode = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const managerId = await resolveManagerId(context.userId);
+    if (!managerId) return { code: "" };
     const { data, error } = await (supabaseAdmin as any).rpc("next_candidate_code", { p_manager_id: managerId });
     if (error) throw new Error(error.message);
     return { code: data as string };
@@ -163,7 +181,7 @@ export const upsertCandidate = createServerFn({ method: "POST" })
     z.object({ id: z.string().uuid().optional(), data: CandidateInput }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const managerId = await resolveManagerId(context.userId);
+    const managerId = await requireManagerId(context.userId);
 
     // Normalize religion to canonical 'Muslim' / 'Non-muslim' before saving
     if (data.data.religion !== undefined) {
@@ -291,7 +309,7 @@ export const updateCandidateField = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => InlineFieldSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const managerId = await resolveManagerId(context.userId);
+    const managerId = await requireManagerId(context.userId);
     const raw = data.value === "" ? null : data.value;
     // medical_days is stored as integer; passport_accepted is stored as boolean
     const coerced =
@@ -409,7 +427,7 @@ export const deleteCandidate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const managerId = await resolveManagerId(context.userId);
+    const managerId = await requireManagerId(context.userId);
     const { error } = await supabaseAdmin
       .from("candidates")
       .delete()
@@ -425,7 +443,7 @@ export const bulkDeleteCandidates = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => IdList.parse(input))
   .handler(async ({ data, context }) => {
-    const managerId = await resolveManagerId(context.userId);
+    const managerId = await requireManagerId(context.userId);
     const { error, count } = await supabaseAdmin
       .from("candidates")
       .delete({ count: "exact" })
@@ -441,7 +459,7 @@ export const bulkUpdateStatus = createServerFn({ method: "POST" })
     IdList.extend({ status: StatusEnum }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const managerId = await resolveManagerId(context.userId);
+    const managerId = await requireManagerId(context.userId);
     const { error, count } = await supabaseAdmin
       .from("candidates")
       .update({ status: data.status }, { count: "exact" })
@@ -460,7 +478,7 @@ export const bulkUpdateField = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const managerId = await resolveManagerId(context.userId);
+    const managerId = await requireManagerId(context.userId);
     const raw = data.value === "" ? null : data.value;
     const coercedBulk =
       data.field === "passport_accepted" && raw !== null ? raw === "true" : raw;
@@ -484,7 +502,7 @@ export const bulkImportCandidates = createServerFn({ method: "POST" })
     z.object({ rows: z.array(CandidateInput).min(1).max(500) }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const managerId = await resolveManagerId(context.userId);
+    const managerId = await requireManagerId(context.userId);
     const createdByName = await resolveCreatedByName(context.userId);
 
     // Rows that already carry a code vs rows that need one generated
@@ -534,7 +552,7 @@ export const bulkAssignStaff = createServerFn({ method: "POST" })
     IdList.extend({ staff_id: z.string().uuid().nullable() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const managerId = await resolveManagerId(context.userId);
+    const managerId = await requireManagerId(context.userId);
     if (data.staff_id) {
       const { data: staffRow, error: sErr } = await supabaseAdmin
         .from("staff")
@@ -560,7 +578,7 @@ export const logFlightReadiness = createServerFn({ method: "POST" })
     IdList.extend({ answer: z.enum(["Ready", "Not ready"]) }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const managerId = await resolveManagerId(context.userId);
+    const managerId = await requireManagerId(context.userId);
     const { data: owned } = await supabaseAdmin
       .from("candidates")
       .select("id")
@@ -588,6 +606,7 @@ export const getCandidates = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const managerId = await resolveManagerId(context.userId);
+    if (!managerId) return [] as any[];
     const PAGE = 1000;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const all: any[] = [];
@@ -619,6 +638,7 @@ export const searchCandidates = createServerFn({ method: "GET" })
     const term = data.q.trim();
     if (term.length < 2) return [];
     const managerId = await resolveManagerId(context.userId);
+    if (!managerId) return [];
     // Strip characters that would break the PostgREST or() filter string
     const safe = term.replace(/[,()|]/g, " ").trim();
     if (!safe) return [];
@@ -654,7 +674,7 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
     z.object({ candidateId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const managerId = await resolveManagerId(context.userId);
+    const managerId = await requireManagerId(context.userId);
 
     const { data: candidate, error } = await supabaseAdmin
       .from("candidates")
