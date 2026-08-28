@@ -71,64 +71,58 @@ const BASE: ExportCol[] = [
   { key: "passport_number", label: "Passport No." },
 ];
 
-const PRIMARY   = "1A3A52"; // navy  — header background
-const SECONDARY = "5CB8C4"; // teal  — row number column background
-const WHITE     = "FFFFFF";
-
-function styledCell(value: string | number, style: Record<string, unknown>) {
-  return { v: value, t: typeof value === "number" ? "n" : "s", s: style };
-}
+// Green color scheme — matches "Download Excel for Ticket" in action-dialog
+const GREEN_HDR  = "16a34a"; // green-600 — all headers
+const GREEN_NUM  = "4ade80"; // green-400 — number data cells
+const GREEN_DARK = "14532d"; // green-900 — number cell text & borders
+const WHITE      = "FFFFFF";
 
 async function downloadCandidatesExcel(candidates: Candidate[], title: string, cols: ExportCol[]) {
   const XLSX = await import("xlsx-js-style");
+  const sc = (v: string | number, s: object) => ({ v, t: typeof v === "number" ? "n" : "s", s });
+  const numCellBorder = { style: "thin", color: { rgb: GREEN_DARK } };
+
   const headerStyle = {
-    fill: { fgColor: { rgb: PRIMARY } },
+    fill: { fgColor: { rgb: GREEN_HDR } },
     font: { bold: true, color: { rgb: WHITE }, sz: 11 },
     alignment: { horizontal: "center", vertical: "center", wrapText: true },
-    border: { bottom: { style: "thin", color: { rgb: WHITE } } },
   };
   const numHeaderStyle = {
     ...headerStyle,
-    fill: { fgColor: { rgb: SECONDARY } },
+    border: { top: numCellBorder, bottom: numCellBorder, left: numCellBorder, right: numCellBorder },
   };
-  const numCellStyle = {
-    fill: { fgColor: { rgb: SECONDARY } },
-    font: { bold: true, color: { rgb: WHITE }, sz: 10 },
+  const makeNumCellStyle = () => ({
+    fill: { fgColor: { rgb: GREEN_NUM } },
+    font: { bold: true, color: { rgb: GREEN_DARK }, sz: 11 },
     alignment: { horizontal: "center", vertical: "center" },
-  };
+    border: { top: numCellBorder, bottom: numCellBorder, left: numCellBorder, right: numCellBorder },
+  });
   const dataCellStyle = {
     alignment: { vertical: "center", wrapText: false },
     font: { sz: 10 },
   };
 
-  // Build header row: # column + data columns
   const headerRow = [
-    styledCell("#", numHeaderStyle),
-    ...cols.map((c) => styledCell(c.label, headerStyle)),
+    sc("Number", numHeaderStyle),
+    ...cols.map((c) => sc(c.label, headerStyle)),
   ];
-
-  // Build data rows
   const dataRows = candidates.map((c, i) => [
-    styledCell(i + 1, numCellStyle),
+    sc(i + 1, makeNumCellStyle()),
     ...cols.map((col) => {
       const v = (c as any)[col.key];
-      return styledCell(v == null ? "" : String(v), dataCellStyle);
+      return sc(v == null ? "" : String(v), dataCellStyle);
     }),
   ]);
 
   const ws = XLSX.utils.aoa_to_sheet([headerRow, ...dataRows]);
 
-  // Column widths: # col narrow, data cols auto-fit
-  const allCols = ["#", ...cols.map((c) => c.label)];
-  ws["!cols"] = allCols.map((h, i) => ({
-    wch: i === 0 ? 5 : Math.max(
+  ws["!cols"] = ["Number", ...cols.map((c) => c.label)].map((h, i) => ({
+    wch: i === 0 ? 9 : Math.max(
       h.length,
       ...dataRows.map((r) => String((r[i] as any)?.v ?? "").length),
       12,
     ),
   }));
-
-  // Freeze header row
   ws["!freeze"] = { xSplit: 0, ySplit: 1 };
 
   const wb = XLSX.utils.book_new();

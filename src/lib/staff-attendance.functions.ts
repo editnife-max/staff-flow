@@ -7,7 +7,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 const EAT_OFFSET_MS   = 3 * 60 * 60 * 1000;
 const LATE_START_HOUR = 9; // 09:00 AM
 const LOOKBACK_DAYS   = 30;
-const MAX_INCIDENTS   = 2; // suspend after 2 unexcused incidents
+const MAX_INCIDENTS   = 3; // suspend after 3 unexcused incidents
 
 function toEATDateStr(utc: Date): string {
   return new Date(utc.getTime() + EAT_OFFSET_MS).toISOString().split("T")[0];
@@ -18,9 +18,16 @@ function isLateInEAT(utc: Date): boolean {
   return eat.getUTCHours() * 60 + eat.getUTCMinutes() >= LATE_START_HOUR * 60;
 }
 
-// Count unexcused incidents: late logins (is_late=true) + no-login days (absent=true)
-async function countUnexcusedIncidents(userId: string, now: Date): Promise<number> {
-  const cutoff = toEATDateStr(new Date(now.getTime() - LOOKBACK_DAYS * 86_400_000));
+// Count unexcused incidents: late logins (is_late=true) + no-login days (absent=true).
+// windowStart (EAT date string) is set when a suspension is lifted — incidents before that
+// date are excluded so the staff starts a fresh penalty window from that day.
+async function countUnexcusedIncidents(
+  userId: string,
+  now: Date,
+  windowStart?: string | null,
+): Promise<number> {
+  const cutoff30 = toEATDateStr(new Date(now.getTime() - LOOKBACK_DAYS * 86_400_000));
+  const cutoff = windowStart && windowStart > cutoff30 ? windowStart : cutoff30;
   const { count } = await (supabaseAdmin
     .from("staff_daily_attendance" as any)
     .select("*", { count: "exact", head: true })
@@ -43,21 +50,24 @@ type ExistRow = {
 //  • Previous weekday, no record          → insert absent (No Login)
 //  • Previous record: tentative-late      → flip to absent (never logged in)
 //  • Today past 9 AM, no record yet       → insert tentative Late penalty
+// windowStart caps the backfill floor so days before an unsuspend are never created.
 async function backfillAbsentDays(
   userId: string,
   staffId: string,
   managerId: string,
   now: Date,
+  windowStart?: string | null,
 ): Promise<void> {
   const eatToday     = toEATDateStr(now);
   const cutoffDate   = toEATDateStr(new Date(now.getTime() - LOOKBACK_DAYS * 86_400_000));
+  const effectiveCutoff = windowStart && windowStart > cutoffDate ? windowStart : cutoffDate;
   const todayPast9AM = isLateInEAT(now);
 
   const { data: existingRows } = await (supabaseAdmin
     .from("staff_daily_attendance" as any)
     .select("id, date, is_late, absent, first_login_at")
     .eq("staff_user_id", userId)
-    .gte("date", cutoffDate) as any);
+    .gte("date", effectiveCutoff) as any);
 
   const existingMap = new Map<string, ExistRow>(
     ((existingRows ?? []) as ExistRow[]).map((r) => [r.date, r]),
@@ -67,7 +77,7 @@ async function backfillAbsentDays(
   const toMarkAbsent: string[] = []; // tentative-late IDs → flip to absent
 
   for (
-    let d = new Date(cutoffDate + "T00:00:00Z");
+    let d = new Date(effectiveCutoff + "T00:00:00Z");
     d.toISOString().split("T")[0] <= eatToday;
     d.setUTCDate(d.getUTCDate() + 1)
   ) {
@@ -136,7 +146,14 @@ export const recordStaffLogin = createServerFn({ method: "POST" })
       .from("staff")
       .select("*")
       .eq("user_id", userId)
-      .maybeSingle() as unknown as { data: { id: string; manager_id: string; is_suspended: boolean } | null };
+      .maybeSingle() as unknown as {
+        data: {
+          id: string;
+          manager_id: string;
+          is_suspended: boolean;
+          penalty_window_start: string | null;
+        } | null;
+      };
 
     if (!staffRow) return { isLate: false, isSuspended: false, lateCount: 0 };
     if (staffRow.is_suspended) return { isLate: false, isSuspended: true, lateCount: 0 };
@@ -171,10 +188,20 @@ export const recordStaffLogin = createServerFn({ method: "POST" })
     }
     // else: first_login_at already recorded → skip
 
-    // Backfill absent / tentative-late rows for other weekdays
-    await backfillAbsentDays(userId, staffRow.id, staffRow.manager_id, now);
+    // Backfill absent / tentative-late rows for other weekdays (respects penalty window)
+    await backfillAbsentDays(
+      userId,
+      staffRow.id,
+      staffRow.manager_id,
+      now,
+      staffRow.penalty_window_start,
+    );
 
-    const lateCount = await countUnexcusedIncidents(userId, now);
+    const lateCount = await countUnexcusedIncidents(
+      userId,
+      now,
+      staffRow.penalty_window_start,
+    );
 
     if (lateCount >= MAX_INCIDENTS) {
       await supabaseAdmin
@@ -226,7 +253,17 @@ export const excuseLateDay = createServerFn({ method: "POST" })
       .update({ excused: true, excused_at: new Date().toISOString() })
       .eq("id", data.attendanceId);
 
-    const count = await countUnexcusedIncidents((row as any).staff_user_id, new Date());
+    const { data: staffRow } = await supabaseAdmin
+      .from("staff")
+      .select("penalty_window_start")
+      .eq("user_id", (row as any).staff_user_id)
+      .maybeSingle() as unknown as { data: { penalty_window_start: string | null } | null };
+
+    const count = await countUnexcusedIncidents(
+      (row as any).staff_user_id,
+      new Date(),
+      staffRow?.penalty_window_start,
+    );
     if (count < MAX_INCIDENTS) {
       await supabaseAdmin
         .from("staff")
@@ -237,7 +274,8 @@ export const excuseLateDay = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-// Manager removes suspension and clears attendance so the staff starts fresh.
+// Manager removes suspension. All existing unexcused incidents are excused so the staff
+// starts a fresh 3-strike window from today — no past days are held against them.
 export const unsuspendStaff = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ staffId: z.string().uuid() }).parse(input))
@@ -252,16 +290,19 @@ export const unsuspendStaff = createServerFn({ method: "POST" })
 
     if (!row || row.manager_id !== managerId) throw new Response("Not found", { status: 404 });
 
-    if (row.user_id) {
-      await supabaseAdmin
-        .from("staff_daily_attendance" as any)
-        .delete()
-        .eq("staff_user_id", row.user_id);
-    }
+    const today = toEATDateStr(new Date());
 
+    // Unsuspend — always works regardless of whether penalty_window_start column exists
     await supabaseAdmin
       .from("staff")
       .update({ is_suspended: false, suspended_at: null } as any)
+      .eq("id", data.staffId);
+
+    // Mark today as the new penalty window start so past incidents are excluded
+    // from future counts — incidents are kept as-is (not excused)
+    await supabaseAdmin
+      .from("staff")
+      .update({ penalty_window_start: today } as any)
       .eq("id", data.staffId);
 
     return { ok: true };
@@ -350,19 +391,28 @@ export const backfillStaffAbsents = createServerFn({ method: "POST" })
     const managerId = context.userId;
     const { data: staffRow } = await supabaseAdmin
       .from("staff")
-      .select("id, manager_id")
+      .select("id, manager_id, penalty_window_start")
       .eq("user_id", data.staffUserId)
-      .maybeSingle();
+      .maybeSingle() as unknown as {
+        data: { id: string; manager_id: string; penalty_window_start: string | null } | null;
+      };
     if (!staffRow || staffRow.manager_id !== managerId) {
       throw new Response("Not found", { status: 404 });
     }
-    await backfillAbsentDays(data.staffUserId, staffRow.id, managerId, new Date());
+    await backfillAbsentDays(
+      data.staffUserId,
+      staffRow.id,
+      managerId,
+      new Date(),
+      staffRow.penalty_window_start,
+    );
     return { ok: true };
   });
 
 // Manager-triggered: backfills ALL staff under this manager.
 // Safe to call repeatedly — ignoreDuplicates skips existing records;
 // tentative-late records from previous days are flipped to absent.
+// Respects each staff member's penalty_window_start if set after an unsuspend.
 export const backfillTeamAbsents = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -374,9 +424,16 @@ export const backfillTeamAbsents = createServerFn({ method: "POST" })
 
     const { data: staffList } = await supabaseAdmin
       .from("staff")
-      .select("id, user_id, manager_id")
+      .select("id, user_id, manager_id, penalty_window_start")
       .eq("manager_id", managerId)
-      .not("user_id", "is", null);
+      .not("user_id", "is", null) as unknown as {
+        data: Array<{
+          id: string;
+          user_id: string;
+          manager_id: string;
+          penalty_window_start: string | null;
+        }> | null;
+      };
 
     if (!staffList?.length) return { ok: true };
 
@@ -397,8 +454,14 @@ export const backfillTeamAbsents = createServerFn({ method: "POST" })
     for (const staff of staffList) {
       if (!staff.user_id) continue;
 
+      // Each staff member's window starts at their penalty_window_start (or 30 days ago)
+      const effectiveCutoff =
+        staff.penalty_window_start && staff.penalty_window_start > cutoffDate
+          ? staff.penalty_window_start
+          : cutoffDate;
+
       for (
-        let d = new Date(cutoffDate + "T00:00:00Z");
+        let d = new Date(effectiveCutoff + "T00:00:00Z");
         d.toISOString().split("T")[0] <= eatToday;
         d.setUTCDate(d.getUTCDate() + 1)
       ) {

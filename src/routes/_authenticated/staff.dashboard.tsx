@@ -1182,7 +1182,8 @@ function StaffDashboard() {
     ),
   );
 
-  const visaReturned = alertCandidates.filter((c) => c.status === "processing" && c.visa_status === "Returned");
+  const visaReturned            = alertCandidates.filter((c) => c.status === "processing" && c.visa_status === "Returned");
+  const visaWaitingReplacement  = alertCandidates.filter((c) => c.status === "processing" && c.visa_status === "Waiting Replacement");
   const tasheerDoneWokalaUnpaid = alertCandidates.filter(
     (c) => c.status === "processing" && c.tasheer_status === "Done" && c.wokala_status === "Unpaid",
   );
@@ -1372,7 +1373,7 @@ function StaffDashboard() {
       </div>
 
       {/* Alert sections */}
-      {(cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || noMedical5Days.length > 0 || noTasheer10Days.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || cvOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0 || weeklyAdded.length > 0 || weeklyDeployments.length > 0) && (
+      {(cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || noMedical5Days.length > 0 || noTasheer10Days.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || visaWaitingReplacement.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || cvOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0 || weeklyAdded.length > 0 || weeklyDeployments.length > 0) && (
         <div className="space-y-5">
 
           {/* COMPLIANCE & RECRUITMENT */}
@@ -1526,6 +1527,9 @@ function StaffDashboard() {
                     <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
                       onClick={() => handleUpdateField(c.id, "visa_status", "Waiting Replacement")}>Replacement</Button>
                   )} />
+                <AlertSection icon={AlertTriangle} title="Visa — Waiting Replacement" iconColor="text-amber-600 dark:text-amber-400" pillKey="waitreplace" candidates={visaWaitingReplacement} onUpdateField={handleUpdateField} countryOptions={countryOptions}
+                  exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "musaned_status", label: "Country" }, { key: "office", label: "Office" }, { key: "passport_number", label: "Passport No." }]}
+                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">Waiting</span>} />
                 <AlertSection icon={AlertTriangle} title="Tasheer Overdue — Booked Date Passed" iconColor="text-amber-600 dark:text-amber-400" pillKey="tasheer" candidates={tasheerOverdue} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }]}
                   renderBadge={(c) => c.tasheer_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{daysSince(c.tasheer_date)}d overdue</span> : null}

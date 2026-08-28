@@ -140,7 +140,7 @@ function LateLoginDialog({ member, open, onClose }: {
   const unsuspendMut = useMutation({
     mutationFn: () => doUnsuspend({ data: { staffId: member!.staffId } }),
     onSuccess: () => {
-      toast.success("Suspension removed — attendance record cleared");
+      toast.success("Suspension removed — penalty window reset from today");
       refetchAttendance();
       refetchStaffInfo();
       qc.invalidateQueries({ queryKey: ["team-activity"] });
@@ -365,7 +365,7 @@ function StaffActivityPage() {
     }
   }
 
-  const members = (team ?? []) as TeamMember[];
+  const members: TeamMember[] = Array.isArray(team) ? team : [];
   const onlineCount      = members.filter((m) => m.isOnline).length;
   const totalHoursToday  = members.reduce((acc, m) => acc + m.hoursToday, 0);
 

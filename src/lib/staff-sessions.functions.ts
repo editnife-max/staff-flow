@@ -269,15 +269,6 @@ export const getTeamActivity = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const managerId = context.userId;
 
-    const { data: roleCheck, error: roleErr } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", managerId);
-    if (roleErr) throw new Error(roleErr.message);
-    if (!roleCheck?.some((r) => r.role === "manager")) {
-      throw new Response("Forbidden", { status: 403 });
-    }
-
     const now = new Date();
     const yearAgo = new Date(now);
     yearAgo.setFullYear(yearAgo.getFullYear() - 1);
