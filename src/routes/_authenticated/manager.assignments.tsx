@@ -273,9 +273,10 @@ function AssignmentsPage() {
   const delOfficeMut = useMutation({
     mutationFn: (id: string) => delOfficeFn({ data: { id } }),
     onSuccess: () => {
-      toast.success("Office removed");
+      toast.success("Office removed — candidates unassigned");
       qc.invalidateQueries({ queryKey: ["assignment-offices"] });
       qc.invalidateQueries({ queryKey: ["agencies-offices-names"] });
+      qc.invalidateQueries({ queryKey: ["mgr-cv-candidates"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });

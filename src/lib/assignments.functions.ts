@@ -79,12 +79,26 @@ export const deleteOffice = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const managerId = await resolveManagerId(context.userId);
+    // Fetch the office name before deletion so we can clear cv_sent_to on candidates
+    const { data: office } = await supabaseAdmin
+      .from("assignment_offices")
+      .select("name")
+      .eq("id", data.id)
+      .eq("manager_id", managerId)
+      .maybeSingle();
+    if (!office) throw new Error("Office not found");
     const { error } = await supabaseAdmin
       .from("assignment_offices")
       .delete()
       .eq("id", data.id)
       .eq("manager_id", managerId);
     if (error) throw new Error(error.message);
+    // Clear cv_sent_to for all candidates that were assigned to this office
+    await supabaseAdmin
+      .from("candidates")
+      .update({ cv_sent_to: null, cv_sent_date: null } as any)
+      .eq("cv_sent_to", office.name)
+      .eq("manager_id", managerId);
     return { ok: true };
   });
 
@@ -102,6 +116,34 @@ export const lockOffice = createServerFn({ method: "POST" })
       .eq("manager_id", managerId);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+export const cleanOrphanedCvSentTo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    const [{ data: offices }, { data: agencies }] = await Promise.all([
+      supabaseAdmin.from("assignment_offices").select("name").eq("manager_id", managerId),
+      supabaseAdmin.from("foreign_agencies").select("name").eq("manager_id", managerId),
+    ]);
+    const validNames = new Set([
+      ...(offices ?? []).map((o) => o.name),
+      ...(agencies ?? []).map((a) => a.name),
+    ]);
+    const { data: assigned } = await supabaseAdmin
+      .from("candidates")
+      .select("id, cv_sent_to")
+      .eq("manager_id", managerId)
+      .not("cv_sent_to", "is", null);
+    const orphanedIds = (assigned ?? [])
+      .filter((c) => c.cv_sent_to && !validNames.has(c.cv_sent_to))
+      .map((c) => c.id);
+    if (orphanedIds.length === 0) return { cleared: 0 };
+    await supabaseAdmin
+      .from("candidates")
+      .update({ cv_sent_to: null, cv_sent_date: null } as any)
+      .in("id", orphanedIds);
+    return { cleared: orphanedIds.length };
   });
 
 // ── CV Templates ─────────────────────────────────────────────────────────────

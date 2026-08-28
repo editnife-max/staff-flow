@@ -287,7 +287,7 @@ function ManagerCvGeneratorPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const { data: officesList = [] } = useQuery({
+  const { data: officesList = [], isSuccess: officesLoaded } = useQuery({
     queryKey: ["assignment-offices", user?.id],
     enabled: !!user,
     queryFn: async () => {
@@ -403,7 +403,7 @@ function ManagerCvGeneratorPage() {
     },
   });
 
-  const { data: agencyOptions = [] } = useQuery({
+  const { data: agencyOptions = [], isSuccess: agenciesLoaded } = useQuery({
     queryKey: ["agencies-offices-names"],
     queryFn: async () => {
       const [agenciesRes, officesRes] = await Promise.all([
@@ -500,8 +500,29 @@ function ManagerCvGeneratorPage() {
     narrative: Array.from(new Set(candidates.filter((c) => c.status === "available").map((c) => c.narrative ?? "").filter(Boolean))).sort(),
   }), [candidates]);
 
-  const initialised = useRef(false);
+  const initialised        = useRef(false);
   const autoDistributedRef = useRef(false);
+
+  // Reactively clear cv_sent_to values that no longer exist in assignment_offices or foreign_agencies.
+  // Runs whenever candidates or the office/agency lists change (e.g. after an office is deleted).
+  useEffect(() => {
+    if (!officesLoaded || !agenciesLoaded || !candidates.length) return;
+    // All offices (locked or not) are valid assignments; agencies too
+    const validNames = new Set<string>([
+      ...officesList.map(o => o.name),
+      ...agencyOptions,
+    ]);
+    const staleIds = candidates
+      .filter(c => c.cv_sent_to && !validNames.has(c.cv_sent_to))
+      .map(c => c.id);
+    if (staleIds.length === 0) return;
+    supabase.from("candidates")
+      .update({ cv_sent_to: null, cv_sent_date: null } as any)
+      .in("id", staleIds)
+      .then(({ error }) => {
+        if (!error) qc.invalidateQueries({ queryKey: ["mgr-cv-candidates"] });
+      });
+  }, [officesLoaded, agenciesLoaded, officesList, agencyOptions, candidates]);
   useEffect(() => {
     if (initialised.current || !search.id || candidates.length === 0) return;
     initialised.current = true;
@@ -712,7 +733,7 @@ function ManagerCvGeneratorPage() {
               options={agencyOptions.map((o) => ({ value: o, label: o }))} />
             <MultiFilterSelect placeholder="CV Sent To" values={filters.cv_sent_to} icon={Send}
               onChange={(v) => setFilters({ ...filters, cv_sent_to: v })}
-              options={agencyOptions.map((o) => ({ value: o, label: o }))} />
+              options={officesList.map((o) => ({ value: o.name, label: o.name }))} />
             <MultiFilterSelect placeholder="English" values={filters.english_level} icon={BookOpen}
               onChange={(v) => setFilters({ ...filters, english_level: v })}
               options={["Poor","Little","Fair","Good"].map((o) => ({ value: o, label: o }))} />
