@@ -597,6 +597,8 @@ export type Database = {
           created_at: string
           cv_days_threshold: number
           cv_page_requirements: Json | null
+          enjaz_email: string | null
+          enjaz_password: string | null
           full_name: string | null
           id: string
           musaned_email: string | null
@@ -609,6 +611,8 @@ export type Database = {
           created_at?: string
           cv_days_threshold?: number
           cv_page_requirements?: Json | null
+          enjaz_email?: string | null
+          enjaz_password?: string | null
           full_name?: string | null
           id: string
           musaned_email?: string | null
@@ -621,6 +625,8 @@ export type Database = {
           created_at?: string
           cv_days_threshold?: number
           cv_page_requirements?: Json | null
+          enjaz_email?: string | null
+          enjaz_password?: string | null
           full_name?: string | null
           id?: string
           musaned_email?: string | null

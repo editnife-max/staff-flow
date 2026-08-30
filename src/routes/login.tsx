@@ -78,7 +78,7 @@ function LoginPage() {
             <span className="font-semibold tracking-tight text-lg">Staff-Flow</span>
           </Link>
           <CardTitle>Sign in</CardTitle>
-          <CardDescription>Welcome back. Sign in to your dashboard. A</CardDescription>
+          <CardDescription>Welcome back. Sign in to your dashboard.  </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

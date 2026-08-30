@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
-import { addCountry, deleteCountry, addOffice, deleteOffice, lockOffice, deleteCvTemplate, optimizeCvTemplate, saveMusanedCredentials } from "@/lib/assignments.functions";
+import { addCountry, deleteCountry, addOffice, deleteOffice, lockOffice, deleteCvTemplate, optimizeCvTemplate, saveMusanedCredentials, saveEnjazCredentials } from "@/lib/assignments.functions";
 
 type AssignCountry  = Database["public"]["Tables"]["assignment_countries"]["Row"];
 type AssignOffice   = Database["public"]["Tables"]["assignment_offices"]["Row"];
@@ -53,6 +53,7 @@ function AssignmentsPage() {
   const delTemplateFn         = useServerFn(deleteCvTemplate);
   const optimizeTemplateFn    = useServerFn(optimizeCvTemplate);
   const saveMusanedFn         = useServerFn(saveMusanedCredentials);
+  const saveEnjazFn           = useServerFn(saveEnjazCredentials);
 
   // ── Musaned setup ────────────────────────────────────────────────────────────
   const [musanedEditing,      setMusanedEditing]      = useState(false);
@@ -60,6 +61,13 @@ function AssignmentsPage() {
   const [musanedPasswordDraft, setMusanedPasswordDraft] = useState("");
   const [musanedShowPassword, setMusanedShowPassword] = useState(false);
   const [musanedShowSaved,    setMusanedShowSaved]    = useState(false);
+
+  // ── Enjaz setup ──────────────────────────────────────────────────────────────
+  const [enjazEditing,       setEnjazEditing]       = useState(false);
+  const [enjazEmail,         setEnjazEmail]         = useState("");
+  const [enjazPasswordDraft, setEnjazPasswordDraft] = useState("");
+  const [enjazShowPassword,  setEnjazShowPassword]  = useState(false);
+  const [enjazShowSaved,     setEnjazShowSaved]     = useState(false);
 
   // ── CV requirement days ──────────────────────────────────────────────────────
   const [cvDaysEdit,  setCvDaysEdit]  = useState(false);
@@ -74,7 +82,7 @@ function AssignmentsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("cv_days_threshold, cv_page_requirements, musaned_email, musaned_password")
+        .select("cv_days_threshold, cv_page_requirements, musaned_email, musaned_password, enjaz_email, enjaz_password")
         .eq("id", user!.id)
         .maybeSingle();
       if (error) throw error;
@@ -313,6 +321,7 @@ function AssignmentsPage() {
   });
 
   const musanedSaved = !!profile?.musaned_email;
+  const enjazSaved   = !!profile?.enjaz_email;
 
   const saveMusanedMut = useMutation({
     mutationFn: () => saveMusanedFn({ data: { email: musanedEmail.trim(), password: musanedPasswordDraft } }),
@@ -320,6 +329,16 @@ function AssignmentsPage() {
       toast.success("Musaned credentials saved");
       qc.invalidateQueries({ queryKey: ["manager-profile", user?.id] });
       setMusanedEditing(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const saveEnjazMut = useMutation({
+    mutationFn: () => saveEnjazFn({ data: { email: enjazEmail.trim(), password: enjazPasswordDraft } }),
+    onSuccess: () => {
+      toast.success("Enjaz+ credentials saved");
+      qc.invalidateQueries({ queryKey: ["manager-profile", user?.id] });
+      setEnjazEditing(false);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -848,6 +867,94 @@ function AssignmentsPage() {
               </p>
               <button type="button" className="text-xs text-primary hover:underline shrink-0"
                 onClick={() => { setMusanedEmail(""); setMusanedPasswordDraft(""); setMusanedShowPassword(false); setMusanedEditing(true); }}>
+                Configure
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Row 4: Enjaz+ Setup ──────────────────────────────────────────────── */}
+      <div className="border border-border bg-background flex flex-col shrink-0">
+        <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30">
+          <KeyRound className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-sm font-semibold">Enjaz+ Setup</span>
+          <a href="https://enjazplus.com/login" target="_blank" rel="noopener noreferrer"
+            className="text-xs text-primary hover:underline flex items-center gap-1 ml-1">
+            <ExternalLink className="h-3 w-3" /> enjazplus.com
+          </a>
+          <span className="ml-auto text-xs text-muted-foreground">Staff visa portal credentials</span>
+        </div>
+        <div className="px-3 py-2.5">
+          {enjazEditing ? (
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground w-16 shrink-0">Email</span>
+                <Input autoFocus className="h-8 rounded-none text-sm w-56" type="email"
+                  placeholder="Enjaz+ email…"
+                  value={enjazEmail} onChange={(e) => setEnjazEmail(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Escape") setEnjazEditing(false); }} />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground w-16 shrink-0">Password</span>
+                <div className="flex gap-1">
+                  <Input className="h-8 rounded-none text-sm w-56"
+                    type={enjazShowPassword ? "text" : "password"}
+                    placeholder="Enjaz+ password…"
+                    value={enjazPasswordDraft} onChange={(e) => setEnjazPasswordDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Escape") setEnjazEditing(false); }} />
+                  <button type="button"
+                    className="px-2 border border-input h-8 text-muted-foreground hover:text-foreground"
+                    onClick={() => setEnjazShowPassword((v) => !v)}>
+                    {enjazShowPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+              <div className="flex gap-1.5">
+                <Button size="sm" className="h-8 rounded-none px-3 text-sm"
+                  disabled={!enjazEmail.trim() || !enjazPasswordDraft.trim() || saveEnjazMut.isPending}
+                  onClick={() => saveEnjazMut.mutate()}>
+                  {saveEnjazMut.isPending ? "Saving…" : "Save"}
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 rounded-none px-3 text-sm"
+                  onClick={() => setEnjazEditing(false)}>Cancel</Button>
+              </div>
+            </div>
+          ) : enjazSaved ? (
+            <div className="flex flex-wrap items-center gap-6">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground w-16 shrink-0">Email</span>
+                <span className="text-sm font-medium">{profile?.enjaz_email}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground w-16 shrink-0">Password</span>
+                <span className="text-sm font-medium font-mono tracking-widest">
+                  {enjazShowSaved
+                    ? profile?.enjaz_password
+                    : "•".repeat(Math.min(profile?.enjaz_password?.length ?? 8, 16))}
+                </span>
+                <button type="button" className="text-muted-foreground hover:text-foreground"
+                  onClick={() => setEnjazShowSaved((v) => !v)}>
+                  {enjazShowSaved ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+              <button type="button" className="ml-auto text-xs text-primary hover:underline"
+                onClick={() => {
+                  setEnjazEmail(profile?.enjaz_email ?? "");
+                  setEnjazPasswordDraft(profile?.enjaz_password ?? "");
+                  setEnjazShowPassword(false);
+                  setEnjazEditing(true);
+                }}>
+                Edit
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-muted-foreground flex-1">
+                Not configured. Save Enjaz+ credentials so staff can access the visa portal.
+              </p>
+              <button type="button" className="text-xs text-primary hover:underline shrink-0"
+                onClick={() => { setEnjazEmail(""); setEnjazPasswordDraft(""); setEnjazShowPassword(false); setEnjazEditing(true); }}>
                 Configure
               </button>
             </div>
