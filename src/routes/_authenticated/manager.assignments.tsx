@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock, Download, BarChart3, AlertCircle, Lock, Unlock } from "lucide-react";
+import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock, Download, BarChart3, AlertCircle, Lock, Unlock, KeyRound, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
-import { addCountry, deleteCountry, addOffice, deleteOffice, lockOffice, deleteCvTemplate, optimizeCvTemplate } from "@/lib/assignments.functions";
+import { addCountry, deleteCountry, addOffice, deleteOffice, lockOffice, deleteCvTemplate, optimizeCvTemplate, saveMusanedCredentials } from "@/lib/assignments.functions";
 
 type AssignCountry  = Database["public"]["Tables"]["assignment_countries"]["Row"];
 type AssignOffice   = Database["public"]["Tables"]["assignment_offices"]["Row"];
@@ -50,8 +50,16 @@ function AssignmentsPage() {
   const addOfficeFn    = useServerFn(addOffice);
   const delOfficeFn    = useServerFn(deleteOffice);
   const lockOfficeFn   = useServerFn(lockOffice);
-  const delTemplateFn      = useServerFn(deleteCvTemplate);
-  const optimizeTemplateFn = useServerFn(optimizeCvTemplate);
+  const delTemplateFn         = useServerFn(deleteCvTemplate);
+  const optimizeTemplateFn    = useServerFn(optimizeCvTemplate);
+  const saveMusanedFn         = useServerFn(saveMusanedCredentials);
+
+  // ── Musaned setup ────────────────────────────────────────────────────────────
+  const [musanedEditing,      setMusanedEditing]      = useState(false);
+  const [musanedEmail,        setMusanedEmail]        = useState("");
+  const [musanedPasswordDraft, setMusanedPasswordDraft] = useState("");
+  const [musanedShowPassword, setMusanedShowPassword] = useState(false);
+  const [musanedShowSaved,    setMusanedShowSaved]    = useState(false);
 
   // ── CV requirement days ──────────────────────────────────────────────────────
   const [cvDaysEdit,  setCvDaysEdit]  = useState(false);
@@ -66,7 +74,7 @@ function AssignmentsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("cv_days_threshold, cv_page_requirements")
+        .select("cv_days_threshold, cv_page_requirements, musaned_email, musaned_password")
         .eq("id", user!.id)
         .maybeSingle();
       if (error) throw error;
@@ -284,9 +292,34 @@ function AssignmentsPage() {
   const lockOfficeMut = useMutation({
     mutationFn: ({ id, locked }: { id: string; locked: boolean }) =>
       lockOfficeFn({ data: { id, locked } }),
-    onSuccess: (_, { locked }) => {
-      toast.success(locked ? "Office locked — will not receive candidates" : "Office unlocked");
+    onSuccess: (result: any, { locked }) => {
+      const redistributed = result?.redistributed ?? 0;
+      if (locked) {
+        toast.success(
+          redistributed > 0
+            ? `Office locked — ${redistributed} candidate${redistributed === 1 ? "" : "s"} redistributed`
+            : "Office locked — will not receive candidates",
+        );
+      } else {
+        toast.success("Office unlocked");
+      }
       qc.invalidateQueries({ queryKey: ["assignment-offices"] });
+      if (locked && redistributed > 0) {
+        qc.invalidateQueries({ queryKey: ["mgr-cv-candidates"] });
+        qc.invalidateQueries({ queryKey: ["staff-dashboard-candidates"] });
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const musanedSaved = !!profile?.musaned_email;
+
+  const saveMusanedMut = useMutation({
+    mutationFn: () => saveMusanedFn({ data: { email: musanedEmail.trim(), password: musanedPasswordDraft } }),
+    onSuccess: () => {
+      toast.success("Musaned credentials saved");
+      qc.invalidateQueries({ queryKey: ["manager-profile", user?.id] });
+      setMusanedEditing(false);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -731,6 +764,94 @@ function AssignmentsPage() {
               ))}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ── Row 3: Musaned Setup ─────────────────────────────────────────── */}
+      <div className="border border-border bg-background flex flex-col shrink-0">
+        <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30">
+          <KeyRound className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-sm font-semibold">Musaned Setup</span>
+          <a href="https://tawtheeq.musaned.com.sa/" target="_blank" rel="noopener noreferrer"
+            className="text-xs text-primary hover:underline flex items-center gap-1 ml-1">
+            <ExternalLink className="h-3 w-3" /> tawtheeq.musaned.com.sa
+          </a>
+          <span className="ml-auto text-xs text-muted-foreground">Staff HR pool credentials</span>
+        </div>
+        <div className="px-3 py-2.5">
+          {musanedEditing ? (
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground w-16 shrink-0">Email</span>
+                <Input autoFocus className="h-8 rounded-none text-sm w-56" type="email"
+                  placeholder="Musaned email…"
+                  value={musanedEmail} onChange={(e) => setMusanedEmail(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Escape") setMusanedEditing(false); }} />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground w-16 shrink-0">Password</span>
+                <div className="flex gap-1">
+                  <Input className="h-8 rounded-none text-sm w-56"
+                    type={musanedShowPassword ? "text" : "password"}
+                    placeholder="Musaned password…"
+                    value={musanedPasswordDraft} onChange={(e) => setMusanedPasswordDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Escape") setMusanedEditing(false); }} />
+                  <button type="button"
+                    className="px-2 border border-input h-8 text-muted-foreground hover:text-foreground"
+                    onClick={() => setMusanedShowPassword((v) => !v)}>
+                    {musanedShowPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+              <div className="flex gap-1.5">
+                <Button size="sm" className="h-8 rounded-none px-3 text-sm"
+                  disabled={!musanedEmail.trim() || !musanedPasswordDraft.trim() || saveMusanedMut.isPending}
+                  onClick={() => saveMusanedMut.mutate()}>
+                  {saveMusanedMut.isPending ? "Saving…" : "Save"}
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 rounded-none px-3 text-sm"
+                  onClick={() => setMusanedEditing(false)}>Cancel</Button>
+              </div>
+            </div>
+          ) : musanedSaved ? (
+            <div className="flex flex-wrap items-center gap-6">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground w-16 shrink-0">Email</span>
+                <span className="text-sm font-medium">{profile?.musaned_email}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground w-16 shrink-0">Password</span>
+                <span className="text-sm font-medium font-mono tracking-widest">
+                  {musanedShowSaved
+                    ? profile?.musaned_password
+                    : "•".repeat(Math.min(profile?.musaned_password?.length ?? 8, 16))}
+                </span>
+                <button type="button" className="text-muted-foreground hover:text-foreground"
+                  onClick={() => setMusanedShowSaved((v) => !v)}>
+                  {musanedShowSaved ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+              <button type="button" className="ml-auto text-xs text-primary hover:underline"
+                onClick={() => {
+                  setMusanedEmail(profile?.musaned_email ?? "");
+                  setMusanedPasswordDraft(profile?.musaned_password ?? "");
+                  setMusanedShowPassword(false);
+                  setMusanedEditing(true);
+                }}>
+                Edit
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-muted-foreground flex-1">
+                Not configured. Save Musaned credentials so staff can access the HR pool.
+              </p>
+              <button type="button" className="text-xs text-primary hover:underline shrink-0"
+                onClick={() => { setMusanedEmail(""); setMusanedPasswordDraft(""); setMusanedShowPassword(false); setMusanedEditing(true); }}>
+                Configure
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

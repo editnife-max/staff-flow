@@ -599,6 +599,8 @@ export type Database = {
           cv_page_requirements: Json | null
           full_name: string | null
           id: string
+          musaned_email: string | null
+          musaned_password: string | null
           updated_at: string
         }
         Insert: {
@@ -609,6 +611,8 @@ export type Database = {
           cv_page_requirements?: Json | null
           full_name?: string | null
           id: string
+          musaned_email?: string | null
+          musaned_password?: string | null
           updated_at?: string
         }
         Update: {
@@ -619,6 +623,8 @@ export type Database = {
           cv_page_requirements?: Json | null
           full_name?: string | null
           id?: string
+          musaned_email?: string | null
+          musaned_password?: string | null
           updated_at?: string
         }
         Relationships: []

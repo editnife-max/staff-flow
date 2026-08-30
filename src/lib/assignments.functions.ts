@@ -115,6 +115,66 @@ export const lockOffice = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .eq("manager_id", managerId);
     if (error) throw new Error(error.message);
+
+    let redistributed = 0;
+    if (data.locked) {
+      const { data: office } = await supabaseAdmin
+        .from("assignment_offices")
+        .select("name")
+        .eq("id", data.id)
+        .eq("manager_id", managerId)
+        .maybeSingle();
+
+      if (office?.name) {
+        const { data: unlocked } = await supabaseAdmin
+          .from("assignment_offices")
+          .select("name")
+          .eq("manager_id", managerId)
+          .eq("is_locked", false)
+          .neq("id", data.id);
+
+        const { data: toRedistribute } = await supabaseAdmin
+          .from("candidates")
+          .select("id")
+          .eq("manager_id", managerId)
+          .eq("cv_sent_to", office.name);
+
+        if (toRedistribute?.length && unlocked?.length) {
+          for (let i = 0; i < toRedistribute.length; i++) {
+            const targetOffice = unlocked[i % unlocked.length].name;
+            await supabaseAdmin
+              .from("candidates")
+              .update({ cv_sent_to: targetOffice } as any)
+              .eq("id", toRedistribute[i].id);
+          }
+          redistributed = toRedistribute.length;
+        } else if (toRedistribute?.length && !unlocked?.length) {
+          // No other offices available — clear assignment instead
+          await supabaseAdmin
+            .from("candidates")
+            .update({ cv_sent_to: null, cv_sent_date: null } as any)
+            .eq("manager_id", managerId)
+            .eq("cv_sent_to", office.name);
+          redistributed = toRedistribute.length;
+        }
+      }
+    }
+
+    return { ok: true, redistributed };
+  });
+
+export const saveMusanedCredentials = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ email: z.string().min(1).max(200), password: z.string().min(1).max(200) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ musaned_email: data.email, musaned_password: data.password })
+      .eq("id", managerId);
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
 
