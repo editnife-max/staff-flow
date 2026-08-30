@@ -980,6 +980,94 @@ function AssignmentsPage() {
           )}
         </div>
       </div>
+
+      {/* ── Row 5: MOFA Setup ────────────────────────────────────────────────── */}
+      <div className="border border-border bg-background flex flex-col shrink-0">
+        <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30">
+          <KeyRound className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-sm font-semibold">MOFA Setup</span>
+          <a href="https://visa.mofa.gov.sa/Account/Login/enjazcompany" target="_blank" rel="noopener noreferrer"
+            className="text-xs text-primary hover:underline flex items-center gap-1 ml-1">
+            <ExternalLink className="h-3 w-3" /> visa.mofa.gov.sa
+          </a>
+          <span className="ml-auto text-xs text-muted-foreground">Staff MOFA visa credentials</span>
+        </div>
+        <div className="px-3 py-2.5">
+          {mofaEditing ? (
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground w-16 shrink-0">Email</span>
+                <Input autoFocus className="h-8 rounded-none text-sm w-56" type="email"
+                  placeholder="MOFA email…"
+                  value={mofaEmail} onChange={(e) => setMofaEmail(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Escape") setMofaEditing(false); }} />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground w-16 shrink-0">Password</span>
+                <div className="flex gap-1">
+                  <Input className="h-8 rounded-none text-sm w-56"
+                    type={mofaShowPassword ? "text" : "password"}
+                    placeholder="MOFA password…"
+                    value={mofaPasswordDraft} onChange={(e) => setMofaPasswordDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Escape") setMofaEditing(false); }} />
+                  <button type="button"
+                    className="px-2 border border-input h-8 text-muted-foreground hover:text-foreground"
+                    onClick={() => setMofaShowPassword((v) => !v)}>
+                    {mofaShowPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+              <div className="flex gap-1.5">
+                <Button size="sm" className="h-8 rounded-none px-3 text-sm"
+                  disabled={!mofaEmail.trim() || !mofaPasswordDraft.trim() || saveMofaMut.isPending}
+                  onClick={() => saveMofaMut.mutate()}>
+                  {saveMofaMut.isPending ? "Saving…" : "Save"}
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 rounded-none px-3 text-sm"
+                  onClick={() => setMofaEditing(false)}>Cancel</Button>
+              </div>
+            </div>
+          ) : mofaSaved ? (
+            <div className="flex flex-wrap items-center gap-6">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground w-16 shrink-0">Email</span>
+                <span className="text-sm font-medium">{profile?.mofa_email}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground w-16 shrink-0">Password</span>
+                <span className="text-sm font-medium font-mono tracking-widest">
+                  {mofaShowSaved
+                    ? profile?.mofa_password
+                    : "•".repeat(Math.min(profile?.mofa_password?.length ?? 8, 16))}
+                </span>
+                <button type="button" className="text-muted-foreground hover:text-foreground"
+                  onClick={() => setMofaShowSaved((v) => !v)}>
+                  {mofaShowSaved ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+              <button type="button" className="ml-auto text-xs text-primary hover:underline"
+                onClick={() => {
+                  setMofaEmail(profile?.mofa_email ?? "");
+                  setMofaPasswordDraft(profile?.mofa_password ?? "");
+                  setMofaShowPassword(false);
+                  setMofaEditing(true);
+                }}>
+                Edit
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-muted-foreground flex-1">
+                Not configured. Save MOFA credentials so staff can access the visa portal.
+              </p>
+              <button type="button" className="text-xs text-primary hover:underline shrink-0"
+                onClick={() => { setMofaEmail(""); setMofaPasswordDraft(""); setMofaShowPassword(false); setMofaEditing(true); }}>
+                Configure
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
