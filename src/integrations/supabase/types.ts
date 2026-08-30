@@ -601,6 +601,8 @@ export type Database = {
           enjaz_password: string | null
           full_name: string | null
           id: string
+          mofa_email: string | null
+          mofa_password: string | null
           musaned_email: string | null
           musaned_password: string | null
           updated_at: string
@@ -615,6 +617,8 @@ export type Database = {
           enjaz_password?: string | null
           full_name?: string | null
           id: string
+          mofa_email?: string | null
+          mofa_password?: string | null
           musaned_email?: string | null
           musaned_password?: string | null
           updated_at?: string
@@ -629,6 +633,8 @@ export type Database = {
           enjaz_password?: string | null
           full_name?: string | null
           id?: string
+          mofa_email?: string | null
+          mofa_password?: string | null
           musaned_email?: string | null
           musaned_password?: string | null
           updated_at?: string

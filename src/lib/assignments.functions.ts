@@ -178,6 +178,21 @@ export const saveMusanedCredentials = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const saveMofaCredentials = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ email: z.string().min(1).max(200), password: z.string().min(1).max(200) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ mofa_email: data.email, mofa_password: data.password })
+      .eq("id", managerId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 export const saveEnjazCredentials = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>

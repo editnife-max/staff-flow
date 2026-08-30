@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
-import { addCountry, deleteCountry, addOffice, deleteOffice, lockOffice, deleteCvTemplate, optimizeCvTemplate, saveMusanedCredentials, saveEnjazCredentials } from "@/lib/assignments.functions";
+import { addCountry, deleteCountry, addOffice, deleteOffice, lockOffice, deleteCvTemplate, optimizeCvTemplate, saveMusanedCredentials, saveEnjazCredentials, saveMofaCredentials } from "@/lib/assignments.functions";
 
 type AssignCountry  = Database["public"]["Tables"]["assignment_countries"]["Row"];
 type AssignOffice   = Database["public"]["Tables"]["assignment_offices"]["Row"];
@@ -54,6 +54,7 @@ function AssignmentsPage() {
   const optimizeTemplateFn    = useServerFn(optimizeCvTemplate);
   const saveMusanedFn         = useServerFn(saveMusanedCredentials);
   const saveEnjazFn           = useServerFn(saveEnjazCredentials);
+  const saveMofaFn            = useServerFn(saveMofaCredentials);
 
   // ── Musaned setup ────────────────────────────────────────────────────────────
   const [musanedEditing,      setMusanedEditing]      = useState(false);
@@ -69,6 +70,13 @@ function AssignmentsPage() {
   const [enjazShowPassword,  setEnjazShowPassword]  = useState(false);
   const [enjazShowSaved,     setEnjazShowSaved]     = useState(false);
 
+  // ── MOFA setup ───────────────────────────────────────────────────────────────
+  const [mofaEditing,       setMofaEditing]       = useState(false);
+  const [mofaEmail,         setMofaEmail]         = useState("");
+  const [mofaPasswordDraft, setMofaPasswordDraft] = useState("");
+  const [mofaShowPassword,  setMofaShowPassword]  = useState(false);
+  const [mofaShowSaved,     setMofaShowSaved]     = useState(false);
+
   // ── CV requirement days ──────────────────────────────────────────────────────
   const [cvDaysEdit,  setCvDaysEdit]  = useState(false);
   const [cvDaysDraft, setCvDaysDraft] = useState("");
@@ -82,7 +90,7 @@ function AssignmentsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("cv_days_threshold, cv_page_requirements, musaned_email, musaned_password, enjaz_email, enjaz_password")
+        .select("cv_days_threshold, cv_page_requirements, musaned_email, musaned_password, enjaz_email, enjaz_password, mofa_email, mofa_password")
         .eq("id", user!.id)
         .maybeSingle();
       if (error) throw error;
@@ -322,6 +330,7 @@ function AssignmentsPage() {
 
   const musanedSaved = !!profile?.musaned_email;
   const enjazSaved   = !!profile?.enjaz_email;
+  const mofaSaved    = !!profile?.mofa_email;
 
   const saveMusanedMut = useMutation({
     mutationFn: () => saveMusanedFn({ data: { email: musanedEmail.trim(), password: musanedPasswordDraft } }),
@@ -339,6 +348,16 @@ function AssignmentsPage() {
       toast.success("Enjaz+ credentials saved");
       qc.invalidateQueries({ queryKey: ["manager-profile", user?.id] });
       setEnjazEditing(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const saveMofaMut = useMutation({
+    mutationFn: () => saveMofaFn({ data: { email: mofaEmail.trim(), password: mofaPasswordDraft } }),
+    onSuccess: () => {
+      toast.success("MOFA credentials saved");
+      qc.invalidateQueries({ queryKey: ["manager-profile", user?.id] });
+      setMofaEditing(false);
     },
     onError: (e: Error) => toast.error(e.message),
   });
