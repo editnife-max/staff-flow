@@ -2,10 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock, Download, BarChart3, AlertCircle, Lock, Unlock, KeyRound, Eye, EyeOff } from "lucide-react";
+import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock, Download, BarChart3, AlertCircle, Lock, Unlock, KeyRound, Eye, EyeOff, Search } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -56,26 +57,23 @@ function AssignmentsPage() {
   const saveEnjazFn           = useServerFn(saveEnjazCredentials);
   const saveMofaFn            = useServerFn(saveMofaCredentials);
 
+  // ── dialog ────────────────────────────────────────────────────────────────────
+  const [activeSetup, setActiveSetup] = useState<"musaned" | "enjaz" | "mofa" | null>(null);
+
   // ── Musaned setup ────────────────────────────────────────────────────────────
-  const [musanedEditing,      setMusanedEditing]      = useState(false);
   const [musanedEmail,        setMusanedEmail]        = useState("");
   const [musanedPasswordDraft, setMusanedPasswordDraft] = useState("");
   const [musanedShowPassword, setMusanedShowPassword] = useState(false);
-  const [musanedShowSaved,    setMusanedShowSaved]    = useState(false);
 
   // ── Enjaz setup ──────────────────────────────────────────────────────────────
-  const [enjazEditing,       setEnjazEditing]       = useState(false);
   const [enjazEmail,         setEnjazEmail]         = useState("");
   const [enjazPasswordDraft, setEnjazPasswordDraft] = useState("");
   const [enjazShowPassword,  setEnjazShowPassword]  = useState(false);
-  const [enjazShowSaved,     setEnjazShowSaved]     = useState(false);
 
   // ── MOFA setup ───────────────────────────────────────────────────────────────
-  const [mofaEditing,       setMofaEditing]       = useState(false);
   const [mofaEmail,         setMofaEmail]         = useState("");
   const [mofaPasswordDraft, setMofaPasswordDraft] = useState("");
   const [mofaShowPassword,  setMofaShowPassword]  = useState(false);
-  const [mofaShowSaved,     setMofaShowSaved]     = useState(false);
 
   // ── CV requirement days ──────────────────────────────────────────────────────
   const [cvDaysEdit,  setCvDaysEdit]  = useState(false);
@@ -332,12 +330,29 @@ function AssignmentsPage() {
   const enjazSaved   = !!profile?.enjaz_email;
   const mofaSaved    = !!profile?.mofa_email;
 
+  function openSetup(type: "musaned" | "enjaz" | "mofa") {
+    if (type === "musaned") {
+      setMusanedEmail(profile?.musaned_email ?? "");
+      setMusanedPasswordDraft(profile?.musaned_password ?? "");
+      setMusanedShowPassword(false);
+    } else if (type === "enjaz") {
+      setEnjazEmail(profile?.enjaz_email ?? "");
+      setEnjazPasswordDraft(profile?.enjaz_password ?? "");
+      setEnjazShowPassword(false);
+    } else {
+      setMofaEmail(profile?.mofa_email ?? "");
+      setMofaPasswordDraft(profile?.mofa_password ?? "");
+      setMofaShowPassword(false);
+    }
+    setActiveSetup(type);
+  }
+
   const saveMusanedMut = useMutation({
     mutationFn: () => saveMusanedFn({ data: { email: musanedEmail.trim(), password: musanedPasswordDraft } }),
     onSuccess: () => {
       toast.success("Musaned credentials saved");
       qc.invalidateQueries({ queryKey: ["manager-profile", user?.id] });
-      setMusanedEditing(false);
+      setActiveSetup(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -347,7 +362,7 @@ function AssignmentsPage() {
     onSuccess: () => {
       toast.success("Enjaz+ credentials saved");
       qc.invalidateQueries({ queryKey: ["manager-profile", user?.id] });
-      setEnjazEditing(false);
+      setActiveSetup(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -357,7 +372,7 @@ function AssignmentsPage() {
     onSuccess: () => {
       toast.success("MOFA credentials saved");
       qc.invalidateQueries({ queryKey: ["manager-profile", user?.id] });
-      setMofaEditing(false);
+      setActiveSetup(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -805,269 +820,148 @@ function AssignmentsPage() {
         </div>
       </div>
 
-      {/* ── Row 3: Musaned Setup ─────────────────────────────────────────── */}
-      <div className="border border-border bg-background flex flex-col shrink-0">
-        <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30">
-          <KeyRound className="h-4 w-4 text-primary shrink-0" />
-          <span className="text-sm font-semibold">Musaned Setup</span>
-          <a href="https://tawtheeq.musaned.com.sa/" target="_blank" rel="noopener noreferrer"
-            className="text-xs text-primary hover:underline flex items-center gap-1 ml-1">
-            <ExternalLink className="h-3 w-3" /> tawtheeq.musaned.com.sa
-          </a>
-          <span className="ml-auto text-xs text-muted-foreground">Staff HR pool credentials</span>
-        </div>
-        <div className="px-3 py-2.5">
-          {musanedEditing ? (
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground w-16 shrink-0">Email</span>
-                <Input autoFocus className="h-8 rounded-none text-sm w-56" type="email"
+      {/* ── Row 3: Platform Credentials ──────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-4 shrink-0">
+        {([
+          { id: "musaned", label: "Musaned",  desc: "Staff HR Pool",  saved: musanedSaved, q: "musaned+tawtheeq+login" },
+          { id: "enjaz",   label: "Enjaz+",   desc: "Visa Portal",    saved: enjazSaved,   q: "enjaz+plus+portal+login" },
+          { id: "mofa",    label: "MOFA",     desc: "Visa Portal",    saved: mofaSaved,    q: "MOFA+visa+saudi+login" },
+        ] as const).map(({ id, label, desc, saved, q: _q }) => (
+          <button key={id} type="button" onClick={() => openSetup(id)}
+            className="border border-border bg-background flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
+            <KeyRound className={cn("h-4 w-4 shrink-0", saved ? "text-emerald-500" : "text-primary")} />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold">{label}</div>
+              <div className="text-xs text-muted-foreground">{desc}</div>
+            </div>
+            {saved
+              ? <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 px-1.5 py-0.5 rounded-sm shrink-0">Configured</span>
+              : <span className="text-[10px] font-medium text-muted-foreground bg-muted border border-border px-1.5 py-0.5 rounded-sm shrink-0">Not set</span>
+            }
+          </button>
+        ))}
+      </div>
+
+      {/* ── Credential Dialog ─────────────────────────────────────────── */}
+      <Dialog open={activeSetup !== null} onOpenChange={(open) => { if (!open) setActiveSetup(null); }}>
+        <DialogContent className="sm:max-w-md rounded-none">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-primary" />
+              {activeSetup === "musaned" ? "Musaned Setup" : activeSetup === "enjaz" ? "Enjaz+ Setup" : "MOFA Setup"}
+              <a
+                href={`https://www.google.com/search?q=${
+                  activeSetup === "musaned" ? "musaned+tawtheeq+login"
+                  : activeSetup === "enjaz" ? "enjaz+plus+portal+login"
+                  : "MOFA+visa+saudi+login"
+                }`}
+                target="_blank" rel="noopener noreferrer"
+                className="ml-auto text-xs text-primary hover:underline flex items-center gap-1 font-normal">
+                <Search className="h-3 w-3" /> Find portal
+              </a>
+            </DialogTitle>
+          </DialogHeader>
+
+          {activeSetup === "musaned" && (
+            <div className="flex flex-col gap-3 pt-1">
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground w-20 shrink-0">Email</span>
+                <Input autoFocus className="h-8 rounded-none text-sm flex-1" type="email"
                   placeholder="Musaned email…"
-                  value={musanedEmail} onChange={(e) => setMusanedEmail(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Escape") setMusanedEditing(false); }} />
+                  value={musanedEmail} onChange={(e) => setMusanedEmail(e.target.value)} />
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground w-16 shrink-0">Password</span>
-                <div className="flex gap-1">
-                  <Input className="h-8 rounded-none text-sm w-56"
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground w-20 shrink-0">Password</span>
+                <div className="flex gap-1 flex-1">
+                  <Input className="h-8 rounded-none text-sm flex-1"
                     type={musanedShowPassword ? "text" : "password"}
                     placeholder="Musaned password…"
-                    value={musanedPasswordDraft} onChange={(e) => setMusanedPasswordDraft(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Escape") setMusanedEditing(false); }} />
-                  <button type="button"
-                    className="px-2 border border-input h-8 text-muted-foreground hover:text-foreground"
+                    value={musanedPasswordDraft} onChange={(e) => setMusanedPasswordDraft(e.target.value)} />
+                  <button type="button" className="px-2 border border-input h-8 text-muted-foreground hover:text-foreground"
                     onClick={() => setMusanedShowPassword((v) => !v)}>
                     {musanedShowPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   </button>
                 </div>
               </div>
-              <div className="flex gap-1.5">
-                <Button size="sm" className="h-8 rounded-none px-3 text-sm"
+              <div className="flex gap-2 pt-1">
+                <Button size="sm" className="h-8 rounded-none px-4 text-sm"
                   disabled={!musanedEmail.trim() || !musanedPasswordDraft.trim() || saveMusanedMut.isPending}
                   onClick={() => saveMusanedMut.mutate()}>
                   {saveMusanedMut.isPending ? "Saving…" : "Save"}
                 </Button>
-                <Button size="sm" variant="ghost" className="h-8 rounded-none px-3 text-sm"
-                  onClick={() => setMusanedEditing(false)}>Cancel</Button>
+                <Button size="sm" variant="ghost" className="h-8 rounded-none px-4 text-sm"
+                  onClick={() => setActiveSetup(null)}>Cancel</Button>
               </div>
-            </div>
-          ) : musanedSaved ? (
-            <div className="flex flex-wrap items-center gap-6">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground w-16 shrink-0">Email</span>
-                <span className="text-sm font-medium">{profile?.musaned_email}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground w-16 shrink-0">Password</span>
-                <span className="text-sm font-medium font-mono tracking-widest">
-                  {musanedShowSaved
-                    ? profile?.musaned_password
-                    : "•".repeat(Math.min(profile?.musaned_password?.length ?? 8, 16))}
-                </span>
-                <button type="button" className="text-muted-foreground hover:text-foreground"
-                  onClick={() => setMusanedShowSaved((v) => !v)}>
-                  {musanedShowSaved ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                </button>
-              </div>
-              <button type="button" className="ml-auto text-xs text-primary hover:underline"
-                onClick={() => {
-                  setMusanedEmail(profile?.musaned_email ?? "");
-                  setMusanedPasswordDraft(profile?.musaned_password ?? "");
-                  setMusanedShowPassword(false);
-                  setMusanedEditing(true);
-                }}>
-                Edit
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <p className="text-sm text-muted-foreground flex-1">
-                Not configured. Save Musaned credentials so staff can access the HR pool.
-              </p>
-              <button type="button" className="text-xs text-primary hover:underline shrink-0"
-                onClick={() => { setMusanedEmail(""); setMusanedPasswordDraft(""); setMusanedShowPassword(false); setMusanedEditing(true); }}>
-                Configure
-              </button>
             </div>
           )}
-        </div>
-      </div>
 
-      {/* ── Row 4: Enjaz+ Setup ──────────────────────────────────────────────── */}
-      <div className="border border-border bg-background flex flex-col shrink-0">
-        <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30">
-          <KeyRound className="h-4 w-4 text-primary shrink-0" />
-          <span className="text-sm font-semibold">Enjaz+ Setup</span>
-          <a href="https://enjazplus.com/login" target="_blank" rel="noopener noreferrer"
-            className="text-xs text-primary hover:underline flex items-center gap-1 ml-1">
-            <ExternalLink className="h-3 w-3" /> enjazplus.com
-          </a>
-          <span className="ml-auto text-xs text-muted-foreground">Staff visa portal credentials</span>
-        </div>
-        <div className="px-3 py-2.5">
-          {enjazEditing ? (
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground w-16 shrink-0">Email</span>
-                <Input autoFocus className="h-8 rounded-none text-sm w-56" type="email"
+          {activeSetup === "enjaz" && (
+            <div className="flex flex-col gap-3 pt-1">
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground w-20 shrink-0">Email</span>
+                <Input autoFocus className="h-8 rounded-none text-sm flex-1" type="email"
                   placeholder="Enjaz+ email…"
-                  value={enjazEmail} onChange={(e) => setEnjazEmail(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Escape") setEnjazEditing(false); }} />
+                  value={enjazEmail} onChange={(e) => setEnjazEmail(e.target.value)} />
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground w-16 shrink-0">Password</span>
-                <div className="flex gap-1">
-                  <Input className="h-8 rounded-none text-sm w-56"
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground w-20 shrink-0">Password</span>
+                <div className="flex gap-1 flex-1">
+                  <Input className="h-8 rounded-none text-sm flex-1"
                     type={enjazShowPassword ? "text" : "password"}
                     placeholder="Enjaz+ password…"
-                    value={enjazPasswordDraft} onChange={(e) => setEnjazPasswordDraft(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Escape") setEnjazEditing(false); }} />
-                  <button type="button"
-                    className="px-2 border border-input h-8 text-muted-foreground hover:text-foreground"
+                    value={enjazPasswordDraft} onChange={(e) => setEnjazPasswordDraft(e.target.value)} />
+                  <button type="button" className="px-2 border border-input h-8 text-muted-foreground hover:text-foreground"
                     onClick={() => setEnjazShowPassword((v) => !v)}>
                     {enjazShowPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   </button>
                 </div>
               </div>
-              <div className="flex gap-1.5">
-                <Button size="sm" className="h-8 rounded-none px-3 text-sm"
+              <div className="flex gap-2 pt-1">
+                <Button size="sm" className="h-8 rounded-none px-4 text-sm"
                   disabled={!enjazEmail.trim() || !enjazPasswordDraft.trim() || saveEnjazMut.isPending}
                   onClick={() => saveEnjazMut.mutate()}>
                   {saveEnjazMut.isPending ? "Saving…" : "Save"}
                 </Button>
-                <Button size="sm" variant="ghost" className="h-8 rounded-none px-3 text-sm"
-                  onClick={() => setEnjazEditing(false)}>Cancel</Button>
+                <Button size="sm" variant="ghost" className="h-8 rounded-none px-4 text-sm"
+                  onClick={() => setActiveSetup(null)}>Cancel</Button>
               </div>
-            </div>
-          ) : enjazSaved ? (
-            <div className="flex flex-wrap items-center gap-6">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground w-16 shrink-0">Email</span>
-                <span className="text-sm font-medium">{profile?.enjaz_email}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground w-16 shrink-0">Password</span>
-                <span className="text-sm font-medium font-mono tracking-widest">
-                  {enjazShowSaved
-                    ? profile?.enjaz_password
-                    : "•".repeat(Math.min(profile?.enjaz_password?.length ?? 8, 16))}
-                </span>
-                <button type="button" className="text-muted-foreground hover:text-foreground"
-                  onClick={() => setEnjazShowSaved((v) => !v)}>
-                  {enjazShowSaved ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                </button>
-              </div>
-              <button type="button" className="ml-auto text-xs text-primary hover:underline"
-                onClick={() => {
-                  setEnjazEmail(profile?.enjaz_email ?? "");
-                  setEnjazPasswordDraft(profile?.enjaz_password ?? "");
-                  setEnjazShowPassword(false);
-                  setEnjazEditing(true);
-                }}>
-                Edit
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <p className="text-sm text-muted-foreground flex-1">
-                Not configured. Save Enjaz+ credentials so staff can access the visa portal.
-              </p>
-              <button type="button" className="text-xs text-primary hover:underline shrink-0"
-                onClick={() => { setEnjazEmail(""); setEnjazPasswordDraft(""); setEnjazShowPassword(false); setEnjazEditing(true); }}>
-                Configure
-              </button>
             </div>
           )}
-        </div>
-      </div>
 
-      {/* ── Row 5: MOFA Setup ────────────────────────────────────────────────── */}
-      <div className="border border-border bg-background flex flex-col shrink-0">
-        <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30">
-          <KeyRound className="h-4 w-4 text-primary shrink-0" />
-          <span className="text-sm font-semibold">MOFA Setup</span>
-          <a href="https://visa.mofa.gov.sa/Account/Login/enjazcompany" target="_blank" rel="noopener noreferrer"
-            className="text-xs text-primary hover:underline flex items-center gap-1 ml-1">
-            <ExternalLink className="h-3 w-3" /> visa.mofa.gov.sa
-          </a>
-          <span className="ml-auto text-xs text-muted-foreground">Staff MOFA visa credentials</span>
-        </div>
-        <div className="px-3 py-2.5">
-          {mofaEditing ? (
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground w-16 shrink-0">Email</span>
-                <Input autoFocus className="h-8 rounded-none text-sm w-56" type="email"
+          {activeSetup === "mofa" && (
+            <div className="flex flex-col gap-3 pt-1">
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground w-20 shrink-0">Email</span>
+                <Input autoFocus className="h-8 rounded-none text-sm flex-1" type="email"
                   placeholder="MOFA email…"
-                  value={mofaEmail} onChange={(e) => setMofaEmail(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Escape") setMofaEditing(false); }} />
+                  value={mofaEmail} onChange={(e) => setMofaEmail(e.target.value)} />
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground w-16 shrink-0">Password</span>
-                <div className="flex gap-1">
-                  <Input className="h-8 rounded-none text-sm w-56"
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground w-20 shrink-0">Password</span>
+                <div className="flex gap-1 flex-1">
+                  <Input className="h-8 rounded-none text-sm flex-1"
                     type={mofaShowPassword ? "text" : "password"}
                     placeholder="MOFA password…"
-                    value={mofaPasswordDraft} onChange={(e) => setMofaPasswordDraft(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Escape") setMofaEditing(false); }} />
-                  <button type="button"
-                    className="px-2 border border-input h-8 text-muted-foreground hover:text-foreground"
+                    value={mofaPasswordDraft} onChange={(e) => setMofaPasswordDraft(e.target.value)} />
+                  <button type="button" className="px-2 border border-input h-8 text-muted-foreground hover:text-foreground"
                     onClick={() => setMofaShowPassword((v) => !v)}>
                     {mofaShowPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   </button>
                 </div>
               </div>
-              <div className="flex gap-1.5">
-                <Button size="sm" className="h-8 rounded-none px-3 text-sm"
+              <div className="flex gap-2 pt-1">
+                <Button size="sm" className="h-8 rounded-none px-4 text-sm"
                   disabled={!mofaEmail.trim() || !mofaPasswordDraft.trim() || saveMofaMut.isPending}
                   onClick={() => saveMofaMut.mutate()}>
                   {saveMofaMut.isPending ? "Saving…" : "Save"}
                 </Button>
-                <Button size="sm" variant="ghost" className="h-8 rounded-none px-3 text-sm"
-                  onClick={() => setMofaEditing(false)}>Cancel</Button>
+                <Button size="sm" variant="ghost" className="h-8 rounded-none px-4 text-sm"
+                  onClick={() => setActiveSetup(null)}>Cancel</Button>
               </div>
-            </div>
-          ) : mofaSaved ? (
-            <div className="flex flex-wrap items-center gap-6">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground w-16 shrink-0">Email</span>
-                <span className="text-sm font-medium">{profile?.mofa_email}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground w-16 shrink-0">Password</span>
-                <span className="text-sm font-medium font-mono tracking-widest">
-                  {mofaShowSaved
-                    ? profile?.mofa_password
-                    : "•".repeat(Math.min(profile?.mofa_password?.length ?? 8, 16))}
-                </span>
-                <button type="button" className="text-muted-foreground hover:text-foreground"
-                  onClick={() => setMofaShowSaved((v) => !v)}>
-                  {mofaShowSaved ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                </button>
-              </div>
-              <button type="button" className="ml-auto text-xs text-primary hover:underline"
-                onClick={() => {
-                  setMofaEmail(profile?.mofa_email ?? "");
-                  setMofaPasswordDraft(profile?.mofa_password ?? "");
-                  setMofaShowPassword(false);
-                  setMofaEditing(true);
-                }}>
-                Edit
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <p className="text-sm text-muted-foreground flex-1">
-                Not configured. Save MOFA credentials so staff can access the visa portal.
-              </p>
-              <button type="button" className="text-xs text-primary hover:underline shrink-0"
-                onClick={() => { setMofaEmail(""); setMofaPasswordDraft(""); setMofaShowPassword(false); setMofaEditing(true); }}>
-                Configure
-              </button>
             </div>
           )}
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
