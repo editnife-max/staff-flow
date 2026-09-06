@@ -28,13 +28,13 @@ async function countUnexcusedIncidents(
 ): Promise<number> {
   const cutoff30 = toEATDateStr(new Date(now.getTime() - LOOKBACK_DAYS * 86_400_000));
   const cutoff = windowStart && windowStart > cutoff30 ? windowStart : cutoff30;
-  const { count } = await (supabaseAdmin
-    .from("staff_daily_attendance" as any)
+  const { count } = await supabaseAdmin
+    .from("staff_daily_attendance")
     .select("*", { count: "exact", head: true })
     .eq("staff_user_id", userId)
     .eq("excused", false)
     .or("is_late.eq.true,absent.eq.true")
-    .gte("date", cutoff) as any);
+    .gte("date", cutoff);
   return count ?? 0;
 }
 
@@ -63,17 +63,20 @@ async function backfillAbsentDays(
   const effectiveCutoff = windowStart && windowStart > cutoffDate ? windowStart : cutoffDate;
   const todayPast9AM = isLateInEAT(now);
 
-  const { data: existingRows } = await (supabaseAdmin
-    .from("staff_daily_attendance" as any)
+  const { data: existingRows } = await supabaseAdmin
+    .from("staff_daily_attendance")
     .select("id, date, is_late, absent, first_login_at")
     .eq("staff_user_id", userId)
-    .gte("date", effectiveCutoff) as any);
+    .gte("date", effectiveCutoff);
 
   const existingMap = new Map<string, ExistRow>(
     ((existingRows ?? []) as ExistRow[]).map((r) => [r.date, r]),
   );
 
-  const toInsert: any[]    = [];
+  const toInsert: Array<{
+    staff_user_id: string; manager_id: string; staff_id: string;
+    date: string; first_login_at: null; is_late: boolean; absent: boolean;
+  }> = [];
   const toMarkAbsent: string[] = []; // tentative-late IDs → flip to absent
 
   for (
@@ -121,16 +124,16 @@ async function backfillAbsentDays(
   }
 
   if (toInsert.length > 0) {
-    await (supabaseAdmin
-      .from("staff_daily_attendance" as any)
-      .upsert(toInsert, { onConflict: "staff_user_id,date", ignoreDuplicates: true } as any) as any);
+    await supabaseAdmin
+      .from("staff_daily_attendance")
+      .upsert(toInsert, { onConflict: "staff_user_id,date", ignoreDuplicates: true });
   }
 
   if (toMarkAbsent.length > 0) {
-    await (supabaseAdmin
-      .from("staff_daily_attendance" as any)
-      .update({ is_late: false, absent: true } as any)
-      .in("id", toMarkAbsent) as any);
+    await supabaseAdmin
+      .from("staff_daily_attendance")
+      .update({ is_late: false, absent: true })
+      .in("id", toMarkAbsent);
   }
 }
 
@@ -142,14 +145,11 @@ export const recordStaffLogin = createServerFn({ method: "POST" })
     const userId = context.userId;
     const now    = new Date();
 
-    const { data: staffRow } = await (supabaseAdmin
+    const { data: staffRow } = await supabaseAdmin
       .from("staff")
       .select("id, manager_id, is_suspended, suspended_at")
       .eq("user_id", userId)
-      .maybeSingle() as any) as { data: {
-        id: string; manager_id: string;
-        is_suspended: boolean; suspended_at: string | null;
-      } | null };
+      .maybeSingle();
 
     if (!staffRow) return { isLate: false, isSuspended: false, lateCount: 0 };
     if (staffRow.is_suspended) return { isLate: false, isSuspended: true, lateCount: 0 };
@@ -163,15 +163,15 @@ export const recordStaffLogin = createServerFn({ method: "POST" })
     const eatDate = toEATDateStr(now);
     const isLate  = isLateInEAT(now);
 
-    const { data: existing } = await (supabaseAdmin
-      .from("staff_daily_attendance" as any)
+    const { data: existing } = await supabaseAdmin
+      .from("staff_daily_attendance")
       .select("id, is_late, excused, first_login_at")
       .eq("staff_user_id", userId)
       .eq("date", eatDate)
-      .maybeSingle() as any);
+      .maybeSingle();
 
     if (!existing) {
-      await (supabaseAdmin.from("staff_daily_attendance" as any).insert({
+      await supabaseAdmin.from("staff_daily_attendance").insert({
         staff_user_id:  userId,
         manager_id:     staffRow.manager_id,
         staff_id:       staffRow.id,
@@ -179,23 +179,27 @@ export const recordStaffLogin = createServerFn({ method: "POST" })
         first_login_at: now.toISOString(),
         is_late:        isLate,
         absent:         false,
-      }) as any);
-    } else if (!(existing as any).first_login_at) {
-      await (supabaseAdmin
-        .from("staff_daily_attendance" as any)
-        .update({ first_login_at: now.toISOString(), is_late: isLate, absent: false } as any)
-        .eq("id", (existing as any).id) as any);
+      });
+    } else if (!existing.first_login_at) {
+      await supabaseAdmin
+        .from("staff_daily_attendance")
+        .update({ first_login_at: now.toISOString(), is_late: isLate, absent: false })
+        .eq("id", existing.id);
     }
 
     await backfillAbsentDays(userId, staffRow.id, staffRow.manager_id, now, windowStart);
 
-    const lateCount = await countUnexcusedIncidents(userId, now, windowStart);
-
-    if (lateCount >= MAX_INCIDENTS) {
-      await (supabaseAdmin
-        .from("staff")
-        .update({ is_suspended: true, suspended_at: now.toISOString() } as any)
-        .eq("id", staffRow.id) as any);
+    // Atomically count incidents and suspend if threshold is reached.
+    // The RPC uses SELECT FOR UPDATE on the staff row so concurrent logins
+    // cannot race each other into a double-suspension or double-skip.
+    const { data: suspendRows } = await supabaseAdmin.rpc("check_and_maybe_suspend_staff", {
+      p_user_id: userId,
+      p_now: now.toISOString(),
+      p_max_incidents: MAX_INCIDENTS,
+      p_lookback_days: LOOKBACK_DAYS,
+    });
+    const lateCount = suspendRows?.[0]?.incident_count ?? 0;
+    if (suspendRows?.[0]?.was_suspended) {
       return { isLate, isSuspended: true, lateCount };
     }
 
@@ -210,7 +214,7 @@ export const submitLateReason = createServerFn({ method: "POST" })
     const userId  = context.userId;
     const eatDate = toEATDateStr(new Date());
     await supabaseAdmin
-      .from("staff_daily_attendance" as any)
+      .from("staff_daily_attendance")
       .update({ reason: data.reason })
       .eq("staff_user_id", userId)
       .eq("date", eatDate)
@@ -227,40 +231,40 @@ export const excuseLateDay = createServerFn({ method: "POST" })
     const managerId = context.userId;
 
     const { data: row } = await supabaseAdmin
-      .from("staff_daily_attendance" as any)
+      .from("staff_daily_attendance")
       .select("id, manager_id, staff_user_id")
       .eq("id", data.attendanceId)
       .maybeSingle();
 
-    if (!row || (row as any).manager_id !== managerId) {
+    if (!row || row.manager_id !== managerId) {
       throw new Response("Not found", { status: 404 });
     }
 
     await supabaseAdmin
-      .from("staff_daily_attendance" as any)
+      .from("staff_daily_attendance")
       .update({ excused: true, excused_at: new Date().toISOString() })
       .eq("id", data.attendanceId);
 
-    const { data: staffRow } = await (supabaseAdmin
+    const { data: staffRow } = await supabaseAdmin
       .from("staff")
       .select("is_suspended, suspended_at")
-      .eq("user_id", (row as any).staff_user_id)
-      .maybeSingle() as any) as { data: { is_suspended: boolean; suspended_at: string | null } | null };
+      .eq("user_id", row.staff_user_id)
+      .maybeSingle();
 
     const windowStart = staffRow?.suspended_at && !staffRow?.is_suspended
       ? toEATDateStr(new Date(staffRow.suspended_at))
       : null;
 
     const count = await countUnexcusedIncidents(
-      (row as any).staff_user_id,
+      row.staff_user_id,
       new Date(),
       windowStart,
     );
     if (count < MAX_INCIDENTS) {
-      await (supabaseAdmin
+      await supabaseAdmin
         .from("staff")
-        .update({ is_suspended: false, suspended_at: new Date().toISOString() } as any)
-        .eq("user_id", (row as any).staff_user_id) as any);
+        .update({ is_suspended: false, suspended_at: new Date().toISOString() })
+        .eq("user_id", row.staff_user_id);
     }
 
     return { ok: true };
@@ -275,12 +279,12 @@ export const excuseAllStaffIncidents = createServerFn({ method: "POST" })
     const managerId = context.userId;
     const now = new Date().toISOString();
 
-    await (supabaseAdmin
-      .from("staff_daily_attendance" as any)
-      .update({ excused: true, excused_at: now } as any)
+    await supabaseAdmin
+      .from("staff_daily_attendance")
+      .update({ excused: true, excused_at: now })
       .eq("staff_user_id", data.staffUserId)
       .eq("manager_id", managerId)
-      .eq("excused", false) as any);
+      .eq("excused", false);
 
     return { ok: true };
   });
@@ -304,13 +308,13 @@ export const unsuspendStaff = createServerFn({ method: "POST" })
 
     // Remove suspension. suspended_at is set to NOW (not null) so counting functions
     // use it as the new window floor — incidents before this timestamp are excluded.
-    const { error: unsuspendErr } = await (supabaseAdmin
+    const { error: unsuspendErr } = await supabaseAdmin
       .from("staff")
-      .update({ is_suspended: false, suspended_at: new Date().toISOString() } as any)
-      .eq("id", data.staffId) as any);
+      .update({ is_suspended: false, suspended_at: new Date().toISOString() })
+      .eq("id", data.staffId);
 
     if (unsuspendErr) {
-      return { ok: false, error: unsuspendErr.message as string };
+      return { ok: false, error: unsuspendErr.message };
     }
 
     return { ok: true, error: null };
@@ -335,12 +339,12 @@ export const getStaffAttendance = createServerFn({ method: "POST" })
 
     const cutoff = toEATDateStr(new Date(Date.now() - LOOKBACK_DAYS * 86_400_000));
 
-    const { data: rows } = await (supabaseAdmin
-      .from("staff_daily_attendance" as any)
+    const { data: rows } = await supabaseAdmin
+      .from("staff_daily_attendance")
       .select("id, date, first_login_at, is_late, absent, reason, excused, excused_at")
       .eq("staff_user_id", data.staffUserId)
       .gte("date", cutoff)
-      .order("date", { ascending: false }) as any);
+      .order("date", { ascending: false });
 
     return (rows ?? []) as Array<{
       id: string;
@@ -364,18 +368,18 @@ export const getTodayLateStaff = createServerFn({ method: "POST" })
 
     if (!isLateInEAT(now)) return [] as Array<{ attendanceId: string; staffId: string; staffUserId: string; name: string }>;
 
-    const { data: rows } = await (supabaseAdmin
-      .from("staff_daily_attendance" as any)
+    const { data: rows } = await supabaseAdmin
+      .from("staff_daily_attendance")
       .select("id, staff_user_id, staff_id")
       .eq("manager_id", managerId)
       .eq("date", eatToday)
       .eq("is_late", true)
       .is("first_login_at", null)
-      .eq("excused", false) as any);
+      .eq("excused", false);
 
     if (!rows?.length) return [] as Array<{ attendanceId: string; staffId: string; staffUserId: string; name: string }>;
 
-    const userIds = (rows as any[]).map((r) => r.staff_user_id);
+    const userIds = rows.map((r) => r.staff_user_id);
     const { data: staffList } = await supabaseAdmin
       .from("staff")
       .select("user_id, name")
@@ -383,10 +387,10 @@ export const getTodayLateStaff = createServerFn({ method: "POST" })
 
     const nameMap = Object.fromEntries((staffList ?? []).map((s) => [s.user_id, s.name]));
 
-    return (rows as any[]).map((r) => ({
-      attendanceId: r.id as string,
-      staffId:      r.staff_id as string,
-      staffUserId:  r.staff_user_id as string,
+    return rows.map((r) => ({
+      attendanceId: r.id,
+      staffId:      r.staff_id,
+      staffUserId:  r.staff_user_id,
       name:         (nameMap[r.staff_user_id] ?? "Unknown") as string,
     }));
   });
@@ -397,13 +401,11 @@ export const backfillStaffAbsents = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ staffUserId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const managerId = context.userId;
-    const { data: staffRow } = await (supabaseAdmin
+    const { data: staffRow } = await supabaseAdmin
       .from("staff")
       .select("id, manager_id, is_suspended, suspended_at")
       .eq("user_id", data.staffUserId)
-      .maybeSingle() as any) as {
-        data: { id: string; manager_id: string; is_suspended: boolean; suspended_at: string | null } | null;
-      };
+      .maybeSingle();
     if (!staffRow || staffRow.manager_id !== managerId) {
       throw new Response("Not found", { status: 404 });
     }
@@ -433,34 +435,29 @@ export const backfillTeamAbsents = createServerFn({ method: "POST" })
     const cutoffDate   = toEATDateStr(new Date(now.getTime() - LOOKBACK_DAYS * 86_400_000));
     const todayPast9AM = isLateInEAT(now);
 
-    const { data: staffList } = await (supabaseAdmin
+    const { data: staffList } = await supabaseAdmin
       .from("staff")
       .select("id, user_id, manager_id, is_suspended, suspended_at")
       .eq("manager_id", managerId)
-      .not("user_id", "is", null) as any) as {
-        data: Array<{
-          id: string;
-          user_id: string;
-          manager_id: string;
-          is_suspended: boolean;
-          suspended_at: string | null;
-        }> | null;
-      };
+      .not("user_id", "is", null);
 
     if (!staffList?.length) return { ok: true };
 
     type TeamExistRow = ExistRow & { staff_user_id: string };
-    const { data: existingRows } = await (supabaseAdmin
-      .from("staff_daily_attendance" as any)
+    const { data: existingRows } = await supabaseAdmin
+      .from("staff_daily_attendance")
       .select("id, staff_user_id, date, is_late, absent, first_login_at")
       .eq("manager_id", managerId)
-      .gte("date", cutoffDate) as any);
+      .gte("date", cutoffDate);
 
     const existingMap = new Map<string, TeamExistRow>(
       ((existingRows ?? []) as TeamExistRow[]).map((r) => [`${r.staff_user_id}:${r.date}`, r]),
     );
 
-    const toInsert: any[]        = [];
+    const toInsert: Array<{
+      staff_user_id: string; manager_id: string; staff_id: string;
+      date: string; first_login_at: null; is_late: boolean; absent: boolean;
+    }> = [];
     const toMarkAbsent: string[] = [];
 
     for (const staff of staffList) {
@@ -519,21 +516,21 @@ export const backfillTeamAbsents = createServerFn({ method: "POST" })
 
     if (toInsert.length > 0) {
       for (let i = 0; i < toInsert.length; i += BATCH) {
-        await (supabaseAdmin
-          .from("staff_daily_attendance" as any)
+        await supabaseAdmin
+          .from("staff_daily_attendance")
           .upsert(toInsert.slice(i, i + BATCH), {
             onConflict: "staff_user_id,date",
             ignoreDuplicates: true,
-          } as any) as any);
+          });
       }
     }
 
     if (toMarkAbsent.length > 0) {
       for (let i = 0; i < toMarkAbsent.length; i += BATCH) {
-        await (supabaseAdmin
-          .from("staff_daily_attendance" as any)
-          .update({ is_late: false, absent: true } as any)
-          .in("id", toMarkAbsent.slice(i, i + BATCH)) as any);
+        await supabaseAdmin
+          .from("staff_daily_attendance")
+          .update({ is_late: false, absent: true })
+          .in("id", toMarkAbsent.slice(i, i + BATCH));
       }
     }
 

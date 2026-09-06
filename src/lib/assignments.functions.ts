@@ -3,6 +3,7 @@ import { z } from "zod";
 import PizZip from "pizzip";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { encryptCredential, decryptCredential } from "@/lib/credentials-crypto.server";
 
 async function resolveManagerId(userId: string): Promise<string> {
   const { data: roles } = await supabaseAdmin
@@ -170,9 +171,13 @@ export const saveMusanedCredentials = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const managerId = await resolveManagerId(context.userId);
+    const [encEmail, encPassword] = await Promise.all([
+      encryptCredential(data.email),
+      encryptCredential(data.password),
+    ]);
     const { error } = await supabaseAdmin
       .from("profiles")
-      .update({ musaned_email: data.email, musaned_password: data.password })
+      .update({ musaned_email: encEmail, musaned_password: encPassword })
       .eq("id", managerId);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -185,9 +190,13 @@ export const saveMofaCredentials = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const managerId = await resolveManagerId(context.userId);
+    const [encEmail, encPassword] = await Promise.all([
+      encryptCredential(data.email),
+      encryptCredential(data.password),
+    ]);
     const { error } = await supabaseAdmin
       .from("profiles")
-      .update({ mofa_email: data.email, mofa_password: data.password })
+      .update({ mofa_email: encEmail, mofa_password: encPassword })
       .eq("id", managerId);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -200,12 +209,41 @@ export const saveEnjazCredentials = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const managerId = await resolveManagerId(context.userId);
+    const [encEmail, encPassword] = await Promise.all([
+      encryptCredential(data.email),
+      encryptCredential(data.password),
+    ]);
     const { error } = await supabaseAdmin
       .from("profiles")
-      .update({ enjaz_email: data.email, enjaz_password: data.password })
+      .update({ enjaz_email: encEmail, enjaz_password: encPassword })
       .eq("id", managerId);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+export const getManagerCredentials = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    const { data, error } = await supabaseAdmin
+      .from("profiles")
+      .select("musaned_email, musaned_password, enjaz_email, enjaz_password, mofa_email, mofa_password")
+      .eq("id", managerId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) return null;
+
+    const [musanedEmail, musanedPassword, enjazEmail, enjazPassword, mofaEmail, mofaPassword] =
+      await Promise.all([
+        decryptCredential(data.musaned_email),
+        decryptCredential(data.musaned_password),
+        decryptCredential(data.enjaz_email),
+        decryptCredential(data.enjaz_password),
+        decryptCredential(data.mofa_email),
+        decryptCredential(data.mofa_password),
+      ]);
+
+    return { musanedEmail, musanedPassword, enjazEmail, enjazPassword, mofaEmail, mofaPassword };
   });
 
 export const cleanOrphanedCvSentTo = createServerFn({ method: "POST" })

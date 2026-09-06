@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
-import { addCountry, deleteCountry, addOffice, deleteOffice, lockOffice, deleteCvTemplate, optimizeCvTemplate, saveMusanedCredentials, saveEnjazCredentials, saveMofaCredentials } from "@/lib/assignments.functions";
+import { addCountry, deleteCountry, addOffice, deleteOffice, lockOffice, deleteCvTemplate, optimizeCvTemplate, saveMusanedCredentials, saveEnjazCredentials, saveMofaCredentials, getManagerCredentials } from "@/lib/assignments.functions";
 
 type AssignCountry  = Database["public"]["Tables"]["assignment_countries"]["Row"];
 type AssignOffice   = Database["public"]["Tables"]["assignment_offices"]["Row"];
@@ -75,6 +75,9 @@ function AssignmentsPage() {
   const [mofaPasswordDraft, setMofaPasswordDraft] = useState("");
   const [mofaShowPassword,  setMofaShowPassword]  = useState(false);
 
+  // ── panel dialog ──────────────────────────────────────────────────────────────
+  const [panelDialog, setPanelDialog] = useState<"countries" | "offices" | "cvTemplates" | "cvReq" | null>(null);
+
   // ── CV requirement days ──────────────────────────────────────────────────────
   const [cvDaysEdit,  setCvDaysEdit]  = useState(false);
   const [cvDaysDraft, setCvDaysDraft] = useState("");
@@ -88,7 +91,7 @@ function AssignmentsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("cv_days_threshold, cv_page_requirements, musaned_email, musaned_password, enjaz_email, enjaz_password, mofa_email, mofa_password")
+        .select("cv_days_threshold, cv_page_requirements")
         .eq("id", user!.id)
         .maybeSingle();
       if (error) throw error;
@@ -96,6 +99,14 @@ function AssignmentsPage() {
     },
   });
   const cvDaysThreshold = profile?.cv_days_threshold ?? 7;
+
+  const getCredentialsFn = useServerFn(getManagerCredentials);
+  const { data: credentials } = useQuery({
+    queryKey: ["manager-credentials", user?.id],
+    enabled: !!user,
+    queryFn: () => getCredentialsFn(),
+    staleTime: 0,
+  });
 
   const updateThreshold = useMutation({
     mutationFn: async (days: number) => {
@@ -326,22 +337,22 @@ function AssignmentsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const musanedSaved = !!profile?.musaned_email;
-  const enjazSaved   = !!profile?.enjaz_email;
-  const mofaSaved    = !!profile?.mofa_email;
+  const musanedSaved = !!credentials?.musanedEmail;
+  const enjazSaved   = !!credentials?.enjazEmail;
+  const mofaSaved    = !!credentials?.mofaEmail;
 
   function openSetup(type: "musaned" | "enjaz" | "mofa") {
     if (type === "musaned") {
-      setMusanedEmail(profile?.musaned_email ?? "");
-      setMusanedPasswordDraft(profile?.musaned_password ?? "");
+      setMusanedEmail(credentials?.musanedEmail ?? "");
+      setMusanedPasswordDraft(credentials?.musanedPassword ?? "");
       setMusanedShowPassword(false);
     } else if (type === "enjaz") {
-      setEnjazEmail(profile?.enjaz_email ?? "");
-      setEnjazPasswordDraft(profile?.enjaz_password ?? "");
+      setEnjazEmail(credentials?.enjazEmail ?? "");
+      setEnjazPasswordDraft(credentials?.enjazPassword ?? "");
       setEnjazShowPassword(false);
     } else {
-      setMofaEmail(profile?.mofa_email ?? "");
-      setMofaPasswordDraft(profile?.mofa_password ?? "");
+      setMofaEmail(credentials?.mofaEmail ?? "");
+      setMofaPasswordDraft(credentials?.mofaPassword ?? "");
       setMofaShowPassword(false);
     }
     setActiveSetup(type);
@@ -351,7 +362,7 @@ function AssignmentsPage() {
     mutationFn: () => saveMusanedFn({ data: { email: musanedEmail.trim(), password: musanedPasswordDraft } }),
     onSuccess: () => {
       toast.success("Musaned credentials saved");
-      qc.invalidateQueries({ queryKey: ["manager-profile", user?.id] });
+      qc.invalidateQueries({ queryKey: ["manager-credentials", user?.id] });
       setActiveSetup(null);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -361,7 +372,7 @@ function AssignmentsPage() {
     mutationFn: () => saveEnjazFn({ data: { email: enjazEmail.trim(), password: enjazPasswordDraft } }),
     onSuccess: () => {
       toast.success("Enjaz+ credentials saved");
-      qc.invalidateQueries({ queryKey: ["manager-profile", user?.id] });
+      qc.invalidateQueries({ queryKey: ["manager-credentials", user?.id] });
       setActiveSetup(null);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -371,7 +382,7 @@ function AssignmentsPage() {
     mutationFn: () => saveMofaFn({ data: { email: mofaEmail.trim(), password: mofaPasswordDraft } }),
     onSuccess: () => {
       toast.success("MOFA credentials saved");
-      qc.invalidateQueries({ queryKey: ["manager-profile", user?.id] });
+      qc.invalidateQueries({ queryKey: ["manager-credentials", user?.id] });
       setActiveSetup(null);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -444,17 +455,64 @@ function AssignmentsPage() {
         <p className="text-xs text-muted-foreground">Countries and offices appear in Processing filters.</p>
       </div>
 
-      {/* ── Row 1: Countries + Offices ──────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
-
-        {/* Countries */}
-        <div className="border border-border bg-background flex flex-col min-h-0">
-          <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30 shrink-0">
-            <Globe className="h-4 w-4 text-primary shrink-0" />
-            <span className="text-sm font-semibold">Countries</span>
-            <span className="ml-auto text-xs text-muted-foreground">{countries.length} total</span>
+      {/* ── Panel cards ──────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-4 shrink-0">
+        <button type="button" onClick={() => setPanelDialog("countries")}
+          className="border border-border bg-background flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
+          <Globe className="h-4 w-4 text-primary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold">Countries</div>
+            <div className="text-xs text-muted-foreground">{countries.length} total</div>
           </div>
-          <div className="p-3 space-y-2 flex-1 overflow-y-auto">
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        </button>
+
+        <button type="button" onClick={() => setPanelDialog("offices")}
+          className="border border-border bg-background flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
+          <Building2 className="h-4 w-4 text-primary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold">Offices</div>
+            <div className="text-xs text-muted-foreground">
+              {activeCountry ? `${activeOffices.length} in ${activeCountry.flag} ${activeCountry.name}` : `${offices.length} total`}
+            </div>
+          </div>
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        </button>
+
+        <button type="button" onClick={() => setPanelDialog("cvTemplates")}
+          className="border border-border bg-background flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
+          <FileText className="h-4 w-4 text-primary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold">CV Templates</div>
+            <div className="text-xs text-muted-foreground">{cvTemplates.length} uploaded</div>
+          </div>
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        </button>
+
+        <button type="button" onClick={() => setPanelDialog("cvReq")}
+          className="border border-border bg-background flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
+          <CircleDot className="h-4 w-4 text-primary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold">CV Page Requirements</div>
+            <div className="text-xs text-muted-foreground">
+              {Object.entries(cvReq).filter(([k, v]) => k !== "alert_after_days" && v !== "all").length} filters active
+            </div>
+          </div>
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        </button>
+      </div>
+
+      {/* ── Countries Dialog ──────────────────────────────────────────── */}
+      <Dialog open={panelDialog === "countries"} onOpenChange={(o) => { if (!o) setPanelDialog(null); }}>
+        <DialogContent className="sm:max-w-md rounded-none">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Globe className="h-4 w-4 text-primary" />
+              Countries
+              <span className="ml-auto text-xs font-normal text-muted-foreground">{countries.length} total</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 overflow-y-auto max-h-[60vh]">
             <div className="flex gap-1.5">
               <select value={newCountryFlag} onChange={(e) => setNewCountryFlag(e.target.value)}
                 className="h-8 border border-border bg-background text-sm px-1 focus:outline-none shrink-0">
@@ -473,7 +531,7 @@ function AssignmentsPage() {
               {countries.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">No countries yet.</p>
               ) : countrySlice.map((c) => (
-                <button key={c.id} type="button" onClick={() => setActiveCountryId(c.id)}
+                <button key={c.id} type="button" onClick={() => { setActiveCountryId(c.id); setPanelDialog(null); }}
                   className={cn(
                     "w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors group",
                     activeCountry?.id === c.id ? "bg-primary/8 text-primary font-medium" : "hover:bg-muted/50",
@@ -495,35 +553,40 @@ function AssignmentsPage() {
             </div>
             <Pager page={countryPage} total={countries.length} set={setCountryPage} />
           </div>
-        </div>
+        </DialogContent>
+      </Dialog>
 
-        {/* Offices */}
-        <div className="border border-border bg-background flex flex-col min-h-0">
-          <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30 shrink-0">
-            <Building2 className="h-4 w-4 text-primary shrink-0" />
-            <span className="text-sm font-semibold">Offices</span>
-            {activeCountry && (
-              <span className="text-xs text-muted-foreground truncate">— {activeCountry.flag} {activeCountry.name}</span>
-            )}
-            {activeCountry && (
-              <>
-                <span className="ml-auto text-xs text-muted-foreground shrink-0">{activeOffices.length} total</span>
-                <button type="button" onClick={() => setSummaryView(v => !v)}
-                  className={cn("h-6 px-2 text-xs border flex items-center gap-1 rounded-none transition-colors shrink-0",
-                    summaryView ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:bg-muted")}>
-                  <BarChart3 className="h-3 w-3" /> Summary
-                </button>
-              </>
-            )}
-          </div>
-          <div className="p-3 space-y-2 flex-1 overflow-y-auto">
+      {/* ── Offices Dialog ────────────────────────────────────────────── */}
+      <Dialog open={panelDialog === "offices"} onOpenChange={(o) => { if (!o) setPanelDialog(null); }}>
+        <DialogContent className="sm:max-w-xl rounded-none">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-primary" />
+              Offices
+              {activeCountry && <span className="text-sm font-normal text-muted-foreground">— {activeCountry.flag} {activeCountry.name}</span>}
+              {activeCountry && (
+                <>
+                  <span className="ml-auto text-xs font-normal text-muted-foreground shrink-0">{activeOffices.length} total</span>
+                  <button type="button" onClick={() => setSummaryView(v => !v)}
+                    className={cn("h-6 px-2 text-xs border flex items-center gap-1 rounded-none transition-colors shrink-0",
+                      summaryView ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:bg-muted")}>
+                    <BarChart3 className="h-3 w-3" /> Summary
+                  </button>
+                </>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 overflow-y-auto max-h-[60vh]">
             {!activeCountry ? (
               <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
                 <Globe className="h-7 w-7 mb-2 opacity-20" />
-                <p className="text-sm">Select a country to manage offices.</p>
+                <p className="text-sm">Select a country first to manage offices.</p>
+                <button type="button" className="mt-2 text-xs text-primary hover:underline"
+                  onClick={() => setPanelDialog("countries")}>
+                  Open Countries →
+                </button>
               </div>
             ) : summaryView ? (
-              /* ── Summary view ── */
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">{activeOffices.length} offices · {activeCountry.flag} {activeCountry.name}</span>
@@ -567,7 +630,6 @@ function AssignmentsPage() {
                 </table>
               </div>
             ) : (
-              /* ── List view ── */
               <>
                 <div className="flex gap-1.5">
                   <Input className="h-8 rounded-none text-sm flex-1" placeholder="Office name…"
@@ -585,32 +647,17 @@ function AssignmentsPage() {
                   ) : officeSlice.map((o) => {
                     const isLocked = (o as any).is_locked === true;
                     return (
-                      <div key={o.id} className={cn(
-                        "flex items-center gap-2 px-3 py-1.5 hover:bg-muted/40 group",
-                        isLocked && "opacity-50",
-                      )}>
-                        {isLocked
-                          ? <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                          : <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        }
-                        <span className={cn("flex-1 truncate text-sm", isLocked && "line-through text-muted-foreground")}>
-                          {o.name}
-                        </span>
+                      <div key={o.id} className={cn("flex items-center gap-2 px-3 py-1.5 hover:bg-muted/40 group", isLocked && "opacity-50")}>
+                        {isLocked ? <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" /> : <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                        <span className={cn("flex-1 truncate text-sm", isLocked && "line-through text-muted-foreground")}>{o.name}</span>
                         {isLocked && (
-                          <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5 rounded-sm shrink-0">
-                            Locked
-                          </span>
+                          <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5 rounded-sm shrink-0">Locked</span>
                         )}
-                        <button
-                          type="button"
+                        <button type="button"
                           title={isLocked ? "Unlock office" : "Lock office (stop receiving candidates)"}
                           onClick={() => lockOfficeMut.mutate({ id: o.id, locked: !isLocked })}
                           disabled={lockOfficeMut.isPending}
-                          className={cn(
-                            "opacity-0 group-hover:opacity-100 transition-opacity",
-                            isLocked ? "text-amber-500 hover:text-amber-600" : "text-muted-foreground hover:text-amber-500",
-                          )}
-                        >
+                          className={cn("opacity-0 group-hover:opacity-100 transition-opacity", isLocked ? "text-amber-500 hover:text-amber-600" : "text-muted-foreground hover:text-amber-500")}>
                           {isLocked ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
                         </button>
                         <button type="button" onClick={() => delOfficeMut.mutate(o.id)}
@@ -626,20 +673,20 @@ function AssignmentsPage() {
               </>
             )}
           </div>
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
 
-      {/* ── Row 2: CV Templates + CV Page Requirements ──────────────────── */}
-      <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
-
-        {/* CV Templates */}
-        <div className="border border-border bg-background flex flex-col min-h-0">
-          <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30 shrink-0">
-            <FileText className="h-4 w-4 text-primary shrink-0" />
-            <span className="text-sm font-semibold">CV Templates</span>
-            <span className="ml-auto text-xs text-muted-foreground">{cvTemplates.length} uploaded</span>
-          </div>
-          <div className="p-3 space-y-2 flex-1 overflow-y-auto">
+      {/* ── CV Templates Dialog ───────────────────────────────────────── */}
+      <Dialog open={panelDialog === "cvTemplates"} onOpenChange={(o) => { if (!o) setPanelDialog(null); }}>
+        <DialogContent className="sm:max-w-md rounded-none">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary" />
+              CV Templates
+              <span className="ml-auto text-xs font-normal text-muted-foreground">{cvTemplates.length} uploaded</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 overflow-y-auto max-h-[60vh]">
             <div className="flex gap-1.5">
               <Input className="h-8 rounded-none text-sm flex-1" placeholder="Template name…"
                 value={newTemplateName} onChange={(e) => setNewTemplateName(e.target.value)}
@@ -681,9 +728,7 @@ function AssignmentsPage() {
                   <div key={t.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-muted/40 group">
                     <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
                     <span className="flex-1 truncate text-sm font-medium">{t.name}</span>
-                    <span className="text-xs text-muted-foreground shrink-0">
-                      {new Date(t.created_at).toLocaleDateString()}
-                    </span>
+                    <span className="text-xs text-muted-foreground shrink-0">{new Date(t.created_at).toLocaleDateString()}</span>
                     <a href={t.file_url} target="_blank" rel="noopener noreferrer"
                       className="text-muted-foreground hover:text-primary transition-colors">
                       <ExternalLink className="h-3.5 w-3.5" />
@@ -699,56 +744,51 @@ function AssignmentsPage() {
             )}
             <Pager page={templatePage} total={cvTemplates.length} set={setTemplatePage} />
           </div>
-        </div>
+        </DialogContent>
+      </Dialog>
 
-        {/* CV Page Requirements */}
-        <div className="border border-border bg-background flex flex-col min-h-0">
-          <div className="px-3 py-2 border-b flex items-center gap-2 bg-muted/30 shrink-0">
-            <CircleDot className="h-4 w-4 text-primary shrink-0" />
-            <span className="text-sm font-semibold">CV Page Requirements</span>
-            <Link to="/manager/candidates" search={{ tab: "available" }} className="ml-auto text-xs text-primary hover:underline flex items-center gap-1">
-              <ExternalLink className="h-3 w-3" /> View Qualifying
-            </Link>
-          </div>
-          <div className="p-3 space-y-2 flex-1 overflow-y-auto">
-            {/* CV Requirement Days */}
+      {/* ── CV Page Requirements Dialog ───────────────────────────────── */}
+      <Dialog open={panelDialog === "cvReq"} onOpenChange={(o) => { if (!o) setPanelDialog(null); }}>
+        <DialogContent className="sm:max-w-lg rounded-none">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CircleDot className="h-4 w-4 text-primary" />
+              CV Page Requirements
+              <Link to="/manager/candidates" search={{ tab: "available" }}
+                className="ml-auto text-xs font-normal text-primary hover:underline flex items-center gap-1">
+                <ExternalLink className="h-3 w-3" /> View Qualifying
+              </Link>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 overflow-y-auto max-h-[60vh]">
             <div className="flex items-center gap-2 px-3 py-1.5 border border-teal-200 bg-teal-50/40 dark:border-teal-800/40 dark:bg-teal-900/10">
               <Clock className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
               <span className="text-sm text-muted-foreground w-24 shrink-0">Resend after</span>
               {cvDaysEdit ? (
                 <div className="flex items-center gap-2 flex-1">
-                  <input
-                    autoFocus type="number" min={1} value={cvDaysDraft}
+                  <input autoFocus type="number" min={1} value={cvDaysDraft}
                     onChange={(e) => setCvDaysDraft(e.target.value)}
                     className="w-14 border border-input rounded-none px-2 h-7 text-sm"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") { const n = parseInt(cvDaysDraft); if (!isNaN(n) && n > 0) updateThreshold.mutate(n); }
                       if (e.key === "Escape") setCvDaysEdit(false);
-                    }}
-                  />
+                    }} />
                   <span className="text-xs text-muted-foreground">days</span>
-                  <Button size="sm" className="h-7 rounded-none px-2 text-xs"
-                    disabled={updateThreshold.isPending}
+                  <Button size="sm" className="h-7 rounded-none px-2 text-xs" disabled={updateThreshold.isPending}
                     onClick={() => { const n = parseInt(cvDaysDraft); if (!isNaN(n) && n > 0) updateThreshold.mutate(n); }}>
                     {updateThreshold.isPending ? "…" : "Save"}
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-7 rounded-none px-2 text-xs"
-                    onClick={() => setCvDaysEdit(false)}>
-                    Cancel
-                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 rounded-none px-2 text-xs" onClick={() => setCvDaysEdit(false)}>Cancel</Button>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 flex-1">
                   <span className="text-base font-bold text-teal-700 dark:text-teal-300">{cvDaysThreshold}</span>
                   <span className="text-xs text-muted-foreground">days</span>
                   <button type="button" className="ml-auto text-xs text-primary hover:underline"
-                    onClick={() => { setCvDaysDraft(String(cvDaysThreshold)); setCvDaysEdit(true); }}>
-                    Edit
-                  </button>
+                    onClick={() => { setCvDaysDraft(String(cvDaysThreshold)); setCvDaysEdit(true); }}>Edit</button>
                 </div>
               )}
             </div>
-            {/* Alert after — configurable unselected alert threshold */}
             <div className="flex items-center gap-2 px-3 py-1.5 border border-orange-200 bg-orange-50/40 dark:border-orange-800/40 dark:bg-orange-900/10">
               <AlertCircle className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400 shrink-0" />
               <span className="text-sm text-muted-foreground w-24 shrink-0">Alert after</span>
@@ -773,30 +813,26 @@ function AssignmentsPage() {
                   <span className="text-base font-bold text-orange-700 dark:text-orange-300">{cvReq.alert_after_days}</span>
                   <span className="text-xs text-muted-foreground">days</span>
                   <button type="button" className="ml-auto text-xs text-primary hover:underline"
-                    onClick={() => { setAlertDraft(cvReq.alert_after_days); setAlertEdit(true); }}>
-                    Edit
-                  </button>
+                    onClick={() => { setAlertDraft(cvReq.alert_after_days); setAlertEdit(true); }}>Edit</button>
                 </div>
               )}
             </div>
-            {/* Status — locked */}
             <div className="flex items-center gap-2 px-3 py-1.5 border border-emerald-200 bg-emerald-50/40 dark:border-emerald-800/40 dark:bg-emerald-900/10">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
               <span className="text-sm text-muted-foreground w-16 shrink-0">Status</span>
               <span className="flex-1 text-sm font-semibold text-emerald-700 dark:text-emerald-300">Available</span>
               <span className="text-xs text-muted-foreground">Locked</span>
             </div>
-            {/* Filter rows — 2-column grid */}
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-1">
               {(
                 [
-                  { key: "medical",         label: "Medical",       opts: MEDICAL_OPTIONS },
-                  { key: "narrative",       label: "Narrative",     opts: narrativeOpts },
-                  { key: "experience",      label: "Experience",    opts: EXPERIENCE_OPTIONS },
-                  { key: "coc",             label: "COC",           opts: COC_OPTIONS },
-                  { key: "passport_scan",   label: "Passport Scan", opts: YES_NO_OPTIONS },
+                  { key: "medical",         label: "Medical",         opts: MEDICAL_OPTIONS },
+                  { key: "narrative",       label: "Narrative",       opts: narrativeOpts },
+                  { key: "experience",      label: "Experience",      opts: EXPERIENCE_OPTIONS },
+                  { key: "coc",             label: "COC",             opts: COC_OPTIONS },
+                  { key: "passport_scan",   label: "Passport Scan",   opts: YES_NO_OPTIONS },
                   { key: "full_size_photo", label: "Full Size Photo", opts: YES_NO_OPTIONS },
-                  { key: "photo_cv",        label: "Photo CV",      opts: YES_NO_OPTIONS },
+                  { key: "photo_cv",        label: "Photo CV",        opts: YES_NO_OPTIONS },
                 ] as { key: keyof typeof DEFAULT_CV_REQ; label: string; opts: string[] }[]
               ).map(({ key, label, opts }) => (
                 <div key={key} className="flex items-center gap-2 min-w-0">
@@ -817,8 +853,8 @@ function AssignmentsPage() {
               ))}
             </div>
           </div>
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Row 3: Platform Credentials ──────────────────────────────── */}
       <div className="grid grid-cols-3 gap-4 shrink-0">

@@ -8,5 +8,12 @@
     // 7:00 AM Ethiopia time (UTC+3) = 04:00 UTC
     // 2:00 PM Ethiopia time (UTC+3) = 11:00 UTC
     "crons": ["0 4 * * *", "0 11 * * *"]
-  }
+  },
+  "rules": [
+    {
+      "type": "Text",
+      "globs": ["**/*.html"],
+      "fallthrough": true
+    }
+  ]
 }

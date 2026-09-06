@@ -17,19 +17,18 @@ export const getAdminStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await requireAdmin(context.userId);
-    const [managersRes, staffRes, agencyRes, pendingRes, approvedRes] = await Promise.all([
-      supabaseAdmin.from("user_roles").select("*", { count: "exact", head: true }).eq("role", "manager"),
-      supabaseAdmin.from("user_roles").select("*", { count: "exact", head: true }).eq("role", "staff"),
-      supabaseAdmin.from("user_roles").select("*", { count: "exact", head: true }).eq("role", "agency"),
-      supabaseAdmin.from("subscription_requests").select("*", { count: "exact", head: true }).eq("status", "pending"),
-      supabaseAdmin.from("subscription_requests").select("*", { count: "exact", head: true }).eq("status", "approved"),
-    ]);
+    const { data, error } = await supabaseAdmin.rpc("get_admin_stats");
+    if (error) throw new Error(error.message);
+    const s = data as {
+      managers: number; staff: number; agencies: number;
+      pending_subs: number; approved_plans: number;
+    };
     return {
-      managers: managersRes.count ?? 0,
-      staff: staffRes.count ?? 0,
-      agencies: agencyRes.count ?? 0,
-      pendingSubs: pendingRes.count ?? 0,
-      approvedPlans: approvedRes.count ?? 0,
+      managers: s.managers ?? 0,
+      staff: s.staff ?? 0,
+      agencies: s.agencies ?? 0,
+      pendingSubs: s.pending_subs ?? 0,
+      approvedPlans: s.approved_plans ?? 0,
     };
   });
 
@@ -46,14 +45,15 @@ export const getAdminSubscriptions = createServerFn({ method: "GET" })
     const managerIds = [...new Set((data ?? []).map((r) => r.manager_id))];
     if (managerIds.length === 0) return [];
 
-    const [profilesRes, authRes] = await Promise.all([
+    // Fetch only the users we actually need, not all 1000
+    const [profilesRes, ...authResults] = await Promise.all([
       supabaseAdmin.from("profiles").select("id, full_name").in("id", managerIds),
-      supabaseAdmin.auth.admin.listUsers({ perPage: 1000 }),
+      ...managerIds.map((id) => supabaseAdmin.auth.admin.getUserById(id)),
     ]);
 
     const profileMap = Object.fromEntries((profilesRes.data ?? []).map((p) => [p.id, p.full_name]));
     const emailMap = Object.fromEntries(
-      ((authRes.data as any)?.users ?? []).map((u: any) => [u.id, u.email as string]),
+      authResults.map((r: any) => [r.data?.user?.id, r.data?.user?.email as string]).filter(([id]) => id),
     );
 
     return (data ?? []).map((r) => ({
@@ -91,7 +91,7 @@ export const getAdminManagers = createServerFn({ method: "GET" })
     if (!roles || roles.length === 0) return [];
     const ids = roles.map((r) => r.user_id);
 
-    const [profilesRes, subRes, authRes] = await Promise.all([
+    const [profilesRes, subRes, ...authResults] = await Promise.all([
       supabaseAdmin.from("profiles").select("id, full_name").in("id", ids),
       supabaseAdmin
         .from("subscription_requests")
@@ -99,12 +99,12 @@ export const getAdminManagers = createServerFn({ method: "GET" })
         .in("manager_id", ids)
         .eq("status", "approved")
         .order("updated_at", { ascending: false }),
-      supabaseAdmin.auth.admin.listUsers({ perPage: 1000 }),
+      ...ids.map((id) => supabaseAdmin.auth.admin.getUserById(id)),
     ]);
 
     const profileMap = Object.fromEntries((profilesRes.data ?? []).map((p) => [p.id, p.full_name]));
     const emailMap = Object.fromEntries(
-      ((authRes.data as any)?.users ?? []).map((u: any) => [u.id, u.email as string]),
+      (authResults as any[]).map((r: any) => [r.data?.user?.id, r.data?.user?.email as string]).filter(([id]) => id),
     );
     const planMap: Record<string, { plan: string; since: string }> = {};
     for (const s of subRes.data ?? []) {
@@ -139,6 +139,7 @@ export const removeManager = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ userId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     await requireAdmin(context.userId);
+    if (data.userId === context.userId) throw new Error("Cannot remove your own manager role");
     const { error } = await supabaseAdmin
       .from("user_roles")
       .delete()
@@ -169,12 +170,12 @@ export const createManager = createServerFn({ method: "POST" })
 
     const { error: roleErr } = await supabaseAdmin.from("user_roles").insert({
       user_id: userId, role: "manager",
-    } as never);
+    });
     if (roleErr) throw new Error(roleErr.message);
 
     const { error: profErr } = await supabaseAdmin.from("profiles").upsert({
       id: userId, full_name: data.full_name,
-    } as never);
+    });
     if (profErr) throw new Error(profErr.message);
 
     return { ok: true, userId };
@@ -194,31 +195,33 @@ export const getAdminUsers = createServerFn({ method: "GET" })
 
     if (!roles || roles.length === 0) return [];
     const ids = [...new Set(roles.map((r) => r.user_id))];
+    const managerIds = [...new Set(roles.map((r) => r.manager_id).filter(Boolean))] as string[];
+    const allProfileIds = [...new Set([...ids, ...managerIds])];
 
-    const [profilesRes, authRes, managersProfileRes] = await Promise.all([
-      supabaseAdmin.from("profiles").select("id, full_name, agency_name").in("id", ids) as any,
-      supabaseAdmin.auth.admin.listUsers({ perPage: 1000 }),
-      // For staff rows, resolve manager name
-      supabaseAdmin.from("profiles").select("id, full_name"),
+    const [profilesRes, ...authResults] = await Promise.all([
+      supabaseAdmin.from("profiles").select("id, full_name, agency_name").in("id", allProfileIds),
+      ...ids.map((id) => supabaseAdmin.auth.admin.getUserById(id)),
     ]);
 
     const profileMap = Object.fromEntries(
-      ((profilesRes.data ?? []) as any[]).map((p: any) => [p.id, { full_name: p.full_name, agency_name: p.agency_name }]),
+      (profilesRes.data ?? []).map((p) => [p.id, { full_name: p.full_name, agency_name: p.agency_name }]),
     );
     const emailMap = Object.fromEntries(
-      ((authRes.data as any)?.users ?? []).map((u: any) => [u.id, u.email as string]),
+      (authResults as Array<{ data: { user: { id: string; email?: string } | null } }>)
+        .map((r) => [r.data?.user?.id, r.data?.user?.email ?? null])
+        .filter(([id]) => id),
     );
     const allProfileMap = Object.fromEntries(
-      (managersProfileRes.data ?? []).map((p) => [p.id, p.full_name]),
+      (profilesRes.data ?? []).map((p) => [p.id, p.full_name]),
     );
 
     return roles.map((r) => ({
       id: r.user_id,
-      role: r.role as string,
-      manager_id: r.manager_id as string | null,
+      role: r.role,
+      manager_id: r.manager_id,
       manager_name: r.manager_id ? (allProfileMap[r.manager_id] ?? null) : null,
-      full_name: (profileMap[r.user_id]?.full_name ?? null) as string | null,
-      agency_name: (profileMap[r.user_id]?.agency_name ?? null) as string | null,
+      full_name: profileMap[r.user_id]?.full_name ?? null,
+      agency_name: profileMap[r.user_id]?.agency_name ?? null,
       email: (emailMap[r.user_id] ?? null) as string | null,
       joined: r.created_at,
     }));
@@ -253,14 +256,14 @@ export const createAdminUser = createServerFn({ method: "POST" })
       user_id: userId,
       role: data.role,
       manager_id: data.manager_id ?? null,
-    } as never);
+    });
     if (roleErr) throw new Error(roleErr.message);
 
     const { error: profErr } = await supabaseAdmin.from("profiles").upsert({
       id: userId,
       full_name: data.full_name,
       agency_name: data.agency_name ?? null,
-    } as never);
+    });
     if (profErr) throw new Error(profErr.message);
 
     return { ok: true, userId };

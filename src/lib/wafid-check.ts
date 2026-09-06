@@ -1,3 +1,5 @@
+import { parse } from "node-html-parser";
+
 const WAFID_NATIONALITY: Array<[string, string]> = [
   ["ethiop", "60"],
   ["philippin", "177"],
@@ -31,6 +33,52 @@ const RECAPTCHA_SITE_KEY = "6LflPAwnAAAAAL2wBGi6tSyGUyj-xFvftINOR9xp";
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
+const DATE_RE = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/;
+
+function normaliseDate(raw: string): string {
+  const parts = raw.split(/[\/\-]/).map((p) => p.padStart(2, "0"));
+  return parts[2]?.length === 4
+    ? `${parts[2]}-${parts[1]}-${parts[0]}`
+    : raw;
+}
+
+function extractCsrf(html: string): string | null {
+  const doc = parse(html);
+  const input = doc.querySelector("input[name=csrfmiddlewaretoken]");
+  return input?.getAttribute("value") ?? null;
+}
+
+function extractExamDate(doc: ReturnType<typeof parse>): string | null {
+  // Strategy 1: field_name / field_value paired <td> or <th> inside same <tr>
+  for (const row of doc.querySelectorAll("tr")) {
+    const nameEl = row.querySelector("[class*=field_name]");
+    if (!nameEl) continue;
+    if (!/examination\s*date/i.test(nameEl.text)) continue;
+    const valEl = row.querySelector("[class*=field_value]");
+    if (!valEl) continue;
+    const m = valEl.text.trim().match(DATE_RE);
+    if (m) return normaliseDate(m[0]);
+  }
+
+  // Strategy 2: plain-text scan around "examination date" label
+  const plain = doc.text.replace(/\s+/g, " ");
+  const idx = plain.search(/examination\s*date\s*:?/i);
+  if (idx !== -1) {
+    const m = plain.slice(idx, idx + 80).match(DATE_RE);
+    if (m) return normaliseDate(m[0]);
+  }
+
+  // Strategy 3: year-range heuristic — pick any date in ±1 year window
+  const currentYear = new Date().getFullYear();
+  const allDates = [...plain.matchAll(new RegExp(DATE_RE.source, "g"))].map((m) => m[0]);
+  const candidate = allDates.find((d) => {
+    const parts = d.split(/[\/\-]/);
+    const yr = parseInt(parts.find((p) => p.length === 4) ?? "0");
+    return yr >= currentYear - 1 && yr <= currentYear + 1;
+  });
+  return candidate ? normaliseDate(candidate) : null;
+}
+
 export async function checkWafidForCandidate(
   passport: string,
   nationality: string,
@@ -60,15 +108,12 @@ export async function checkWafidForCandidate(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ? (getRes.headers as any).getSetCookie()
       : [getRes.headers.get("set-cookie") ?? ""];
-    cookieStr = rawCookies.map(h => h.split(";")[0].trim()).filter(Boolean).join("; ");
+    cookieStr = rawCookies.map((h) => h.split(";")[0].trim()).filter(Boolean).join("; ");
   } catch (e) {
     return { status: null, date: null, message: `Network error reaching wafid.com: ${e}` };
   }
 
-  const csrfMatch = pageHtml.match(
-    /name=["']csrfmiddlewaretoken["'][^>]*value=["']([^"']+)["']|value=["']([^"']+)["'][^>]*name=["']csrfmiddlewaretoken["']/,
-  );
-  const csrf = csrfMatch?.[1] ?? csrfMatch?.[2];
+  const csrf = extractCsrf(pageHtml);
   if (!csrf) {
     return { status: null, date: null, message: "Could not read CSRF token from wafid.com" };
   }
@@ -95,7 +140,7 @@ export async function checkWafidForCandidate(
     const taskId = submitData.taskId!;
 
     for (let i = 0; i < 18; i++) {
-      await new Promise(r => setTimeout(r, 5000));
+      await new Promise((r) => setTimeout(r, 5000));
       const pollRes = await fetch("https://api.2captcha.com/getTaskResult", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -146,84 +191,47 @@ export async function checkWafidForCandidate(
     return { status: null, date: null, message: `POST to wafid.com failed: ${e}` };
   }
 
-  // Step 4: Parse result HTML
+  // Step 4: Parse result HTML with proper parser
+  const doc = parse(resultHtml);
+  const bodyText = doc.text;
+
   let status: string | null = null;
   let date: string | null = null;
   let message = "";
 
-  const DATE_RE = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/;
-  const DATE_RE_G = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/g;
-
-  if (resultHtml.includes("medical-status-modal-acceptance") || />\s*fit\s*</i.test(resultHtml)) {
+  if (
+    doc.getElementById("medical-status-modal-acceptance") ||
+    />\s*fit\s*</i.test(resultHtml)
+  ) {
     status = "Fit";
-    let rawDate: string | undefined;
-
-    // Strategy 1: field_name / field_value in same <tr>
-    for (const rowMatch of resultHtml.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)) {
-      const row = rowMatch[1];
-      const nameEl = row.match(/class=["'][^"']*field_name[^"']*["'][^>]*>([\s\S]*?)<\/(?:td|th|div|span)/i);
-      if (!nameEl) continue;
-      const nameText = nameEl[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      if (!/examination\s*date/i.test(nameText)) continue;
-      const valEl = row.match(/class=["'][^"']*field_value[^"']*["'][^>]*>([\s\S]*?)<\/(?:td|th|div|span)/i);
-      if (!valEl) continue;
-      rawDate = valEl[1].replace(/<[^>]+>/g, " ").trim().match(DATE_RE)?.[0];
-      if (rawDate) break;
-    }
-
-    // Strategy 2: plain-text scan around "examination date" label
-    if (!rawDate) {
-      const plain = resultHtml
-        .replace(/<[^>]+>/g, " ")
-        .replace(/&[a-zA-Z]+;/g, " ")
-        .replace(/\s+/g, " ");
-      const idx = plain.search(/examination\s*date\s*:?/i);
-      if (idx !== -1) rawDate = plain.slice(idx, idx + 80).match(DATE_RE)?.[0];
-    }
-
-    // Strategy 3: year-range heuristic (exam date ≤ currentYear+1, not 4+ years out)
-    if (!rawDate) {
-      const currentYear = new Date().getFullYear();
-      rawDate = [...resultHtml.matchAll(DATE_RE_G)]
-        .map(m => m[0])
-        .find(d => {
-          const parts = d.split(/[\/\-]/);
-          const yr = parseInt(parts.find((p: string) => p.length === 4) ?? "0");
-          return yr >= currentYear - 1 && yr <= currentYear + 1;
-        });
-    }
-
-    if (rawDate) {
-      const parts = rawDate.split(/[\/\-]/).map((p: string) => p.padStart(2, "0"));
-      date = parts[2].length === 4 ? `${parts[2]}-${parts[1]}-${parts[0]}` : rawDate;
-    }
+    date = extractExamDate(doc);
   } else if (
-    resultHtml.includes("medical-status-modal-rejection") ||
+    doc.getElementById("medical-status-modal-rejection") ||
     />\s*unfit\s*</i.test(resultHtml)
   ) {
     status = "Unfit";
   } else if (
-    />\s*in[\s-]*progress\s*</i.test(resultHtml) ||
-    /class="status"[^>]*>\s*in[\s-]*progress/i.test(resultHtml)
+    /in[\s-]*progress/i.test(
+      doc.querySelector(".status")?.text ?? bodyText.slice(0, 2000),
+    )
   ) {
     status = "In progress";
   } else if (
-    resultHtml.includes("medical-status-modal-normal") ||
+    doc.getElementById("medical-status-modal-normal") ||
     />\s*retest\s*</i.test(resultHtml)
   ) {
     status = "Retest";
   } else if (
     /no medical report found|no active appointment found|no[- ]record|not found|invalid passport/i.test(
-      resultHtml,
+      bodyText,
     )
   ) {
     status = "No";
     message = "No record on Wafid";
-  } else if (/error verifying recaptcha/i.test(resultHtml)) {
+  } else if (/error verifying recaptcha/i.test(bodyText)) {
     message = "reCAPTCHA verification failed";
   } else {
-    const snippet = resultHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 300);
-    message = `Could not determine status. Response: ${snippet}`;
+    message = `Could not determine status. Response: ${bodyText.replace(/\s+/g, " ").trim().slice(0, 300)}`;
   }
 
   return {

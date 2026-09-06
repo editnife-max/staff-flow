@@ -10,7 +10,8 @@ export default defineConfig(({ mode }) => {
 
   return {
     define: {
-      // Inject server-only secrets at transform time — works in every runtime context
+      // Server-only: injected into the worker bundle at build time.
+      // Never referenced from client-side code — only used in translate.functions.ts (server fn).
       'process.env.ANTHROPIC_API_KEY': JSON.stringify(env.ANTHROPIC_API_KEY ?? ''),
     },
     optimizeDeps: {
@@ -20,11 +21,15 @@ export default defineConfig(({ mode }) => {
       noExternal: ['xlsx-js-style', 'xlsx'],
     },
     build: {
+      sourcemap: mode === 'development',
       rollupOptions: {
         output: {
           manualChunks(id) {
             if (id.includes('node_modules/xlsx')) {
               return 'vendor-xlsx';
+            }
+            if (id.includes('node_modules/@anthropic-ai')) {
+              return 'vendor-anthropic';
             }
           },
         },

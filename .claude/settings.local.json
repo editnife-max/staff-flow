@@ -153,7 +153,13 @@
       "PowerShell(powershell -ExecutionPolicy Bypass -File \"C:\\\\Project\\\\flowpath-suite\\\\scripts\\\\setup-medical-scheduler.ps1\")",
       "Bash(bunx wrangler *)",
       "PowerShell(bunx tsc --noEmit 2>&1 | Select-Object -Last 20)",
-      "PowerShell(bunx tsc --noEmit 2>&1 | Select-Object -Last 30)"
+      "PowerShell(bunx tsc --noEmit 2>&1 | Select-Object -Last 30)",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "mcp__plugin_playwright_playwright__browser_click",
+      "mcp__plugin_playwright_playwright__browser_fill_form",
+      "mcp__plugin_playwright_playwright__browser_evaluate",
+      "mcp__plugin_playwright_playwright__browser_run_code_unsafe",
+      "Bash(grep -n \"^  }$\\\\|^export\\\\|Functions:\\\\|Enums:\\\\|CompositeTypes:\" src/integrations/supabase/types.ts)"
     ]
   },
   "enableAllProjectMcpServers": true,

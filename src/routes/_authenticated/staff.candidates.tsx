@@ -813,12 +813,13 @@ function StaffCandidatesPage() {
     }
     if (passport) {
       const q = passport.toLowerCase();
-      
       list = list.filter((c) =>
-        (c.full_name ?? "").toLowerCase().includes(q) ||
-        (c.labour_id ?? "").toLowerCase().includes(q) ||
-        (c.passport_number ?? "").toLowerCase().includes(q) ||
-        (c.candidate_code ?? "").toLowerCase().includes(q),
+        [
+          c.full_name, c.labour_id, c.passport_number, c.candidate_code,
+          c.occupation, c.country, c.destination_country, c.office,
+          c.serial_number, c.narrative, c.notes, c.skills,
+          c.selected_by, c.living_town, c.coc_agency_name, c.cv_sent_to,
+        ].some((v) => v?.toLowerCase().includes(q)),
       );
     }
     if (filters.education.length > 0) list = list.filter((c) => filters.education.includes(c.education ?? ""));
@@ -3393,9 +3394,12 @@ function ProcessingTable({
     if (search) {
       const q = search.toLowerCase();
       list = list.filter((c) =>
-        c.full_name.toLowerCase().includes(q) ||
-        (c.passport_number ?? "").toLowerCase().includes(q) ||
-        (c.serial_number ?? "").toLowerCase().includes(q)
+        [
+          c.full_name, c.passport_number, c.serial_number, c.candidate_code,
+          c.labour_id, c.occupation, c.country, c.destination_country, c.office,
+          c.narrative, c.notes, c.skills, c.selected_by, c.living_town,
+          c.coc_agency_name, c.cv_sent_to,
+        ].some((v) => v?.toLowerCase().includes(q)),
       );
     }
     if (f.narrative.length > 0)        list = list.filter((c) => f.narrative.includes(c.narrative ?? ""));

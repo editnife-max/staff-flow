@@ -627,8 +627,10 @@ export const getCandidates = createServerFn({ method: "GET" })
     return all as any[];
   });
 
-// Fast full-text search across all candidates for a manager.
-// Uses pg_trgm GIN indexes added in 20260807130000 for sub-10ms ILIKE on large tables.
+// Deep full-text search across all candidates for a manager.
+// For terms >= 3 chars: uses the search_vector GIN index (covers 16 fields — names,
+// codes, occupation, country, office, notes, skills, narrative, etc.).
+// For shorter terms: falls back to ILIKE on identity fields (trigram indexes).
 export const searchCandidates = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
@@ -639,21 +641,32 @@ export const searchCandidates = createServerFn({ method: "GET" })
     if (term.length < 2) return [];
     const managerId = await resolveManagerId(context.userId);
     if (!managerId) return [];
-    // Strip characters that would break the PostgREST or() filter string
+
+    const cols = "id,full_name,candidate_code,passport_number,labour_id,photo_url,status,occupation,country";
+    const base = (supabaseAdmin.from("candidates") as any)
+      .select(cols)
+      .eq("manager_id", managerId)
+      .limit(40);
+
     const safe = term.replace(/[,()|]/g, " ").trim();
     if (!safe) return [];
-    const pattern = `%${safe}%`;
-    const { data: rows, error } = await (supabaseAdmin.from("candidates") as any)
-      .select("id,full_name,candidate_code,passport_number,labour_id,photo_url,status,occupation,country")
-      .eq("manager_id", managerId)
-      .or(
+
+    let q: any;
+    if (safe.length >= 3) {
+      // Full-text search via search_vector covers 16 fields in one GIN index
+      q = base.textSearch("search_vector", safe, { type: "websearch", config: "simple" });
+    } else {
+      // Short term: ILIKE on identity fields (pg_trgm GIN indexes)
+      const pattern = `%${safe}%`;
+      q = base.or(
         `full_name.ilike.${pattern},` +
         `passport_number.ilike.${pattern},` +
         `candidate_code.ilike.${pattern},` +
         `labour_id.ilike.${pattern}`,
-      )
-      .order("created_at", { ascending: false })
-      .limit(40);
+      );
+    }
+
+    const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     return rows as Array<{
       id: string;

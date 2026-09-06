@@ -273,11 +273,11 @@ export const getTeamActivity = createServerFn({ method: "GET" })
     const yearAgo = new Date(now);
     yearAgo.setFullYear(yearAgo.getFullYear() - 1);
 
-    const { data: staffList, error: staffErr } = await (supabaseAdmin
+    const { data: staffList, error: staffErr } = await supabaseAdmin
       .from("staff")
       .select("id, name, user_id, is_suspended")
       .eq("manager_id", managerId)
-      .eq("status", "active") as any);
+      .eq("status", "active");
     if (staffErr) throw new Error(staffErr.message);
 
     // Paginate sessions (newest first) so we always capture the most-recent

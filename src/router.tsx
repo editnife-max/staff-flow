@@ -6,9 +6,14 @@ export const getRouter = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 5 * 60 * 1000,  // 5 min — prevents refetch on every nav
-        gcTime: 15 * 60 * 1000,    // 15 min — keep unused data in memory longer
-        refetchOnWindowFocus: false, // avoid surprise refetches when switching tabs
+        staleTime: 5 * 60 * 1000,
+        gcTime: 15 * 60 * 1000,
+        refetchOnWindowFocus: false,
+        retry: 2,
+        retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30_000),
+      },
+      mutations: {
+        retry: 0,
       },
     },
   });

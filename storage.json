@@ -1,0 +1,86 @@
+{
+  "cookies": [
+    {
+      "name": "AUTH_SESSION_ID",
+      "value": "Rm1QUjU4MVhvRnF1MnEtdk84ZVZTYngzLjV3WHZlN3poMXh1c2pfMmpMbTVhRXVUeWlVcjliOFpuYVpYcHVrWEctLTN4LW5Xa1Zkb295WDVHMlZfdms1ekhTd2FCckZmaWNuRUhzQWcxSkdQMXZB.keycloak-keycloakx-1-24341",
+      "domain": "accounts.wahid.sa",
+      "path": "/auth/realms/wahid/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "KC_RESTART",
+      "value": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4R0NNIiwia2lkIjoiODBlNDQzYmItMGZhMy00ZGViLTg0YjAtNThjMTM5ZGQ2NjE2In0..ffvWAlKXeetltbBJ.DRTR1u8zHAr5enl8QaUNaveIIi9YrCvLSXJsHFSOqNeNRwBzXRZFCvPyZS4-_EbGIoVCXMTnzKfLJzSGsqsAnWgb8IH91YPsJpbgvfhBWB9a98XCzzMiE_vdJtjMA79zJ9TsdaYLN_LpWCtkRNnWZC9qzzs--9LjLYF_tRaBgz_DJ47DF2NN03Gl4aXs_LlujoB7rTQOhk6WoDxdxNoo3vDxxb-_KnG51wNe2Xp8JqeLDELjkzzjcZ_8Lf4ed7URF1WVkOC8tWmC2YrWODkKue51BM2VapwEETfoGiefKKXZL6GieomohZkplw8E4DxhopZYHVzwwFajHyQpkPIhL_7ctSLBSUNm9K8P0aIqym3tCxSn287zdMA6o-fjOZ1GCdoj7FwA1syKDCjhJ14i5vqUWdZ5J5_8u3ORFOji8aBHzLrMaGE8bYW3JTULSmWlmdZCaeT2n7Lj6bKXiYt7efTFs4QdYe-DJwEcoW7byo4ifzK-clwRQ3gbexeblTj0ty-dIvLZlhZy7ifoOawqLac2c_KS65L5CizqzCWG1PZAzV32SKUOeN9-_sDpkhItzlWAaoWMzyR08cmcxgXfTtuHaYV0WzQykuZSvrbgb4D3cz57FMiWlWEA4soW6a3BmaLUdPQpIyqQNCZSQf5VSvNJLg7os7TKTWVKuEIn9A6B8AxPHJDh17MIs-mz94SM3jZGQWr5ekkzA-9caJoqIpdyVz-EX5WlWrxNr6a3vsrXFkoMM03k8QgYH8Hlqfw90dt9CFHNQQeX_ztSe0Ni-qR6XZPvNZKsAQbSFN73FSPgOd51g2bEljwlLt15E_UfDehxGBNl3j5TVtoeKBxPA5dIDOlpG6GeYDMCcK_hoeALB123PGDjAagtOBt4zgeW1p9-UcI9HPrQXmNDr5VNXw1D665v256_Sme_VdER7ecliMO4uA-35lyEiTBNKvPWxlofruAA9tNDY613MGQ1ZTRzfUg7uWDuf_aoXQVFrL21fx2NdRSKt1E3CWSSWA_3fQHR6UbTPv1CXyhBg29UwFpdtLSMMOLfUGlgHRgBFPUu5iCrVctuwk_bKUghdeZv4-vjmIRebBSuvZE1Xnw6fDedmwW4.dxuaCYZGtUszYvgK8SWyQA",
+      "domain": "accounts.wahid.sa",
+      "path": "/auth/realms/wahid/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_GRECAPTCHA",
+      "value": "09AKhCRwgXNfJ2i2Wy8XhWo7s4fExngtcWvGrrHazmI__4uAachTaCkblwpE1ie3hXaLbrQh7VHpGv5ST58UEXp6k",
+      "domain": "www.google.com",
+      "path": "/recaptcha",
+      "expires": 1803810159.245554,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "TS01668716",
+      "value": "01ea14f964a066fc51823c5c6e8e5253accfaa2b2c2e21cd1c2f2cc29c25e16da8a46f6572a33e414d07c0bdd6f03872644940bf35",
+      "domain": "tawtheeq.musaned.com.sa",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_hjSessionUser_3352580",
+      "value": "eyJpZCI6ImMxZjYyNmRmLTI1MTAtNTNlNy1iNTdlLTI3Y2Q0NzA0ODdiMyIsImNyZWF0ZWQiOjE3ODgyNTc5NjYwNjUsImV4aXN0aW5nIjp0cnVlfQ==",
+      "domain": ".musaned.com.sa",
+      "path": "/",
+      "expires": 1819794079,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "https://tawtheeq.musaned.com.sa",
+      "localStorage": [
+        {
+          "name": "in-session",
+          "value": "1b831b66f4d6b421#1788257965807#1788258079163"
+        },
+        {
+          "name": "kc-callback-32e8616b-b141-4fee-810d-26ad425c9218",
+          "value": "{\"state\":\"32e8616b-b141-4fee-810d-26ad425c9218\",\"nonce\":\"9cca919f-b686-46bc-84e5-b9058b96150c\",\"redirectUri\":\"https%3A%2F%2Ftawtheeq.musaned.com.sa%2Flogin\",\"loginOptions\":{\"redirectUri\":\"https://tawtheeq.musaned.com.sa/login\"},\"pkceCodeVerifier\":\"jBcVRM7EutrYpzRi3S1Ap1LUqVP9j6DRayXwdVFBrbMrsBxTEZZ8NWmIJW1YXERAbBh2l1J55wLsPJQ3TosARp7kzxsYeUKa\",\"expires\":1788261698096}"
+        },
+        {
+          "name": "TAMKEEN_LANGUAGE_KEY",
+          "value": "en-US"
+        }
+      ]
+    },
+    {
+      "origin": "https://www.google.com",
+      "localStorage": [
+        {
+          "name": "rc::a",
+          "value": "MWdlOG1lNmVsY3d4aw=="
+        },
+        {
+          "name": "rc::f",
+          "value": "0aAOCtnUafWZey6h_WPoxQC3bh3EhwRUjgLxiBd4YeTAfZvrcuz6tlUcux4ohpdkbyKBprpB8"
+        }
+      ]
+    }
+  ]
+}

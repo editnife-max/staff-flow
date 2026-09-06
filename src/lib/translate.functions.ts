@@ -3,16 +3,24 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import Anthropic from "@anthropic-ai/sdk";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// Lazy-initialise so missing key throws at call-time, not module load
+let _client: Anthropic | null = null;
+function getClient(): Anthropic {
+  if (!_client) {
+    const key = process.env.ANTHROPIC_API_KEY;
+    if (!key) throw new Error("ANTHROPIC_API_KEY is not configured");
+    _client = new Anthropic({ apiKey: key });
+  }
+  return _client;
+}
 
 export const translateNamesToArabic = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ names: z.array(z.string()).max(200) }).parse(input),
+    z.object({ names: z.array(z.string().min(1)).min(1).max(50) }).parse(input),
   )
   .handler(async ({ data }) => {
     const { names } = data as { names: string[] };
-    if (!names.length) return {} as Record<string, string>;
 
     const prompt = `You are a name transliteration expert. Transliterate these names into Arabic script.
 Rules:
@@ -26,13 +34,19 @@ ${names.map((n: string, i: number) => `${i + 1}. ${n}`).join("\n")}
 
 Return format: {"Original Name": "الاسم بالعربية", ...}`;
 
-    const msg = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
-      messages: [{ role: "user", content: prompt }],
-    });
+    let text: string;
+    try {
+      const msg = await getClient().messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1024,
+        messages: [{ role: "user", content: prompt }],
+      });
+      text = msg.content.find((b) => b.type === "text")?.text ?? "{}";
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Translation service unavailable";
+      throw new Error(`Translation failed: ${message}`);
+    }
 
-    const text = msg.content.find((b) => b.type === "text")?.text ?? "{}";
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return {} as Record<string, string>;
 

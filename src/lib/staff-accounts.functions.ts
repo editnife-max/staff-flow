@@ -85,6 +85,15 @@ export const resetStaffPassword = createServerFn({ method: "POST" })
       password: data.newPassword,
     });
     if (pwErr) throw new Error(pwErr.message);
+
+    // Audit trail: log the reset action (non-critical — don't block the reset on failure)
+    supabaseAdmin.from("admin_audit_log").insert({
+      action: "staff_password_reset",
+      actor_user_id: managerId,
+      target_user_id: row.user_id,
+      metadata: { staff_id: data.staffId },
+    }).then(() => {}, () => {});
+
     return { ok: true };
   });
 
