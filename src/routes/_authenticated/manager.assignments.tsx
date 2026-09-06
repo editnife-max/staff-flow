@@ -563,114 +563,150 @@ function AssignmentsPage() {
             <DialogTitle className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-primary" />
               Offices
-              {activeCountry && <span className="text-sm font-normal text-muted-foreground">— {activeCountry.flag} {activeCountry.name}</span>}
+              <span className="ml-auto text-xs font-normal text-muted-foreground shrink-0">{offices.length} total</span>
               {activeCountry && (
-                <>
-                  <span className="ml-auto text-xs font-normal text-muted-foreground shrink-0">{activeOffices.length} total</span>
-                  <button type="button" onClick={() => setSummaryView(v => !v)}
-                    className={cn("h-6 px-2 text-xs border flex items-center gap-1 rounded-none transition-colors shrink-0",
-                      summaryView ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:bg-muted")}>
-                    <BarChart3 className="h-3 w-3" /> Summary
-                  </button>
-                </>
+                <button type="button" onClick={() => setSummaryView(v => !v)}
+                  className={cn("h-6 px-2 text-xs border flex items-center gap-1 rounded-none transition-colors shrink-0",
+                    summaryView ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:bg-muted")}>
+                  <BarChart3 className="h-3 w-3" /> Summary
+                </button>
               )}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-2 overflow-y-auto max-h-[60vh]">
-            {!activeCountry ? (
+          <div className="overflow-y-auto max-h-[65vh]">
+            {countries.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
                 <Globe className="h-7 w-7 mb-2 opacity-20" />
-                <p className="text-sm">Select a country first to manage offices.</p>
-                <button type="button" className="mt-2 text-xs text-primary hover:underline"
-                  onClick={() => setPanelDialog("countries")}>
-                  Open Countries →
-                </button>
-              </div>
-            ) : summaryView ? (
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{activeOffices.length} offices · {activeCountry.flag} {activeCountry.name}</span>
-                  <button type="button" onClick={downloadOfficeCsv}
-                    className="flex items-center gap-1 text-xs text-primary hover:underline">
-                    <Download className="h-3 w-3" /> Export CSV
-                  </button>
-                </div>
-                <table className="w-full text-xs border-collapse">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-1.5 font-semibold text-muted-foreground">Office</th>
-                      <th className="text-right py-1.5 font-semibold text-muted-foreground">Sent</th>
-                      <th className="text-right py-1.5 font-semibold text-emerald-600 dark:text-emerald-400">Selected</th>
-                      <th className="text-right py-1.5 font-semibold text-amber-600 dark:text-amber-400">Pending</th>
-                      <th className="text-right py-1.5 font-semibold text-blue-600 dark:text-blue-400">Resent</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {officeStats.length === 0 ? (
-                      <tr><td colSpan={5} className="text-center py-6 text-muted-foreground">No offices yet</td></tr>
-                    ) : officeStats.map(s => (
-                      <tr key={s.name} className="border-b border-border/40 hover:bg-muted/20">
-                        <td className="py-1.5 font-medium truncate max-w-[110px]">{s.name}</td>
-                        <td className="text-right py-1.5 tabular-nums">{s.sent}</td>
-                        <td className="text-right py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{s.selected}</td>
-                        <td className="text-right py-1.5 tabular-nums text-amber-600 dark:text-amber-400">{s.pending}</td>
-                        <td className="text-right py-1.5 tabular-nums text-blue-600 dark:text-blue-400">{s.resent}</td>
-                      </tr>
-                    ))}
-                    {officeStats.length > 1 && (
-                      <tr className="border-t-2 border-border font-semibold">
-                        <td className="py-1.5">Total</td>
-                        <td className="text-right py-1.5 tabular-nums">{officeStats.reduce((a, s) => a + s.sent, 0)}</td>
-                        <td className="text-right py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{officeStats.reduce((a, s) => a + s.selected, 0)}</td>
-                        <td className="text-right py-1.5 tabular-nums text-amber-600 dark:text-amber-400">{officeStats.reduce((a, s) => a + s.pending, 0)}</td>
-                        <td className="text-right py-1.5 tabular-nums text-blue-600 dark:text-blue-400">{officeStats.reduce((a, s) => a + s.resent, 0)}</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                <p className="text-sm">No countries yet. Add one in Countries.</p>
               </div>
             ) : (
-              <>
-                <div className="flex gap-1.5">
-                  <Input className="h-8 rounded-none text-sm flex-1" placeholder="Office name…"
-                    value={newOfficeName} onChange={(e) => setNewOfficeName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter" && newOfficeName.trim()) addOfficeMut.mutate(); }} />
-                  <Button size="sm" className="h-8 rounded-none px-3 text-sm gap-1"
-                    disabled={!newOfficeName.trim() || addOfficeMut.isPending}
-                    onClick={() => addOfficeMut.mutate()}>
-                    <Plus className="h-3.5 w-3.5" /> Add
-                  </Button>
-                </div>
-                <div className="space-y-0.5">
-                  {activeOffices.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">No offices yet.</p>
-                  ) : officeSlice.map((o) => {
-                    const isLocked = (o as any).is_locked === true;
-                    return (
-                      <div key={o.id} className={cn("flex items-center gap-2 px-3 py-1.5 hover:bg-muted/40 group", isLocked && "opacity-50")}>
-                        {isLocked ? <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" /> : <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-                        <span className={cn("flex-1 truncate text-sm", isLocked && "line-through text-muted-foreground")}>{o.name}</span>
-                        {isLocked && (
-                          <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5 rounded-sm shrink-0">Locked</span>
-                        )}
-                        <button type="button"
-                          title={isLocked ? "Unlock office" : "Lock office (stop receiving candidates)"}
-                          onClick={() => lockOfficeMut.mutate({ id: o.id, locked: !isLocked })}
-                          disabled={lockOfficeMut.isPending}
-                          className={cn("opacity-0 group-hover:opacity-100 transition-opacity", isLocked ? "text-amber-500 hover:text-amber-600" : "text-muted-foreground hover:text-amber-500")}>
-                          {isLocked ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-                        </button>
-                        <button type="button" onClick={() => delOfficeMut.mutate(o.id)}
-                          disabled={delOfficeMut.isPending}
-                          className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-                <Pager page={officePage} total={activeOffices.length} set={setOfficePage} />
-              </>
+              <div className="divide-y divide-border">
+                {countries.map((c) => {
+                  const cOffices = offices.filter((o) => o.country_id === c.id);
+                  const isOpen   = activeCountryId === c.id;
+                  return (
+                    <div key={c.id}>
+                      {/* Country header */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveCountryId(isOpen ? null : c.id);
+                          setSummaryView(false);
+                          setNewOfficeName("");
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted/40 transition-colors text-left"
+                      >
+                        <span className="text-base leading-none">{c.flag}</span>
+                        <span className="flex-1 text-sm font-semibold">{c.name}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {cOffices.length} {cOffices.length === 1 ? "office" : "offices"}
+                        </span>
+                        {isOpen
+                          ? <ChevronRight className="h-3.5 w-3.5 text-primary rotate-90 transition-transform shrink-0" />
+                          : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground transition-transform shrink-0" />
+                        }
+                      </button>
+
+                      {/* Expanded: offices + add form */}
+                      {isOpen && (
+                        <div className="bg-muted/20 border-t border-border/50 px-3 py-2 space-y-2">
+                          {summaryView ? (
+                            <div className="flex flex-col gap-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs text-muted-foreground">{cOffices.length} offices</span>
+                                <button type="button" onClick={downloadOfficeCsv}
+                                  className="flex items-center gap-1 text-xs text-primary hover:underline">
+                                  <Download className="h-3 w-3" /> Export CSV
+                                </button>
+                              </div>
+                              <table className="w-full text-xs border-collapse">
+                                <thead>
+                                  <tr className="border-b border-border">
+                                    <th className="text-left py-1.5 font-semibold text-muted-foreground">Office</th>
+                                    <th className="text-right py-1.5 font-semibold text-muted-foreground">Sent</th>
+                                    <th className="text-right py-1.5 font-semibold text-emerald-600 dark:text-emerald-400">Selected</th>
+                                    <th className="text-right py-1.5 font-semibold text-amber-600 dark:text-amber-400">Pending</th>
+                                    <th className="text-right py-1.5 font-semibold text-blue-600 dark:text-blue-400">Resent</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {officeStats.length === 0 ? (
+                                    <tr><td colSpan={5} className="text-center py-4 text-muted-foreground">No offices yet</td></tr>
+                                  ) : officeStats.map(s => (
+                                    <tr key={s.name} className="border-b border-border/40 hover:bg-muted/20">
+                                      <td className="py-1.5 font-medium truncate max-w-[110px]">{s.name}</td>
+                                      <td className="text-right py-1.5 tabular-nums">{s.sent}</td>
+                                      <td className="text-right py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{s.selected}</td>
+                                      <td className="text-right py-1.5 tabular-nums text-amber-600 dark:text-amber-400">{s.pending}</td>
+                                      <td className="text-right py-1.5 tabular-nums text-blue-600 dark:text-blue-400">{s.resent}</td>
+                                    </tr>
+                                  ))}
+                                  {officeStats.length > 1 && (
+                                    <tr className="border-t-2 border-border font-semibold">
+                                      <td className="py-1.5">Total</td>
+                                      <td className="text-right py-1.5 tabular-nums">{officeStats.reduce((a, s) => a + s.sent, 0)}</td>
+                                      <td className="text-right py-1.5 tabular-nums text-emerald-600 dark:text-emerald-400">{officeStats.reduce((a, s) => a + s.selected, 0)}</td>
+                                      <td className="text-right py-1.5 tabular-nums text-amber-600 dark:text-amber-400">{officeStats.reduce((a, s) => a + s.pending, 0)}</td>
+                                      <td className="text-right py-1.5 tabular-nums text-blue-600 dark:text-blue-400">{officeStats.reduce((a, s) => a + s.resent, 0)}</td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <>
+                              {/* Add office */}
+                              <div className="flex gap-1.5">
+                                <Input className="h-8 rounded-none text-sm flex-1" placeholder="Office name…"
+                                  value={newOfficeName} onChange={(e) => setNewOfficeName(e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === "Enter" && newOfficeName.trim()) addOfficeMut.mutate(); }} />
+                                <Button size="sm" className="h-8 rounded-none px-3 text-sm gap-1"
+                                  disabled={!newOfficeName.trim() || addOfficeMut.isPending}
+                                  onClick={() => addOfficeMut.mutate()}>
+                                  <Plus className="h-3.5 w-3.5" /> Add
+                                </Button>
+                              </div>
+                              {/* Office list */}
+                              <div className="space-y-0.5">
+                                {cOffices.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground text-center py-3">No offices yet.</p>
+                                ) : officeSlice.map((o) => {
+                                  const isLocked = (o as any).is_locked === true;
+                                  return (
+                                    <div key={o.id} className={cn("flex items-center gap-2 px-2 py-1.5 hover:bg-muted/40 group rounded-sm", isLocked && "opacity-60")}>
+                                      {isLocked
+                                        ? <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                                        : <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                      }
+                                      <span className={cn("flex-1 truncate text-sm", isLocked && "line-through text-muted-foreground")}>{o.name}</span>
+                                      {isLocked && (
+                                        <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5 rounded-sm shrink-0">Locked</span>
+                                      )}
+                                      <button type="button"
+                                        title={isLocked ? "Unlock office" : "Lock office"}
+                                        onClick={() => lockOfficeMut.mutate({ id: o.id, locked: !isLocked })}
+                                        disabled={lockOfficeMut.isPending}
+                                        className={cn("opacity-0 group-hover:opacity-100 transition-opacity", isLocked ? "text-amber-500 hover:text-amber-600" : "text-muted-foreground hover:text-amber-500")}>
+                                        {isLocked ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                                      </button>
+                                      <button type="button" onClick={() => delOfficeMut.mutate(o.id)}
+                                        disabled={delOfficeMut.isPending}
+                                        className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              <Pager page={officePage} total={cOffices.length} set={setOfficePage} />
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         </DialogContent>
