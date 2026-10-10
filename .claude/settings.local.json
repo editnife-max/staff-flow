@@ -159,7 +159,8 @@
       "mcp__plugin_playwright_playwright__browser_fill_form",
       "mcp__plugin_playwright_playwright__browser_evaluate",
       "mcp__plugin_playwright_playwright__browser_run_code_unsafe",
-      "Bash(grep -n \"^  }$\\\\|^export\\\\|Functions:\\\\|Enums:\\\\|CompositeTypes:\" src/integrations/supabase/types.ts)"
+      "Bash(grep -n \"^  }$\\\\|^export\\\\|Functions:\\\\|Enums:\\\\|CompositeTypes:\" src/integrations/supabase/types.ts)",
+      "Skill(superpowers:systematic-debugging)"
     ]
   },
   "enableAllProjectMcpServers": true,
