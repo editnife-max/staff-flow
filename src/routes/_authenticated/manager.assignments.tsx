@@ -231,7 +231,18 @@ function AssignmentsPage() {
     },
   });
 
-  const narrativeOpts = offices.map((o) => o.name).filter(Boolean).sort();
+  const { data: narrativeOpts = [] } = useQuery({
+    queryKey: ["available-narratives", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("candidates")
+        .select("narrative")
+        .eq("status", "available")
+        .not("narrative", "is", null);
+      return [...new Set((data ?? []).map((r: any) => r.narrative as string).filter(Boolean))].sort();
+    },
+  });
 
   const activeCountry = countries.find((c) => c.id === activeCountryId) ?? countries[0] ?? null;
   const activeOffices  = offices.filter((o) => o.country_id === activeCountry?.id);
