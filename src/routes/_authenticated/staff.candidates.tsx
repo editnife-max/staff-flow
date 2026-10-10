@@ -539,7 +539,7 @@ function StaffCandidatesPage() {
     const t = setTimeout(async () => {
       setGlobalSearching(true);
       try { setGlobalResults(await doSearch({ data: { q: globalQ } })); }
-      catch { /* ignore */ }
+      catch (e: any) { toast.error(e?.message ?? "Search failed"); }
       finally { setGlobalSearching(false); }
     }, 300);
     return () => clearTimeout(t);

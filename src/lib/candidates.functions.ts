@@ -648,27 +648,22 @@ export const searchCandidates = createServerFn({ method: "GET" })
       .eq("manager_id", managerId)
       .limit(40);
 
-    const safe = term.replace(/[,()|]/g, " ").trim();
+    const safe = term.replace(/'/g, "''").trim();
     if (!safe) return [];
 
-    let q: any;
-    if (safe.length >= 3) {
-      // Full-text search via search_vector covers 16 fields in one GIN index
-      q = base.textSearch("search_vector", safe, { type: "websearch", config: "simple" });
-    } else {
-      // Short term: ILIKE on identity fields (pg_trgm GIN indexes)
-      const pattern = `%${safe}%`;
-      q = base.or(
-        `full_name.ilike.${pattern},` +
-        `passport_number.ilike.${pattern},` +
-        `candidate_code.ilike.${pattern},` +
-        `labour_id.ilike.${pattern}`,
-      );
-    }
-
-    const { data: rows, error } = await q;
+    const pattern = `%${safe}%`;
+    const { data: rows, error } = await base.or(
+      `full_name.ilike.${pattern},` +
+      `passport_number.ilike.${pattern},` +
+      `labour_id.ilike.${pattern},` +
+      `candidate_code.ilike.${pattern},` +
+      `serial_number.ilike.${pattern},` +
+      `occupation.ilike.${pattern},` +
+      `narrative.ilike.${pattern},` +
+      `cv_sent_to.ilike.${pattern}`,
+    );
     if (error) throw new Error(error.message);
-    return rows as Array<{
+    return (rows ?? []) as Array<{
       id: string;
       full_name: string | null;
       candidate_code: string | null;
