@@ -9,7 +9,7 @@ import {
   SlidersHorizontal, RotateCcw, ChevronDown, ChevronUp,
   ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
   Globe, Send, Activity, ClipboardPaste, Upload, ImageIcon, UserPlus, AlertTriangle, Table2, Plus, Loader2,
-  ScanSearch,
+  ScanSearch, RefreshCw, Sparkles,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -32,6 +32,7 @@ import {
   nextCandidateCode, searchCandidates,
   getCandidates,
 } from "@/lib/candidates.functions";
+import { generateNarrative } from "@/lib/narrative.functions";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@/components/ui/command";
@@ -275,9 +276,10 @@ function ManagerCandidatesPage() {
   const bulkDel        = useServerFn(bulkDeleteCandidates);
   const bulkStatus     = useServerFn(bulkUpdateStatus);
   const bulkAssign     = useServerFn(bulkAssignStaff);
-  const bulkField      = useServerFn(bulkUpdateField);
-  const getNextCode    = useServerFn(nextCandidateCode);
-  const fetchCandidates = useServerFn(getCandidates);
+  const bulkField           = useServerFn(bulkUpdateField);
+  const getNextCode         = useServerFn(nextCandidateCode);
+  const fetchCandidates     = useServerFn(getCandidates);
+  const doGenerateNarrative = useServerFn(generateNarrative);
   const [selected, setSelected] = useState<Set<string>>(() => {
     try {
       // Match the same tab resolution used by the tab state initializer
@@ -603,6 +605,23 @@ function ManagerCandidatesPage() {
       if (ctx?.previous) qc.setQueryData(["manager-candidates", user?.id], ctx.previous);
       toast.error(e.message);
     },
+  });
+
+  const narrativeMut = useMutation({
+    mutationFn: () => doGenerateNarrative({
+      data: {
+        full_name:      [form.first_name, form.last_name].filter(Boolean).join(" ").trim() || undefined,
+        occupation:     form.occupation     || undefined,
+        country:        form.country        || undefined,
+        experience:     form.experience     || undefined,
+        education:      form.education      || undefined,
+        marital_status: form.marital_status || undefined,
+        children:       form.children !== "" ? String(form.children) : undefined,
+        religion:       form.religion       || undefined,
+      },
+    }),
+    onSuccess: (r) => { setForm((f) => ({ ...f, narrative: r.narrative })); toast.success("Narrative generated"); },
+    onError:   (e: Error) => toast.error(e.message),
   });
 
   // Resolves destination_country + office from the selected agency/office name
@@ -1868,9 +1887,34 @@ function ManagerCandidatesPage() {
             </FormSection>
 
             <FormSection title="Narrative">
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Narrative" value={form.narrative} onChange={(v) => setForm({ ...form, narrative: v })} suggestions={opts.narrative} />
-                <Field label="Narrative Phone" value={form.narrative_phone} onChange={(v) => setForm({ ...form, narrative_phone: v })} />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">AI-generated or type manually (max 200 chars)</span>
+                  <Button
+                    type="button" size="sm" variant="outline"
+                    disabled={narrativeMut.isPending}
+                    onClick={() => narrativeMut.mutate()}
+                    className="h-7 gap-1.5 text-xs rounded-none"
+                  >
+                    {narrativeMut.isPending
+                      ? <Loader2 className="h-3 w-3 animate-spin" />
+                      : form.narrative
+                        ? <RefreshCw className="h-3 w-3" />
+                        : <Sparkles className="h-3 w-3" />}
+                    {narrativeMut.isPending ? "Writing…" : form.narrative ? "Regenerate" : "Write with AI"}
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {narrativeMut.isPending ? (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Narrative</Label>
+                      <div className="h-9 rounded-none border border-input bg-muted/30 animate-pulse" />
+                    </div>
+                  ) : (
+                    <Field label="Narrative" value={form.narrative} onChange={(v) => setForm({ ...form, narrative: v })} suggestions={opts.narrative} maxLength={200} />
+                  )}
+                  <Field label="Narrative Phone" value={form.narrative_phone} onChange={(v) => setForm({ ...form, narrative_phone: v })} />
+                </div>
               </div>
             </FormSection>
 

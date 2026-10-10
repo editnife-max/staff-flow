@@ -11,7 +11,7 @@ import {
   ChevronLeft, ChevronRight,
   ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
   Globe, Send, Activity, ClipboardPaste, Upload, ImageIcon, AlertTriangle, Table2, Loader2, Plus,
-  ScanSearch,
+  ScanSearch, RefreshCw, Sparkles,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -37,6 +37,7 @@ import {
   bulkImportCandidates, nextCandidateCode, searchCandidates, checkWafidMedical,
   getCandidates,
 } from "@/lib/candidates.functions";
+import { generateNarrative } from "@/lib/narrative.functions";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@/components/ui/command";
@@ -442,14 +443,15 @@ function StaffCandidatesPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const upsert          = useServerFn(upsertCandidate);
-  const remove          = useServerFn(deleteCandidate);
-  const bulkDel         = useServerFn(bulkDeleteCandidates);
-  const bulkStatus      = useServerFn(bulkUpdateStatus);
-  const bulkAssign      = useServerFn(bulkAssignStaff);
-  const bulkField       = useServerFn(bulkUpdateField);
-  const getNextCode     = useServerFn(nextCandidateCode);
-  const fetchCandidates = useServerFn(getCandidates);
+  const upsert              = useServerFn(upsertCandidate);
+  const remove              = useServerFn(deleteCandidate);
+  const bulkDel             = useServerFn(bulkDeleteCandidates);
+  const bulkStatus          = useServerFn(bulkUpdateStatus);
+  const bulkAssign          = useServerFn(bulkAssignStaff);
+  const bulkField           = useServerFn(bulkUpdateField);
+  const getNextCode         = useServerFn(nextCandidateCode);
+  const fetchCandidates     = useServerFn(getCandidates);
+  const doGenerateNarrative = useServerFn(generateNarrative);
 
   const { tab: tabParam } = Route.useSearch();
   const [selected, setSelected] = useState<Set<string>>(() => {
@@ -672,6 +674,23 @@ function StaffCandidatesPage() {
       if (ctx?.previous) qc.setQueryData(["staff-candidates", user?.id], ctx.previous);
       toast.error(e.message);
     },
+  });
+
+  const narrativeMut = useMutation({
+    mutationFn: () => doGenerateNarrative({
+      data: {
+        full_name:      [form.first_name, form.last_name].filter(Boolean).join(" ").trim() || undefined,
+        occupation:     form.occupation     || undefined,
+        country:        form.country        || undefined,
+        experience:     form.experience     || undefined,
+        education:      form.education      || undefined,
+        marital_status: form.marital_status || undefined,
+        children:       form.children !== "" ? String(form.children) : undefined,
+        religion:       form.religion       || undefined,
+      },
+    }),
+    onSuccess: (r) => { setForm((f) => ({ ...f, narrative: r.narrative })); toast.success("Narrative generated"); },
+    onError:   (e: Error) => toast.error(e.message),
   });
 
   const resolveSelectedBy = useCallback((sel: string): { destination_country?: string; office?: string } => {
@@ -1928,9 +1947,34 @@ function StaffCandidatesPage() {
 
             {/* Narrative */}
             <FormSection title="Narrative">
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Narrative" value={form.narrative} onChange={(v) => setForm({ ...form, narrative: v })} suggestions={opts.narrative} />
-                <Field label="Narrative Phone" value={form.narrative_phone} onChange={(v) => setForm({ ...form, narrative_phone: v })} />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">AI-generated or type manually (max 200 chars)</span>
+                  <Button
+                    type="button" size="sm" variant="outline"
+                    disabled={narrativeMut.isPending}
+                    onClick={() => narrativeMut.mutate()}
+                    className="h-7 gap-1.5 text-xs rounded-none"
+                  >
+                    {narrativeMut.isPending
+                      ? <Loader2 className="h-3 w-3 animate-spin" />
+                      : form.narrative
+                        ? <RefreshCw className="h-3 w-3" />
+                        : <Sparkles className="h-3 w-3" />}
+                    {narrativeMut.isPending ? "Writing…" : form.narrative ? "Regenerate" : "Write with AI"}
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {narrativeMut.isPending ? (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Narrative</Label>
+                      <div className="h-9 rounded-none border border-input bg-muted/30 animate-pulse" />
+                    </div>
+                  ) : (
+                    <Field label="Narrative" value={form.narrative} onChange={(v) => setForm({ ...form, narrative: v })} suggestions={opts.narrative} maxLength={200} />
+                  )}
+                  <Field label="Narrative Phone" value={form.narrative_phone} onChange={(v) => setForm({ ...form, narrative_phone: v })} />
+                </div>
               </div>
             </FormSection>
 

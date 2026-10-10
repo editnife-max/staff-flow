@@ -38,6 +38,24 @@ type PatchedStaff = Omit<
   };
 };
 
+type PatchedProfiles = Omit<
+  Database["public"]["Tables"]["profiles"],
+  "Row" | "Insert" | "Update"
+> & {
+  Row: Database["public"]["Tables"]["profiles"]["Row"] & {
+    narrative_gen_count: number;
+    narrative_gen_reset_at: string;
+  };
+  Insert: Database["public"]["Tables"]["profiles"]["Insert"] & {
+    narrative_gen_count?: number;
+    narrative_gen_reset_at?: string;
+  };
+  Update: Database["public"]["Tables"]["profiles"]["Update"] & {
+    narrative_gen_count?: number;
+    narrative_gen_reset_at?: string;
+  };
+};
+
 type ExtraTables = {
   admin_audit_log: {
     Row: {
@@ -136,9 +154,10 @@ type ExtraFunctions = {
 export type AppDatabase = Omit<Database, "public"> & {
   __InternalSupabase: Database["__InternalSupabase"];
   public: Omit<Database["public"], "Tables" | "Functions"> & {
-    Tables: Omit<Database["public"]["Tables"], "assignment_offices" | "staff"> & {
+    Tables: Omit<Database["public"]["Tables"], "assignment_offices" | "staff" | "profiles"> & {
       assignment_offices: PatchedAssignmentOffices;
       staff: PatchedStaff;
+      profiles: PatchedProfiles;
     } & ExtraTables;
     Functions: Database["public"]["Functions"] & ExtraFunctions;
   };

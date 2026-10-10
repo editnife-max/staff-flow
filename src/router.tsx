@@ -1,6 +1,15 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
+import { Loader2 } from "lucide-react";
 import { routeTree } from "./routeTree.gen";
+
+function PageSpinner() {
+  return (
+    <div className="min-h-screen grid place-items-center bg-muted/40">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
 
 export const getRouter = () => {
   const queryClient = new QueryClient({
@@ -22,7 +31,9 @@ export const getRouter = () => {
     routeTree,
     context: { queryClient },
     scrollRestoration: true,
-    defaultPreloadStaleTime: 60_000, // preloaded data valid for 1 min
+    defaultPreloadStaleTime: 60_000,
+    defaultPendingComponent: PageSpinner,
+    defaultPendingMs: 200,
   });
 
   return router;

@@ -1,4 +1,5 @@
 import { Outlet, createFileRoute, Navigate } from "@tanstack/react-router";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -12,7 +13,7 @@ function AuthenticatedLayout() {
   if (loading && !user) {
     return (
       <div className="min-h-screen grid place-items-center bg-muted/40">
-        <div className="text-sm text-muted-foreground">Loading...</div>
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
