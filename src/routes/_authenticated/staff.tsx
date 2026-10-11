@@ -374,7 +374,7 @@ function StaffLayout() {
         </div>
       </header>
 
-      <main className="flex-1 p-6">
+      <main className="flex-1 overflow-auto">
         {/* Late-login warning banner */}
         {loginStatus?.isLate && !loginStatus.isSuspended && !warningDismissed && (
           <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30">

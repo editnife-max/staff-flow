@@ -1134,7 +1134,7 @@ function ManagerCandidatesPage() {
   };
 
   return (
-    <div className="space-y-6 mx-[79.6px]">
+    <div className="space-y-6 px-6 py-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold tracking-tight">Candidates</h1>
         <div className="flex items-center gap-2">

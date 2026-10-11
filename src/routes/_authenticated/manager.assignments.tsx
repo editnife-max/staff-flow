@@ -479,7 +479,7 @@ function AssignmentsPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-56px)] mx-[79.6px] py-4 gap-4">
+    <div className="flex flex-col h-[calc(100vh-56px)] px-6 py-4 gap-4">
 
       {/* Title */}
       <div className="flex items-center justify-between shrink-0">

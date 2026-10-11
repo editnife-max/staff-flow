@@ -164,7 +164,14 @@
       "Bash(xargs grep -l \"export.*handler\\\\|export.*POST\\\\|export.*GET\")",
       "Bash(xargs grep -l \"narrative\")",
       "Bash(xargs grep -l \"Write\\\\|✍\")",
-      "Bash(xargs -0 grep -l \"Write Prompt\")"
+      "Bash(xargs -0 grep -l \"Write Prompt\")",
+      "Bash(awk NR==983,NR==990 *)",
+      "Bash(awk NR==947,NR==955 *)",
+      "Bash(awk 'NR>=974,/^  return \\\\\\(/' \"C:\\\\Project\\\\flowpath-suite\\\\src\\\\routes\\\\_authenticated\\\\staff.cv-generator.tsx\")",
+      "Bash(awk NR==875,NR==885 *)",
+      "Bash(grep -n \"return \\($\" \"C:\\\\Project\\\\flowpath-suite\\\\src\\\\routes\\\\_authenticated\\\\staff.candidates.tsx\")",
+      "Bash(grep -n \"return \\($\" \"C:\\\\Project\\\\flowpath-suite\\\\src\\\\routes\\\\_authenticated\\\\manager.staff.tsx\")",
+      "Bash(grep -n \"return \\($\" \"C:\\\\Project\\\\flowpath-suite\\\\src\\\\routes\\\\_authenticated\\\\manager.agencies.tsx\")"
     ]
   },
   "enableAllProjectMcpServers": true,

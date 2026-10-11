@@ -380,7 +380,7 @@ function ManagerLayout() {
         </div>
       </header>
 
-      <main className="flex-1 p-6"><Outlet /></main>
+      <main className="flex-1 overflow-auto"><Outlet /></main>
 
       <footer className="border-t bg-background">
         <div className="px-6 py-4 text-xs text-muted-foreground flex flex-wrap items-center justify-between gap-2">

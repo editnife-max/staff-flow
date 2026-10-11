@@ -67,7 +67,7 @@ function SubscriptionPage() {
   const reqPages = Math.ceil(requests.length / PAGE);
 
   return (
-    <div className="space-y-3 mx-[79.6px]">
+    <div className="space-y-3 px-6 py-6">
       <div className="flex items-center justify-between">
         <h1 className="text-sm font-semibold tracking-tight">Subscription</h1>
         <p className="text-[11px] text-muted-foreground">Choose a plan and submit payment proof for approval.</p>

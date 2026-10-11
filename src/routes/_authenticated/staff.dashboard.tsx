@@ -1252,12 +1252,27 @@ function StaffDashboard() {
     return !!ref && daysSince(ref) >= 10;
   });
 
+  const totalAlerts = [
+    cocNo, cocPlaced, medicalNotFit, cocDoneNotFit, medicalExpired,
+    noMedical5Days, noTasheer10Days, unfilledLmis, ticketNotBooked,
+    ticketReady, arrivalCityMissing, visaReady, visaReturned,
+    visaWaitingReplacement, tasheerDoneWokalaUnpaid, passportNotAccepted,
+    cvOverdue, tasheerOverdue, fitLmisNotTested, lmisDraftImported,
+  ].reduce((sum, arr) => sum + arr.length, 0);
+
   return (
     <>
-    <div className="space-y-6 mx-[79.6px]">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold tracking-tight">Dashboard</h1>
-        <Button asChild size="sm" className="gap-2 text-xs h-8 rounded-none">
+    <div className="space-y-6 px-6 py-6">
+
+      {/* Page header */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          </p>
+        </div>
+        <Button asChild size="sm" className="gap-2 rounded-none">
           <Link to="/staff/candidates">
             <UserPlus className="h-4 w-4" /> Manage Candidates
           </Link>
@@ -1318,26 +1333,88 @@ function StaffDashboard() {
         </div>
       )}
 
-      {/* Status stat cards */}
-      <div className="grid grid-cols-3 lg:grid-cols-5 gap-2">
-        {STATUS_CONFIG.map((s) => {
-          const count = counts[s.key];
-          const Icon = s.icon;
-          return (
-            <div key={s.key} className={cn("flex items-center gap-2.5 px-3 py-2.5 rounded-none", s.bg)}>
-              <div className={cn("h-7 w-7 rounded-none grid place-items-center shrink-0", s.icon_bg)}>
-                <Icon className={cn("h-3.5 w-3.5", s.icon_color)} />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-baseline gap-1">
-                  <span className={cn("text-lg font-bold leading-tight", s.value_color)}>{count}</span>
-                </div>
-                <p className="text-[11px] text-foreground/70 font-medium truncate">{s.label}</p>
-              </div>
-            </div>
-          );
-        })}
+      {/* Candidate overview */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+            Candidate Overview
+          </p>
+          <p className="text-[11px] text-muted-foreground">{total} total</p>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {STATUS_CONFIG.map((s) => {
+            const count = counts[s.key];
+            const pct   = total > 0 ? Math.round((count / total) * 100) : 0;
+            const Icon  = s.icon;
+            return (
+              <Card key={s.key} className="rounded-none">
+                <CardContent className="pt-4 pb-4">
+                  <div className={cn("h-8 w-8 rounded-none grid place-items-center mb-3", s.icon_bg)}>
+                    <Icon className={cn("h-4 w-4", s.icon_color)} />
+                  </div>
+                  <p className={cn("text-2xl font-bold leading-none", s.value_color)}>{count}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+                  <div className="mt-2 h-1 bg-border rounded-full overflow-hidden">
+                    <div className={cn("h-full transition-all", s.bar)} style={{ width: `${pct}%` }} />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">{pct}%</p>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Upcoming flights (next 3 days) */}
+      {upcomingFlights.length > 0 && (
+        <Card className="rounded-none border-primary/30 bg-primary/5">
+          <CardContent className="pt-4 pb-4">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-primary mb-3">
+              Upcoming Flights — Next 3 Days
+            </p>
+            <div className="space-y-2">
+              {upcomingFlights.map((c) => {
+                const daysUntil = Math.ceil(
+                  (new Date(c.ticket_date! + "T00:00:00").getTime() - today.getTime()) / 86_400_000,
+                );
+                return (
+                  <div key={c.id} className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium truncate">{c.full_name}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {c.arrival_city && (
+                        <span className="text-xs text-muted-foreground">{c.arrival_city}</span>
+                      )}
+                      <span className={cn(
+                        "text-[11px] font-semibold px-2 py-0.5",
+                        daysUntil === 0
+                          ? "bg-destructive/15 text-destructive"
+                          : daysUntil === 1
+                            ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                            : "bg-primary/10 text-primary",
+                      )}>
+                        {daysUntil === 0 ? "Today" : daysUntil === 1 ? "Tomorrow" : `In ${daysUntil} days`}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(c.ticket_date! + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Alert summary badge */}
+      {totalAlerts > 0 && (
+        <div className="flex items-center gap-2 px-4 py-2.5 border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+            {totalAlerts} item{totalAlerts !== 1 ? "s" : ""} require attention
+          </p>
+        </div>
+      )}
 
       {/* Alert sections */}
       {(cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || noMedical5Days.length > 0 || noTasheer10Days.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || visaWaitingReplacement.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || cvOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0 || weeklyAdded.length > 0 || weeklyDeployments.length > 0) && (

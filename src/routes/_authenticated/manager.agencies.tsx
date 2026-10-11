@@ -199,7 +199,7 @@ function AgenciesPage() {
   const loginValid = !!loginOfficeId && loginEmail.includes("@") && loginPassword.length >= 8;
 
   return (
-    <div>
+    <div className="p-6">
       <PageHeader
         title="Foreign Agencies"
         description="Partner agencies sourcing candidates from abroad."

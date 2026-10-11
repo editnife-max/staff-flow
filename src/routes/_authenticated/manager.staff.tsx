@@ -682,7 +682,7 @@ function StaffPage() {
   });
 
   return (
-    <div>
+    <div className="p-6">
       <PageHeader
         title="Staff"
         description="Create login accounts for your team. Click a row to view their candidates."

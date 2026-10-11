@@ -1050,7 +1050,7 @@ const visaReady = alertCandidates.filter(
 
   return (
     <>
-    <div className="space-y-6 mx-[79.6px]">
+    <div className="space-y-6 px-6 py-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold tracking-tight">Dashboard</h1>
         <Button asChild size="sm" className="gap-2 text-xs h-8 rounded-none">

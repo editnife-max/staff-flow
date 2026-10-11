@@ -484,7 +484,7 @@ function CvGeneratorPage() {
   const someSel = !allSel && selectableFiltered.some((c) => selected.has(c.id));
 
   return (
-    <div className="mx-[79.6px] pb-20">
+    <div className="px-6 pb-6 pt-6">
       <div className="shrink-0 mb-6">
         <PageHeader
           title="CV Page"
