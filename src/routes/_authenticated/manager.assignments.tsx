@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
-import { addCountry, deleteCountry, addOffice, deleteOffice, lockOffice, deleteCvTemplate, optimizeCvTemplate, saveMusanedCredentials, saveEnjazCredentials, saveMofaCredentials, getManagerCredentials } from "@/lib/assignments.functions";
+import { addCountry, deleteCountry, addOffice, deleteOffice, lockOffice, deleteCvTemplate, optimizeCvTemplate, saveMusanedCredentials, saveEnjazCredentials, saveMofaCredentials, saveLmisCredentials, getManagerCredentials } from "@/lib/assignments.functions";
 
 type AssignCountry  = Database["public"]["Tables"]["assignment_countries"]["Row"];
 type AssignOffice   = Database["public"]["Tables"]["assignment_offices"]["Row"];
@@ -56,9 +56,10 @@ function AssignmentsPage() {
   const saveMusanedFn         = useServerFn(saveMusanedCredentials);
   const saveEnjazFn           = useServerFn(saveEnjazCredentials);
   const saveMofaFn            = useServerFn(saveMofaCredentials);
+  const saveLmisFn            = useServerFn(saveLmisCredentials);
 
   // ── dialog ────────────────────────────────────────────────────────────────────
-  const [activeSetup, setActiveSetup] = useState<"musaned" | "enjaz" | "mofa" | null>(null);
+  const [activeSetup, setActiveSetup] = useState<"musaned" | "enjaz" | "mofa" | "lmis" | null>(null);
 
   // ── Musaned setup ────────────────────────────────────────────────────────────
   const [musanedEmail,        setMusanedEmail]        = useState("");
@@ -74,6 +75,11 @@ function AssignmentsPage() {
   const [mofaEmail,         setMofaEmail]         = useState("");
   const [mofaPasswordDraft, setMofaPasswordDraft] = useState("");
   const [mofaShowPassword,  setMofaShowPassword]  = useState(false);
+
+  // ── LMIS setup ───────────────────────────────────────────────────────────────
+  const [lmisEmail,         setLmisEmail]         = useState("");
+  const [lmisPasswordDraft, setLmisPasswordDraft] = useState("");
+  const [lmisShowPassword,  setLmisShowPassword]  = useState(false);
 
   // ── panel dialog ──────────────────────────────────────────────────────────────
   const [panelDialog, setPanelDialog] = useState<"countries" | "offices" | "cvTemplates" | "cvReq" | null>(null);
@@ -351,8 +357,9 @@ function AssignmentsPage() {
   const musanedSaved = !!credentials?.musanedEmail;
   const enjazSaved   = !!credentials?.enjazEmail;
   const mofaSaved    = !!credentials?.mofaEmail;
+  const lmisSaved    = !!credentials?.lmisEmail;
 
-  function openSetup(type: "musaned" | "enjaz" | "mofa") {
+  function openSetup(type: "musaned" | "enjaz" | "mofa" | "lmis") {
     if (type === "musaned") {
       setMusanedEmail(credentials?.musanedEmail ?? "");
       setMusanedPasswordDraft(credentials?.musanedPassword ?? "");
@@ -361,10 +368,14 @@ function AssignmentsPage() {
       setEnjazEmail(credentials?.enjazEmail ?? "");
       setEnjazPasswordDraft(credentials?.enjazPassword ?? "");
       setEnjazShowPassword(false);
-    } else {
+    } else if (type === "mofa") {
       setMofaEmail(credentials?.mofaEmail ?? "");
       setMofaPasswordDraft(credentials?.mofaPassword ?? "");
       setMofaShowPassword(false);
+    } else {
+      setLmisEmail(credentials?.lmisEmail ?? "");
+      setLmisPasswordDraft(credentials?.lmisPassword ?? "");
+      setLmisShowPassword(false);
     }
     setActiveSetup(type);
   }
@@ -393,6 +404,16 @@ function AssignmentsPage() {
     mutationFn: () => saveMofaFn({ data: { email: mofaEmail.trim(), password: mofaPasswordDraft } }),
     onSuccess: () => {
       toast.success("MOFA credentials saved");
+      qc.invalidateQueries({ queryKey: ["manager-credentials", user?.id] });
+      setActiveSetup(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const saveLmisMut = useMutation({
+    mutationFn: () => saveLmisFn({ data: { email: lmisEmail.trim(), password: lmisPasswordDraft } }),
+    onSuccess: () => {
+      toast.success("LMIS credentials saved");
       qc.invalidateQueries({ queryKey: ["manager-credentials", user?.id] });
       setActiveSetup(null);
     },
@@ -904,12 +925,13 @@ function AssignmentsPage() {
       </Dialog>
 
       {/* ── Row 3: Platform Credentials ──────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-4 shrink-0">
+      <div className="grid grid-cols-4 gap-4 shrink-0">
         {([
-          { id: "musaned", label: "Musaned",  desc: "Staff HR Pool",  saved: musanedSaved, q: "musaned+tawtheeq+login" },
-          { id: "enjaz",   label: "Enjaz+",   desc: "Visa Portal",    saved: enjazSaved,   q: "enjaz+plus+portal+login" },
-          { id: "mofa",    label: "MOFA",     desc: "Visa Portal",    saved: mofaSaved,    q: "MOFA+visa+saudi+login" },
-        ] as const).map(({ id, label, desc, saved, q: _q }) => (
+          { id: "musaned", label: "Musaned",  desc: "Staff HR Pool",  saved: musanedSaved },
+          { id: "enjaz",   label: "Enjaz+",   desc: "Visa Portal",    saved: enjazSaved   },
+          { id: "mofa",    label: "MOFA",     desc: "Visa Portal",    saved: mofaSaved    },
+          { id: "lmis",    label: "LMIS",     desc: "Labour Market",  saved: lmisSaved    },
+        ] as const).map(({ id, label, desc, saved }) => (
           <button key={id} type="button" onClick={() => openSetup(id)}
             className="border border-border bg-background flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
             <KeyRound className={cn("h-4 w-4 shrink-0", saved ? "text-emerald-500" : "text-primary")} />
@@ -931,17 +953,27 @@ function AssignmentsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <KeyRound className="h-4 w-4 text-primary" />
-              {activeSetup === "musaned" ? "Musaned Setup" : activeSetup === "enjaz" ? "Enjaz+ Setup" : "MOFA Setup"}
-              <a
-                href={`https://www.google.com/search?q=${
-                  activeSetup === "musaned" ? "musaned+tawtheeq+login"
-                  : activeSetup === "enjaz" ? "enjaz+plus+portal+login"
-                  : "MOFA+visa+saudi+login"
-                }`}
-                target="_blank" rel="noopener noreferrer"
-                className="ml-auto text-xs text-primary hover:underline flex items-center gap-1 font-normal">
-                <Search className="h-3 w-3" /> Find portal
-              </a>
+              {activeSetup === "musaned" ? "Musaned Setup"
+                : activeSetup === "enjaz" ? "Enjaz+ Setup"
+                : activeSetup === "lmis" ? "LMIS Setup"
+                : "MOFA Setup"}
+              {activeSetup === "lmis" ? (
+                <a href="https://lmis.gov.et/" target="_blank" rel="noopener noreferrer"
+                  className="ml-auto text-xs text-primary hover:underline flex items-center gap-1 font-normal">
+                  <ExternalLink className="h-3 w-3" /> lmis.gov.et
+                </a>
+              ) : (
+                <a
+                  href={`https://www.google.com/search?q=${
+                    activeSetup === "musaned" ? "musaned+tawtheeq+login"
+                    : activeSetup === "enjaz" ? "enjaz+plus+portal+login"
+                    : "MOFA+visa+saudi+login"
+                  }`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="ml-auto text-xs text-primary hover:underline flex items-center gap-1 font-normal">
+                  <Search className="h-3 w-3" /> Find portal
+                </a>
+              )}
             </DialogTitle>
           </DialogHeader>
 
@@ -1037,6 +1069,39 @@ function AssignmentsPage() {
                   disabled={!mofaEmail.trim() || !mofaPasswordDraft.trim() || saveMofaMut.isPending}
                   onClick={() => saveMofaMut.mutate()}>
                   {saveMofaMut.isPending ? "Saving…" : "Save"}
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 rounded-none px-4 text-sm"
+                  onClick={() => setActiveSetup(null)}>Cancel</Button>
+              </div>
+            </div>
+          )}
+
+          {activeSetup === "lmis" && (
+            <div className="flex flex-col gap-3 pt-1">
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground w-20 shrink-0">Username</span>
+                <Input autoFocus className="h-8 rounded-none text-sm flex-1"
+                  placeholder="LMIS username…"
+                  value={lmisEmail} onChange={(e) => setLmisEmail(e.target.value)} />
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground w-20 shrink-0">Password</span>
+                <div className="flex gap-1 flex-1">
+                  <Input className="h-8 rounded-none text-sm flex-1"
+                    type={lmisShowPassword ? "text" : "password"}
+                    placeholder="LMIS password…"
+                    value={lmisPasswordDraft} onChange={(e) => setLmisPasswordDraft(e.target.value)} />
+                  <button type="button" className="px-2 border border-input h-8 text-muted-foreground hover:text-foreground"
+                    onClick={() => setLmisShowPassword((v) => !v)}>
+                    {lmisShowPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button size="sm" className="h-8 rounded-none px-4 text-sm"
+                  disabled={!lmisEmail.trim() || !lmisPasswordDraft.trim() || saveLmisMut.isPending}
+                  onClick={() => saveLmisMut.mutate()}>
+                  {saveLmisMut.isPending ? "Saving…" : "Save"}
                 </Button>
                 <Button size="sm" variant="ghost" className="h-8 rounded-none px-4 text-sm"
                   onClick={() => setActiveSetup(null)}>Cancel</Button>

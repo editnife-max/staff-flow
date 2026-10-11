@@ -45,14 +45,20 @@ type PatchedProfiles = Omit<
   Row: Database["public"]["Tables"]["profiles"]["Row"] & {
     narrative_gen_count: number;
     narrative_gen_reset_at: string;
+    lmis_email: string | null;
+    lmis_password: string | null;
   };
   Insert: Database["public"]["Tables"]["profiles"]["Insert"] & {
     narrative_gen_count?: number;
     narrative_gen_reset_at?: string;
+    lmis_email?: string | null;
+    lmis_password?: string | null;
   };
   Update: Database["public"]["Tables"]["profiles"]["Update"] & {
     narrative_gen_count?: number;
     narrative_gen_reset_at?: string;
+    lmis_email?: string | null;
+    lmis_password?: string | null;
   };
 };
 

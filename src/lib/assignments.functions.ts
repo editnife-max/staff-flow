@@ -183,6 +183,25 @@ export const saveMusanedCredentials = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const saveLmisCredentials = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ email: z.string().min(1).max(200), password: z.string().min(1).max(200) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    const [encEmail, encPassword] = await Promise.all([
+      encryptCredential(data.email),
+      encryptCredential(data.password),
+    ]);
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ lmis_email: encEmail, lmis_password: encPassword } as any)
+      .eq("id", managerId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 export const saveMofaCredentials = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
@@ -227,13 +246,13 @@ export const getManagerCredentials = createServerFn({ method: "GET" })
     const managerId = await resolveManagerId(context.userId);
     const { data, error } = await supabaseAdmin
       .from("profiles")
-      .select("musaned_email, musaned_password, enjaz_email, enjaz_password, mofa_email, mofa_password")
+      .select("musaned_email, musaned_password, enjaz_email, enjaz_password, mofa_email, mofa_password, lmis_email, lmis_password")
       .eq("id", managerId)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!data) return null;
 
-    const [musanedEmail, musanedPassword, enjazEmail, enjazPassword, mofaEmail, mofaPassword] =
+    const [musanedEmail, musanedPassword, enjazEmail, enjazPassword, mofaEmail, mofaPassword, lmisEmail, lmisPassword] =
       await Promise.all([
         decryptCredential(data.musaned_email),
         decryptCredential(data.musaned_password),
@@ -241,9 +260,11 @@ export const getManagerCredentials = createServerFn({ method: "GET" })
         decryptCredential(data.enjaz_password),
         decryptCredential(data.mofa_email),
         decryptCredential(data.mofa_password),
+        decryptCredential((data as any).lmis_email),
+        decryptCredential((data as any).lmis_password),
       ]);
 
-    return { musanedEmail, musanedPassword, enjazEmail, enjazPassword, mofaEmail, mofaPassword };
+    return { musanedEmail, musanedPassword, enjazEmail, enjazPassword, mofaEmail, mofaPassword, lmisEmail, lmisPassword };
   });
 
 export const cleanOrphanedCvSentTo = createServerFn({ method: "POST" })
