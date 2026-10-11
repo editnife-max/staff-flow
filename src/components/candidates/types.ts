@@ -32,7 +32,7 @@ export const COC_OPTIONS = ["Done", "No", "Booked", "Placed", "Yitazez", "Pendin
 export const MUSANED_OPTIONS: string[] = [];
 export const OFFICE_OPTIONS = ["Riyadh", "Jeddah", "Dammam", "Other"];
 export const PASSPORT_OPTIONS = ["Original", "Scan"];
-export const TASHEER_OPTIONS = ["No", "Booked", "Done", "Ready"];
+export const TASHEER_OPTIONS = ["No", "Booked", "Done", "Done without passport"];
 export const WOKALA_OPTIONS = ["Paid", "Unpaid"];
 export const VISA_OPTIONS = [
   "Ready for embassy", "Sent to Embassy", "Privately Sent", "Issued",

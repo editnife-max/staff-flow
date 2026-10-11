@@ -941,7 +941,7 @@ function ProcessingCard({
               Yes — Accepted
             </Button>
             <Button variant="outline" onClick={() => {
-              onUpdateField("tasheer_status", "Ready");
+              onUpdateField("tasheer_status", "Done without passport");
               onUpdateField("passport_accepted", "false");
               onUpdateField("wokala_status", "Unpaid");
               setEmbassyOpen(false);

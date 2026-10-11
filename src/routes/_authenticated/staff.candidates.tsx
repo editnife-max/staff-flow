@@ -76,7 +76,7 @@ const toNumOrNull = (v: string | number | null | undefined): number | null => {
 
 const OFFICE_OPTIONS = ["Riyadh", "Jeddah", "Dammam", "Other"];
 const PASSPORT_OPTIONS = ["Original", "Scan"];
-const TASHEER_OPTIONS = ["No", "Booked", "Done", "Ready"];
+const TASHEER_OPTIONS = ["No", "Booked", "Done", "Done without passport"];
 const WOKALA_OPTIONS = ["Paid", "Unpaid"];
 const VISA_OPTIONS = [
   "Ready for embassy", "Sent to Embassy", "Privately Sent", "Issued",
