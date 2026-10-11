@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DarkModeToggle } from "@/components/dark-mode-toggle";
+import { TicketAnnouncementBanner } from "@/components/ticket-announcement-banner";
 
 export const Route = createFileRoute("/_authenticated/manager")({
   component: ManagerLayout,
@@ -89,7 +90,7 @@ function ManagerBell() {
         await updateFieldFn({ data: { id, field: "wokala_status", value: "Unpaid" } });
         await updateFieldFn({ data: { id, field: "visa_status", value: "Ready for embassy" } });
       } else {
-        await updateFieldFn({ data: { id, field: "tasheer_status", value: "Ready" } });
+        await updateFieldFn({ data: { id, field: "tasheer_status", value: "Done without passport" } });
         await updateFieldFn({ data: { id, field: "passport_accepted", value: "false" } });
         await updateFieldFn({ data: { id, field: "wokala_status", value: "Unpaid" } });
       }
@@ -304,6 +305,7 @@ function ManagerBell() {
           )}
         </DialogContent>
       </Dialog>
+      <TicketAnnouncementBanner />
     </>
   );
 }

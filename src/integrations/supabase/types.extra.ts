@@ -63,6 +63,39 @@ type PatchedProfiles = Omit<
 };
 
 type ExtraTables = {
+  ticket_announcements: {
+    Row: {
+      id: string;
+      manager_id: string;
+      candidate_id: string;
+      candidate_name: string;
+      ticket_date: string | null;
+      created_at: string;
+      dismissed_at: string | null;
+      dismissed_by_name: string | null;
+    };
+    Insert: {
+      id?: string;
+      manager_id: string;
+      candidate_id: string;
+      candidate_name: string;
+      ticket_date?: string | null;
+      created_at?: string;
+      dismissed_at?: string | null;
+      dismissed_by_name?: string | null;
+    };
+    Update: {
+      id?: string;
+      manager_id?: string;
+      candidate_id?: string;
+      candidate_name?: string;
+      ticket_date?: string | null;
+      created_at?: string;
+      dismissed_at?: string | null;
+      dismissed_by_name?: string | null;
+    };
+    Relationships: [];
+  };
   admin_audit_log: {
     Row: {
       id: string;

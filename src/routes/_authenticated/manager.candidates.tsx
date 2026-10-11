@@ -705,7 +705,7 @@ function ManagerCandidatesPage() {
       else if (value !== "Issued" && current()?.ticket_status === "Ready")
         fieldMut.mutate({ id, field: "ticket_status", value: null });
     }
-    if (field === "ticket_status" && value === "No")
+    if (field === "ticket_status" && !value)
       fieldMut.mutate({ id, field: "ticket_date", value: null });
   }, [fieldMut, resolveSelectedBy, qc, user?.id]);
 

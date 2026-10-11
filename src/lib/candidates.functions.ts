@@ -354,6 +354,7 @@ export const updateCandidateField = createServerFn({ method: "POST" })
 
     const preflightCols = new Set(["tasheer_date", "status", "contract_date", "selected_by"]);
     if (shouldTrack) preflightCols.add(data.field);
+    if (data.field === "ticket_status") { preflightCols.add("full_name"); preflightCols.add("ticket_date"); }
 
     const cur: Record<string, unknown> | null = needsPreflight
       ? await (supabaseAdmin.from("candidates") as any)
@@ -419,6 +420,23 @@ export const updateCandidateField = createServerFn({ method: "POST" })
         changed_by_name: changedBy.name,
         changed_by_email: changedBy.email,
       });
+    }
+
+    if (data.field === "ticket_status" && raw === "Booked") {
+      const candidateName = cur ? String(cur.full_name ?? "") : "";
+      const ticketDate = cur?.ticket_date ? String(cur.ticket_date) : null;
+      await (supabaseAdmin.from("ticket_announcements") as any).upsert(
+        {
+          manager_id: managerId,
+          candidate_id: data.id,
+          candidate_name: candidateName,
+          ticket_date: ticketDate,
+          created_at: new Date().toISOString(),
+          dismissed_at: null,
+          dismissed_by_name: null,
+        },
+        { onConflict: "candidate_id" },
+      );
     }
 
     return { ok: true };
@@ -720,5 +738,83 @@ export const checkWafidMedical = createServerFn({ method: "POST" })
       date: result.date as string | null,
       message: result.message,
     };
+  });
+
+export type TicketAnnouncement = {
+  id: string;
+  candidate_id: string;
+  candidate_name: string;
+  ticket_date: string | null;
+  created_at: string;
+};
+
+export const getTicketAnnouncements = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const managerId = await requireManagerId(context.userId);
+    const { data, error } = await (supabaseAdmin.from("ticket_announcements") as any)
+      .select("id, candidate_id, candidate_name, created_at")
+      .eq("manager_id", managerId)
+      .is("dismissed_at", null)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []) as any[];
+    if (rows.length === 0) return [] as TicketAnnouncement[];
+
+    // Always read ticket_date live from candidates to avoid race-condition stale values
+    const ids = rows.map((r: any) => r.candidate_id as string);
+    const { data: live } = await (supabaseAdmin.from("candidates") as any)
+      .select("id, ticket_date")
+      .in("id", ids);
+    const dateMap = new Map<string, string | null>(
+      ((live ?? []) as any[]).map((c: any) => [c.id as string, c.ticket_date as string | null]),
+    );
+
+    return rows.map((r: any) => ({
+      id: r.id,
+      candidate_id: r.candidate_id,
+      candidate_name: r.candidate_name,
+      ticket_date: dateMap.get(r.candidate_id) ?? null,
+      created_at: r.created_at,
+    })) as TicketAnnouncement[];
+  });
+
+export const dismissTicketAnnouncement = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const managerId = await requireManagerId(context.userId);
+
+    const [{ data: profile }, { data: announcement }] = await Promise.all([
+      supabaseAdmin.from("profiles").select("full_name").eq("id", context.userId).maybeSingle(),
+      (supabaseAdmin.from("ticket_announcements") as any)
+        .select("candidate_id, candidate_name")
+        .eq("id", data.id)
+        .eq("manager_id", managerId)
+        .maybeSingle(),
+    ]);
+
+    const name  = (profile as any)?.full_name ?? "Unknown";
+    const email = (profile as any)?.email ?? null;
+
+    const { error } = await (supabaseAdmin.from("ticket_announcements") as any)
+      .update({ dismissed_at: new Date().toISOString(), dismissed_by_name: name })
+      .eq("id", data.id)
+      .eq("manager_id", managerId);
+    if (error) throw new Error(error.message);
+
+    if (announcement?.candidate_id) {
+      await supabaseAdmin.from("candidate_field_log").insert({
+        candidate_id: announcement.candidate_id,
+        field: "ticket_status_seen",
+        old_value: null,
+        new_value: "Seen",
+        changed_by_user_id: context.userId,
+        changed_by_name: name,
+        changed_by_email: email,
+      });
+    }
+
+    return { ok: true };
   });
 

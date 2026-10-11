@@ -29,6 +29,7 @@ import { updateCandidateField } from "@/lib/candidates.functions";
 import { useStaffSession } from "@/hooks/use-staff-session";
 import { recordStaffLogin } from "@/lib/staff-attendance.functions";
 import { DarkModeToggle } from "@/components/dark-mode-toggle";
+import { TicketAnnouncementBanner } from "@/components/ticket-announcement-banner";
 
 export const Route = createFileRoute("/_authenticated/staff")({
   component: StaffLayout,
@@ -130,7 +131,7 @@ function StaffLayout() {
         await updateFieldFn({ data: { id, field: "wokala_status", value: "Unpaid" } });
         await updateFieldFn({ data: { id, field: "visa_status", value: "Ready for embassy" } });
       } else {
-        await updateFieldFn({ data: { id, field: "tasheer_status", value: "Ready" } });
+        await updateFieldFn({ data: { id, field: "tasheer_status", value: "Done without passport" } });
         await updateFieldFn({ data: { id, field: "passport_accepted", value: "false" } });
         await updateFieldFn({ data: { id, field: "wokala_status", value: "Unpaid" } });
       }
@@ -580,6 +581,7 @@ function StaffLayout() {
           )}
         </DialogContent>
       </Dialog>
+      <TicketAnnouncementBanner />
     </div>
   );
 }
