@@ -1264,53 +1264,6 @@ function StaffDashboard() {
         </Button>
       </div>
 
-      {/* Attendance widget */}
-      <Card>
-        <CardContent className="pt-4 pb-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-semibold">My Attendance</p>
-            {!isTracking && (
-              <span className="text-[11px] font-medium px-2 py-1 rounded-md bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                Activity tracking available on desktop only
-              </span>
-            )}
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium mb-1">Today</p>
-              <p className="text-xl font-bold text-foreground leading-tight">
-                {sessionStats?.hoursToday.toFixed(1) ?? "—"}<span className="text-sm font-normal text-muted-foreground">h</span>
-              </p>
-              <Progress
-                value={Math.min(100, ((sessionStats?.hoursToday ?? 0) / 8) * 100)}
-                className="mt-1.5 h-1.5"
-              />
-              <p className="text-[10px] text-muted-foreground mt-1">Goal: 8h</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium mb-1">This week</p>
-              <p className="text-xl font-bold text-foreground leading-tight">
-                {sessionStats?.hoursWeek.toFixed(1) ?? "—"}<span className="text-sm font-normal text-muted-foreground">h</span>
-              </p>
-            </div>
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium mb-1">This month</p>
-              <p className="text-xl font-bold text-foreground leading-tight">
-                {sessionStats?.hoursMonth.toFixed(1) ?? "—"}<span className="text-sm font-normal text-muted-foreground">h</span>
-              </p>
-            </div>
-          </div>
-          {sessionStats?.firstLoginToday && (
-            <p className="text-xs text-muted-foreground mt-3">
-              Logged in at:{" "}
-              <span className="font-medium text-foreground">
-                {new Date(sessionStats.firstLoginToday).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              </span>
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Agency candidate requests */}
       {agencyNotifs.length > 0 && (
         <div className="space-y-2">

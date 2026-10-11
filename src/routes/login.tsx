@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Building2 } from "lucide-react";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { DarkModeToggle } from "@/components/dark-mode-toggle";
+import { recordStaffLogin } from "@/lib/staff-attendance.functions";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Sign in — Staff-Flow Agency" }] }),
@@ -21,6 +23,7 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const doRecordStaffLogin = useServerFn(recordStaffLogin);
 
   const ROLE_ROUTES: Record<string, string> = {
     admin: "/admin/dashboard",
@@ -31,8 +34,8 @@ function LoginPage() {
   const ROLE_PRIORITY = ["admin", "manager", "staff", "agency"] as const;
 
   useEffect(() => {
-    if (!loading && user && role) navigate({ to: ROLE_ROUTES[role] ?? "/dashboard" });
-  }, [loading, user, role, navigate]);
+    if (!loading && user && role && !submitting) navigate({ to: ROLE_ROUTES[role] ?? "/dashboard" });
+  }, [loading, user, role, submitting, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +57,18 @@ function LoginPage() {
         setSubmitting(false);
         toast.error("Your account has been deactivated. Contact your administrator.");
         return;
+      }
+      const isStaff = roleData.some((rd) => rd.role === "staff");
+      if (isStaff) {
+        // Run the full attendance check: backfills missed days, counts unexcused
+        // incidents, and auto-suspends if the threshold (3) is reached.
+        const { isSuspended } = await doRecordStaffLogin();
+        if (isSuspended) {
+          await supabase.auth.signOut();
+          setSubmitting(false);
+          toast.error("Your account has been suspended. Contact your manager.");
+          return;
+        }
       }
       const resolved = ROLE_PRIORITY.find((r) => roleData.some((rd) => rd.role === r));
       setSubmitting(false);

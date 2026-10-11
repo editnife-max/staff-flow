@@ -5,8 +5,7 @@ import { useState } from "react";
 import { Clock, Users, Wifi, WifiOff, CalendarClock, ShieldCheck, ShieldX, RefreshCw, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { getTeamActivity } from "@/lib/staff-sessions.functions";
-import { excuseLateDay, excuseAllStaffIncidents, backfillStaffAbsents, backfillTeamAbsents, getStaffAttendance, getTodayLateStaff } from "@/lib/staff-attendance.functions";
-import { supabase } from "@/integrations/supabase/client";
+import { excuseLateDay, unsuspendStaff, backfillStaffAbsents, backfillTeamAbsents, getStaffAttendance, getTodayLateStaff } from "@/lib/staff-attendance.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -122,28 +121,24 @@ function LateLoginDialog({ member, open, onClose }: {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const doExcuseAll = useServerFn(excuseAllStaffIncidents);
+  const doUnsuspend   = useServerFn(unsuspendStaff);
 
   const unsuspendMut = useMutation({
     mutationFn: async () => {
-      // suspended_at = NOW so counting functions use it as the new window floor.
-      const { error } = await (supabase
-        .from("staff")
-        .update({ is_suspended: false, suspended_at: new Date().toISOString() } as any)
-        .eq("id", member!.staffId) as any);
-      if (error) throw new Error(error.message);
-      // Excuse all past unexcused incidents so the history is clean.
-      await doExcuseAll({ data: { staffUserId: member!.staffUserId } });
+      const result = await doUnsuspend({ data: { staffId: member!.staffId } });
+      if (!result.ok) throw new Error(result.error ?? "Failed to remove suspension");
     },
     onSuccess: () => {
-      toast.success("Suspension removed — past incidents excused");
+      toast.success("Suspension removed — incident count reset to 0");
       refetchAttendance();
       qc.invalidateQueries({ queryKey: ["team-activity"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const incidentRows = attendance.filter((r) => r.is_late || r.absent);
+  const incidentRows    = attendance.filter((r) => r.is_late || r.absent);
+  const unexcusedCount  = attendance.filter((r) => !r.excused && (r.is_late || r.absent)).length;
+  const MAX_INCIDENTS   = 3;
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -174,10 +169,20 @@ function LateLoginDialog({ member, open, onClose }: {
           </div>
         )}
 
+        {/* Incident counter */}
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span className="font-medium uppercase tracking-wide">Last 30 Days</span>
+          <span className={cn(
+            "font-semibold",
+            unexcusedCount >= MAX_INCIDENTS ? "text-destructive" :
+            unexcusedCount >= MAX_INCIDENTS - 1 ? "text-amber-600" :
+            "text-foreground",
+          )}>
+            {unexcusedCount} / {MAX_INCIDENTS} incidents
+          </span>
+        </div>
+
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-            Last 30 Days
-          </p>
           {incidentRows.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">No late logins or absent days in the past 30 days.</p>
           ) : (
@@ -247,10 +252,12 @@ function LateLoginDialog({ member, open, onClose }: {
 }
 
 // ─── Member Card ──────────────────────────────────────────────────────────────
-function MemberCard({ member, period, onClick }: {
+function MemberCard({ member, period, onClick, onUnsuspend, unsuspending }: {
   member: TeamMember;
   period: Period;
   onClick: () => void;
+  onUnsuspend?: () => void;
+  unsuspending?: boolean;
 }) {
   const hours      = hoursForPeriod(member, period);
   const candidates = candidatesForPeriod(member, period);
@@ -279,7 +286,11 @@ function MemberCard({ member, period, onClick }: {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <p className="font-semibold text-sm leading-tight truncate">{member.name}</p>
-              {member.isOnline ? (
+              {member.isSuspended ? (
+                <Badge className="bg-destructive/15 text-destructive border-0 text-[10px] px-1.5 py-0 font-medium">
+                  Suspended
+                </Badge>
+              ) : member.isOnline ? (
                 <Badge className="bg-emerald-500/15 text-emerald-700 border-0 text-[10px] px-1.5 py-0 font-medium">
                   Online
                 </Badge>
@@ -312,6 +323,21 @@ function MemberCard({ member, period, onClick }: {
           )}
           <span>Work days (month): <span className="text-foreground font-medium">{member.workDaysMonth}</span></span>
         </div>
+
+        {member.isSuspended && onUnsuspend && (
+          <div className="mt-3 pt-3 border-t border-border">
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full h-7 text-xs text-emerald-600 border-emerald-300 hover:bg-emerald-50 rounded-none gap-1.5"
+              disabled={unsuspending}
+              onClick={(e) => { e.stopPropagation(); onUnsuspend(); }}
+            >
+              <ShieldCheck className="h-3 w-3" />
+              {unsuspending ? "Removing…" : "Remove suspension"}
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -325,6 +351,17 @@ function StaffActivityPage() {
   const doGetTeamActivity               = useServerFn(getTeamActivity);
   const doBackfill                      = useServerFn(backfillTeamAbsents);
   const doGetTodayLate                  = useServerFn(getTodayLateStaff);
+  const doUnsuspendCard                 = useServerFn(unsuspendStaff);
+
+  const unsuspendCardMut = useMutation({
+    mutationFn: (staffId: string) => doUnsuspendCard({ data: { staffId } }),
+    onSuccess: () => {
+      toast.success("Suspension removed — incident count reset to 0");
+      qc.invalidateQueries({ queryKey: ["team-activity"] });
+      qc.invalidateQueries({ queryKey: ["staff-attendance"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   // Backfill absent records for all staff on every page mount
   const { data: _backfillDone } = useQuery({
@@ -482,6 +519,8 @@ function StaffActivityPage() {
                 member={m}
                 period={period}
                 onClick={() => setSelectedStaffId(m.staffId)}
+                onUnsuspend={m.isSuspended ? () => unsuspendCardMut.mutate(m.staffId) : undefined}
+                unsuspending={unsuspendCardMut.isPending && unsuspendCardMut.variables === m.staffId}
               />
             ))}
           </div>

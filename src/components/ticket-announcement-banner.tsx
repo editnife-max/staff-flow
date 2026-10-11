@@ -34,6 +34,8 @@ export function TicketAnnouncementBanner() {
   const current = announcements[Math.min(index, announcements.length - 1)];
   const total   = announcements.length;
 
+  if (!current) return null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="relative bg-background border border-border shadow-2xl w-full max-w-md mx-4 animate-in zoom-in-95 duration-200">

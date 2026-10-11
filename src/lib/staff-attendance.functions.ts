@@ -189,17 +189,12 @@ export const recordStaffLogin = createServerFn({ method: "POST" })
 
     await backfillAbsentDays(userId, staffRow.id, staffRow.manager_id, now, windowStart);
 
-    // Atomically count incidents and suspend if threshold is reached.
-    // The RPC uses SELECT FOR UPDATE on the staff row so concurrent logins
-    // cannot race each other into a double-suspension or double-skip.
-    const { data: suspendRows } = await supabaseAdmin.rpc("check_and_maybe_suspend_staff", {
-      p_user_id: userId,
-      p_now: now.toISOString(),
-      p_max_incidents: MAX_INCIDENTS,
-      p_lookback_days: LOOKBACK_DAYS,
-    });
-    const lateCount = suspendRows?.[0]?.incident_count ?? 0;
-    if (suspendRows?.[0]?.was_suspended) {
+    // Count unexcused incidents from the window floor (suspended_at date).
+    // This ensures incidents recorded before a suspension was lifted don't
+    // count toward the new threshold — the staff starts fresh from that date.
+    const lateCount = await countUnexcusedIncidents(userId, now, windowStart);
+    if (lateCount >= MAX_INCIDENTS) {
+      await supabaseAdmin.from("staff").update({ is_suspended: true }).eq("user_id", userId);
       return { isLate, isSuspended: true, lateCount };
     }
 
