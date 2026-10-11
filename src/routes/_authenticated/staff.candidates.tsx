@@ -751,6 +751,11 @@ function StaffCandidatesPage() {
     }
     if (field === "visa_status" && value === "Arrived KSA")
       fieldMut.mutate({ id, field: "status", value: "arrived" });
+    // Visa canceled → move to Canceled tab + write notes
+    if (field === "visa_status" && value === "Visa canceled") {
+      fieldMut.mutate({ id, field: "status", value: "canceled" });
+      fieldMut.mutate({ id, field: "notes", value: "Visa canceled" });
+    }
     if (field === "tasheer_status" && !value)
       fieldMut.mutate({ id, field: "tasheer_date", value: null });
     // Tasheer Done + Wokala Paid → Visa "Ready for embassy"
