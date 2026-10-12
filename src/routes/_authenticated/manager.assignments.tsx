@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock, Download, BarChart3, AlertCircle, Lock, Unlock, KeyRound, Eye, EyeOff, Search } from "lucide-react";
+import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock, Download, BarChart3, AlertCircle, Lock, Unlock, KeyRound, Eye, EyeOff, Search, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -40,6 +40,7 @@ const DEFAULT_CV_REQ = {
   medical: "Fit", narrative: "all", experience: "all", coc: "Done",
   passport_scan: "all", full_size_photo: "all", photo_cv: "all",
   alert_after_days: "90",
+  base_per_office: "15",
 };
 
 function AssignmentsPage() {
@@ -90,6 +91,8 @@ function AssignmentsPage() {
   const [summaryView, setSummaryView] = useState(false);
   const [alertEdit, setAlertEdit] = useState(false);
   const [alertDraft, setAlertDraft] = useState("");
+  const [baseEdit,  setBaseEdit]  = useState(false);
+  const [baseDraft, setBaseDraft] = useState("");
 
   const { data: profile } = useQuery({
     queryKey: ["manager-profile", user?.id],
@@ -882,6 +885,34 @@ function AssignmentsPage() {
                   <span className="text-xs text-muted-foreground">days</span>
                   <button type="button" className="ml-auto text-xs text-primary hover:underline"
                     onClick={() => { setAlertDraft(cvReq.alert_after_days); setAlertEdit(true); }}>Edit</button>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 border border-blue-200 bg-blue-50/40 dark:border-blue-800/40 dark:bg-blue-900/10">
+              <Users className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+              <span className="text-sm text-muted-foreground w-24 shrink-0">Base per office</span>
+              {baseEdit ? (
+                <div className="flex items-center gap-2 flex-1">
+                  <input autoFocus type="number" min={1} value={baseDraft}
+                    onChange={(e) => setBaseDraft(e.target.value)}
+                    className="w-14 border border-input rounded-none px-2 h-7 text-sm"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") { const n = parseInt(baseDraft); if (!isNaN(n) && n > 0) { saveCvReq.mutate({ ...cvReq, base_per_office: String(n) }); setBaseEdit(false); } }
+                      if (e.key === "Escape") setBaseEdit(false);
+                    }} />
+                  <span className="text-xs text-muted-foreground">candidates</span>
+                  <Button size="sm" className="h-7 rounded-none px-2 text-xs" disabled={saveCvReq.isPending}
+                    onClick={() => { const n = parseInt(baseDraft); if (!isNaN(n) && n > 0) { saveCvReq.mutate({ ...cvReq, base_per_office: String(n) }); setBaseEdit(false); } }}>
+                    {saveCvReq.isPending ? "…" : "Save"}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 rounded-none px-2 text-xs" onClick={() => setBaseEdit(false)}>Cancel</Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 flex-1">
+                  <span className="text-base font-bold text-blue-700 dark:text-blue-300">{cvReq.base_per_office ?? "15"}</span>
+                  <span className="text-xs text-muted-foreground">candidates</span>
+                  <button type="button" className="ml-auto text-xs text-primary hover:underline"
+                    onClick={() => { setBaseDraft(cvReq.base_per_office ?? "15"); setBaseEdit(true); }}>Edit</button>
                 </div>
               )}
             </div>
