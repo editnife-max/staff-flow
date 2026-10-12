@@ -171,7 +171,8 @@
       "Bash(awk NR==875,NR==885 *)",
       "Bash(grep -n \"return \\($\" \"C:\\\\Project\\\\flowpath-suite\\\\src\\\\routes\\\\_authenticated\\\\staff.candidates.tsx\")",
       "Bash(grep -n \"return \\($\" \"C:\\\\Project\\\\flowpath-suite\\\\src\\\\routes\\\\_authenticated\\\\manager.staff.tsx\")",
-      "Bash(grep -n \"return \\($\" \"C:\\\\Project\\\\flowpath-suite\\\\src\\\\routes\\\\_authenticated\\\\manager.agencies.tsx\")"
+      "Bash(grep -n \"return \\($\" \"C:\\\\Project\\\\flowpath-suite\\\\src\\\\routes\\\\_authenticated\\\\manager.agencies.tsx\")",
+      "mcp__plugin_playwright_playwright__browser_wait_for"
     ]
   },
   "enableAllProjectMcpServers": true,

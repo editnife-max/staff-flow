@@ -127,6 +127,23 @@ const ALERT_PILL: Record<string, string> = {
   weekly:     "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
 };
 
+const ALERT_ICON_BG: Record<string, string> = {
+  coc:          "bg-orange-50 dark:bg-orange-900/20",
+  medical:      "bg-red-50 dark:bg-red-900/20",
+  medexp:       "bg-rose-50 dark:bg-rose-900/20",
+  lmis:         "bg-amber-50 dark:bg-amber-900/20",
+  ticket:       "bg-violet-50 dark:bg-violet-900/20",
+  embassy:      "bg-sky-50 dark:bg-sky-900/20",
+  visaready:    "bg-emerald-50 dark:bg-emerald-900/20",
+  visareturn:   "bg-rose-50 dark:bg-rose-900/20",
+  waitreplace:  "bg-amber-50 dark:bg-amber-900/20",
+  tasheer:      "bg-violet-50 dark:bg-violet-900/20",
+  cvoverdue:    "bg-teal-50 dark:bg-teal-900/20",
+  fitlmis:      "bg-teal-50 dark:bg-teal-900/20",
+  arrival:      "bg-cyan-50 dark:bg-cyan-900/20",
+  weekly:       "bg-blue-50 dark:bg-blue-900/20",
+};
+
 // ─── Inline components ───────────────────────────────────────────────────────
 type EditableField =
   | "notes" | "narrative" | "occupation" | "living_town" | "selected_by"
@@ -635,23 +652,27 @@ function AlertSection({
     <>
       <button
         type="button"
-        className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-muted/40 transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/25 transition-colors text-left group"
         onClick={() => { setOpen(true); setPage(1); }}
       >
-        <Icon className={cn("h-4 w-4 shrink-0", iconColor)} />
-        <span className="flex-1 text-sm font-medium truncate">{title}</span>
-        <span className={cn("text-xs font-bold px-2 py-0.5 rounded-none shrink-0", ALERT_PILL[pillKey])}>
-          {candidates.length}
-        </span>
-        <span
-          role="button"
-          title="Download Excel"
-          className="p-1 rounded-none text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors shrink-0"
-          onClick={(e) => { e.stopPropagation(); downloadCandidatesExcel(filtered, title, exportCols); }}
-        >
-          <FileSpreadsheet className="h-3.5 w-3.5" />
-        </span>
-        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        <div className={cn("h-8 w-8 rounded-none grid place-items-center shrink-0", ALERT_ICON_BG[pillKey] ?? "bg-muted/40")}>
+          <Icon className={cn("h-4 w-4 shrink-0", iconColor)} />
+        </div>
+        <span className="flex-1 text-[13px] font-medium leading-snug truncate">{title}</span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className={cn("min-w-[2.25rem] text-center text-sm font-bold tabular-nums px-2.5 py-0.5 rounded-none", ALERT_PILL[pillKey])}>
+            {candidates.length}
+          </span>
+          <span
+            role="button"
+            title="Download Excel"
+            className="p-1 text-muted-foreground hover:text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={(e) => { e.stopPropagation(); downloadCandidatesExcel(filtered, title, exportCols); }}
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+          </span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground/70 transition-colors" />
+        </div>
       </button>
 
       <Dialog open={open} onOpenChange={(o) => { if (!o) { setOpen(false); setStatusFilter("all"); setPage(1); } }}>
@@ -1341,25 +1362,26 @@ function StaffDashboard() {
           </p>
           <p className="text-[11px] text-muted-foreground">{total} total</p>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           {STATUS_CONFIG.map((s) => {
             const count = counts[s.key];
             const pct   = total > 0 ? Math.round((count / total) * 100) : 0;
             const Icon  = s.icon;
             return (
-              <Card key={s.key} className="rounded-none">
-                <CardContent className="pt-4 pb-4">
-                  <div className={cn("h-8 w-8 rounded-none grid place-items-center mb-3", s.icon_bg)}>
-                    <Icon className={cn("h-4 w-4", s.icon_color)} />
+              <div key={s.key} className="relative border border-border bg-card rounded-none p-3 overflow-hidden">
+                <div className={cn("absolute left-0 top-0 bottom-0 w-[3px]", s.bar)} />
+                <div className="pl-2">
+                  <div className={cn("h-6 w-6 rounded-none grid place-items-center mb-2", s.icon_bg)}>
+                    <Icon className={cn("h-3 w-3", s.icon_color)} />
                   </div>
-                  <p className={cn("text-2xl font-bold leading-none", s.value_color)}>{count}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
-                  <div className="mt-2 h-1 bg-border rounded-full overflow-hidden">
-                    <div className={cn("h-full transition-all", s.bar)} style={{ width: `${pct}%` }} />
+                  <p className={cn("text-2xl font-bold leading-none tabular-nums", s.value_color)}>{count}</p>
+                  <p className="text-[11px] text-muted-foreground mt-1 font-medium">{s.label}</p>
+                  <div className="mt-2 h-0.5 bg-border/50 rounded-full overflow-hidden">
+                    <div className={cn("h-full transition-all rounded-full", s.bar)} style={{ width: `${pct}%` }} />
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-1">{pct}%</p>
-                </CardContent>
-              </Card>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{pct}% of {total}</p>
+                </div>
+              </div>
             );
           })}
         </div>
@@ -1418,13 +1440,17 @@ function StaffDashboard() {
 
       {/* Alert sections */}
       {(cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0 || noMedical5Days.length > 0 || noTasheer10Days.length > 0 || unfilledLmis.length > 0 || ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || visaWaitingReplacement.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || cvOverdue.length > 0 || tasheerOverdue.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0 || weeklyAdded.length > 0 || weeklyDeployments.length > 0) && (
-        <div className="space-y-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
 
           {/* COMPLIANCE & RECRUITMENT */}
           {(noMedical5Days.length > 0 || noTasheer10Days.length > 0 || cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0) && (
             <div className="border border-border rounded-none overflow-hidden">
-              <div className="px-3 py-2 bg-muted/20 border-b border-border">
-                <p className="text-sm font-bold text-foreground uppercase tracking-widest">Compliance & Recruitment</p>
+              <div className="px-4 py-2.5 bg-red-50 dark:bg-red-950/20 border-b border-red-200 dark:border-red-900/60 flex items-center gap-2.5">
+                <span className="h-2 w-2 rounded-full bg-red-500 shrink-0" />
+                <p className="text-xs font-bold uppercase tracking-widest text-red-700 dark:text-red-400">Compliance & Recruitment</p>
+                <span className="ml-auto text-[11px] font-bold tabular-nums px-2.5 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                  {[noMedical5Days, noTasheer10Days, cocNo, cocPlaced, medicalNotFit, cocDoneNotFit, medicalExpired].reduce((sum, a) => sum + a.length, 0)}
+                </span>
               </div>
               <div className="divide-y divide-border">
                 <AlertSection icon={Stethoscope} title="Warning No Medical — 5+ Days in Processing" iconColor="text-red-600 dark:text-red-400" pillKey="medical" candidates={noMedical5Days} onUpdateField={handleUpdateField} countryOptions={countryOptions}
@@ -1527,8 +1553,12 @@ function StaffDashboard() {
           {/* LOGISTICS & DEPLOYMENT */}
           {(ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerOverdue.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || weeklyAdded.length > 0 || weeklyDeployments.length > 0) && (
             <div className="border border-border rounded-none overflow-hidden">
-              <div className="px-3 py-2 bg-muted/20 border-b border-border">
-                <p className="text-sm font-bold text-foreground uppercase tracking-widest">Logistics & Deployment</p>
+              <div className="px-4 py-2.5 bg-violet-50 dark:bg-violet-950/20 border-b border-violet-200 dark:border-violet-900/60 flex items-center gap-2.5">
+                <span className="h-2 w-2 rounded-full bg-violet-500 shrink-0" />
+                <p className="text-xs font-bold uppercase tracking-widest text-violet-700 dark:text-violet-400">Logistics & Deployment</p>
+                <span className="ml-auto text-[11px] font-bold tabular-nums px-2.5 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
+                  {[ticketNotBooked, ticketReady, arrivalCityMissing, visaReady, visaReturned, visaWaitingReplacement, tasheerOverdue, tasheerDoneWokalaUnpaid, passportNotAccepted].reduce((sum, a) => sum + a.length, 0)}
+                </span>
               </div>
               <div className="divide-y divide-border">
                 <AlertSection icon={Ticket} title="Ticket Not Booked — Over 20 Days" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketNotBooked} onUpdateField={handleUpdateField} countryOptions={countryOptions}
@@ -1612,8 +1642,12 @@ function StaffDashboard() {
           {/* DATA & MISC */}
           {(cvOverdue.length > 0 || unfilledLmis.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0) && (
             <div className="border border-border rounded-none overflow-hidden">
-              <div className="px-3 py-2 bg-muted/20 border-b border-border">
-                <p className="text-sm font-bold text-foreground uppercase tracking-widest">Data & Misc</p>
+              <div className="px-4 py-2.5 bg-teal-50 dark:bg-teal-950/20 border-b border-teal-200 dark:border-teal-900/60 flex items-center gap-2.5">
+                <span className="h-2 w-2 rounded-full bg-teal-500 shrink-0" />
+                <p className="text-xs font-bold uppercase tracking-widest text-teal-700 dark:text-teal-400">Data & Misc</p>
+                <span className="ml-auto text-[11px] font-bold tabular-nums px-2.5 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
+                  {[cvOverdue, fitLmisNotTested, unfilledLmis, lmisDraftImported].reduce((sum, a) => sum + a.length, 0)}
+                </span>
               </div>
               <div className="divide-y divide-border">
                 <AlertSection icon={Send} title="CV Sent — No Selection" iconColor="text-teal-600 dark:text-teal-400" pillKey="cvoverdue" candidates={cvOverdue} onUpdateField={handleUpdateField} countryOptions={countryOptions}

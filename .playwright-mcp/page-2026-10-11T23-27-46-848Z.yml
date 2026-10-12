@@ -1,0 +1,23 @@
+- generic [active]:
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic [ref=f1e2]:
+            - region "Prototype controls": Skip to content Continue with Google
+            - generic [ref=f1e4]:
+              - generic [ref=f1e5]:
+                - main:
+                  - paragraph [ref=f1e6]: Screenreader support is currently disabled. To enable it, use the Accessibility settings from the Options menu.
+              - generic:
+                - navigation "Pages":
+                  - generic:
+                    - toolbar "Stepper":
+                      - generic: 1 / 1
+                  - generic:
+                    - button "Restart":
+                      - text: Restart
+                      - generic [aria-hidden]: R
+          - group [ref=f1e13]:
+            - alert [ref=f1e15]
+            - alert [ref=f1e17]
