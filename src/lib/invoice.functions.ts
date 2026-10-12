@@ -30,8 +30,9 @@ export const sendInvoice = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z.object({
-      agencyUserId:   z.string().uuid(),
+      agencyUserId:   z.string().uuid().optional(),
       invoiceNumber:  z.string(),
+      companyName:    z.string().optional(),
       officeName:     z.string().optional(),
       dateFrom:       z.string().optional(),
       dateTo:         z.string().optional(),
@@ -55,10 +56,11 @@ export const sendInvoice = createServerFn({ method: "POST" })
       .insert({
         invoice_number:  data.invoiceNumber,
         manager_user_id: context.userId,
-        agency_user_id:  data.agencyUserId,
-        office_name:     data.officeName ?? null,
-        date_from:       data.dateFrom   ?? null,
-        date_to:         data.dateTo     ?? null,
+        agency_user_id:  data.agencyUserId ?? null,
+        company_name:    data.companyName   ?? null,
+        office_name:     data.officeName   ?? null,
+        date_from:       data.dateFrom     ?? null,
+        date_to:         data.dateTo       ?? null,
         candidate_ids:   data.candidateIds,
         from_company:    data.fromCompany    ?? null,
         from_address:    data.fromAddress    ?? null,
@@ -77,22 +79,24 @@ export const sendInvoice = createServerFn({ method: "POST" })
       .single();
     if (invErr) throw new Error(invErr.message);
 
-    const { data: profile } = await supabaseAdmin
-      .from("profiles").select("full_name").eq("id", context.userId).maybeSingle() as any;
-    const managerName = (profile as any)?.full_name ?? "Manager";
+    if (data.agencyUserId) {
+      const { data: profile } = await supabaseAdmin
+        .from("profiles").select("full_name").eq("id", context.userId).maybeSingle() as any;
+      const managerName = (profile as any)?.full_name ?? "Manager";
 
-    const { error: notifErr } = await supabaseAdmin.from("notifications" as any).insert({
-      recipient_id:  data.agencyUserId,
-      sender_id:     context.userId,
-      type:          "invoice_sent",
-      title:         `${managerName} sent you invoice ${data.invoiceNumber}`,
-      body:          data.officeName ?? null,
-      candidate_ids: [],
-      read:          false,
-      status:        "pending",
-      reference_id:  (inv as any).id,
-    });
-    if (notifErr) throw new Error(notifErr.message);
+      const { error: notifErr } = await supabaseAdmin.from("notifications" as any).insert({
+        recipient_id:  data.agencyUserId,
+        sender_id:     context.userId,
+        type:          "invoice_sent",
+        title:         `${managerName} sent you invoice ${data.invoiceNumber}`,
+        body:          data.officeName ?? null,
+        candidate_ids: [],
+        read:          false,
+        status:        "pending",
+        reference_id:  (inv as any).id,
+      });
+      if (notifErr) throw new Error(notifErr.message);
+    }
 
     return { ok: true, invoiceId: (inv as any).id as string };
   });
@@ -184,10 +188,33 @@ export const getManagerInvoices = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await supabaseAdmin
       .from("invoices" as any)
-      .select("id,invoice_number,office_name,date_from,date_to,total,status,agency_user_id,created_at")
+      .select("id,invoice_number,company_name,office_name,date_from,date_to,total,status,agency_user_id,candidate_ids,deduction_amount,deduction_reason,created_at")
       .eq("manager_user_id", context.userId)
       .order("created_at", { ascending: false })
-      .limit(200);
+      .limit(500);
     if (error) throw new Error(error.message);
     return (data ?? []) as any[];
+  });
+
+export const managerMarkInvoicePaid = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      invoiceId:       z.string().uuid(),
+      deductionAmount: z.number().default(0),
+      deductionReason: z.string().optional(),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await supabaseAdmin
+      .from("invoices" as any)
+      .update({
+        status:           "paid",
+        deduction_amount: data.deductionAmount,
+        deduction_reason: data.deductionReason ?? null,
+      })
+      .eq("id", data.invoiceId)
+      .eq("manager_user_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
