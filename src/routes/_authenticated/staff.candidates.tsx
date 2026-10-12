@@ -312,7 +312,7 @@ const initialForm = {
   narrative: "",
   narrative_phone: "",
   // Skills (comma-separated)
-  skills: "",
+  skills: "Ironing, Cleaning",
   // Notes
   remark: "",
   notes: "",

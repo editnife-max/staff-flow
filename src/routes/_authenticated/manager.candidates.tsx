@@ -144,7 +144,7 @@ const initialForm = {
   selected_by: "",
   narrative: "",
   narrative_phone: "",
-  skills: "",
+  skills: "Ironing, Cleaning",
   remark: "",
   notes: "",
   video_url: "",
