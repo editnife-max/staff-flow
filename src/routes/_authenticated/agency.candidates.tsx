@@ -426,7 +426,7 @@ function AgencyCandidatesPage() {
           <CardContent className="p-8 text-center text-sm text-muted-foreground">{ui.noResults}</CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {filtered.map((c) => (
             <AgencyCandidateCard
               key={c.id}
@@ -682,6 +682,16 @@ function CvInfoRow({ label, value }: { label: string; value: string | number | n
   );
 }
 
+function InfoPair({ label, value }: { label: string; value: string | null | undefined }) {
+  if (!value) return null;
+  return (
+    <div className="flex items-baseline gap-1 min-w-0">
+      <span className="font-medium text-muted-foreground shrink-0">{label}:</span>
+      <span className="text-foreground truncate">{value}</span>
+    </div>
+  );
+}
+
 function AgencyCandidateCard({
   candidate: c, selected, onToggle, template, lang = "en", translatedName,
 }: { candidate: Candidate; selected: boolean; onToggle: () => void; template: CvTemplate | null; lang?: "en" | "ar"; translatedName?: string }) {
@@ -741,103 +751,101 @@ function AgencyCandidateCard({
   return (
     <>
       <div className={cn(
-        "border border-border rounded-sm bg-card shadow-sm overflow-hidden flex flex-col transition-colors",
+        "border border-border rounded-sm bg-card shadow-sm overflow-hidden flex flex-row transition-colors",
         selected && "ring-2 ring-primary/60",
       )}>
-        {/* Square passport-size photo */}
-        <div className="relative aspect-square bg-muted overflow-hidden">
-          {c.photo_url ? (
-            <img
-              src={c.photo_url}
-              alt={c.full_name}
-              className="w-full h-full object-cover object-top"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-muted-foreground/30">
-              <User className="h-10 w-10" />
-            </div>
-          )}
-          <div className="absolute top-1 left-1">
+
+        {/* ── LEFT: Info ───────────────────────────────────────────── */}
+        <div className="flex-1 min-w-0 p-3 flex flex-col gap-2" dir={lang === "ar" ? "rtl" : "ltr"}>
+
+          {/* Header: checkbox · name · occupation · status */}
+          <div className="flex items-start gap-2">
             <Checkbox
               checked={selected}
               onCheckedChange={onToggle}
               aria-label="Select candidate"
-              className="h-3.5 w-3.5 bg-white/90 border-white/80 shadow data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 bg-background border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
             />
-          </div>
-          <div className="absolute top-1 right-1">
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-sm leading-tight line-clamp-1">{displayName}</div>
+              {c.occupation && (
+                <div className="text-xs text-muted-foreground mt-0.5 truncate">{c.occupation}</div>
+              )}
+            </div>
             <StatusBadge status={c.status} />
           </div>
-        </div>
 
-        {/* Candidate info */}
-        <div className="p-2 space-y-1 flex-1" dir={lang === "ar" ? "rtl" : "ltr"}>
-          <div className="font-semibold text-xs leading-tight line-clamp-2">{displayName}</div>
-          <div className="space-y-0.5 text-[10px]">
-            <div className="flex items-baseline gap-1">
-              <span className="font-medium text-muted-foreground w-12 shrink-0">{t.age}</span>
-              <span className="text-foreground">{age ?? "—"}</span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="font-medium text-muted-foreground w-12 shrink-0">{t.religion}</span>
-              <span className="text-foreground truncate">{tv(c.religion, lang)}</span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="font-medium text-muted-foreground w-12 shrink-0">{t.exp}</span>
-              <span className="text-foreground truncate">{tv(c.experience, lang)}</span>
-            </div>
+          {/* Info grid — 2 cols */}
+          <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px]">
+            <InfoPair label={t.age}      value={age != null ? String(age) : null} />
+            <InfoPair label={t.religion} value={tv(c.religion, lang)} />
+            <InfoPair label="Country"    value={c.country} />
+            <InfoPair label="Gender"     value={tv(c.gender, lang)} />
+            <InfoPair label="Marital"    value={tv(c.marital_status, lang)} />
+            <InfoPair label="Children"   value={c.children != null ? String(c.children) : null} />
+            <InfoPair label={t.exp}      value={tv(c.experience, lang)} />
+            <InfoPair label="Exp. Yrs"   value={c.experience_years} />
+            <InfoPair label="English"    value={c.english_level} />
+            <InfoPair label="Medical"    value={c.medical_status} />
           </div>
-        </div>
 
-        {/* Action buttons */}
-        <div className="px-2 pb-2 space-y-1">
-          <div className="grid grid-cols-2 gap-0.5">
-            <Button
-              size="sm" variant="outline"
-              className="h-6 text-[10px] gap-0.5 rounded-sm px-1"
-              onClick={() => setCvOpen(true)}
-            >
-              <Eye className="h-2.5 w-2.5 shrink-0" /> {t.viewCv}
-            </Button>
-            <Button
-              size="sm" variant="outline"
-              className="h-6 text-[10px] gap-0.5 rounded-sm px-1"
-              onClick={handleDownloadCv}
-              disabled={dlCv}
-            >
-              <FileText className="h-2.5 w-2.5 shrink-0" />
-              {dlCv ? "…" : t.cvPdf}
-            </Button>
-          </div>
-          {c.video_url ? (
+          {/* Skills */}
+          {c.skills && (
+            <div className="text-[10px] text-muted-foreground line-clamp-1">
+              <span className="font-medium text-foreground">Skills:</span> {c.skills}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="mt-auto space-y-1 pt-1">
             <div className="grid grid-cols-2 gap-0.5">
-              <Button
-                size="sm" variant="outline"
-                className="h-6 text-[10px] gap-0.5 rounded-sm px-1"
-                onClick={() => window.open(c.video_url!, "_blank")}
-              >
-                <Play className="h-2.5 w-2.5 shrink-0 fill-current" /> {t.play}
+              <Button size="sm" variant="outline" className="h-6 text-[10px] gap-0.5 rounded-sm px-1"
+                onClick={() => setCvOpen(true)}>
+                <Eye className="h-2.5 w-2.5 shrink-0" /> {t.viewCv}
               </Button>
-              <Button
-                size="sm" variant="outline"
-                className="h-6 text-[10px] gap-0.5 rounded-sm px-1"
-                onClick={handleDownloadVideo}
-                disabled={dlVideo}
-              >
-                {dlVideo ? <Loader2 className="h-2.5 w-2.5 shrink-0 animate-spin" /> : <Download className="h-2.5 w-2.5 shrink-0" />}
-                {dlVideo ? "…" : t.video}
+              <Button size="sm" variant="outline" className="h-6 text-[10px] gap-0.5 rounded-sm px-1"
+                onClick={handleDownloadCv} disabled={dlCv}>
+                <FileText className="h-2.5 w-2.5 shrink-0" />
+                {dlCv ? "…" : t.cvPdf}
               </Button>
             </div>
+            {c.video_url ? (
+              <div className="grid grid-cols-2 gap-0.5">
+                <Button size="sm" variant="outline" className="h-6 text-[10px] gap-0.5 rounded-sm px-1"
+                  onClick={() => window.open(c.video_url!, "_blank")}>
+                  <Play className="h-2.5 w-2.5 shrink-0 fill-current" /> {t.play}
+                </Button>
+                <Button size="sm" variant="outline" className="h-6 text-[10px] gap-0.5 rounded-sm px-1"
+                  onClick={handleDownloadVideo} disabled={dlVideo}>
+                  {dlVideo ? <Loader2 className="h-2.5 w-2.5 shrink-0 animate-spin" /> : <Download className="h-2.5 w-2.5 shrink-0" />}
+                  {dlVideo ? "…" : t.video}
+                </Button>
+              </div>
+            ) : (
+              <div className="h-6 flex items-center justify-center text-[9px] text-muted-foreground/40 border border-dashed border-border rounded-sm">
+                {t.noVideo}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── RIGHT: Photo ─────────────────────────────────────────── */}
+        <div className="w-36 shrink-0 bg-muted relative self-stretch min-h-[160px]">
+          {(c.photo_url || c.full_photo_url) ? (
+            <img
+              src={c.photo_url ?? c.full_photo_url!}
+              alt={c.full_name}
+              className="absolute inset-0 w-full h-full object-cover object-top"
+            />
           ) : (
-            <div className="h-6 flex items-center justify-center text-[9px] text-muted-foreground/40 border border-dashed border-border rounded-sm">
-              {t.noVideo}
+            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/30">
+              <User className="h-10 w-10" />
             </div>
           )}
         </div>
       </div>
 
       {cvOpen && <CvViewDialog candidate={c} template={template} onClose={() => setCvOpen(false)} translatedName={translatedName} />}
-
     </>
   );
 }
