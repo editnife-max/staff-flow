@@ -172,7 +172,11 @@
       "Bash(grep -n \"return \\($\" \"C:\\\\Project\\\\flowpath-suite\\\\src\\\\routes\\\\_authenticated\\\\staff.candidates.tsx\")",
       "Bash(grep -n \"return \\($\" \"C:\\\\Project\\\\flowpath-suite\\\\src\\\\routes\\\\_authenticated\\\\manager.staff.tsx\")",
       "Bash(grep -n \"return \\($\" \"C:\\\\Project\\\\flowpath-suite\\\\src\\\\routes\\\\_authenticated\\\\manager.agencies.tsx\")",
-      "mcp__plugin_playwright_playwright__browser_wait_for"
+      "mcp__plugin_playwright_playwright__browser_wait_for",
+      "PowerShell(vercel *)",
+      "Bash(git remote *)",
+      "Bash(git *)",
+      "Skill(superpowers:brainstorming)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -21,6 +21,7 @@ import { Route as AuthenticatedManagerRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAgencyRouteImport } from './routes/_authenticated/agency'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedStaffTcRouteImport } from './routes/_authenticated/staff.tc'
 import { Route as AuthenticatedStaffDashboardRouteImport } from './routes/_authenticated/staff.dashboard'
 import { Route as AuthenticatedStaffCvGeneratorRouteImport } from './routes/_authenticated/staff.cv-generator'
 import { Route as AuthenticatedStaffCandidatesRouteImport } from './routes/_authenticated/staff.candidates'
@@ -99,6 +100,11 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedStaffTcRoute = AuthenticatedStaffTcRouteImport.update({
+  id: '/tc',
+  path: '/tc',
+  getParentRoute: () => AuthenticatedStaffRoute,
 } as any)
 const AuthenticatedStaffDashboardRoute =
   AuthenticatedStaffDashboardRouteImport.update({
@@ -246,6 +252,7 @@ export interface FileRoutesByFullPath {
   '/staff/candidates': typeof AuthenticatedStaffCandidatesRoute
   '/staff/cv-generator': typeof AuthenticatedStaffCvGeneratorRoute
   '/staff/dashboard': typeof AuthenticatedStaffDashboardRoute
+  '/staff/tc': typeof AuthenticatedStaffTcRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -278,6 +285,7 @@ export interface FileRoutesByTo {
   '/staff/candidates': typeof AuthenticatedStaffCandidatesRoute
   '/staff/cv-generator': typeof AuthenticatedStaffCvGeneratorRoute
   '/staff/dashboard': typeof AuthenticatedStaffDashboardRoute
+  '/staff/tc': typeof AuthenticatedStaffTcRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -312,6 +320,7 @@ export interface FileRoutesById {
   '/_authenticated/staff/candidates': typeof AuthenticatedStaffCandidatesRoute
   '/_authenticated/staff/cv-generator': typeof AuthenticatedStaffCvGeneratorRoute
   '/_authenticated/staff/dashboard': typeof AuthenticatedStaffDashboardRoute
+  '/_authenticated/staff/tc': typeof AuthenticatedStaffTcRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -346,6 +355,7 @@ export interface FileRouteTypes {
     | '/staff/candidates'
     | '/staff/cv-generator'
     | '/staff/dashboard'
+    | '/staff/tc'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -378,6 +388,7 @@ export interface FileRouteTypes {
     | '/staff/candidates'
     | '/staff/cv-generator'
     | '/staff/dashboard'
+    | '/staff/tc'
   id:
     | '__root__'
     | '/'
@@ -411,6 +422,7 @@ export interface FileRouteTypes {
     | '/_authenticated/staff/candidates'
     | '/_authenticated/staff/cv-generator'
     | '/_authenticated/staff/dashboard'
+    | '/_authenticated/staff/tc'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -508,6 +520,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin'
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/staff/tc': {
+      id: '/_authenticated/staff/tc'
+      path: '/tc'
+      fullPath: '/staff/tc'
+      preLoaderRoute: typeof AuthenticatedStaffTcRouteImport
+      parentRoute: typeof AuthenticatedStaffRoute
     }
     '/_authenticated/staff/dashboard': {
       id: '/_authenticated/staff/dashboard'
@@ -708,6 +727,7 @@ interface AuthenticatedStaffRouteChildren {
   AuthenticatedStaffCandidatesRoute: typeof AuthenticatedStaffCandidatesRoute
   AuthenticatedStaffCvGeneratorRoute: typeof AuthenticatedStaffCvGeneratorRoute
   AuthenticatedStaffDashboardRoute: typeof AuthenticatedStaffDashboardRoute
+  AuthenticatedStaffTcRoute: typeof AuthenticatedStaffTcRoute
 }
 
 const AuthenticatedStaffRouteChildren: AuthenticatedStaffRouteChildren = {
@@ -715,6 +735,7 @@ const AuthenticatedStaffRouteChildren: AuthenticatedStaffRouteChildren = {
   AuthenticatedStaffCandidatesRoute: AuthenticatedStaffCandidatesRoute,
   AuthenticatedStaffCvGeneratorRoute: AuthenticatedStaffCvGeneratorRoute,
   AuthenticatedStaffDashboardRoute: AuthenticatedStaffDashboardRoute,
+  AuthenticatedStaffTcRoute: AuthenticatedStaffTcRoute,
 }
 
 const AuthenticatedStaffRouteWithChildren =

@@ -1,5 +1,5 @@
 import { Outlet, createFileRoute, Navigate, Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, Users, FileText, ChevronDown, Building2, Bell, CheckCircle2, XCircle, CalendarClock, AlertTriangle, ShieldX, X } from "lucide-react";
+import { LogOut, LayoutDashboard, Users, FileText, ChevronDown, Building2, Bell, CheckCircle2, XCircle, CalendarClock, AlertTriangle, ShieldX, X, GraduationCap } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -40,6 +40,7 @@ const NAV_TOP = [
   { to: "/staff/candidates",   label: "HR Pool",      icon: Users,          exact: false },
   { to: "/staff/cv-generator", label: "CV Page",      icon: FileText },
   { to: "/staff/attendance",   label: "My Attendance", icon: CalendarClock },
+  { to: "/staff/tc",           label: "TC",           icon: GraduationCap },
 ];
 
 type Notification = {
