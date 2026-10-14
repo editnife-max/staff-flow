@@ -178,7 +178,9 @@
       "Bash(git *)",
       "Skill(superpowers:brainstorming)",
       "PowerShell(npm config *)",
-      "PowerShell(curl *)"
+      "PowerShell(curl *)",
+      "Bash(npm view *)",
+      "PowerShell(npm view *)"
     ]
   },
   "enableAllProjectMcpServers": true,

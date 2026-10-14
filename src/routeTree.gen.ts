@@ -9,57 +9,46 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SetupAdminRouteImport } from './routes/setup-admin'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as FaqRouteImport } from './routes/faq'
-import { Route as ContactRouteImport } from './routes/contact'
-import { Route as AboutRouteImport } from './routes/about'
-import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
-import { Route as AuthenticatedManagerRouteImport } from './routes/_authenticated/manager'
-import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
-import { Route as AuthenticatedAgencyRouteImport } from './routes/_authenticated/agency'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as FaqRouteImport } from './routes/faq'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as SetupAdminRouteImport } from './routes/setup-admin'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
-import { Route as AuthenticatedStaffTcRouteImport } from './routes/_authenticated/staff.tc'
-import { Route as AuthenticatedStaffDashboardRouteImport } from './routes/_authenticated/staff.dashboard'
-import { Route as AuthenticatedStaffCvGeneratorRouteImport } from './routes/_authenticated/staff.cv-generator'
-import { Route as AuthenticatedStaffCandidatesRouteImport } from './routes/_authenticated/staff.candidates'
-import { Route as AuthenticatedStaffAttendanceRouteImport } from './routes/_authenticated/staff.attendance'
-import { Route as AuthenticatedManagerSubscriptionRouteImport } from './routes/_authenticated/manager.subscription'
-import { Route as AuthenticatedManagerStaffActivityRouteImport } from './routes/_authenticated/manager.staff-activity'
-import { Route as AuthenticatedManagerStaffRouteImport } from './routes/_authenticated/manager.staff'
-import { Route as AuthenticatedManagerInvoiceRouteImport } from './routes/_authenticated/manager.invoice'
-import { Route as AuthenticatedManagerDashboardRouteImport } from './routes/_authenticated/manager.dashboard'
-import { Route as AuthenticatedManagerCvGeneratorRouteImport } from './routes/_authenticated/manager.cv-generator'
-import { Route as AuthenticatedManagerCandidatesRouteImport } from './routes/_authenticated/manager.candidates'
-import { Route as AuthenticatedManagerAssignmentsRouteImport } from './routes/_authenticated/manager.assignments'
-import { Route as AuthenticatedManagerAgenciesRouteImport } from './routes/_authenticated/manager.agencies'
-import { Route as AuthenticatedAgencyCandidatesRouteImport } from './routes/_authenticated/agency.candidates'
-import { Route as AuthenticatedAdminSubscriptionsRouteImport } from './routes/_authenticated/admin.subscriptions'
-import { Route as AuthenticatedAdminPaymentsRouteImport } from './routes/_authenticated/admin.payments'
-import { Route as AuthenticatedAdminManagersRouteImport } from './routes/_authenticated/admin.managers'
-import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin.dashboard'
+import { Route as AuthenticatedAgencyRouteImport } from './routes/_authenticated/agency'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedManagerRouteImport } from './routes/_authenticated/manager'
+import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
 import { Route as AuthenticatedAdminAdminsRouteImport } from './routes/_authenticated/admin.admins'
+import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin.dashboard'
+import { Route as AuthenticatedAdminManagersRouteImport } from './routes/_authenticated/admin.managers'
+import { Route as AuthenticatedAdminPaymentsRouteImport } from './routes/_authenticated/admin.payments'
+import { Route as AuthenticatedAdminSubscriptionsRouteImport } from './routes/_authenticated/admin.subscriptions'
+import { Route as AuthenticatedAgencyCandidatesRouteImport } from './routes/_authenticated/agency.candidates'
+import { Route as AuthenticatedManagerAgenciesRouteImport } from './routes/_authenticated/manager.agencies'
+import { Route as AuthenticatedManagerAssignmentsRouteImport } from './routes/_authenticated/manager.assignments'
+import { Route as AuthenticatedManagerCandidatesRouteImport } from './routes/_authenticated/manager.candidates'
+import { Route as AuthenticatedManagerCvGeneratorRouteImport } from './routes/_authenticated/manager.cv-generator'
+import { Route as AuthenticatedManagerDashboardRouteImport } from './routes/_authenticated/manager.dashboard'
+import { Route as AuthenticatedManagerInvoiceRouteImport } from './routes/_authenticated/manager.invoice'
+import { Route as AuthenticatedManagerStaffRouteImport } from './routes/_authenticated/manager.staff'
+import { Route as AuthenticatedManagerStaffActivityRouteImport } from './routes/_authenticated/manager.staff-activity'
+import { Route as AuthenticatedManagerSubscriptionRouteImport } from './routes/_authenticated/manager.subscription'
+import { Route as AuthenticatedStaffAttendanceRouteImport } from './routes/_authenticated/staff.attendance'
+import { Route as AuthenticatedStaffCandidatesRouteImport } from './routes/_authenticated/staff.candidates'
+import { Route as AuthenticatedStaffCvGeneratorRouteImport } from './routes/_authenticated/staff.cv-generator'
+import { Route as AuthenticatedStaffDashboardRouteImport } from './routes/_authenticated/staff.dashboard'
+import { Route as AuthenticatedStaffTcRouteImport } from './routes/_authenticated/staff.tc'
 
-const SetupAdminRoute = SetupAdminRouteImport.update({
-  id: '/setup-admin',
-  path: '/setup-admin',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FaqRoute = FaqRouteImport.update({
-  id: '/faq',
-  path: '/faq',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ContactRoute = ContactRouteImport.update({
-  id: '/contact',
-  path: '/contact',
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -67,28 +56,29 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRoute = AuthenticatedRouteImport.update({
-  id: '/_authenticated',
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedStaffRoute = AuthenticatedStaffRouteImport.update({
-  id: '/staff',
-  path: '/staff',
-  getParentRoute: () => AuthenticatedRoute,
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedManagerRoute = AuthenticatedManagerRouteImport.update({
-  id: '/manager',
-  path: '/manager',
-  getParentRoute: () => AuthenticatedRoute,
+const SetupAdminRoute = SetupAdminRouteImport.update({
+  id: '/setup-admin',
+  path: '/setup-admin',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedAgencyRoute = AuthenticatedAgencyRouteImport.update({
@@ -96,117 +86,25 @@ const AuthenticatedAgencyRoute = AuthenticatedAgencyRouteImport.update({
   path: '/agency',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedStaffTcRoute = AuthenticatedStaffTcRouteImport.update({
-  id: '/tc',
-  path: '/tc',
-  getParentRoute: () => AuthenticatedStaffRoute,
+const AuthenticatedManagerRoute = AuthenticatedManagerRouteImport.update({
+  id: '/manager',
+  path: '/manager',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
-
-const AuthenticatedStaffDashboardRoute =
-  AuthenticatedStaffDashboardRouteImport.update({
-    id: '/dashboard',
-    path: '/dashboard',
-    getParentRoute: () => AuthenticatedStaffRoute,
-  } as any)
-const AuthenticatedStaffCvGeneratorRoute =
-  AuthenticatedStaffCvGeneratorRouteImport.update({
-    id: '/cv-generator',
-    path: '/cv-generator',
-    getParentRoute: () => AuthenticatedStaffRoute,
-  } as any)
-const AuthenticatedStaffCandidatesRoute =
-  AuthenticatedStaffCandidatesRouteImport.update({
-    id: '/candidates',
-    path: '/candidates',
-    getParentRoute: () => AuthenticatedStaffRoute,
-  } as any)
-const AuthenticatedStaffAttendanceRoute =
-  AuthenticatedStaffAttendanceRouteImport.update({
-    id: '/attendance',
-    path: '/attendance',
-    getParentRoute: () => AuthenticatedStaffRoute,
-  } as any)
-const AuthenticatedManagerSubscriptionRoute =
-  AuthenticatedManagerSubscriptionRouteImport.update({
-    id: '/subscription',
-    path: '/subscription',
-    getParentRoute: () => AuthenticatedManagerRoute,
-  } as any)
-const AuthenticatedManagerStaffActivityRoute =
-  AuthenticatedManagerStaffActivityRouteImport.update({
-    id: '/staff-activity',
-    path: '/staff-activity',
-    getParentRoute: () => AuthenticatedManagerRoute,
-  } as any)
-const AuthenticatedManagerStaffRoute =
-  AuthenticatedManagerStaffRouteImport.update({
-    id: '/staff',
-    path: '/staff',
-    getParentRoute: () => AuthenticatedManagerRoute,
-  } as any)
-const AuthenticatedManagerInvoiceRoute =
-  AuthenticatedManagerInvoiceRouteImport.update({
-    id: '/invoice',
-    path: '/invoice',
-    getParentRoute: () => AuthenticatedManagerRoute,
-  } as any)
-const AuthenticatedManagerDashboardRoute =
-  AuthenticatedManagerDashboardRouteImport.update({
-    id: '/dashboard',
-    path: '/dashboard',
-    getParentRoute: () => AuthenticatedManagerRoute,
-  } as any)
-const AuthenticatedManagerCvGeneratorRoute =
-  AuthenticatedManagerCvGeneratorRouteImport.update({
-    id: '/cv-generator',
-    path: '/cv-generator',
-    getParentRoute: () => AuthenticatedManagerRoute,
-  } as any)
-const AuthenticatedManagerCandidatesRoute =
-  AuthenticatedManagerCandidatesRouteImport.update({
-    id: '/candidates',
-    path: '/candidates',
-    getParentRoute: () => AuthenticatedManagerRoute,
-  } as any)
-const AuthenticatedManagerAssignmentsRoute =
-  AuthenticatedManagerAssignmentsRouteImport.update({
-    id: '/assignments',
-    path: '/assignments',
-    getParentRoute: () => AuthenticatedManagerRoute,
-  } as any)
-const AuthenticatedManagerAgenciesRoute =
-  AuthenticatedManagerAgenciesRouteImport.update({
-    id: '/agencies',
-    path: '/agencies',
-    getParentRoute: () => AuthenticatedManagerRoute,
-  } as any)
-const AuthenticatedAgencyCandidatesRoute =
-  AuthenticatedAgencyCandidatesRouteImport.update({
-    id: '/candidates',
-    path: '/candidates',
-    getParentRoute: () => AuthenticatedAgencyRoute,
-  } as any)
-const AuthenticatedAdminSubscriptionsRoute =
-  AuthenticatedAdminSubscriptionsRouteImport.update({
-    id: '/subscriptions',
-    path: '/subscriptions',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminPaymentsRoute =
-  AuthenticatedAdminPaymentsRouteImport.update({
-    id: '/payments',
-    path: '/payments',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminManagersRoute =
-  AuthenticatedAdminManagersRouteImport.update({
-    id: '/managers',
-    path: '/managers',
+const AuthenticatedStaffRoute = AuthenticatedStaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedAdminAdminsRoute =
+  AuthenticatedAdminAdminsRouteImport.update({
+    id: '/admins',
+    path: '/admins',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminDashboardRoute =
@@ -215,12 +113,113 @@ const AuthenticatedAdminDashboardRoute =
     path: '/dashboard',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const AuthenticatedAdminAdminsRoute =
-  AuthenticatedAdminAdminsRouteImport.update({
-    id: '/admins',
-    path: '/admins',
+const AuthenticatedAdminManagersRoute =
+  AuthenticatedAdminManagersRouteImport.update({
+    id: '/managers',
+    path: '/managers',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminPaymentsRoute =
+  AuthenticatedAdminPaymentsRouteImport.update({
+    id: '/payments',
+    path: '/payments',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminSubscriptionsRoute =
+  AuthenticatedAdminSubscriptionsRouteImport.update({
+    id: '/subscriptions',
+    path: '/subscriptions',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAgencyCandidatesRoute =
+  AuthenticatedAgencyCandidatesRouteImport.update({
+    id: '/candidates',
+    path: '/candidates',
+    getParentRoute: () => AuthenticatedAgencyRoute,
+  } as any)
+const AuthenticatedManagerAgenciesRoute =
+  AuthenticatedManagerAgenciesRouteImport.update({
+    id: '/agencies',
+    path: '/agencies',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
+const AuthenticatedManagerAssignmentsRoute =
+  AuthenticatedManagerAssignmentsRouteImport.update({
+    id: '/assignments',
+    path: '/assignments',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
+const AuthenticatedManagerCandidatesRoute =
+  AuthenticatedManagerCandidatesRouteImport.update({
+    id: '/candidates',
+    path: '/candidates',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
+const AuthenticatedManagerCvGeneratorRoute =
+  AuthenticatedManagerCvGeneratorRouteImport.update({
+    id: '/cv-generator',
+    path: '/cv-generator',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
+const AuthenticatedManagerDashboardRoute =
+  AuthenticatedManagerDashboardRouteImport.update({
+    id: '/dashboard',
+    path: '/dashboard',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
+const AuthenticatedManagerInvoiceRoute =
+  AuthenticatedManagerInvoiceRouteImport.update({
+    id: '/invoice',
+    path: '/invoice',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
+const AuthenticatedManagerStaffRoute =
+  AuthenticatedManagerStaffRouteImport.update({
+    id: '/staff',
+    path: '/staff',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
+const AuthenticatedManagerStaffActivityRoute =
+  AuthenticatedManagerStaffActivityRouteImport.update({
+    id: '/staff-activity',
+    path: '/staff-activity',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
+const AuthenticatedManagerSubscriptionRoute =
+  AuthenticatedManagerSubscriptionRouteImport.update({
+    id: '/subscription',
+    path: '/subscription',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
+const AuthenticatedStaffAttendanceRoute =
+  AuthenticatedStaffAttendanceRouteImport.update({
+    id: '/attendance',
+    path: '/attendance',
+    getParentRoute: () => AuthenticatedStaffRoute,
+  } as any)
+const AuthenticatedStaffCandidatesRoute =
+  AuthenticatedStaffCandidatesRouteImport.update({
+    id: '/candidates',
+    path: '/candidates',
+    getParentRoute: () => AuthenticatedStaffRoute,
+  } as any)
+const AuthenticatedStaffCvGeneratorRoute =
+  AuthenticatedStaffCvGeneratorRouteImport.update({
+    id: '/cv-generator',
+    path: '/cv-generator',
+    getParentRoute: () => AuthenticatedStaffRoute,
+  } as any)
+const AuthenticatedStaffDashboardRoute =
+  AuthenticatedStaffDashboardRouteImport.update({
+    id: '/dashboard',
+    path: '/dashboard',
+    getParentRoute: () => AuthenticatedStaffRoute,
+  } as any)
+const AuthenticatedStaffTcRoute = AuthenticatedStaffTcRouteImport.update({
+  id: '/tc',
+  path: '/tc',
+  getParentRoute: () => AuthenticatedStaffRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -438,39 +437,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/setup-admin': {
-      id: '/setup-admin'
-      path: '/setup-admin'
-      fullPath: '/setup-admin'
-      preLoaderRoute: typeof SetupAdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/faq': {
-      id: '/faq'
-      path: '/faq'
-      fullPath: '/faq'
-      preLoaderRoute: typeof FaqRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/contact': {
-      id: '/contact'
-      path: '/contact'
-      fullPath: '/contact'
-      preLoaderRoute: typeof ContactRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/about': {
-      id: '/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof AboutRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -480,32 +451,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/staff': {
-      id: '/_authenticated/staff'
-      path: '/staff'
-      fullPath: '/staff'
-      preLoaderRoute: typeof AuthenticatedStaffRouteImport
-      parentRoute: typeof AuthenticatedRoute
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/manager': {
-      id: '/_authenticated/manager'
-      path: '/manager'
-      fullPath: '/manager'
-      preLoaderRoute: typeof AuthenticatedManagerRouteImport
-      parentRoute: typeof AuthenticatedRoute
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/dashboard': {
-      id: '/_authenticated/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/setup-admin': {
+      id: '/setup-admin'
+      path: '/setup-admin'
+      fullPath: '/setup-admin'
+      preLoaderRoute: typeof SetupAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/agency': {
@@ -515,137 +500,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAgencyRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/admin': {
-      id: '/_authenticated/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/staff/tc': {
-      id: '/_authenticated/staff/tc'
-      path: '/tc'
-      fullPath: '/staff/tc'
-      preLoaderRoute: typeof AuthenticatedStaffTcRouteImport
-      parentRoute: typeof AuthenticatedStaffRoute
+    '/_authenticated/manager': {
+      id: '/_authenticated/manager'
+      path: '/manager'
+      fullPath: '/manager'
+      preLoaderRoute: typeof AuthenticatedManagerRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/staff/dashboard': {
-      id: '/_authenticated/staff/dashboard'
-      path: '/dashboard'
-      fullPath: '/staff/dashboard'
-      preLoaderRoute: typeof AuthenticatedStaffDashboardRouteImport
-      parentRoute: typeof AuthenticatedStaffRoute
-    }
-    '/_authenticated/staff/cv-generator': {
-      id: '/_authenticated/staff/cv-generator'
-      path: '/cv-generator'
-      fullPath: '/staff/cv-generator'
-      preLoaderRoute: typeof AuthenticatedStaffCvGeneratorRouteImport
-      parentRoute: typeof AuthenticatedStaffRoute
-    }
-    '/_authenticated/staff/candidates': {
-      id: '/_authenticated/staff/candidates'
-      path: '/candidates'
-      fullPath: '/staff/candidates'
-      preLoaderRoute: typeof AuthenticatedStaffCandidatesRouteImport
-      parentRoute: typeof AuthenticatedStaffRoute
-    }
-    '/_authenticated/staff/attendance': {
-      id: '/_authenticated/staff/attendance'
-      path: '/attendance'
-      fullPath: '/staff/attendance'
-      preLoaderRoute: typeof AuthenticatedStaffAttendanceRouteImport
-      parentRoute: typeof AuthenticatedStaffRoute
-    }
-    '/_authenticated/manager/subscription': {
-      id: '/_authenticated/manager/subscription'
-      path: '/subscription'
-      fullPath: '/manager/subscription'
-      preLoaderRoute: typeof AuthenticatedManagerSubscriptionRouteImport
-      parentRoute: typeof AuthenticatedManagerRoute
-    }
-    '/_authenticated/manager/staff-activity': {
-      id: '/_authenticated/manager/staff-activity'
-      path: '/staff-activity'
-      fullPath: '/manager/staff-activity'
-      preLoaderRoute: typeof AuthenticatedManagerStaffActivityRouteImport
-      parentRoute: typeof AuthenticatedManagerRoute
-    }
-    '/_authenticated/manager/staff': {
-      id: '/_authenticated/manager/staff'
+    '/_authenticated/staff': {
+      id: '/_authenticated/staff'
       path: '/staff'
-      fullPath: '/manager/staff'
-      preLoaderRoute: typeof AuthenticatedManagerStaffRouteImport
-      parentRoute: typeof AuthenticatedManagerRoute
+      fullPath: '/staff'
+      preLoaderRoute: typeof AuthenticatedStaffRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/manager/invoice': {
-      id: '/_authenticated/manager/invoice'
-      path: '/invoice'
-      fullPath: '/manager/invoice'
-      preLoaderRoute: typeof AuthenticatedManagerInvoiceRouteImport
-      parentRoute: typeof AuthenticatedManagerRoute
-    }
-    '/_authenticated/manager/dashboard': {
-      id: '/_authenticated/manager/dashboard'
-      path: '/dashboard'
-      fullPath: '/manager/dashboard'
-      preLoaderRoute: typeof AuthenticatedManagerDashboardRouteImport
-      parentRoute: typeof AuthenticatedManagerRoute
-    }
-    '/_authenticated/manager/cv-generator': {
-      id: '/_authenticated/manager/cv-generator'
-      path: '/cv-generator'
-      fullPath: '/manager/cv-generator'
-      preLoaderRoute: typeof AuthenticatedManagerCvGeneratorRouteImport
-      parentRoute: typeof AuthenticatedManagerRoute
-    }
-    '/_authenticated/manager/candidates': {
-      id: '/_authenticated/manager/candidates'
-      path: '/candidates'
-      fullPath: '/manager/candidates'
-      preLoaderRoute: typeof AuthenticatedManagerCandidatesRouteImport
-      parentRoute: typeof AuthenticatedManagerRoute
-    }
-    '/_authenticated/manager/assignments': {
-      id: '/_authenticated/manager/assignments'
-      path: '/assignments'
-      fullPath: '/manager/assignments'
-      preLoaderRoute: typeof AuthenticatedManagerAssignmentsRouteImport
-      parentRoute: typeof AuthenticatedManagerRoute
-    }
-    '/_authenticated/manager/agencies': {
-      id: '/_authenticated/manager/agencies'
-      path: '/agencies'
-      fullPath: '/manager/agencies'
-      preLoaderRoute: typeof AuthenticatedManagerAgenciesRouteImport
-      parentRoute: typeof AuthenticatedManagerRoute
-    }
-    '/_authenticated/agency/candidates': {
-      id: '/_authenticated/agency/candidates'
-      path: '/candidates'
-      fullPath: '/agency/candidates'
-      preLoaderRoute: typeof AuthenticatedAgencyCandidatesRouteImport
-      parentRoute: typeof AuthenticatedAgencyRoute
-    }
-    '/_authenticated/admin/subscriptions': {
-      id: '/_authenticated/admin/subscriptions'
-      path: '/subscriptions'
-      fullPath: '/admin/subscriptions'
-      preLoaderRoute: typeof AuthenticatedAdminSubscriptionsRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/payments': {
-      id: '/_authenticated/admin/payments'
-      path: '/payments'
-      fullPath: '/admin/payments'
-      preLoaderRoute: typeof AuthenticatedAdminPaymentsRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/managers': {
-      id: '/_authenticated/admin/managers'
-      path: '/managers'
-      fullPath: '/admin/managers'
-      preLoaderRoute: typeof AuthenticatedAdminManagersRouteImport
+    '/_authenticated/admin/admins': {
+      id: '/_authenticated/admin/admins'
+      path: '/admins'
+      fullPath: '/admin/admins'
+      preLoaderRoute: typeof AuthenticatedAdminAdminsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/dashboard': {
@@ -655,12 +535,131 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDashboardRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/admin/admins': {
-      id: '/_authenticated/admin/admins'
-      path: '/admins'
-      fullPath: '/admin/admins'
-      preLoaderRoute: typeof AuthenticatedAdminAdminsRouteImport
+    '/_authenticated/admin/managers': {
+      id: '/_authenticated/admin/managers'
+      path: '/managers'
+      fullPath: '/admin/managers'
+      preLoaderRoute: typeof AuthenticatedAdminManagersRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/payments': {
+      id: '/_authenticated/admin/payments'
+      path: '/payments'
+      fullPath: '/admin/payments'
+      preLoaderRoute: typeof AuthenticatedAdminPaymentsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/subscriptions': {
+      id: '/_authenticated/admin/subscriptions'
+      path: '/subscriptions'
+      fullPath: '/admin/subscriptions'
+      preLoaderRoute: typeof AuthenticatedAdminSubscriptionsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/agency/candidates': {
+      id: '/_authenticated/agency/candidates'
+      path: '/candidates'
+      fullPath: '/agency/candidates'
+      preLoaderRoute: typeof AuthenticatedAgencyCandidatesRouteImport
+      parentRoute: typeof AuthenticatedAgencyRoute
+    }
+    '/_authenticated/manager/agencies': {
+      id: '/_authenticated/manager/agencies'
+      path: '/agencies'
+      fullPath: '/manager/agencies'
+      preLoaderRoute: typeof AuthenticatedManagerAgenciesRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
+    '/_authenticated/manager/assignments': {
+      id: '/_authenticated/manager/assignments'
+      path: '/assignments'
+      fullPath: '/manager/assignments'
+      preLoaderRoute: typeof AuthenticatedManagerAssignmentsRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
+    '/_authenticated/manager/candidates': {
+      id: '/_authenticated/manager/candidates'
+      path: '/candidates'
+      fullPath: '/manager/candidates'
+      preLoaderRoute: typeof AuthenticatedManagerCandidatesRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
+    '/_authenticated/manager/cv-generator': {
+      id: '/_authenticated/manager/cv-generator'
+      path: '/cv-generator'
+      fullPath: '/manager/cv-generator'
+      preLoaderRoute: typeof AuthenticatedManagerCvGeneratorRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
+    '/_authenticated/manager/dashboard': {
+      id: '/_authenticated/manager/dashboard'
+      path: '/dashboard'
+      fullPath: '/manager/dashboard'
+      preLoaderRoute: typeof AuthenticatedManagerDashboardRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
+    '/_authenticated/manager/invoice': {
+      id: '/_authenticated/manager/invoice'
+      path: '/invoice'
+      fullPath: '/manager/invoice'
+      preLoaderRoute: typeof AuthenticatedManagerInvoiceRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
+    '/_authenticated/manager/staff': {
+      id: '/_authenticated/manager/staff'
+      path: '/staff'
+      fullPath: '/manager/staff'
+      preLoaderRoute: typeof AuthenticatedManagerStaffRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
+    '/_authenticated/manager/staff-activity': {
+      id: '/_authenticated/manager/staff-activity'
+      path: '/staff-activity'
+      fullPath: '/manager/staff-activity'
+      preLoaderRoute: typeof AuthenticatedManagerStaffActivityRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
+    '/_authenticated/manager/subscription': {
+      id: '/_authenticated/manager/subscription'
+      path: '/subscription'
+      fullPath: '/manager/subscription'
+      preLoaderRoute: typeof AuthenticatedManagerSubscriptionRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
+    '/_authenticated/staff/attendance': {
+      id: '/_authenticated/staff/attendance'
+      path: '/attendance'
+      fullPath: '/staff/attendance'
+      preLoaderRoute: typeof AuthenticatedStaffAttendanceRouteImport
+      parentRoute: typeof AuthenticatedStaffRoute
+    }
+    '/_authenticated/staff/candidates': {
+      id: '/_authenticated/staff/candidates'
+      path: '/candidates'
+      fullPath: '/staff/candidates'
+      preLoaderRoute: typeof AuthenticatedStaffCandidatesRouteImport
+      parentRoute: typeof AuthenticatedStaffRoute
+    }
+    '/_authenticated/staff/cv-generator': {
+      id: '/_authenticated/staff/cv-generator'
+      path: '/cv-generator'
+      fullPath: '/staff/cv-generator'
+      preLoaderRoute: typeof AuthenticatedStaffCvGeneratorRouteImport
+      parentRoute: typeof AuthenticatedStaffRoute
+    }
+    '/_authenticated/staff/dashboard': {
+      id: '/_authenticated/staff/dashboard'
+      path: '/dashboard'
+      fullPath: '/staff/dashboard'
+      preLoaderRoute: typeof AuthenticatedStaffDashboardRouteImport
+      parentRoute: typeof AuthenticatedStaffRoute
+    }
+    '/_authenticated/staff/tc': {
+      id: '/_authenticated/staff/tc'
+      path: '/tc'
+      fullPath: '/staff/tc'
+      preLoaderRoute: typeof AuthenticatedStaffTcRouteImport
+      parentRoute: typeof AuthenticatedStaffRoute
     }
   }
 }
