@@ -26,6 +26,7 @@ import {
   declineCandidatesNotification,
 } from "@/lib/notifications.functions";
 import { updateCandidateField } from "@/lib/candidates.functions";
+import { getManagerTcEnabled } from "@/lib/settings.functions";
 import { useStaffSession } from "@/hooks/use-staff-session";
 import { recordStaffLogin } from "@/lib/staff-attendance.functions";
 import { DarkModeToggle } from "@/components/dark-mode-toggle";
@@ -81,6 +82,16 @@ function StaffLayout() {
   const doDecline = useServerFn(declineCandidatesNotification);
 
   const updateFieldFn = useServerFn(updateCandidateField);
+  const getTcEnabled  = useServerFn(getManagerTcEnabled);
+
+  const { data: tcData } = useQuery({
+    queryKey: ["manager-tc-enabled", user?.id],
+    queryFn: () => getTcEnabled({}),
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+
+  const tcEnabled = tcData?.tc_enabled ?? true;
 
   const [notifOpen, setNotifOpen]         = useState(false);
   const [activeNotif, setActiveNotif]     = useState<Notification | null>(null);
@@ -260,7 +271,7 @@ function StaffLayout() {
           </Link>
 
           <nav className="flex-1 flex flex-wrap items-center gap-x-8 gap-y-2">
-            {NAV_TOP.map((n) => {
+            {NAV_TOP.filter((n) => n.to !== "/staff/tc" || tcEnabled).map((n) => {
               const Icon = n.icon;
               return (
                 <Link key={n.label} to={n.to}

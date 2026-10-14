@@ -21,7 +21,7 @@ export type EditableField =
   | "ticket_status" | "ticket_date" | "arrival_city" | "emergency_contact"
   | "processing_notes" | "remark" | "destination_country" | "cv_sent_to" | "passport_accepted"
   | "availability_type" | "coc_agency_name" | "coc_agency_phone" | "insurance_date"
-  | "video_url" | "delete_reason" | "ticket_pdf_url" | "visa_pdf_url" | "qr_url"
+  | "video_url" | "id_card_url" | "delete_reason" | "ticket_pdf_url" | "visa_pdf_url" | "qr_url"
   | "return_ticket_url" | "stamp_url";
 
 export const MEDICAL_OPTIONS = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired"];
@@ -154,7 +154,7 @@ export const PROCESSING_COLS: ProcessingColDef[] = [
 
 export const CANDIDATE_CARD_COLS = [
   "FULL NAME", "CANDIDATE CODE", "PASSPORT NUMBER", "LABOUR ID",
-  "AGE", "VIDEO", "MARITAL STATUS", "BIRTH PLACE",
+  "AGE", "VIDEO", "ID CARD", "MARITAL STATUS", "BIRTH PLACE",
   "NARRATIVE PHONE", "NARRATIVE", "RELIGION",
   "CV SENT TO", "CV SENT DATE",
   "PASSPORT STATUS", "COC STATUS", "COUNTRY", "MEDICAL STATUS", "MEDICAL DATE",

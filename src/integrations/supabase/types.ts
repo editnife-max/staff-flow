@@ -169,6 +169,7 @@ export type Database = {
           gender: string | null
           height: number | null
           id: string
+          id_card_url: string | null
           insurance_date: string | null
           insurance_status: string | null
           labour_id: string | null
@@ -206,6 +207,7 @@ export type Database = {
           status: string
           tasheer_date: string | null
           tasheer_status: string | null
+          tc_entered: boolean
           ticket_date: string | null
           ticket_date_updated_at: string | null
           ticket_pdf_url: string | null
@@ -258,6 +260,7 @@ export type Database = {
           gender?: string | null
           height?: number | null
           id?: string
+          id_card_url?: string | null
           insurance_date?: string | null
           insurance_status?: string | null
           labour_id?: string | null
@@ -295,6 +298,7 @@ export type Database = {
           status?: string
           tasheer_date?: string | null
           tasheer_status?: string | null
+          tc_entered?: boolean
           ticket_date?: string | null
           ticket_date_updated_at?: string | null
           ticket_pdf_url?: string | null
@@ -347,6 +351,7 @@ export type Database = {
           gender?: string | null
           height?: number | null
           id?: string
+          id_card_url?: string | null
           insurance_date?: string | null
           insurance_status?: string | null
           labour_id?: string | null
@@ -384,6 +389,7 @@ export type Database = {
           status?: string
           tasheer_date?: string | null
           tasheer_status?: string | null
+          tc_entered?: boolean
           ticket_date?: string | null
           ticket_date_updated_at?: string | null
           ticket_pdf_url?: string | null
@@ -605,6 +611,7 @@ export type Database = {
           mofa_password: string | null
           musaned_email: string | null
           musaned_password: string | null
+          tc_enabled: boolean
           updated_at: string
         }
         Insert: {
@@ -621,6 +628,7 @@ export type Database = {
           mofa_password?: string | null
           musaned_email?: string | null
           musaned_password?: string | null
+          tc_enabled?: boolean
           updated_at?: string
         }
         Update: {
@@ -637,6 +645,7 @@ export type Database = {
           mofa_password?: string | null
           musaned_email?: string | null
           musaned_password?: string | null
+          tc_enabled?: boolean
           updated_at?: string
         }
         Relationships: []

@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Play, Download, Loader2, ChevronLeft, ChevronRight, ChevronUp,
-  RotateCcw, SlidersHorizontal, Stethoscope, Pencil, Globe, Lock, Undo2, History,
+  RotateCcw, SlidersHorizontal, Stethoscope, Pencil, Globe, Lock, Undo2, History, ExternalLink,
 } from "lucide-react";
 import { cn, calcAge } from "@/lib/utils";
 import { StatusBadge } from "@/components/status-badge";
@@ -915,6 +915,25 @@ function CandidateCard({
                   <div key="VIDEO" className="shrink-0 w-[110px]">
                     <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">VIDEO</div>
                     <VideoCell url={candidate.video_url ?? null} onSave={(v) => onUpdateField("video_url", v)} candidateName={candidate.full_name} />
+                  </div>
+                );
+              }
+              if (colLabel === "ID CARD") {
+                const idUrl = (candidate as any).id_card_url as string | null | undefined;
+                return (
+                  <div key="ID CARD" className="shrink-0 w-[90px]">
+                    <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">ID CARD</div>
+                    {idUrl ? (
+                      <button
+                        type="button"
+                        onClick={() => window.open(idUrl, "_blank")}
+                        className="flex items-center gap-0.5 text-[11px] text-primary hover:underline font-medium"
+                      >
+                        <ExternalLink className="h-3 w-3" /> View
+                      </button>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
                   </div>
                 );
               }
