@@ -106,6 +106,7 @@ const AuthenticatedStaffTcRoute = AuthenticatedStaffTcRouteImport.update({
   path: '/tc',
   getParentRoute: () => AuthenticatedStaffRoute,
 } as any)
+
 const AuthenticatedStaffDashboardRoute =
   AuthenticatedStaffDashboardRouteImport.update({
     id: '/dashboard',
