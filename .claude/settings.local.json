@@ -176,7 +176,9 @@
       "PowerShell(vercel *)",
       "Bash(git remote *)",
       "Bash(git *)",
-      "Skill(superpowers:brainstorming)"
+      "Skill(superpowers:brainstorming)",
+      "PowerShell(npm config *)",
+      "PowerShell(curl *)"
     ]
   },
   "enableAllProjectMcpServers": true,
