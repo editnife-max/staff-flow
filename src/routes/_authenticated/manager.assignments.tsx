@@ -2,7 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock, Download, BarChart3, AlertCircle, Lock, Unlock, KeyRound, Eye, EyeOff, Search, Users } from "lucide-react";
+import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock, Download, BarChart3, AlertCircle, Lock, Unlock, KeyRound, Eye, EyeOff, Search, Users, GraduationCap } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -129,6 +130,24 @@ function AssignmentsPage() {
       qc.invalidateQueries({ queryKey: ["manager-profile", user?.id] });
       setCvDaysEdit(false);
       toast.success("CV requirement days updated");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const tcEnabled = (profile?.cv_page_requirements as any)?.tc_enabled !== false;
+
+  const updateTcEnabled = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const current = (profile?.cv_page_requirements as Record<string, unknown>) ?? {};
+      const { error } = await supabase
+        .from("profiles")
+        .update({ cv_page_requirements: { ...current, tc_enabled: enabled } })
+        .eq("id", user!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["manager-profile", user?.id] });
+      qc.invalidateQueries({ queryKey: ["manager-tc-enabled"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -535,6 +554,21 @@ function AssignmentsPage() {
           </div>
           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         </button>
+
+        <div className="border border-border bg-background flex items-center gap-3 px-4 py-3 col-span-2">
+          <GraduationCap className="h-4 w-4 text-primary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold">Training Centre (TC)</div>
+            <div className="text-xs text-muted-foreground">
+              {tcEnabled ? "Visible to staff" : "Hidden from staff"}
+            </div>
+          </div>
+          <Switch
+            checked={tcEnabled}
+            disabled={updateTcEnabled.isPending}
+            onCheckedChange={(v) => updateTcEnabled.mutate(v)}
+          />
+        </div>
       </div>
 
       {/* ── Countries Dialog ──────────────────────────────────────────── */}

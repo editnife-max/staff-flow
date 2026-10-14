@@ -77,9 +77,8 @@ const initialForm = {
   musaned_status: "", status: "available" as Status, office: "", selected_by: "",
   narrative: "", narrative_phone: "",
   skills: "Ironing, Cleaning", remark: "", notes: "",
-  video_url: "", id_card_url: "",
-  availability_type: "Available",
-  tc_entered: true,
+  video_url: "", lmis_id_url: "",
+  availability_type: "TC",
 };
 
 function TcPage() {
@@ -210,10 +209,11 @@ function TcPage() {
     [foreignAgencies],
   );
 
-  // Only TC candidates (tc_entered = true); split by video presence
+  // TC candidates are marked by availability_type === "TC"; split by video presence
   const basePool = useMemo(
     () => allCandidates.filter((c) =>
-      c.tc_entered && (activeView === "trained" ? !!c.video_url : !c.video_url)
+      c.availability_type === "TC" &&
+      (activeView === "trained" ? !!c.video_url : !c.video_url)
     ),
     [allCandidates, activeView],
   );
@@ -310,7 +310,7 @@ function TcPage() {
       const payload = {
         ...f,
         full_name: [f.first_name, f.last_name].filter(Boolean).join(" ") || f.first_name || f.last_name || "",
-        tc_entered: true,
+        availability_type: "TC",
       };
       return upsert({ data: { id: editing?.id, data: payload as never } });
     },
@@ -384,11 +384,8 @@ function TcPage() {
       remark:               c.remark                        ?? "",
       notes:                c.notes                         ?? "",
       video_url:            c.video_url                     ?? "",
-      id_card_url:          (c as any).id_card_url           ?? "",
-      availability_type:    (() => {
-        const v = c.availability_type ?? "Available";
-        return v.charAt(0).toUpperCase() + v.slice(1);
-      })(),
+      lmis_id_url:          (c as any).lmis_id_url           ?? "",
+      availability_type:    "TC",
     });
     setOpen(true);
   };
@@ -632,7 +629,7 @@ function TcPage() {
               </div>
               <div className="border rounded-none max-h-52 overflow-y-auto">
                 {(() => {
-                  const enteredGirls = allCandidates.filter((c) => c.tc_entered && !c.video_url);
+                  const enteredGirls = allCandidates.filter((c) => c.availability_type === "TC" && !c.video_url);
                   const q = trainedPickQ.toLowerCase();
                   const visible = enteredGirls.filter((c) =>
                     !q ||
@@ -735,7 +732,7 @@ function TcPage() {
             <FormSection title="Photos & Documents">
               <PhotoUpload label="Profile Photo" value={form.photo_url}      onChange={(url) => setForm({ ...form, photo_url: url })} />
               <PhotoUpload label="Full Photo"    value={form.full_photo_url}  onChange={(url) => setForm({ ...form, full_photo_url: url })} />
-              <PhotoUpload label="ID Card"       value={form.id_card_url}    onChange={(url) => setForm({ ...form, id_card_url: url })} accept="image/*,application/pdf" />
+              <PhotoUpload label="ID Card"       value={form.lmis_id_url}    onChange={(url) => setForm({ ...form, lmis_id_url: url })} accept="image/*,application/pdf" />
             </FormSection>
           </div>
           <DialogFooter>

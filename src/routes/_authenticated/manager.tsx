@@ -5,8 +5,6 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Switch } from "@/components/ui/switch";
-import { getManagerTcEnabled, setManagerTcEnabled } from "@/lib/settings.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -315,10 +313,7 @@ function ManagerBell() {
 function ManagerLayout() {
   const { role, loading, user, signOut } = useAuth();
   const navigate = useNavigate();
-  const qcLayout = useQueryClient();
   const doBackfill = useServerFn(backfillTeamAbsents);
-  const getTcEnabled = useServerFn(getManagerTcEnabled);
-  const setTcEnabled = useServerFn(setManagerTcEnabled);
 
   // Register absent days for all staff once per hour automatically
   useQuery({
@@ -326,19 +321,6 @@ function ManagerLayout() {
     queryFn: () => doBackfill(),
     enabled: role === "manager" || role === "admin",
     staleTime: 60 * 60 * 1000,
-  });
-
-  const { data: tcData } = useQuery({
-    queryKey: ["manager-tc-enabled", user?.id],
-    queryFn: () => getTcEnabled({}),
-    enabled: !!user,
-    staleTime: 60_000,
-  });
-
-  const tcMut = useMutation({
-    mutationFn: (tc_enabled: boolean) => setTcEnabled({ data: { tc_enabled } }),
-    onSuccess: () => qcLayout.invalidateQueries({ queryKey: ["manager-tc-enabled"] }),
-    onError: (e: Error) => toast.error(e.message),
   });
 
   // Only block when we have no role yet (initial load). Skip the guard during
@@ -389,19 +371,6 @@ function ManagerLayout() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuItem disabled className="text-xs">{user?.email}</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="flex items-center justify-between cursor-pointer"
-                onSelect={(e) => { e.preventDefault(); tcMut.mutate(!(tcData?.tc_enabled ?? true)); }}
-              >
-                <span className="text-sm">TC for Staff</span>
-                <Switch
-                  checked={tcData?.tc_enabled ?? true}
-                  disabled={tcMut.isPending}
-                  onCheckedChange={(v) => tcMut.mutate(v)}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={async () => { await signOut(); navigate({ to: "/login" }); }}>
                 <LogOut className="h-4 w-4 mr-2" /> Sign out

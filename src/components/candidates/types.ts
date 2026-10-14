@@ -21,7 +21,7 @@ export type EditableField =
   | "ticket_status" | "ticket_date" | "arrival_city" | "emergency_contact"
   | "processing_notes" | "remark" | "destination_country" | "cv_sent_to" | "passport_accepted"
   | "availability_type" | "coc_agency_name" | "coc_agency_phone" | "insurance_date"
-  | "video_url" | "id_card_url" | "delete_reason" | "ticket_pdf_url" | "visa_pdf_url" | "qr_url"
+  | "video_url" | "delete_reason" | "ticket_pdf_url" | "visa_pdf_url" | "qr_url"
   | "return_ticket_url" | "stamp_url";
 
 export const MEDICAL_OPTIONS = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired"];

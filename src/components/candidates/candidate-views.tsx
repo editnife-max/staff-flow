@@ -919,7 +919,7 @@ function CandidateCard({
                 );
               }
               if (colLabel === "ID CARD") {
-                const idUrl = (candidate as any).id_card_url as string | null | undefined;
+                const idUrl = (candidate as any).lmis_id_url as string | null | undefined;
                 return (
                   <div key="ID CARD" className="shrink-0 w-[90px]">
                     <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">ID CARD</div>
