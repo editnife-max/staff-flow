@@ -492,7 +492,7 @@ function AgencyCandidatesPage() {
           <CardContent className="p-8 text-center text-sm text-muted-foreground">{ui.noResults}</CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filtered.map((c) => (
             <AgencyCandidateCard
               key={c.id}
@@ -752,9 +752,9 @@ function CvInfoRow({ label, value }: { label: string; value: string | number | n
 function InfoPair({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
   return (
-    <div className="min-w-0">
-      <div className="text-[9px] uppercase tracking-wide text-muted-foreground/60 font-semibold leading-none mb-0.5">{label}</div>
-      <div className="text-[11px] font-medium text-foreground truncate leading-tight">{value}</div>
+    <div className="flex items-baseline gap-1 min-w-0">
+      <span className="text-xs font-semibold text-muted-foreground shrink-0 whitespace-nowrap">{label}:</span>
+      <span className="text-[13px] font-medium text-foreground truncate">{value}</span>
     </div>
   );
 }
@@ -852,9 +852,9 @@ function AgencyCandidateCard({
             />
             <div className="flex-1 min-w-0">
               <StatusBadge status={c.status} />
-              <div className="font-semibold text-[13px] leading-snug text-foreground mt-1">{displayName}</div>
+              <div className="font-semibold text-sm leading-snug text-foreground mt-1">{displayName}</div>
               {c.occupation && (
-                <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{c.occupation}</div>
+                <div className="text-xs text-muted-foreground mt-0.5 truncate">{c.occupation}</div>
               )}
             </div>
           </div>
@@ -879,8 +879,8 @@ function AgencyCandidateCard({
 
           {/* Skills */}
           {c.skills && (
-            <div className="text-[10px] text-muted-foreground leading-relaxed line-clamp-2">
-              <span className="font-semibold text-foreground/70 uppercase tracking-wide text-[9px]">{t.skills}: </span>
+            <div className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+              <span className="font-semibold text-foreground/70 uppercase tracking-wide text-[10px]">{t.skills}: </span>
               {tvList(c.skills, lang)}
             </div>
           )}
