@@ -492,7 +492,7 @@ function AgencyCandidatesPage() {
           <CardContent className="p-8 text-center text-sm text-muted-foreground">{ui.noResults}</CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map((c) => (
             <AgencyCandidateCard
               key={c.id}
@@ -752,9 +752,9 @@ function CvInfoRow({ label, value }: { label: string; value: string | number | n
 function InfoPair({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
   return (
-    <div className="flex items-baseline gap-1 min-w-0">
-      <span className="font-medium text-muted-foreground shrink-0">{label}:</span>
-      <span className="text-foreground truncate">{value}</span>
+    <div className="min-w-0">
+      <div className="text-[9px] uppercase tracking-wide text-muted-foreground/60 font-semibold leading-none mb-0.5">{label}</div>
+      <div className="text-[11px] font-medium text-foreground truncate leading-tight">{value}</div>
     </div>
   );
 }
@@ -818,87 +818,14 @@ function AgencyCandidateCard({
   return (
     <>
       <div className={cn(
-        "border border-border rounded-sm bg-card shadow-sm overflow-hidden flex flex-row transition-colors",
-        selected && "ring-2 ring-primary/60",
+        "bg-card border border-border rounded-xl overflow-hidden shadow-sm",
+        "flex flex-row",
+        "hover:shadow-md hover:border-border/80 transition-all duration-200",
+        selected && "ring-2 ring-primary/50 border-primary/40",
       )}>
 
-        {/* ── LEFT: Info ───────────────────────────────────────────── */}
-        <div className="flex-1 min-w-0 p-3 flex flex-col gap-2" dir={lang === "ar" ? "rtl" : "ltr"}>
-
-          {/* Header: checkbox · name · occupation · status */}
-          <div className="flex items-start gap-2">
-            <Checkbox
-              checked={selected}
-              onCheckedChange={onToggle}
-              aria-label="Select candidate"
-              className="mt-0.5 h-3.5 w-3.5 shrink-0 bg-background border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-            />
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold text-sm leading-tight line-clamp-1">{displayName}</div>
-              {c.occupation && (
-                <div className="text-xs text-muted-foreground mt-0.5 truncate">{c.occupation}</div>
-              )}
-            </div>
-            <StatusBadge status={c.status} />
-          </div>
-
-          {/* Info grid — 2 cols */}
-          <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px]">
-            <InfoPair label={t.age}      value={age != null ? String(age) : null} />
-            <InfoPair label={t.religion} value={tv(c.religion, lang)} />
-            <InfoPair label={t.country}  value={tvCountry(c.country, c.gender, lang)} />
-            <InfoPair label={t.gender}   value={tv(c.gender, lang)} />
-            <InfoPair label={t.marital}  value={tv(c.marital_status, lang)} />
-            <InfoPair label={t.children} value={c.children != null ? String(c.children) : null} />
-            <InfoPair label={t.exp}      value={tv(c.experience, lang)} />
-            <InfoPair label={t.expYrs}   value={c.experience_years} />
-            <InfoPair label={t.english}      value={tv(c.english_level, lang)} />
-            <InfoPair label={t.medical}      value={tv(c.medical_status, lang)} />
-            <InfoPair label={t.cvPassportNo} value={c.passport_number} />
-          </div>
-
-          {/* Skills */}
-          {c.skills && (
-            <div className="text-[10px] text-muted-foreground line-clamp-1">
-              <span className="font-medium text-foreground">{t.skills}:</span> {tvList(c.skills, lang)}
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="mt-auto space-y-1 pt-1">
-            <div className="grid grid-cols-2 gap-0.5">
-              <Button size="sm" variant="outline" className="h-6 text-[10px] gap-0.5 rounded-sm px-1"
-                onClick={() => setCvOpen(true)}>
-                <Eye className="h-2.5 w-2.5 shrink-0" /> {t.viewCv}
-              </Button>
-              <Button size="sm" variant="outline" className="h-6 text-[10px] gap-0.5 rounded-sm px-1"
-                onClick={handleDownloadCv} disabled={dlCv}>
-                <FileText className="h-2.5 w-2.5 shrink-0" />
-                {dlCv ? "…" : t.cvPdf}
-              </Button>
-            </div>
-            {c.video_url ? (
-              <div className="grid grid-cols-2 gap-0.5">
-                <Button size="sm" variant="outline" className="h-6 text-[10px] gap-0.5 rounded-sm px-1"
-                  onClick={() => window.open(c.video_url!, "_blank")}>
-                  <Play className="h-2.5 w-2.5 shrink-0 fill-current" /> {t.play}
-                </Button>
-                <Button size="sm" variant="outline" className="h-6 text-[10px] gap-0.5 rounded-sm px-1"
-                  onClick={handleDownloadVideo} disabled={dlVideo}>
-                  {dlVideo ? <Loader2 className="h-2.5 w-2.5 shrink-0 animate-spin" /> : <Download className="h-2.5 w-2.5 shrink-0" />}
-                  {dlVideo ? "…" : t.video}
-                </Button>
-              </div>
-            ) : (
-              <div className="h-6 flex items-center justify-center text-[9px] text-muted-foreground/40 border border-dashed border-border rounded-sm">
-                {t.noVideo}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── RIGHT: Photo ─────────────────────────────────────────── */}
-        <div className="w-56 shrink-0 bg-muted relative self-stretch min-h-[160px]">
+        {/* ── Photo: fixed w-56, always right ── */}
+        <div className="w-56 shrink-0 bg-muted relative self-stretch min-h-[200px] order-last">
           {(c.photo_url || c.full_photo_url) ? (
             <img
               src={c.photo_url ?? c.full_photo_url!}
@@ -906,10 +833,91 @@ function AgencyCandidateCard({
               className="absolute inset-0 w-full h-full object-cover object-top"
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/30">
-              <User className="h-10 w-10" />
+            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/20">
+              <User className="h-14 w-14" />
             </div>
           )}
+        </div>
+
+        {/* ── Info ── */}
+        <div className="flex-1 min-w-0 p-4 flex flex-col gap-3" dir={lang === "ar" ? "rtl" : "ltr"}>
+
+          {/* Header */}
+          <div className="flex items-start gap-2.5">
+            <Checkbox
+              checked={selected}
+              onCheckedChange={onToggle}
+              aria-label="Select candidate"
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+            />
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-[13px] leading-snug line-clamp-2 text-foreground">{displayName}</div>
+              {c.occupation && (
+                <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{c.occupation}</div>
+              )}
+            </div>
+            <StatusBadge status={c.status} />
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-border/60" />
+
+          {/* Info grid */}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            <InfoPair label={t.age}          value={age != null ? String(age) : null} />
+            <InfoPair label={t.religion}     value={tv(c.religion, lang)} />
+            <InfoPair label={t.country}      value={tvCountry(c.country, c.gender, lang)} />
+            <InfoPair label={t.gender}       value={tv(c.gender, lang)} />
+            <InfoPair label={t.marital}      value={tv(c.marital_status, lang)} />
+            <InfoPair label={t.children}     value={c.children != null ? String(c.children) : null} />
+            <InfoPair label={t.exp}          value={tv(c.experience, lang)} />
+            <InfoPair label={t.expYrs}       value={c.experience_years} />
+            <InfoPair label={t.english}      value={tv(c.english_level, lang)} />
+            <InfoPair label={t.medical}      value={tv(c.medical_status, lang)} />
+            <InfoPair label={t.cvPassportNo} value={c.passport_number} />
+          </div>
+
+          {/* Skills */}
+          {c.skills && (
+            <div className="text-[10px] text-muted-foreground leading-relaxed line-clamp-2">
+              <span className="font-semibold text-foreground/70 uppercase tracking-wide text-[9px]">{t.skills}: </span>
+              {tvList(c.skills, lang)}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="mt-auto pt-1 grid grid-cols-2 gap-1.5">
+            <Button size="sm" variant="outline"
+              className="h-8 text-xs gap-1.5 rounded-lg border-border/80 hover:bg-muted/60"
+              onClick={() => setCvOpen(true)}>
+              <Eye className="h-3 w-3 shrink-0" /> {t.viewCv}
+            </Button>
+            <Button size="sm" variant="outline"
+              className="h-8 text-xs gap-1.5 rounded-lg border-border/80 hover:bg-muted/60"
+              onClick={handleDownloadCv} disabled={dlCv}>
+              <FileText className="h-3 w-3 shrink-0" />
+              {dlCv ? "…" : t.cvPdf}
+            </Button>
+            {c.video_url ? (
+              <>
+                <Button size="sm" variant="outline"
+                  className="h-8 text-xs gap-1.5 rounded-lg border-border/80 hover:bg-muted/60"
+                  onClick={() => window.open(c.video_url!, "_blank")}>
+                  <Play className="h-3 w-3 shrink-0 fill-current" /> {t.play}
+                </Button>
+                <Button size="sm" variant="outline"
+                  className="h-8 text-xs gap-1.5 rounded-lg border-border/80 hover:bg-muted/60"
+                  onClick={handleDownloadVideo} disabled={dlVideo}>
+                  {dlVideo ? <Loader2 className="h-3 w-3 shrink-0 animate-spin" /> : <Download className="h-3 w-3 shrink-0" />}
+                  {dlVideo ? "…" : t.video}
+                </Button>
+              </>
+            ) : (
+              <div className="col-span-2 h-8 flex items-center justify-center text-[10px] text-muted-foreground/40 border border-dashed border-border/50 rounded-lg">
+                {t.noVideo}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
