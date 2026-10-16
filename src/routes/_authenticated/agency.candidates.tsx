@@ -830,7 +830,7 @@ function AgencyCandidateCard({
             <img
               src={c.photo_url ?? c.full_photo_url!}
               alt={c.full_name}
-              className="absolute inset-0 w-full h-full object-contain object-top sm:object-cover"
+              className="absolute inset-0 w-full h-full object-cover object-top"
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/20">
