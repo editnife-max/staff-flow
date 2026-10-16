@@ -90,6 +90,24 @@ const AR_VALUES: Record<string, string> = {
   "Experienced": "ذو خبرة",
   "Fit":         "لائق",
   "Not Fit":     "غير لائق",
+  "Poor":        "ضعيف",
+  "Fair":        "متوسط",
+  "Good":        "جيد",
+  "Excellent":   "ممتاز",
+  "None":        "لا",
+  "Cleaning":     "تنظيف",
+  "Childcare":    "رعاية الأطفال",
+  "Babysitting":  "جليسة أطفال",
+  "Ironing":      "كي الملابس",
+  "Cooking":      "طبخ",
+  "Elderly care": "رعاية المسنين",
+  "Driving":      "قيادة",
+  "Hard worker":  "مجتهدة",
+  "House Maid":   "عاملة منزلية",
+  "House maid":   "عاملة منزلية",
+  "Housemaid":    "عاملة منزلية",
+  "Little":       "قليل",
+  "Unfit":        "غير لائق",
 };
 
 function tv(val: string | number | null | undefined, lang: "en" | "ar"): string {
@@ -97,6 +115,24 @@ function tv(val: string | number | null | undefined, lang: "en" | "ar"): string 
   const normalized = String(val) === "None" ? "No" : String(val);
   if (lang === "ar") return AR_VALUES[normalized] ?? normalized;
   return normalized;
+}
+
+function tvList(val: string | null | undefined, lang: "en" | "ar"): string {
+  if (!val) return "—";
+  if (lang !== "ar") return val;
+  return val.split(",").map((s) => AR_VALUES[s.trim()] ?? s.trim()).join("، ");
+}
+
+const AR_NATIONALITY: Record<string, { m: string; f: string }> = {
+  "Ethiopian": { m: "إثيوبي", f: "إثيوبية" },
+};
+
+function tvCountry(country: string | null | undefined, _gender: string | null | undefined, lang: "en" | "ar"): string {
+  if (lang !== "ar") return country ?? "—";
+  if (!country) return "إثيوبية";
+  const nat = AR_NATIONALITY[country];
+  if (nat) return nat.f;
+  return AR_VALUES[country] ?? country;
 }
 
 const UI = {
@@ -119,6 +155,21 @@ const UI = {
     maritalAll: "Marital Status", single: "Single", married: "Married",
     noVideo: "No video", viewCv: "View CV", cvPdf: "CV PDF", play: "Play", video: "Video",
     age: "Age", religion: "Religion", exp: "Exp.",
+    country: "Country", gender: "Gender", marital: "Marital", children: "Children",
+    expYrs: "Exp. Yrs", english: "English", medical: "Medical", skills: "Skills",
+    // CV dialog
+    cvSecPersonal: "Personal", cvSecPassport: "Passport", cvSecLangEdu: "Language & Education",
+    cvSecExperience: "Experience", cvSecOther: "Other",
+    cvFullName: "Full Name", cvOccupation: "Occupation", cvNationality: "Nationality",
+    cvDob: "Date of Birth", cvMaritalFull: "Marital Status", cvBirthPlace: "Birth Place",
+    cvLivingTown: "Living Town", cvWeight: "Weight", cvHeight: "Height",
+    cvPassportNo: "Passport No.", cvIssueDate: "Issue Date", cvExpiryDate: "Expiry Date",
+    cvPlaceOfIssue: "Place of Issue",
+    cvArabic: "Arabic", cvEducation: "Education", cvSpokenLangs: "Spoken Languages",
+    cvExpCountry: "Experience Country", cvExpYearsFull: "Experience Years",
+    cvNotes: "Notes", cvRemark: "Remark",
+    cvPhoto: "Photo", cvFullPhoto: "Full Photo", cvPassportPhoto: "Passport",
+    cvClose: "Close", cvDownloading: "Downloading…", cvGenerating: "Generating…", cvDownloadPdf: "Download PDF",
   },
   ar: {
     pageTitle: "المرشحون",
@@ -139,6 +190,21 @@ const UI = {
     maritalAll: "الحالة الاجتماعية", single: "أعزب/عزباء", married: "متزوج/ة",
     noVideo: "لا يوجد فيديو", viewCv: "عرض", cvPdf: "تنزيل", play: "تشغيل", video: "فيديو",
     age: "العمر", religion: "الديانة", exp: "الخبرة",
+    country: "الجنسية", gender: "الجنس", marital: "الحالة", children: "الأطفال",
+    expYrs: "سنوات الخبرة", english: "الإنجليزية", medical: "الطبي", skills: "المهارات",
+    // CV dialog
+    cvSecPersonal: "الشخصية", cvSecPassport: "جواز السفر", cvSecLangEdu: "اللغة والتعليم",
+    cvSecExperience: "الخبرة", cvSecOther: "أخرى",
+    cvFullName: "الاسم الكامل", cvOccupation: "المهنة", cvNationality: "الجنسية",
+    cvDob: "تاريخ الميلاد", cvMaritalFull: "الحالة الاجتماعية", cvBirthPlace: "مكان الولادة",
+    cvLivingTown: "مدينة الإقامة", cvWeight: "الوزن", cvHeight: "الطول",
+    cvPassportNo: "رقم الجواز", cvIssueDate: "تاريخ الإصدار", cvExpiryDate: "تاريخ الانتهاء",
+    cvPlaceOfIssue: "مكان الإصدار",
+    cvArabic: "العربية", cvEducation: "التعليم", cvSpokenLangs: "اللغات المحكية",
+    cvExpCountry: "دولة الخبرة", cvExpYearsFull: "سنوات الخبرة",
+    cvNotes: "ملاحظات", cvRemark: "تعليق",
+    cvPhoto: "صورة", cvFullPhoto: "صورة كاملة", cvPassportPhoto: "جواز السفر",
+    cvClose: "إغلاق", cvDownloading: "جار التنزيل…", cvGenerating: "جار الإنشاء…", cvDownloadPdf: "تنزيل PDF",
   },
 };
 
@@ -485,7 +551,8 @@ function AgencyCandidatesPage() {
 }
 
 
-function CvViewDialog({ candidate: c, template, onClose, translatedName }: { candidate: Candidate; template: CvTemplate | null; onClose: () => void; translatedName?: string }) {
+function CvViewDialog({ candidate: c, template, onClose, translatedName, lang = "en" }: { candidate: Candidate; template: CvTemplate | null; onClose: () => void; translatedName?: string; lang?: "en" | "ar" }) {
+  const t = UI[lang];
   const displayName = translatedName ?? c.full_name;
   const age = calcAge(c.dob) ?? c.age;
   const [dlDocx,  setDlDocx]  = useState(false);
@@ -550,21 +617,21 @@ function CvViewDialog({ candidate: c, template, onClose, translatedName }: { can
           {(c.photo_url || c.full_photo_url || c.passport_scan_url) && (
             <div className="flex gap-3">
               {c.photo_url && (
-                <button type="button" className="flex flex-col items-center gap-1 group" onClick={() => setLightbox({ src: c.photo_url!, label: "Photo" })}>
-                  <img src={c.photo_url} alt="Photo" crossOrigin="anonymous" className="h-24 w-20 object-cover border border-border group-hover:opacity-80 transition-opacity cursor-zoom-in" />
-                  <span className="text-[10px] text-muted-foreground">Photo</span>
+                <button type="button" className="flex flex-col items-center gap-1 group" onClick={() => setLightbox({ src: c.photo_url!, label: t.cvPhoto })}>
+                  <img src={c.photo_url} alt={t.cvPhoto} crossOrigin="anonymous" className="h-24 w-20 object-cover border border-border group-hover:opacity-80 transition-opacity cursor-zoom-in" />
+                  <span className="text-[10px] text-muted-foreground">{t.cvPhoto}</span>
                 </button>
               )}
               {c.full_photo_url && (
-                <button type="button" className="flex flex-col items-center gap-1 group" onClick={() => setLightbox({ src: c.full_photo_url!, label: "Full Photo" })}>
-                  <img src={c.full_photo_url} alt="Full Photo" crossOrigin="anonymous" className="h-24 w-20 object-cover border border-border group-hover:opacity-80 transition-opacity cursor-zoom-in" />
-                  <span className="text-[10px] text-muted-foreground">Full Photo</span>
+                <button type="button" className="flex flex-col items-center gap-1 group" onClick={() => setLightbox({ src: c.full_photo_url!, label: t.cvFullPhoto })}>
+                  <img src={c.full_photo_url} alt={t.cvFullPhoto} crossOrigin="anonymous" className="h-24 w-20 object-cover border border-border group-hover:opacity-80 transition-opacity cursor-zoom-in" />
+                  <span className="text-[10px] text-muted-foreground">{t.cvFullPhoto}</span>
                 </button>
               )}
               {c.passport_scan_url && (
-                <button type="button" className="flex flex-col items-center gap-1 group" onClick={() => setLightbox({ src: c.passport_scan_url!, label: "Passport" })}>
-                  <img src={c.passport_scan_url} alt="Passport" crossOrigin="anonymous" className="h-24 w-20 object-cover border border-border group-hover:opacity-80 transition-opacity cursor-zoom-in" />
-                  <span className="text-[10px] text-muted-foreground">Passport</span>
+                <button type="button" className="flex flex-col items-center gap-1 group" onClick={() => setLightbox({ src: c.passport_scan_url!, label: t.cvPassportPhoto })}>
+                  <img src={c.passport_scan_url} alt={t.cvPassportPhoto} crossOrigin="anonymous" className="h-24 w-20 object-cover border border-border group-hover:opacity-80 transition-opacity cursor-zoom-in" />
+                  <span className="text-[10px] text-muted-foreground">{t.cvPassportPhoto}</span>
                 </button>
               )}
             </div>
@@ -595,68 +662,68 @@ function CvViewDialog({ candidate: c, template, onClose, translatedName }: { can
             </Dialog>
           )}
 
-          <CvDetailSection title="Personal">
-            <CvInfoRow label="Full Name"      value={displayName} />
-            <CvInfoRow label="Occupation"     value={c.occupation} />
-            <CvInfoRow label="Nationality"    value={c.country} />
-            <CvInfoRow label="Date of Birth"  value={c.dob} />
-            <CvInfoRow label="Age"            value={age} />
-            <CvInfoRow label="Gender"         value={c.gender} />
-            <CvInfoRow label="Religion"       value={c.religion} />
-            <CvInfoRow label="Marital Status" value={c.marital_status} />
-            <CvInfoRow label="Children"       value={c.children} />
-            <CvInfoRow label="Birth Place"    value={c.birth_place} />
-            <CvInfoRow label="Living Town"    value={c.living_town} />
-            <CvInfoRow label="Weight"         value={c.weight != null ? `${c.weight} kg` : null} />
-            <CvInfoRow label="Height"         value={c.height != null ? `${c.height} cm` : null} />
+          <CvDetailSection title={t.cvSecPersonal}>
+            <CvInfoRow label={t.cvFullName}    value={displayName} />
+            <CvInfoRow label={t.cvOccupation}  value={c.occupation} />
+            <CvInfoRow label={t.cvNationality} value={tvCountry(c.country, c.gender, lang)} />
+            <CvInfoRow label={t.cvDob}         value={c.dob} />
+            <CvInfoRow label={t.age}           value={age} />
+            <CvInfoRow label={t.gender}        value={tv(c.gender, lang)} />
+            <CvInfoRow label={t.religion}      value={tv(c.religion, lang)} />
+            <CvInfoRow label={t.cvMaritalFull} value={tv(c.marital_status, lang)} />
+            <CvInfoRow label={t.children}      value={c.children} />
+            <CvInfoRow label={t.cvBirthPlace}  value={c.birth_place} />
+            <CvInfoRow label={t.cvLivingTown}  value={c.living_town} />
+            <CvInfoRow label={t.cvWeight}      value={c.weight != null ? `${c.weight} kg` : null} />
+            <CvInfoRow label={t.cvHeight}      value={c.height != null ? `${c.height} cm` : null} />
           </CvDetailSection>
 
-          <CvDetailSection title="Passport">
-            <CvInfoRow label="Passport No."   value={c.passport_number} />
-            <CvInfoRow label="Issue Date"     value={c.passport_issue_date} />
-            <CvInfoRow label="Expiry Date"    value={c.passport_expiry_date} />
-            <CvInfoRow label="Place of Issue" value={c.place_of_issue} />
+          <CvDetailSection title={t.cvSecPassport}>
+            <CvInfoRow label={t.cvPassportNo}    value={c.passport_number} />
+            <CvInfoRow label={t.cvIssueDate}     value={c.passport_issue_date} />
+            <CvInfoRow label={t.cvExpiryDate}    value={c.passport_expiry_date} />
+            <CvInfoRow label={t.cvPlaceOfIssue}  value={c.place_of_issue} />
           </CvDetailSection>
 
-          <CvDetailSection title="Language & Education">
-            <CvInfoRow label="English"   value={c.english_level} />
-            <CvInfoRow label="Arabic"    value={c.arabic_level} />
-            <CvInfoRow label="Education" value={c.education} />
-            <CvInfoRow label="Spoken Languages" value={c.spoken_languages} />
+          <CvDetailSection title={t.cvSecLangEdu}>
+            <CvInfoRow label={t.english}       value={tv(c.english_level, lang)} />
+            <CvInfoRow label={t.cvArabic}      value={c.arabic_level} />
+            <CvInfoRow label={t.cvEducation}   value={c.education} />
+            <CvInfoRow label={t.cvSpokenLangs} value={c.spoken_languages} />
           </CvDetailSection>
 
-          <CvDetailSection title="Experience">
-            <CvInfoRow label="Experience"         value={c.experience === "None" ? "No" : c.experience} />
-            <CvInfoRow label="Experience Country" value={c.experience_country} />
-            <CvInfoRow label="Experience Years"   value={c.experience_years} />
+          <CvDetailSection title={t.cvSecExperience}>
+            <CvInfoRow label={t.cvSecExperience} value={tv(c.experience === "None" ? "No" : c.experience, lang)} />
+            <CvInfoRow label={t.cvExpCountry}    value={c.experience_country} />
+            <CvInfoRow label={t.cvExpYearsFull}  value={c.experience_years} />
           </CvDetailSection>
 
           {(c.skills || c.notes || c.remark) && (
-            <CvDetailSection title="Other">
-              {c.skills  && <div className="col-span-3"><CvInfoRow label="Skills"  value={c.skills} /></div>}
-              {c.notes   && <div className="col-span-3"><CvInfoRow label="Notes"   value={c.notes} /></div>}
-              {c.remark  && <div className="col-span-3"><CvInfoRow label="Remark"  value={c.remark} /></div>}
+            <CvDetailSection title={t.cvSecOther}>
+              {c.skills  && <div className="col-span-3"><CvInfoRow label={t.skills}   value={tvList(c.skills, lang)} /></div>}
+              {c.notes   && <div className="col-span-3"><CvInfoRow label={t.cvNotes}  value={c.notes} /></div>}
+              {c.remark  && <div className="col-span-3"><CvInfoRow label={t.cvRemark} value={c.remark} /></div>}
             </CvDetailSection>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Close</Button>
+          <Button variant="ghost" onClick={onClose}>{t.cvClose}</Button>
           {c.video_url && (
             <Button variant="outline" onClick={handleDownloadVideo} disabled={dlVideo} className="gap-1.5">
               <Play className="h-4 w-4" />
-              {dlVideo ? "Downloading…" : "Video"}
+              {dlVideo ? t.cvDownloading : t.video}
             </Button>
           )}
           {isDocx && (
             <Button variant="outline" onClick={handleDownloadDocx} disabled={dlDocx} className="gap-1.5">
               <FileText className="h-4 w-4" />
-              {dlDocx ? "Generating…" : "DOCX"}
+              {dlDocx ? t.cvGenerating : "DOCX"}
             </Button>
           )}
           <Button onClick={handleDownloadPdf} disabled={dlPdf} className="gap-1.5">
             <Download className="h-4 w-4" />
-            {dlPdf ? "Generating…" : "Download PDF"}
+            {dlPdf ? t.cvGenerating : t.cvDownloadPdf}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -779,20 +846,21 @@ function AgencyCandidateCard({
           <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px]">
             <InfoPair label={t.age}      value={age != null ? String(age) : null} />
             <InfoPair label={t.religion} value={tv(c.religion, lang)} />
-            <InfoPair label="Country"    value={c.country} />
-            <InfoPair label="Gender"     value={tv(c.gender, lang)} />
-            <InfoPair label="Marital"    value={tv(c.marital_status, lang)} />
-            <InfoPair label="Children"   value={c.children != null ? String(c.children) : null} />
+            <InfoPair label={t.country}  value={tvCountry(c.country, c.gender, lang)} />
+            <InfoPair label={t.gender}   value={tv(c.gender, lang)} />
+            <InfoPair label={t.marital}  value={tv(c.marital_status, lang)} />
+            <InfoPair label={t.children} value={c.children != null ? String(c.children) : null} />
             <InfoPair label={t.exp}      value={tv(c.experience, lang)} />
-            <InfoPair label="Exp. Yrs"   value={c.experience_years} />
-            <InfoPair label="English"    value={c.english_level} />
-            <InfoPair label="Medical"    value={c.medical_status} />
+            <InfoPair label={t.expYrs}   value={c.experience_years} />
+            <InfoPair label={t.english}      value={tv(c.english_level, lang)} />
+            <InfoPair label={t.medical}      value={tv(c.medical_status, lang)} />
+            <InfoPair label={t.cvPassportNo} value={c.passport_number} />
           </div>
 
           {/* Skills */}
           {c.skills && (
             <div className="text-[10px] text-muted-foreground line-clamp-1">
-              <span className="font-medium text-foreground">Skills:</span> {c.skills}
+              <span className="font-medium text-foreground">{t.skills}:</span> {tvList(c.skills, lang)}
             </div>
           )}
 
@@ -830,7 +898,7 @@ function AgencyCandidateCard({
         </div>
 
         {/* ── RIGHT: Photo ─────────────────────────────────────────── */}
-        <div className="w-36 shrink-0 bg-muted relative self-stretch min-h-[160px]">
+        <div className="w-56 shrink-0 bg-muted relative self-stretch min-h-[160px]">
           {(c.photo_url || c.full_photo_url) ? (
             <img
               src={c.photo_url ?? c.full_photo_url!}
@@ -845,7 +913,7 @@ function AgencyCandidateCard({
         </div>
       </div>
 
-      {cvOpen && <CvViewDialog candidate={c} template={template} onClose={() => setCvOpen(false)} translatedName={translatedName} />}
+      {cvOpen && <CvViewDialog candidate={c} template={template} onClose={() => setCvOpen(false)} translatedName={translatedName} lang={lang} />}
     </>
   );
 }
