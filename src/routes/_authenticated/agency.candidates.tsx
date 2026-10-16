@@ -819,18 +819,18 @@ function AgencyCandidateCard({
     <>
       <div className={cn(
         "bg-card border border-border rounded-xl overflow-hidden shadow-sm",
-        "flex flex-row",
+        "flex flex-col sm:flex-row",
         "hover:shadow-md hover:border-border/80 transition-all duration-200",
         selected && "ring-2 ring-primary/50 border-primary/40",
       )}>
 
-        {/* ── Photo: fixed w-56, always right ── */}
-        <div className="w-56 shrink-0 bg-muted relative self-stretch min-h-[200px] order-last">
+        {/* ── Photo: full width on mobile, w-56 on sm+ ── */}
+        <div className="w-full aspect-[3/4] sm:aspect-auto sm:w-56 sm:h-auto sm:self-stretch shrink-0 bg-muted relative order-first sm:order-last">
           {(c.photo_url || c.full_photo_url) ? (
             <img
               src={c.photo_url ?? c.full_photo_url!}
               alt={c.full_name}
-              className="absolute inset-0 w-full h-full object-cover object-top"
+              className="absolute inset-0 w-full h-full object-contain object-top sm:object-cover"
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/20">
@@ -851,7 +851,7 @@ function AgencyCandidateCard({
               className="mt-0.5 h-4 w-4 shrink-0 rounded border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
             />
             <div className="flex-1 min-w-0">
-              <div className="font-semibold text-[13px] leading-snug line-clamp-2 text-foreground">{displayName}</div>
+              <div className="font-semibold text-[13px] leading-snug text-foreground">{displayName}</div>
               {c.occupation && (
                 <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{c.occupation}</div>
               )}
