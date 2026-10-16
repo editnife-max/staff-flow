@@ -851,12 +851,12 @@ function AgencyCandidateCard({
               className="mt-0.5 h-4 w-4 shrink-0 rounded border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
             />
             <div className="flex-1 min-w-0">
-              <div className="font-semibold text-[13px] leading-snug text-foreground">{displayName}</div>
+              <StatusBadge status={c.status} />
+              <div className="font-semibold text-[13px] leading-snug text-foreground mt-1">{displayName}</div>
               {c.occupation && (
                 <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{c.occupation}</div>
               )}
             </div>
-            <StatusBadge status={c.status} />
           </div>
 
           {/* Divider */}
