@@ -128,7 +128,7 @@ const AR_NATIONALITY: Record<string, { m: string; f: string }> = {
 };
 
 function tvCountry(country: string | null | undefined, _gender: string | null | undefined, lang: "en" | "ar"): string {
-  if (lang !== "ar") return country ?? "—";
+  if (lang !== "ar") return country || "Ethiopian";
   if (!country) return "إثيوبية";
   const nat = AR_NATIONALITY[country];
   if (nat) return nat.f;
@@ -154,7 +154,7 @@ const UI = {
     expAll: "Experience", experienced: "Experienced", nonExperienced: "Non-Experienced",
     maritalAll: "Marital Status", single: "Single", married: "Married",
     noVideo: "No video", viewCv: "View CV", cvPdf: "CV PDF", play: "Play", video: "Video",
-    age: "Age", religion: "Religion", exp: "Exp.",
+    age: "Age", religion: "Religion", exp: "Experience",
     country: "Country", gender: "Gender", marital: "Marital", children: "Children",
     expYrs: "Exp. Yrs", english: "English", medical: "Medical", skills: "Skills",
     // CV dialog
@@ -866,8 +866,6 @@ function AgencyCandidateCard({
           <div className="grid grid-cols-2 gap-x-4 gap-y-2">
             <InfoPair label={t.age}          value={age != null ? String(age) : null} />
             <InfoPair label={t.religion}     value={tv(c.religion, lang)} />
-            <InfoPair label={t.country}      value={tvCountry(c.country, c.gender, lang)} />
-            <InfoPair label={t.gender}       value={tv(c.gender, lang)} />
             <InfoPair label={t.marital}      value={tv(c.marital_status, lang)} />
             <InfoPair label={t.children}     value={c.children != null ? String(c.children) : null} />
             <InfoPair label={t.exp}          value={tv(c.experience, lang)} />
