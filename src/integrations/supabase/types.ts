@@ -174,6 +174,7 @@ export type Database = {
           labour_id: string | null
           last_name: string | null
           living_town: string | null
+          lmis_contract_phase: string | null
           lmis_status: string | null
           manager_id: string
           marital_status: string | null
@@ -192,6 +193,7 @@ export type Database = {
           passport_number: string | null
           passport_scan_url: string | null
           passport_status: string | null
+          payment_code: string | null
           photo_url: string | null
           place_of_issue: string | null
           processing_notes: string | null
@@ -265,6 +267,7 @@ export type Database = {
           labour_id?: string | null
           last_name?: string | null
           living_town?: string | null
+          lmis_contract_phase?: string | null
           lmis_status?: string | null
           manager_id: string
           marital_status?: string | null
@@ -283,6 +286,7 @@ export type Database = {
           passport_number?: string | null
           passport_scan_url?: string | null
           passport_status?: string | null
+          payment_code?: string | null
           photo_url?: string | null
           place_of_issue?: string | null
           processing_notes?: string | null
@@ -356,6 +360,7 @@ export type Database = {
           labour_id?: string | null
           last_name?: string | null
           living_town?: string | null
+          lmis_contract_phase?: string | null
           lmis_status?: string | null
           manager_id?: string
           marital_status?: string | null
@@ -374,6 +379,7 @@ export type Database = {
           passport_number?: string | null
           passport_scan_url?: string | null
           passport_status?: string | null
+          payment_code?: string | null
           photo_url?: string | null
           place_of_issue?: string | null
           processing_notes?: string | null

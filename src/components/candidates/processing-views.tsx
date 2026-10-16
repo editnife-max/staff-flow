@@ -654,6 +654,20 @@ function ProcessingCard({
         <div className="sticky left-0 z-10 w-fit flex items-center gap-2 px-4 pt-2.5 pb-1" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" disabled={candidate.visa_status === "Waiting Replacement"} />
           <StatusBadge status="processing" />
+          {(candidate as any).lmis_contract_phase && (
+            <span className={cn(
+              "inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 border rounded-sm",
+              (candidate as any).lmis_contract_phase === "create"
+                ? "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-700"
+                : (candidate as any).lmis_contract_phase === "draft"
+                ? "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/40 dark:text-violet-400 dark:border-violet-700"
+                : "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-700"
+            )}>
+              {(candidate as any).lmis_contract_phase === "create" ? "P1 Create"
+                : (candidate as any).lmis_contract_phase === "draft" ? "P2 Draft"
+                : "P3 Issue"}
+            </span>
+          )}
         </div>
         <div className="flex items-center pb-3 pt-1">
           <div className="sticky left-0 z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>

@@ -22,7 +22,8 @@ export type EditableField =
   | "processing_notes" | "remark" | "destination_country" | "cv_sent_to" | "passport_accepted"
   | "availability_type" | "coc_agency_name" | "coc_agency_phone" | "insurance_date"
   | "video_url" | "delete_reason" | "ticket_pdf_url" | "visa_pdf_url" | "qr_url"
-  | "return_ticket_url" | "stamp_url";
+  | "return_ticket_url" | "stamp_url"
+  | "lmis_contract_phase" | "payment_code";
 
 export const MEDICAL_OPTIONS = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired"];
 export const medDaysAgo = (date: string) =>
@@ -124,6 +125,9 @@ export const OPTION_COLORS: Record<string, string> = {
   "oldest":             "bg-white text-amber-700 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-700",
   "Not Selected":       "bg-white text-zinc-400 border border-zinc-200 dark:bg-zinc-900 dark:text-zinc-500 dark:border-zinc-700",
   "Hold":               "bg-white text-rose-700 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-700",
+  "create":             "bg-white text-sky-700 border border-sky-300 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-700",
+  "draft":              "bg-white text-violet-700 border border-violet-300 dark:bg-violet-950/40 dark:text-violet-400 dark:border-violet-700",
+  "issue":              "bg-white text-emerald-700 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-700",
   "":                   "bg-white text-zinc-400 border border-zinc-200 dark:bg-zinc-900 dark:text-zinc-500 dark:border-zinc-700",
 };
 
@@ -150,6 +154,7 @@ export const PROCESSING_COLS: ProcessingColDef[] = [
   { key: "arrival_city",      header: "Arrival City",      type: "select", options: ARRIVAL_CITY_OPTIONS },
   { key: "processing_notes",  header: "Note",              type: "text" },
   { key: "emergency_contact", header: "Emergency Contact", type: "text" },
+  { key: "payment_code",      header: "Payment Code",      type: "text" },
 ];
 
 export const CANDIDATE_CARD_COLS = [

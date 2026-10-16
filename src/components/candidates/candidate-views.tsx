@@ -63,6 +63,7 @@ export function ProcessingEditDialog({
     arrival_city:      candidate.arrival_city      ?? "",
     processing_notes:  (candidate as any).processing_notes  ?? "",
     emergency_contact: (candidate as any).emergency_contact ?? "",
+    payment_code:      (candidate as any).payment_code      ?? "",
     destination_country: candidate.destination_country ?? "",
     office:            candidate.office            ?? "",
   };
@@ -131,6 +132,7 @@ export function ProcessingEditDialog({
             <ProcInput label="Narrative Phone" k="narrative_phone" />
             <ProcInput label="Contract Date" k="contract_date" type="date" />
             <ProcInput label="Emergency Contact" k="emergency_contact" />
+            <ProcInput label="Payment Code" k="payment_code" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <ProcSelect label="Medical Status" k="medical_status" options={MEDICAL_OPTIONS} />

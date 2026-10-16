@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock, Download, BarChart3, AlertCircle, Lock, Unlock, KeyRound, Eye, EyeOff, Search, Users, GraduationCap } from "lucide-react";
+import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock, Download, BarChart3, AlertCircle, Lock, Unlock, KeyRound, Eye, EyeOff, Search, Users, GraduationCap, Play, FileSignature, Send, Loader2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import { addCountry, deleteCountry, addOffice, deleteOffice, lockOffice, deleteCvTemplate, optimizeCvTemplate, saveMusanedCredentials, saveEnjazCredentials, saveMofaCredentials, saveLmisCredentials, getManagerCredentials } from "@/lib/assignments.functions";
+import { runLmisPhase1 } from "@/lib/lmis-contract.functions";
 
 type AssignCountry  = Database["public"]["Tables"]["assignment_countries"]["Row"];
 type AssignOffice   = Database["public"]["Tables"]["assignment_offices"]["Row"];
@@ -82,6 +83,12 @@ function AssignmentsPage() {
   const [lmisEmail,         setLmisEmail]         = useState("");
   const [lmisPasswordDraft, setLmisPasswordDraft] = useState("");
   const [lmisShowPassword,  setLmisShowPassword]  = useState(false);
+
+  // ── LMIS contract phase 1 ────────────────────────────────────────────────────
+  const [phase1Running,    setPhase1Running]    = useState(false);
+  const [phase1Result,     setPhase1Result]     = useState<{ checked: number; notTested: number; draft: number; errors: number; log: string[] } | null>(null);
+  const [phase1LogOpen,    setPhase1LogOpen]    = useState(false);
+  const runPhase1Fn = useServerFn(runLmisPhase1);
 
   // ── panel dialog ──────────────────────────────────────────────────────────────
   const [panelDialog, setPanelDialog] = useState<"countries" | "offices" | "cvTemplates" | "cvReq" | null>(null);
@@ -1011,6 +1018,137 @@ function AssignmentsPage() {
           </button>
         ))}
       </div>
+
+      {/* ── LMIS Contract Process ─────────────────────────────────────── */}
+      <div className="border border-border bg-background shrink-0">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-border/60">
+          <FileSignature className="h-4 w-4 text-primary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold">LMIS Contract Process</div>
+            <div className="text-xs text-muted-foreground">3-phase contract workflow for processing candidates</div>
+          </div>
+          {!lmisSaved && (
+            <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-sm shrink-0">
+              LMIS credentials required
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-3 divide-x divide-border/60">
+
+          {/* Phase 1 — Create Contract */}
+          <div className="px-4 py-3 flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400 border border-sky-200 dark:border-sky-700 px-1.5 py-0.5 rounded-sm">Phase 1</span>
+              <span className="text-xs font-semibold">Create Contract</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Logs into lmis.gov.et, goes to placed-labors, searches each processing candidate by Labour ID.
+              <br />• Medical <strong>Not tested</strong> → sets LMIS status
+              <br />• Medical <strong>Approved</strong> → creates contract → moves to Draft
+            </p>
+            {phase1Result && (
+              <div className="text-[11px] space-y-0.5">
+                <div className="text-muted-foreground">Last run:</div>
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-foreground font-medium">Checked {phase1Result.checked}</span>
+                  <span className="text-zinc-500">·</span>
+                  <span className="text-amber-700 dark:text-amber-400">{phase1Result.notTested} not-tested</span>
+                  <span className="text-zinc-500">·</span>
+                  <span className="text-violet-700 dark:text-violet-400">{phase1Result.draft} → draft</span>
+                  {phase1Result.errors > 0 && (
+                    <><span className="text-zinc-500">·</span><span className="text-red-600">{phase1Result.errors} errors</span></>
+                  )}
+                </div>
+                <button type="button" onClick={() => setPhase1LogOpen(true)}
+                  className="text-[10px] text-primary hover:underline">View log</button>
+              </div>
+            )}
+            <Button
+              size="sm"
+              className="h-7 rounded-none px-3 text-xs gap-1.5 w-fit mt-auto"
+              disabled={!lmisSaved || phase1Running}
+              onClick={async () => {
+                setPhase1Running(true);
+                setPhase1Result(null);
+                try {
+                  const result = await runPhase1Fn();
+                  setPhase1Result(result);
+                  if (result.errors === 0) {
+                    toast.success(`Phase 1 done — ${result.draft} moved to Draft, ${result.notTested} marked Not tested`);
+                  } else {
+                    toast.warning(`Phase 1 done with ${result.errors} error(s) — check the log`);
+                  }
+                } catch (e: any) {
+                  toast.error(e.message ?? "Phase 1 failed");
+                } finally {
+                  setPhase1Running(false);
+                }
+              }}
+            >
+              {phase1Running ? (
+                <><Loader2 className="h-3 w-3 animate-spin" /> Running…</>
+              ) : (
+                <><Play className="h-3 w-3" /> Run Phase 1</>
+              )}
+            </Button>
+          </div>
+
+          {/* Phase 2 — Draft */}
+          <div className="px-4 py-3 flex flex-col gap-2 opacity-60">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400 border border-violet-200 dark:border-violet-700 px-1.5 py-0.5 rounded-sm">Phase 2</span>
+              <span className="text-xs font-semibold">Draft</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Continues the contract draft process on LMIS for candidates in Draft phase.
+            </p>
+            <Button
+              size="sm"
+              className="h-7 rounded-none px-3 text-xs gap-1.5 w-fit mt-auto"
+              disabled
+            >
+              <Send className="h-3 w-3" /> Run Phase 2
+            </Button>
+          </div>
+
+          {/* Phase 3 — Issue */}
+          <div className="px-4 py-3 flex flex-col gap-2 opacity-60">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700 px-1.5 py-0.5 rounded-sm">Phase 3</span>
+              <span className="text-xs font-semibold">Issue</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Issues the final contract on LMIS for candidates in Draft phase.
+            </p>
+            <Button
+              size="sm"
+              className="h-7 rounded-none px-3 text-xs gap-1.5 w-fit mt-auto"
+              disabled
+            >
+              <CheckCircle2 className="h-3 w-3" /> Run Phase 3
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Phase 1 log dialog */}
+      <Dialog open={phase1LogOpen} onOpenChange={setPhase1LogOpen}>
+        <DialogContent className="sm:max-w-lg rounded-none">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Phase 1 — Run Log</DialogTitle>
+          </DialogHeader>
+          <div className="bg-muted/50 border border-border rounded-none p-3 max-h-80 overflow-y-auto font-mono text-[11px] space-y-0.5">
+            {phase1Result?.log.map((line, i) => (
+              <div key={i} className={cn(
+                line.includes("ERROR") ? "text-red-600 dark:text-red-400" :
+                line.includes("draft") || line.includes("Draft") ? "text-violet-700 dark:text-violet-400" :
+                line.includes("Not tested") ? "text-amber-700 dark:text-amber-400" :
+                "text-foreground"
+              )}>{line}</div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Credential Dialog ─────────────────────────────────────────── */}
       <Dialog open={activeSetup !== null} onOpenChange={(open) => { if (!open) setActiveSetup(null); }}>
