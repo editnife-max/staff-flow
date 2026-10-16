@@ -825,7 +825,7 @@ function AgencyCandidateCard({
       )}>
 
         {/* ── Photo: full width on mobile, w-56 on sm+ ── */}
-        <div className="w-full aspect-[3/4] sm:aspect-auto sm:w-56 sm:h-auto sm:self-stretch shrink-0 bg-muted relative order-first sm:order-last">
+        <div className="w-full aspect-[3/4] sm:aspect-auto sm:w-72 sm:h-auto sm:self-stretch shrink-0 bg-muted relative order-first sm:order-last">
           {(c.photo_url || c.full_photo_url) ? (
             <img
               src={c.photo_url ?? c.full_photo_url!}
