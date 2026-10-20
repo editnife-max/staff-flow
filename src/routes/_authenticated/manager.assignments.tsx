@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import { addCountry, deleteCountry, addOffice, deleteOffice, lockOffice, deleteCvTemplate, optimizeCvTemplate, saveMusanedCredentials, saveEnjazCredentials, saveMofaCredentials, saveLmisCredentials, getManagerCredentials } from "@/lib/assignments.functions";
 import { runLmisPhase1 } from "@/lib/lmis-contract.functions";
+import { runMusanedFetch } from "@/lib/musaned.functions";
 
 type AssignCountry  = Database["public"]["Tables"]["assignment_countries"]["Row"];
 type AssignOffice   = Database["public"]["Tables"]["assignment_offices"]["Row"];
@@ -89,6 +90,11 @@ function AssignmentsPage() {
   const [phase1Result,     setPhase1Result]     = useState<{ checked: number; notTested: number; draft: number; errors: number; log: string[] } | null>(null);
   const [phase1LogOpen,    setPhase1LogOpen]    = useState(false);
   const runPhase1Fn = useServerFn(runLmisPhase1);
+
+  const [musanedRunning,   setMusanedRunning]   = useState(false);
+  const [musanedResult,    setMusanedResult]    = useState<{ fetched: number; skipped: number; errors: number; log: string[] } | null>(null);
+  const [musanedLogOpen,   setMusanedLogOpen]   = useState(false);
+  const runMusanedFn = useServerFn(runMusanedFetch);
 
   // ── panel dialog ──────────────────────────────────────────────────────────────
   const [panelDialog, setPanelDialog] = useState<"countries" | "offices" | "cvTemplates" | "cvReq" | null>(null);
@@ -1130,6 +1136,109 @@ function AssignmentsPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Musaned Fetch ─────────────────────────────────────────────── */}
+      <div className="border border-border bg-background shrink-0">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-border/60">
+          <Globe className="h-4 w-4 text-primary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold">Musaned Data Fetch</div>
+            <div className="text-xs text-muted-foreground">Fetch visa & employer info for new Processing candidates from musaned.com.sa</div>
+          </div>
+          {!musanedSaved && (
+            <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-sm shrink-0">
+              Musaned credentials required
+            </span>
+          )}
+        </div>
+        <div className="px-4 py-3 flex flex-col gap-2">
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Logs into musaned.com.sa, searches each <strong>new</strong> Processing candidate by passport number,
+            and saves: Visa Number, Employer City, Employer Name, Employer Phone, House Number.
+            <br />Only fetches candidates not yet fetched (runs automatically at 6:00 PM daily via Task Scheduler).
+          </p>
+          {musanedResult && (
+            <div className="text-[11px] space-y-0.5">
+              <div className="text-muted-foreground">Last run:</div>
+              <div className="flex flex-wrap gap-2">
+                <span className="text-foreground font-medium">{musanedResult.fetched} fetched</span>
+                <span className="text-zinc-500">·</span>
+                <span className="text-amber-700 dark:text-amber-400">{musanedResult.skipped} skipped</span>
+                {musanedResult.errors > 0 && (
+                  <><span className="text-zinc-500">·</span><span className="text-red-600">{musanedResult.errors} errors</span></>
+                )}
+              </div>
+              <button type="button" onClick={() => setMusanedLogOpen(true)}
+                className="text-[10px] text-primary hover:underline">View log</button>
+            </div>
+          )}
+          <Button
+            size="sm"
+            className="h-7 rounded-none px-3 text-xs gap-1.5 w-fit mt-auto"
+            disabled={!musanedSaved || musanedRunning}
+            onClick={async () => {
+              setMusanedRunning(true);
+              setMusanedResult(null);
+              try {
+                const result = await runMusanedFn();
+                setMusanedResult(result);
+                if (result.errors === 0) {
+                  toast.success(`Musaned fetch done — ${result.fetched} candidates updated`);
+                } else {
+                  toast.warning(`Musaned fetch done with ${result.errors} error(s) — check the log`);
+                }
+              } catch (e: any) {
+                toast.error(e.message ?? "Musaned fetch failed");
+              } finally {
+                setMusanedRunning(false);
+              }
+            }}
+          >
+            {musanedRunning ? (
+              <><Loader2 className="h-3 w-3 animate-spin" /> Fetching…</>
+            ) : (
+              <><Play className="h-3 w-3" /> Fetch Now</>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Musaned log dialog */}
+      <Dialog open={musanedLogOpen} onOpenChange={setMusanedLogOpen}>
+        <DialogContent className="sm:max-w-lg rounded-none">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Musaned Fetch — Run Log</DialogTitle>
+          </DialogHeader>
+          <div className="bg-muted/50 border border-border rounded-none p-3 max-h-80 overflow-y-auto font-mono text-[11px] space-y-0.5">
+            {musanedResult?.log.map((line, i) => (
+              <div key={i} className={cn(
+                "leading-relaxed",
+                line.includes("ERROR") ? "text-red-600" :
+                line.includes("Saved") ? "text-emerald-600 dark:text-emerald-400" :
+                line.includes("skipping") || line.includes("skipped") ? "text-amber-600 dark:text-amber-400" :
+                "text-muted-foreground"
+              )}>{line}</div>
+            ))}
+          </div>
+          {musanedResult && (
+            <button
+              type="button"
+              className="text-xs text-primary hover:underline text-left"
+              onClick={() => {
+                const text = musanedResult.log.join("\n");
+                const blob = new Blob([text], { type: "text/plain" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url; a.download = "musaned-fetch-log.txt";
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              }}
+            >
+              <Download className="h-3 w-3 inline mr-1" />Download log
+            </button>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Phase 1 log dialog */}
       <Dialog open={phase1LogOpen} onOpenChange={setPhase1LogOpen}>
