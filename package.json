@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "check-medical": "bun run scripts/check-medical-status.ts",
+    "musaned-cron": "bun run scripts/musaned-cron.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:report": "playwright show-report"

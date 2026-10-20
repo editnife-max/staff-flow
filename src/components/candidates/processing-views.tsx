@@ -744,6 +744,17 @@ function ProcessingCard({
                               ? items
                               : <button type="button" onClick={() => setLmisFilesOpen(true)} className="text-muted-foreground text-sm">—</button>;
                           })()}
+
+                          {/* Musaned employer / visa data */}
+                          {((candidate as any).musaned_visa_number || (candidate as any).musaned_employer_name || (candidate as any).musaned_employer_city || (candidate as any).musaned_employer_phone || (candidate as any).musaned_house_number) && (
+                            <div className="mt-1 pt-1 border-t border-border/40 space-y-0.5">
+                              {(candidate as any).musaned_visa_number   && <div className="text-[9px] leading-tight"><span className="font-semibold text-foreground/70">Visa:</span> {(candidate as any).musaned_visa_number}</div>}
+                              {(candidate as any).musaned_employer_city && <div className="text-[9px] leading-tight"><span className="font-semibold text-foreground/70">City:</span> {(candidate as any).musaned_employer_city}</div>}
+                              {(candidate as any).musaned_employer_name && <div className="text-[9px] leading-tight"><span className="font-semibold text-foreground/70">Employer:</span> {(candidate as any).musaned_employer_name}</div>}
+                              {(candidate as any).musaned_employer_phone && <div className="text-[9px] leading-tight"><span className="font-semibold text-foreground/70">Phone:</span> {(candidate as any).musaned_employer_phone}</div>}
+                              {(candidate as any).musaned_house_number  && <div className="text-[9px] leading-tight"><span className="font-semibold text-foreground/70">House:</span> {(candidate as any).musaned_house_number}</div>}
+                            </div>
+                          )}
                         </div>
                       ) : col.key === "coc_status" && strVal === "Placed" ? (
                         <div className="flex items-center gap-1">
