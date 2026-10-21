@@ -220,7 +220,7 @@ export function ProcessingEditDialog({
 
 export function CandidateCardList({
   candidates, selected, onToggleSelect, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo,
-  countryMeta, officesByCountry, agencyOptions, agencyPhones, compact, narrativeSuggestions, showCvBadge, pageKey, renderExtraColumns,
+  countryMeta, officesByCountry, agencyOptions, agencyPhones, compact, narrativeSuggestions, showCvBadge, pageKey, renderExtraColumns, excludeCols,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -242,6 +242,7 @@ export function CandidateCardList({
   narrativeSuggestions?: string[];
   pageKey: string;
   renderExtraColumns?: (c: Candidate) => React.ReactNode;
+  excludeCols?: string[];
 }) {
   const cvReq = useMemo(() => {
     if (!showCvBadge) return null;
@@ -347,6 +348,7 @@ export function CandidateCardList({
   const someSel = !allSel && paginated.some((c) => selected.has(c.id));
   const visibleCols = (CANDIDATE_CARD_COLS as readonly string[]).filter((l) => {
     if (l === "TICKET PDF") return !!compact;
+    if (excludeCols?.includes(l)) return false;
     if (hiddenCols.has(l)) return false;
     return true;
   });
@@ -452,7 +454,7 @@ export function CandidateCardList({
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                    {CANDIDATE_CARD_COLS.filter((l) => l !== "TICKET PDF" || compact).map((label) => (
+                    {CANDIDATE_CARD_COLS.filter((l) => (l !== "TICKET PDF" || compact) && !excludeCols?.includes(l)).map((label) => (
                       <label key={label} className="flex items-center gap-1.5 text-xs cursor-pointer py-1 hover:text-primary">
                         <Checkbox
                           checked={!hiddenCols.has(label)}

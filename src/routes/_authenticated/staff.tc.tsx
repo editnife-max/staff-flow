@@ -682,6 +682,7 @@ function TcPage() {
           agencyOptions={agencyOptions}
           agencyPhones={agencyPhones}
           narrativeSuggestions={opts.narrative}
+          excludeCols={["CV SENT TO", "CV SENT DATE", "AVAILABILITY", "SELECTED BY"]}
           renderExtraColumns={(c) => (
             <CriteriaColumn
               candidate={c}
