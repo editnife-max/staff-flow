@@ -33,3 +33,17 @@ export const getManagerTcEnabled = createServerFn({ method: "GET" })
     const tc_enabled = (data?.cv_page_requirements as any)?.tc_enabled !== false;
     return { tc_enabled };
   });
+
+export const getManagerTcCriteria = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    if (!managerId) return { tc_criteria_keys: null };
+    const { data } = await supabaseAdmin
+      .from("profiles")
+      .select("cv_page_requirements")
+      .eq("id", managerId)
+      .maybeSingle();
+    const keys = (data?.cv_page_requirements as any)?.tc_criteria_keys;
+    return { tc_criteria_keys: Array.isArray(keys) ? (keys as string[]) : null };
+  });

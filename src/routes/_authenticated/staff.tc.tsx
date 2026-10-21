@@ -30,6 +30,7 @@ import {
   getCandidates, upsertCandidate, updateCandidateField,
   searchCandidates, nextCandidateCode,
 } from "@/lib/candidates.functions";
+import { getManagerTcCriteria } from "@/lib/settings.functions";
 import type { Database } from "@/integrations/supabase/types";
 import type { Candidate, Status } from "@/components/candidates/types";
 import { MEDICAL_OPTIONS, COC_OPTIONS, PASSPORT_OPTIONS, medDaysAgo, ALL_TC_CRITERIA, ALL_TC_CRITERIA_KEYS, TC_CEO_OPTIONS } from "@/components/candidates/types";
@@ -204,11 +205,12 @@ function TcPage() {
   const toggleSelect = (id: string) =>
     setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  const fetchCandidates = useServerFn(getCandidates);
-  const upsert          = useServerFn(upsertCandidate);
-  const updateField     = useServerFn(updateCandidateField);
-  const doSearch        = useServerFn(searchCandidates);
-  const getNextCode     = useServerFn(nextCandidateCode);
+  const fetchCandidates   = useServerFn(getCandidates);
+  const upsert            = useServerFn(upsertCandidate);
+  const updateField       = useServerFn(updateCandidateField);
+  const doSearch          = useServerFn(searchCandidates);
+  const getNextCode       = useServerFn(nextCandidateCode);
+  const fetchTcCriteria   = useServerFn(getManagerTcCriteria);
 
   // ⌘K
   useEffect(() => {
@@ -231,24 +233,17 @@ function TcPage() {
     return () => clearTimeout(t);
   }, [globalQ, globalSearchOpen, doSearch]);
 
-  // ── TC Criteria from profile ─────────────────────────────────────────────
-  const { data: tcProfile } = useQuery({
-    queryKey: ["tc-criteria-profile", user?.id],
+  // ── TC Criteria from manager profile ────────────────────────────────────
+  const { data: tcCriteriaData } = useQuery({
+    queryKey: ["tc-criteria-manager", user?.id],
     enabled: !!user,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("cv_page_requirements")
-        .eq("id", user!.id)
-        .maybeSingle();
-      return data;
-    },
+    queryFn: () => fetchTcCriteria({}),
   });
 
   const enabledCriteriaKeys: string[] = useMemo(() => {
-    const keys = (tcProfile?.cv_page_requirements as any)?.tc_criteria_keys;
+    const keys = tcCriteriaData?.tc_criteria_keys;
     return Array.isArray(keys) ? keys : ALL_TC_CRITERIA_KEYS;
-  }, [tcProfile]);
+  }, [tcCriteriaData]);
 
   const CRITERIA = useMemo(
     () => ALL_TC_CRITERIA.filter((c) => enabledCriteriaKeys.includes(c.key)),
