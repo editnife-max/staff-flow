@@ -32,7 +32,7 @@ import {
 } from "@/lib/candidates.functions";
 import type { Database } from "@/integrations/supabase/types";
 import type { Candidate, Status } from "@/components/candidates/types";
-import { MEDICAL_OPTIONS, COC_OPTIONS, PASSPORT_OPTIONS, medDaysAgo } from "@/components/candidates/types";
+import { MEDICAL_OPTIONS, COC_OPTIONS, PASSPORT_OPTIONS, medDaysAgo, ALL_TC_CRITERIA, ALL_TC_CRITERIA_KEYS, TC_CEO_OPTIONS } from "@/components/candidates/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -42,30 +42,18 @@ const SKILLS_LIST = [
   "Driving", "Gardening", "Sewing", "Babysitting", "Pet Care", "Nursing",
 ];
 
-export const CEO_OPTIONS = ["Excellent", "Selected", "Reserved"];
+export const CEO_OPTIONS = TC_CEO_OPTIONS;
 
-const CRITERIA: Array<{ label: string; short: string; check: (c: Candidate) => boolean }> = [
-  { label: "Avatar photo",                       short: "Avatar",    check: (c) => !!c.photo_url },
-  { label: "Full-size photo & passport scan",    short: "Photos",    check: (c) => !!(c.full_photo_url && c.passport_scan_url) },
-  { label: "Video link",                         short: "Video",     check: (c) => !!c.video_url },
-  { label: "Narrative & narrative phone",        short: "Narrative", check: (c) => !!(c.narrative?.trim() && c.narrative_phone?.trim()) },
-  { label: "Original ID & Narrative ID (LMIS)", short: "ID files",  check: (c) => !!((c as any).lmis_id_url && (c as any).lmis_id_relative_url) },
-  { label: "COC done",                           short: "COC",       check: (c) => c.coc_status === "Done" },
-  { label: "Religion & marital status",          short: "Personal",  check: (c) => !!(c.religion && c.marital_status) },
-  { label: "CEO selection (Excellent/Selected/Reserved)", short: "CEO", check: (c) => CEO_OPTIONS.includes(c.selected_by ?? "") },
-  { label: "Medical status (Fit/Booked/In progress)", short: "Medical", check: (c) => ["Fit", "Booked", "In progress"].includes(c.medical_status ?? "") },
-  { label: "Medical Fit & ≤75 days old",         short: "Med Fit",   check: (c) => c.medical_status === "Fit" && !!c.medical_date && medDaysAgo(c.medical_date) <= 75 },
-];
-const CRITERIA_THRESHOLD = Math.ceil(CRITERIA.length / 2); // > half = 6
-
-function CriteriaColumn({ candidate, onMoveToAvailable }: {
+function CriteriaColumn({ candidate, criteria, threshold, onMoveToAvailable }: {
   candidate: Candidate;
+  criteria: typeof ALL_TC_CRITERIA;
+  threshold: number;
   onMoveToAvailable?: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const results = CRITERIA.map((cr) => ({ ...cr, met: cr.check(candidate) }));
+  const results = criteria.map((cr) => ({ ...cr, met: cr.check(candidate) }));
   const score = results.filter((r) => r.met).length;
-  const eligible = score >= CRITERIA_THRESHOLD;
+  const eligible = score >= threshold;
 
   return (
     <>
@@ -88,7 +76,7 @@ function CriteriaColumn({ candidate, onMoveToAvailable }: {
             ))}
           </div>
           <span className={cn("text-[11px] font-bold tabular-nums", eligible ? "text-emerald-700" : "text-muted-foreground")}>
-            {score}/{CRITERIA.length}
+            {score}/{criteria.length}
             {eligible && <span className="ml-1 text-emerald-600">✓</span>}
           </span>
         </div>
@@ -242,6 +230,31 @@ function TcPage() {
     }, 300);
     return () => clearTimeout(t);
   }, [globalQ, globalSearchOpen, doSearch]);
+
+  // ── TC Criteria from profile ─────────────────────────────────────────────
+  const { data: tcProfile } = useQuery({
+    queryKey: ["tc-criteria-profile", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("cv_page_requirements")
+        .eq("id", user!.id)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const enabledCriteriaKeys: string[] = useMemo(() => {
+    const keys = (tcProfile?.cv_page_requirements as any)?.tc_criteria_keys;
+    return Array.isArray(keys) ? keys : ALL_TC_CRITERIA_KEYS;
+  }, [tcProfile]);
+
+  const CRITERIA = useMemo(
+    () => ALL_TC_CRITERIA.filter((c) => enabledCriteriaKeys.includes(c.key)),
+    [enabledCriteriaKeys],
+  );
+  const CRITERIA_THRESHOLD = Math.ceil(CRITERIA.length / 2);
 
   // ── Queries ──────────────────────────────────────────────────────────────
   const { data: allCandidates = [], isLoading: candidatesLoading } = useQuery<Candidate[]>({
@@ -686,6 +699,8 @@ function TcPage() {
           renderExtraColumns={(c) => (
             <CriteriaColumn
               candidate={c}
+              criteria={CRITERIA}
+              threshold={CRITERIA_THRESHOLD}
               onMoveToAvailable={activeView === "trained"
                 ? (id) => {
                     fieldMut.mutate({ id, field: "availability_type", value: "Available" });

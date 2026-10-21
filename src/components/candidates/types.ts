@@ -183,3 +183,20 @@ export function checkMeetsCvReq(c: Candidate, req: Record<string, string>): bool
   if (req.photo_cv === "Yes" && !c.photo_url) return false;
   return true;
 }
+
+export const TC_CEO_OPTIONS = ["Excellent", "Selected", "Reserved"];
+
+export const ALL_TC_CRITERIA: Array<{ key: string; label: string; short: string; check: (c: Candidate) => boolean }> = [
+  { key: "avatar",    label: "Avatar photo",                                short: "Avatar",    check: (c) => !!c.photo_url },
+  { key: "photos",    label: "Full-size photo & passport scan",             short: "Photos",    check: (c) => !!(c.full_photo_url && c.passport_scan_url) },
+  { key: "video",     label: "Video link",                                  short: "Video",     check: (c) => !!c.video_url },
+  { key: "narrative", label: "Narrative & narrative phone",                 short: "Narrative", check: (c) => !!(c.narrative?.trim() && c.narrative_phone?.trim()) },
+  { key: "id_files",  label: "Original ID & Narrative ID (LMIS)",           short: "ID files",  check: (c) => !!((c as any).lmis_id_url && (c as any).lmis_id_relative_url) },
+  { key: "coc",       label: "COC done",                                    short: "COC",       check: (c) => c.coc_status === "Done" },
+  { key: "personal",  label: "Religion & marital status",                   short: "Personal",  check: (c) => !!(c.religion && c.marital_status) },
+  { key: "ceo",       label: "CEO selection (Excellent/Selected/Reserved)", short: "CEO",       check: (c) => TC_CEO_OPTIONS.includes(c.selected_by ?? "") },
+  { key: "medical",   label: "Medical status (Fit/Booked/In progress)",     short: "Medical",   check: (c) => ["Fit", "Booked", "In progress"].includes(c.medical_status ?? "") },
+  { key: "med_fit",   label: "Medical Fit & ≤75 days old",                  short: "Med Fit",   check: (c) => c.medical_status === "Fit" && !!c.medical_date && medDaysAgo(c.medical_date) <= 75 },
+];
+
+export const ALL_TC_CRITERIA_KEYS = ALL_TC_CRITERIA.map((c) => c.key);

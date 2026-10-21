@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock, Download, BarChart3, AlertCircle, Lock, Unlock, KeyRound, Eye, EyeOff, Search, Users, GraduationCap, Play, FileSignature, Send, Loader2 } from "lucide-react";
+import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock, Download, BarChart3, AlertCircle, Lock, Unlock, KeyRound, Eye, EyeOff, Search, Users, GraduationCap, Play, FileSignature, Send, Loader2, ListChecks } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
+import { ALL_TC_CRITERIA, ALL_TC_CRITERIA_KEYS } from "@/components/candidates/types";
 import { addCountry, deleteCountry, addOffice, deleteOffice, lockOffice, deleteCvTemplate, optimizeCvTemplate, saveMusanedCredentials, saveEnjazCredentials, saveMofaCredentials, saveLmisCredentials, getManagerCredentials } from "@/lib/assignments.functions";
 import { runLmisPhase1 } from "@/lib/lmis-contract.functions";
 import { runMusanedFetch } from "@/lib/musaned.functions";
@@ -97,7 +98,7 @@ function AssignmentsPage() {
   const runMusanedFn = useServerFn(runMusanedFetch);
 
   // ── panel dialog ──────────────────────────────────────────────────────────────
-  const [panelDialog, setPanelDialog] = useState<"countries" | "offices" | "cvTemplates" | "cvReq" | null>(null);
+  const [panelDialog, setPanelDialog] = useState<"countries" | "offices" | "cvTemplates" | "cvReq" | "tcCriteria" | null>(null);
 
   // ── CV requirement days ──────────────────────────────────────────────────────
   const [cvDaysEdit,  setCvDaysEdit]  = useState(false);
@@ -148,6 +149,35 @@ function AssignmentsPage() {
   });
 
   const tcEnabled = (profile?.cv_page_requirements as any)?.tc_enabled !== false;
+
+  const tcCriteriaKeys: string[] = useMemo(() => {
+    const keys = (profile?.cv_page_requirements as any)?.tc_criteria_keys;
+    return Array.isArray(keys) ? keys : ALL_TC_CRITERIA_KEYS;
+  }, [profile]);
+
+  const saveTcCriteriaMut = useMutation({
+    mutationFn: async (keys: string[]) => {
+      const current = (profile?.cv_page_requirements as Record<string, unknown>) ?? {};
+      const { error } = await supabase
+        .from("profiles")
+        .update({ cv_page_requirements: { ...current, tc_criteria_keys: keys } } as any)
+        .eq("id", user!.id);
+      if (error) throw error;
+    },
+    onMutate: async (keys) => {
+      await qc.cancelQueries({ queryKey: ["manager-profile", user?.id] });
+      const prev = qc.getQueryData(["manager-profile", user?.id]);
+      qc.setQueryData(["manager-profile", user?.id], (old: any) => ({
+        ...old,
+        cv_page_requirements: { ...(old?.cv_page_requirements ?? {}), tc_criteria_keys: keys },
+      }));
+      return { prev };
+    },
+    onError: (_e, _keys, ctx) => {
+      qc.setQueryData(["manager-profile", user?.id], (ctx as any)?.prev);
+      toast.error("Failed to save TC criteria");
+    },
+  });
 
   const updateTcEnabled = useMutation({
     mutationFn: async (enabled: boolean) => {
@@ -568,7 +598,7 @@ function AssignmentsPage() {
           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         </button>
 
-        <div className="border border-border bg-background flex items-center gap-3 px-4 py-3 col-span-2">
+        <div className="border border-border bg-background flex items-center gap-3 px-4 py-3">
           <GraduationCap className="h-4 w-4 text-primary shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold">Training Centre (TC)</div>
@@ -582,6 +612,16 @@ function AssignmentsPage() {
             onCheckedChange={(v) => updateTcEnabled.mutate(v)}
           />
         </div>
+
+        <button type="button" onClick={() => setPanelDialog("tcCriteria")}
+          className="border border-border bg-background flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
+          <ListChecks className="h-4 w-4 text-primary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold">TC Criteria</div>
+            <div className="text-xs text-muted-foreground">{tcCriteriaKeys.length} of {ALL_TC_CRITERIA.length} active</div>
+          </div>
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        </button>
       </div>
 
       {/* ── Countries Dialog ──────────────────────────────────────────── */}
@@ -1255,6 +1295,70 @@ function AssignmentsPage() {
                 "text-foreground"
               )}>{line}</div>
             ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── TC Criteria Dialog ───────────────────────────────────────── */}
+      <Dialog open={panelDialog === "tcCriteria"} onOpenChange={(o) => { if (!o) setPanelDialog(null); }}>
+        <DialogContent className="sm:max-w-md rounded-none">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ListChecks className="h-4 w-4 text-primary" />
+              TC Criteria
+              <span className="ml-auto text-xs font-normal text-muted-foreground">
+                {tcCriteriaKeys.length}/{ALL_TC_CRITERIA.length} active
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1 overflow-y-auto max-h-[60vh]">
+            <p className="text-xs text-muted-foreground pb-1">
+              Toggle which criteria count toward the "TC Ready" score on the Training Centre page.
+            </p>
+            {ALL_TC_CRITERIA.map((cr) => {
+              const active = tcCriteriaKeys.includes(cr.key);
+              return (
+                <div key={cr.key} className="flex items-center gap-3 px-3 py-2 border border-border/50 hover:bg-muted/30 transition-colors">
+                  <div className={cn(
+                    "w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-bold shrink-0",
+                    active ? "bg-emerald-500 text-white" : "bg-zinc-100 border border-zinc-300 text-zinc-400 dark:bg-zinc-800 dark:border-zinc-600",
+                  )}>
+                    {cr.short[0]}
+                  </div>
+                  <span className={cn("flex-1 text-sm", active ? "text-foreground" : "text-muted-foreground line-through")}>{cr.label}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = active
+                        ? tcCriteriaKeys.filter((k) => k !== cr.key)
+                        : [...tcCriteriaKeys, cr.key];
+                      saveTcCriteriaMut.mutate(next);
+                    }}
+                    disabled={saveTcCriteriaMut.isPending}
+                    className={cn(
+                      "text-xs px-2 py-0.5 border rounded-sm font-medium transition-colors",
+                      active
+                        ? "border-destructive/40 text-destructive hover:bg-destructive/10"
+                        : "border-emerald-400/60 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20",
+                    )}
+                  >
+                    {active ? "Remove" : "Add"}
+                  </button>
+                </div>
+              );
+            })}
+            <div className="flex gap-2 pt-2">
+              <Button size="sm" variant="outline" className="h-7 rounded-none text-xs"
+                disabled={tcCriteriaKeys.length === ALL_TC_CRITERIA.length || saveTcCriteriaMut.isPending}
+                onClick={() => saveTcCriteriaMut.mutate(ALL_TC_CRITERIA_KEYS)}>
+                Enable all
+              </Button>
+              <Button size="sm" variant="outline" className="h-7 rounded-none text-xs text-destructive border-destructive/30 hover:bg-destructive/5"
+                disabled={tcCriteriaKeys.length === 0 || saveTcCriteriaMut.isPending}
+                onClick={() => saveTcCriteriaMut.mutate([])}>
+                Disable all
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
