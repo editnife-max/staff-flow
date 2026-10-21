@@ -1873,9 +1873,12 @@ function StaffCandidatesPage() {
                 <FormSelect label="Work Experience *" value={form.experience} onChange={(v) => setForm({ ...form, experience: v, experience_country: v !== "Yes" ? "" : form.experience_country, experience_years: v !== "Yes" ? "" : form.experience_years })} options={["Yes", "No"]} />
               </div>
               {form.experience === "Yes" && (
-                <div className="grid grid-cols-2 gap-3 mt-3">
-                  <FormSelect label="Experience Country" value={form.experience_country} onChange={(v) => setForm({ ...form, experience_country: v })} options={assignCountries.map((c) => c.name)} />
-                  <Field label="Years of Experience" value={form.experience_years} onChange={(v) => setForm({ ...form, experience_years: v })} type="number" />
+                <div className="mt-3">
+                  <MultiExperienceInput
+                    countries={form.experience_country}
+                    years={form.experience_years}
+                    onChange={(countries, years) => setForm({ ...form, experience_country: countries, experience_years: years })}
+                  />
                 </div>
               )}
             </FormSection>
@@ -4964,6 +4967,114 @@ function TicketFilesDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function MultiTextInput({ label, value, onChange, placeholder, type = "text" }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) {
+  const [entries, setEntries] = React.useState<string[]>(() => {
+    const parts = value.split(",").map((s) => s.trim()).filter(Boolean);
+    return parts.length > 0 ? parts : [""];
+  });
+
+  const update = (next: string[]) => {
+    setEntries(next);
+    onChange(next.filter(Boolean).join(", "));
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      <div className="space-y-1.5">
+        {entries.map((val, i) => (
+          <div key={i} className="flex items-center gap-1">
+            <input
+              type={type}
+              value={val}
+              onChange={(e) => { const next = [...entries]; next[i] = e.target.value; update(next); }}
+              placeholder={placeholder}
+              min={type === "number" ? 0 : undefined}
+              className="flex-1 rounded-none border border-input bg-background px-3 h-9 text-sm outline-none focus:ring-1 focus:ring-ring"
+            />
+            {entries.length > 1 && (
+              <button type="button" onClick={() => update(entries.filter((_, j) => j !== i))}
+                className="h-9 w-9 flex items-center justify-center text-destructive hover:bg-destructive/10 rounded-none border border-destructive/30">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {i === entries.length - 1 && (
+              <button type="button" onClick={() => setEntries((prev) => [...prev, ""])}
+                className="h-9 w-9 flex items-center justify-center text-primary hover:bg-primary/10 rounded-none border border-primary/30">
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MultiExperienceInput({ countries, years, onChange }: {
+  countries: string;
+  years: string;
+  onChange: (countries: string, years: string) => void;
+}) {
+  const parse = (v: string) => v.split(",").map((s) => s.trim()).filter(Boolean);
+
+  const [entries, setEntries] = React.useState<Array<{ country: string; years: string }>>(() => {
+    const c = parse(countries);
+    const y = parse(years);
+    const len = Math.max(c.length, y.length, 1);
+    return Array.from({ length: len }, (_, i) => ({ country: c[i] ?? "", years: y[i] ?? "" }));
+  });
+
+  const update = (next: Array<{ country: string; years: string }>) => {
+    setEntries(next);
+    onChange(
+      next.map((e) => e.country).filter(Boolean).join(", "),
+      next.map((e) => e.years).filter(Boolean).join(", "),
+    );
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <div className="grid grid-cols-2 gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-0.5">
+        <span>Experience Country</span>
+        <span>Years</span>
+      </div>
+      <div className="space-y-1.5">
+        {entries.map((row, i) => (
+          <div key={i} className="flex items-center gap-1">
+            <input
+              value={row.country}
+              onChange={(e) => { const next = [...entries]; next[i] = { ...next[i], country: e.target.value }; update(next); }}
+              placeholder="Country name"
+              className="flex-1 rounded-none border border-input bg-background px-3 h-9 text-sm outline-none focus:ring-1 focus:ring-ring"
+            />
+            <input
+              type="number"
+              min={0}
+              value={row.years}
+              onChange={(e) => { const next = [...entries]; next[i] = { ...next[i], years: e.target.value }; update(next); }}
+              placeholder="Yrs"
+              className="w-20 rounded-none border border-input bg-background px-3 h-9 text-sm outline-none focus:ring-1 focus:ring-ring"
+            />
+            {entries.length > 1 && (
+              <button type="button" onClick={() => update(entries.filter((_, j) => j !== i))}
+                className="h-9 w-9 flex items-center justify-center text-destructive hover:bg-destructive/10 rounded-none border border-destructive/30">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {i === entries.length - 1 && (
+              <button type="button" onClick={() => setEntries((prev) => [...prev, { country: "", years: "" }])}
+                className="h-9 w-9 flex items-center justify-center text-primary hover:bg-primary/10 rounded-none border border-primary/30">
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

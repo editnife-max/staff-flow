@@ -147,6 +147,7 @@ export const PROCESSING_COLS: ProcessingColDef[] = [
   { key: "visa_status",       header: "Visa Status",       type: "select", options: VISA_OPTIONS },
   { key: "insurance_status",  header: "Insurance",         type: "select", options: INSURANCE_OPTIONS },
   { key: "unfilled_lmis",     header: "LMIS file",         type: "select", options: UNFILLED_LMIS_OPTIONS },
+  { key: "payment_code",      header: "Payment Code",      type: "text" },
   { key: "lmis_status",       header: "LMIS",              type: "select", options: LMIS_OPTIONS },
   { key: "ticket_status",     header: "Ticket",            type: "select", options: TICKET_OPTIONS },
   { key: "ticket_date",       header: "Ticket Date",       type: "date" },
@@ -154,7 +155,6 @@ export const PROCESSING_COLS: ProcessingColDef[] = [
   { key: "arrival_city",      header: "Arrival City",      type: "select", options: ARRIVAL_CITY_OPTIONS },
   { key: "processing_notes",  header: "Note",              type: "text" },
   { key: "emergency_contact", header: "Emergency Contact", type: "text" },
-  { key: "payment_code",      header: "Payment Code",      type: "text" },
 ];
 
 export const CANDIDATE_CARD_COLS = [

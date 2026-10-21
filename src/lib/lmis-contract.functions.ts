@@ -226,16 +226,20 @@ export const runLmisPhase1 = createServerFn({ method: "POST" })
                 draft++;
               } else {
                 addLog(`  → Create Contract clicked but result unclear — marked as Phase 1`);
+                const p1Start = new Date().toISOString().split("T")[0];
+                const p1End = new Date(new Date().setFullYear(new Date().getFullYear() + 2)).toISOString().split("T")[0];
                 await supabaseAdmin
                   .from("candidates")
-                  .update({ lmis_contract_phase: "create" } as any)
+                  .update({ lmis_contract_phase: "create", musaned_contract_start: p1Start, musaned_contract_end: p1End } as any)
                   .eq("id", candidate.id);
               }
             } else {
               addLog(`  → Approved but no Create Contract button found — marked as Phase 1`);
+              const p1Start = new Date().toISOString().split("T")[0];
+              const p1End = new Date(new Date().setFullYear(new Date().getFullYear() + 2)).toISOString().split("T")[0];
               await supabaseAdmin
                 .from("candidates")
-                .update({ lmis_contract_phase: "create" } as any)
+                .update({ lmis_contract_phase: "create", musaned_contract_start: p1Start, musaned_contract_end: p1End } as any)
                 .eq("id", candidate.id);
             }
             checked++;

@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Search, FilePlus, RotateCcw, FileText,
   ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
-  Globe, Send, ScanSearch, Loader2,
+  Globe, ScanSearch, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,7 +32,15 @@ import {
 } from "@/lib/candidates.functions";
 import type { Database } from "@/integrations/supabase/types";
 import type { Candidate, Status } from "@/components/candidates/types";
-import { MEDICAL_OPTIONS, COC_OPTIONS } from "@/components/candidates/types";
+import { MEDICAL_OPTIONS, COC_OPTIONS, PASSPORT_OPTIONS } from "@/components/candidates/types";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+
+const SKILLS_LIST = [
+  "Cooking", "Cleaning", "Childcare", "Eldercare", "Ironing",
+  "Driving", "Gardening", "Sewing", "Babysitting", "Pet Care", "Nursing",
+];
 
 export const Route = createFileRoute("/_authenticated/staff/tc")({
   head: () => ({ meta: [{ title: "Training Centre — Staff-Flow" }] }),
@@ -77,7 +85,7 @@ const initialForm = {
   musaned_status: "", status: "available" as Status, office: "", selected_by: "",
   narrative: "", narrative_phone: "",
   skills: "Ironing, Cleaning", remark: "", notes: "",
-  video_url: "", lmis_id_url: "",
+  video_url: "", lmis_id_url: "", lmis_passport_url: "",
   availability_type: "TC",
 };
 
@@ -385,6 +393,7 @@ function TcPage() {
       notes:                c.notes                         ?? "",
       video_url:            c.video_url                     ?? "",
       lmis_id_url:          (c as any).lmis_id_url           ?? "",
+      lmis_passport_url:    (c as any).lmis_passport_url     ?? "",
       availability_type:    "TC",
     });
     setOpen(true);
@@ -530,9 +539,6 @@ function TcPage() {
             <MultiFilterSelect placeholder="Country" values={filters.musaned} icon={Globe}
               onChange={(v) => setFilters({ ...filters, musaned: v })}
               options={[{ value: "", label: "Not Selected" }, ...assignCountries.map((c) => ({ value: c.name, label: c.name }))]} />
-            <MultiFilterSelect placeholder="CV Sent To" values={filters.cv_sent_to} icon={Send}
-              onChange={(v) => setFilters({ ...filters, cv_sent_to: v })}
-              options={[{ value: "", label: "Not Selected" }, ...agencyOptions.map((o) => ({ value: o, label: o }))]} />
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
@@ -702,44 +708,155 @@ function TcPage() {
             <DialogTitle>{editing ? "Edit Candidate" : "Add New Candidate"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <FormSection title="Identity">
-              <FormInput label="First Name *"   value={form.first_name}     onChange={(v) => setForm({ ...form, first_name: v })} />
-              <FormInput label="Last Name *"    value={form.last_name}      onChange={(v) => setForm({ ...form, last_name: v })} />
-              <FormInput label="Candidate Code" value={form.candidate_code} onChange={(v) => setForm({ ...form, candidate_code: v })} />
-              <FormInput label="Serial Number"  value={form.serial_number}  onChange={(v) => setForm({ ...form, serial_number: v })} />
+            {/* Photos */}
+            <div className="flex gap-4 flex-wrap">
+              <PhotoUpload label="Profile Photo" value={form.photo_url}         onChange={(url) => setForm({ ...form, photo_url: url })} />
+              <PhotoUpload label="Full Photo"    value={form.full_photo_url}     onChange={(url) => setForm({ ...form, full_photo_url: url })} />
+              <PhotoUpload label="Passport Scan" value={form.passport_scan_url}  onChange={(url) => setForm({ ...form, passport_scan_url: url })} accept="image/*,application/pdf" />
+              <PhotoUpload label="ID Card"       value={form.lmis_id_url}        onChange={(url) => setForm({ ...form, lmis_id_url: url })}        accept="image/*,application/pdf" />
+              <PhotoUpload label="Passport PDF"  value={form.lmis_passport_url}  onChange={(url) => setForm({ ...form, lmis_passport_url: url })}  accept="image/*,application/pdf" />
+            </div>
+
+            {/* Names & IDs */}
+            <FormSection title="Names & IDs" required>
+              <div className="grid grid-cols-2 gap-3">
+                <FormInput label="First Name *"   value={form.first_name}     onChange={(v) => setForm({ ...form, first_name: v })} />
+                <FormInput label="Last Name *"    value={form.last_name}      onChange={(v) => setForm({ ...form, last_name: v })} />
+                <FormInput label="Candidate Code" value={form.candidate_code} onChange={(v) => setForm({ ...form, candidate_code: v })} />
+                <FormInput label="Serial Number"  value={form.serial_number}  onChange={(v) => setForm({ ...form, serial_number: v })} />
+              </div>
             </FormSection>
-            <FormSection title="Personal">
-              <FormInput label="Date of Birth"  value={form.dob}            onChange={(v) => setForm({ ...form, dob: v })} type="date" />
-              <FormSelect label="Gender"         value={form.gender}         onChange={(v) => setForm({ ...form, gender: v })} options={["Female", "Male"]} />
-              <FormSelect label="Religion"       value={form.religion}       onChange={(v) => setForm({ ...form, religion: v })} options={["Muslim", "Non-muslim"]} />
-              <FormSelect label="Marital Status" value={form.marital_status} onChange={(v) => setForm({ ...form, marital_status: v })} options={["Single", "Married", "Divorced", "Widowed"]} />
-              <FormInput label="Birth Place"    value={form.birth_place}    onChange={(v) => setForm({ ...form, birth_place: v })} />
-              <FormInput label="Living Town"    value={form.living_town}    onChange={(v) => setForm({ ...form, living_town: v })} />
+
+            {/* Personal */}
+            <FormSection title="Personal" required>
+              <div className="grid grid-cols-2 gap-3">
+                <FormSelect label="Gender *"        value={form.gender}         onChange={(v) => setForm({ ...form, gender: v })}         options={["Female", "Male"]} />
+                <FormInput  label="Date of Birth *" value={form.dob}            onChange={(v) => setForm({ ...form, dob: v })}            type="date" />
+                <FormSelect label="Religion *"      value={form.religion}       onChange={(v) => setForm({ ...form, religion: v })}       options={["Muslim", "Non-muslim"]} />
+                <FormInput  label="Birth Place *"   value={form.birth_place}    onChange={(v) => setForm({ ...form, birth_place: v })} />
+                <FormInput  label="Living Town *"   value={form.living_town}    onChange={(v) => setForm({ ...form, living_town: v })} />
+                <FormSelect label="Marital Status *" value={form.marital_status} onChange={(v) => setForm({ ...form, marital_status: v })} options={["Single", "Married", "Divorced", "Widowed"]} />
+                <FormInput  label="Children"        value={String(form.children)} onChange={(v) => setForm({ ...form, children: v })}   type="number" />
+                <FormSelect label="Education *"     value={form.education}      onChange={(v) => setForm({ ...form, education: v })}      options={["Illiterate", "Primary", "Secondary", "High School", "Diploma", "Degree", "Master's", "PhD"]} />
+              </div>
             </FormSection>
-            <FormSection title="Passport">
-              <FormInput label="Passport Number" value={form.passport_number}      onChange={(v) => setForm({ ...form, passport_number: v })} />
-              <FormInput label="Labour ID"        value={form.labour_id}            onChange={(v) => setForm({ ...form, labour_id: v })} />
-              <FormInput label="Issue Date"       value={form.passport_issue_date}  onChange={(v) => setForm({ ...form, passport_issue_date: v })} type="date" />
-              <FormInput label="Expiry Date"      value={form.passport_expiry_date} onChange={(v) => setForm({ ...form, passport_expiry_date: v })} type="date" />
-              <FormInput label="Place of Issue"   value={form.place_of_issue}       onChange={(v) => setForm({ ...form, place_of_issue: v })} />
+
+            {/* Passport */}
+            <FormSection title="Passport" required>
+              <div className="grid grid-cols-2 gap-3">
+                <FormInput label="Passport Number *" value={form.passport_number}      onChange={(v) => setForm({ ...form, passport_number: v })} />
+                <FormInput label="Labour ID *"        value={form.labour_id}            onChange={(v) => setForm({ ...form, labour_id: v.toUpperCase() })} placeholder="EF/EM + 8 chars" />
+                <FormInput label="Issue Date *"       value={form.passport_issue_date}  onChange={(v) => setForm({ ...form, passport_issue_date: v })}  type="date" />
+                <FormInput label="Expiry Date *"      value={form.passport_expiry_date} onChange={(v) => setForm({ ...form, passport_expiry_date: v })} type="date" />
+                <div className="col-span-2">
+                  <FormInput label="Place of Issue"   value={form.place_of_issue}       onChange={(v) => setForm({ ...form, place_of_issue: v })} />
+                </div>
+              </div>
             </FormSection>
+
+            {/* Languages & Experience */}
+            <FormSection title="Languages & Experience">
+              <div className="grid grid-cols-2 gap-3">
+                <FormSelect label="English Level"    value={form.english_level}  onChange={(v) => setForm({ ...form, english_level: v })}  options={["Poor", "Little", "Fair", "Good"]} />
+                <FormSelect label="Arabic Level"     value={form.arabic_level}   onChange={(v) => setForm({ ...form, arabic_level: v })}   options={["Poor", "Little", "Fair", "Good"]} />
+                <FormSelect label="Work Experience *" value={form.experience}    onChange={(v) => setForm({ ...form, experience: v, experience_country: v !== "Yes" ? "" : form.experience_country, experience_years: v !== "Yes" ? "" : form.experience_years })} options={["Yes", "No"]} />
+              </div>
+              {form.experience === "Yes" && (
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <FormSelect label="Experience Country" value={form.experience_country} onChange={(v) => setForm({ ...form, experience_country: v })} options={assignCountries.map((c) => c.name)} />
+                  <FormInput  label="Years of Experience" value={form.experience_years}  onChange={(v) => setForm({ ...form, experience_years: v })} type="number" />
+                </div>
+              )}
+            </FormSection>
+
+            {/* Physical */}
+            <FormSection title="Physical">
+              <div className="grid grid-cols-2 gap-3">
+                <FormInput label="Weight (kg)" value={String(form.weight)} onChange={(v) => setForm({ ...form, weight: v })} type="number" />
+                <FormInput label="Height (cm)" value={String(form.height)} onChange={(v) => setForm({ ...form, height: v })} type="number" />
+              </div>
+            </FormSection>
+
+            {/* Skills */}
+            <FormSection title="Skills">
+              {(() => {
+                const skillSet = new Set((form.skills ?? "").split(",").map((s) => s.trim()).filter(Boolean));
+                return (
+                  <div className="flex flex-wrap gap-2">
+                    {SKILLS_LIST.map((skill) => {
+                      const checked = skillSet.has(skill);
+                      return (
+                        <label key={skill} className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-none border cursor-pointer text-xs transition-colors", checked ? "bg-primary/10 border-primary text-primary" : "border-border text-muted-foreground hover:border-primary/50")}>
+                          <Checkbox checked={checked} onCheckedChange={(v) => { const s = new Set(skillSet); v ? s.add(skill) : s.delete(skill); setForm({ ...form, skills: Array.from(s).join(", ") }); }} />
+                          {skill}
+                        </label>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </FormSection>
+
+            {/* Status */}
             <FormSection title="Status">
-              <FormSelect label="Medical"         value={form.medical_status}  onChange={(v) => setForm({ ...form, medical_status: v })}  options={MEDICAL_OPTIONS} />
-              <FormSelect label="COC"             value={form.coc_status}      onChange={(v) => setForm({ ...form, coc_status: v })}      options={COC_OPTIONS} />
-              <FormSelect label="Experience"      value={form.experience}      onChange={(v) => setForm({ ...form, experience: v })}      options={["Yes", "No"]} />
-              <FormSelect label="Passport Status" value={form.passport_status} onChange={(v) => setForm({ ...form, passport_status: v })} options={["Original", "Scan"]} />
+              <div className="grid grid-cols-2 gap-3">
+                <FormSelect label="Passport Status *" value={form.passport_status} onChange={(v) => setForm({ ...form, passport_status: v })} options={PASSPORT_OPTIONS} />
+                <FormSelect label="Medical Status *"  value={form.medical_status}  onChange={(v) => setForm({ ...form, medical_status: v })}  options={MEDICAL_OPTIONS} />
+                <div>
+                  <FormSelect label="COC Status *" value={form.coc_status} onChange={(v) => setForm({ ...form, coc_status: v })} options={COC_OPTIONS} />
+                  {form.coc_status === "Placed" && (
+                    <div className="mt-2 space-y-1.5">
+                      <input placeholder="Agency Name" value={form.coc_agency_name} onChange={(e) => setForm({ ...form, coc_agency_name: e.target.value })} className="w-full rounded-none border border-input bg-background px-3 h-8 text-xs outline-none focus:ring-1 focus:ring-ring" />
+                      <input placeholder="Phone Number" value={form.coc_agency_phone} onChange={(e) => setForm({ ...form, coc_agency_phone: e.target.value })} className="w-full rounded-none border border-input bg-background px-3 h-8 text-xs outline-none focus:ring-1 focus:ring-ring" />
+                    </div>
+                  )}
+                </div>
+                <FormSelect label="Country *" value={form.musaned_status} onChange={(v) => setForm({ ...form, musaned_status: v })} options={assignCountries.map((c) => c.name)} />
+              </div>
             </FormSection>
-            <FormSection title="Photos & Documents">
-              <PhotoUpload label="Profile Photo" value={form.photo_url}      onChange={(url) => setForm({ ...form, photo_url: url })} />
-              <PhotoUpload label="Full Photo"    value={form.full_photo_url}  onChange={(url) => setForm({ ...form, full_photo_url: url })} />
-              <PhotoUpload label="ID Card"       value={form.lmis_id_url}    onChange={(url) => setForm({ ...form, lmis_id_url: url })} accept="image/*,application/pdf" />
+
+            {/* Narrative */}
+            <FormSection title="Narrative">
+              <div className="grid grid-cols-2 gap-3">
+                <FormInput label="Narrative"       value={form.narrative}       onChange={(v) => setForm({ ...form, narrative: v })}       suggestions={opts.narrative} />
+                <FormInput label="Narrative Phone" value={form.narrative_phone} onChange={(v) => setForm({ ...form, narrative_phone: v })} />
+              </div>
+            </FormSection>
+
+            {/* Notes */}
+            <FormSection title="Notes">
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Remark</Label>
+                  <Textarea rows={2} value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} className="rounded-none text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Notes</Label>
+                  <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-none text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Video URL</Label>
+                  <input type="url" value={form.video_url} onChange={(e) => setForm({ ...form, video_url: e.target.value })} placeholder="https://…" className="w-full rounded-none border border-input bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring" />
+                </div>
+              </div>
             </FormSection>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={closeForm}>Cancel</Button>
             <Button
-              disabled={upsertMut.isPending || !form.first_name.trim() || !form.last_name.trim()}
-              onClick={() => upsertMut.mutate(form)}
+              disabled={upsertMut.isPending}
+              onClick={() => {
+                if (!form.first_name?.trim() && !form.last_name?.trim()) { toast.error("First Name or Last Name is required"); return; }
+                if (!form.gender || !form.dob || !form.religion) { toast.error("Gender, Date of Birth and Religion are required"); return; }
+                if (!form.birth_place?.trim() || !form.living_town?.trim()) { toast.error("Birth Place and Living Town are required"); return; }
+                if (!form.marital_status || !form.education) { toast.error("Marital Status and Education are required"); return; }
+                if (!form.passport_number?.trim() || !form.passport_expiry_date) { toast.error("Passport Number and Expiry Date are required"); return; }
+                if (!form.labour_id?.trim() || !form.passport_issue_date) { toast.error("Labour ID and Issue Date are required"); return; }
+                if (!/^(EF|EM)[A-Z0-9]{8}$/i.test(form.labour_id.trim())) { toast.error("Labour ID must be 10 characters starting with EF or EM followed by 8 characters"); return; }
+                if (!form.experience) { toast.error("Work Experience is required"); return; }
+                if (!form.passport_status || !form.medical_status || !form.coc_status || !form.musaned_status) { toast.error("Passport Status, Medical Status, COC Status and Country are required"); return; }
+                upsertMut.mutate(form);
+              }}
             >
               {upsertMut.isPending ? "Saving…" : editing ? "Save Changes" : "Add Candidate"}
             </Button>
