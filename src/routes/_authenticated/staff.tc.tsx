@@ -104,7 +104,7 @@ function CriteriaColumn({ candidate, criteria, threshold, onMoveToAvailable }: {
           </div>
           <div className="flex items-center justify-between pt-3 border-t">
             <span className={cn("text-sm font-bold", eligible ? "text-emerald-700" : "text-muted-foreground")}>
-              {score}/{CRITERIA.length}
+              {score}/{criteria.length}
               {eligible && (
                 <span className="ml-2 text-xs font-medium text-emerald-600 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded-sm">
                   TC Ready
