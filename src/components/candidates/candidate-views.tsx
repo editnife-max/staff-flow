@@ -866,7 +866,7 @@ function CandidateCard({
       >
         <div className="sticky left-0 z-10 w-fit flex items-center gap-2 px-4 pt-2.5 pb-1" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" disabled={candidate.visa_status === "Waiting Replacement"} />
-          <StatusBadge status={candidate.availability_type === "TC" ? "Training" : (candidate.status ?? "available")} />
+          <StatusBadge status={candidate.availability_type === "TC" ? (candidate.video_url ? "Trained" : "Training") : (candidate.status ?? "available")} />
           {candidate.availability_type?.toLowerCase() === "private" && (
             <span className="inline-flex items-center rounded-sm bg-purple-400 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 text-[10px] font-semibold px-1.5 py-0.5 leading-none">
               Private
