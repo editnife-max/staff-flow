@@ -220,7 +220,7 @@ export function ProcessingEditDialog({
 
 export function CandidateCardList({
   candidates, selected, onToggleSelect, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo,
-  countryMeta, officesByCountry, agencyOptions, agencyPhones, compact, narrativeSuggestions, showCvBadge, pageKey, renderCardSuffix,
+  countryMeta, officesByCountry, agencyOptions, agencyPhones, compact, narrativeSuggestions, showCvBadge, pageKey, renderExtraColumns,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -241,7 +241,7 @@ export function CandidateCardList({
   agencyPhones: Record<string, string>;
   narrativeSuggestions?: string[];
   pageKey: string;
-  renderCardSuffix?: (c: Candidate) => React.ReactNode;
+  renderExtraColumns?: (c: Candidate) => React.ReactNode;
 }) {
   const cvReq = useMemo(() => {
     if (!showCvBadge) return null;
@@ -477,30 +477,29 @@ export function CandidateCardList({
           <div ref={scrollRef} className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="space-y-2 min-w-max">
               {paginated.map((c) => (
-                <React.Fragment key={c.id}>
-                  <CandidateCard
-                    candidate={c}
-                    selected={selected.has(c.id)}
-                    visibleCols={visibleCols}
-                    cancelMode={cancelMode}
-                    compact={compact}
-                    meetsCvReq={cvReq ? checkMeetsCvReq(c, cvReq) : false}
-                    onToggleSelect={() => onToggleSelect(c.id)}
-                    onViewPhotos={() => setViewingPhotos(c)}
-                    onView={() => onView(c)}
-                    onAction={() => onAction(c)}
-                    onEdit={() => onEdit(c)}
-                    onDelete={() => onDelete(c.id)}
-                    onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
-                    onReturn={onReturn ? () => onReturn(c.id) : undefined}
-                    onUndo={onUndo ? () => onUndo(c.id, c) : undefined}
-                    agencyOptions={agencyOptions}
-                    agencyPhones={agencyPhones}
-                    countryOptions={countryOptions}
-                    narrativeSuggestions={narrativeSuggestions}
-                  />
-                  {renderCardSuffix?.(c)}
-                </React.Fragment>
+                <CandidateCard
+                  key={c.id}
+                  candidate={c}
+                  selected={selected.has(c.id)}
+                  visibleCols={visibleCols}
+                  cancelMode={cancelMode}
+                  compact={compact}
+                  meetsCvReq={cvReq ? checkMeetsCvReq(c, cvReq) : false}
+                  onToggleSelect={() => onToggleSelect(c.id)}
+                  onViewPhotos={() => setViewingPhotos(c)}
+                  onView={() => onView(c)}
+                  onAction={() => onAction(c)}
+                  onEdit={() => onEdit(c)}
+                  onDelete={() => onDelete(c.id)}
+                  onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
+                  onReturn={onReturn ? () => onReturn(c.id) : undefined}
+                  onUndo={onUndo ? () => onUndo(c.id, c) : undefined}
+                  agencyOptions={agencyOptions}
+                  agencyPhones={agencyPhones}
+                  countryOptions={countryOptions}
+                  narrativeSuggestions={narrativeSuggestions}
+                  renderExtraColumns={renderExtraColumns?.(c)}
+                />
               ))}
             </div>
           </div>
@@ -768,7 +767,7 @@ export function CandidateHistoryDialog({ candidateId, candidateName, createdAt, 
 }
 
 function CandidateCard({
-  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo, agencyOptions, agencyPhones, countryOptions, compact, narrativeSuggestions, meetsCvReq,
+  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo, agencyOptions, agencyPhones, countryOptions, compact, narrativeSuggestions, meetsCvReq, renderExtraColumns,
 }: {
   candidate: Candidate;
   selected: boolean;
@@ -789,6 +788,7 @@ function CandidateCard({
   agencyPhones: Record<string, string>;
   countryOptions: string[];
   narrativeSuggestions?: string[];
+  renderExtraColumns?: React.ReactNode;
 }) {
   const { user } = useAuth();
   const qcCard = useQueryClient();
@@ -1101,6 +1101,7 @@ function CandidateCard({
                 </div>
               );
             })}
+            {renderExtraColumns}
           </div>
           <div className="sticky right-0 z-10 shrink-0 self-stretch flex flex-col items-center justify-center gap-1.5 px-4 border-l border-border" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
             <Button size="sm" onClick={() => setViewing(true)} className="w-full px-5 h-8 rounded text-xs font-semibold tracking-wide">

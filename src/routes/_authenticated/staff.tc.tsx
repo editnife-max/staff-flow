@@ -36,7 +36,6 @@ import { MEDICAL_OPTIONS, COC_OPTIONS, PASSPORT_OPTIONS, medDaysAgo } from "@/co
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const SKILLS_LIST = [
   "Cooking", "Cleaning", "Childcare", "Eldercare", "Ironing",
@@ -59,58 +58,85 @@ const CRITERIA: Array<{ label: string; short: string; check: (c: Candidate) => b
 ];
 const CRITERIA_THRESHOLD = Math.ceil(CRITERIA.length / 2); // > half = 6
 
-function CriteriaBadge({ candidate, onMoveToAvailable }: {
+function CriteriaColumn({ candidate, onMoveToAvailable }: {
   candidate: Candidate;
   onMoveToAvailable?: (id: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
   const results = CRITERIA.map((cr) => ({ ...cr, met: cr.check(candidate) }));
   const score = results.filter((r) => r.met).length;
   const eligible = score >= CRITERIA_THRESHOLD;
 
   return (
-    <TooltipProvider delayDuration={150}>
-      <div className={cn(
-        "border-x border-b border-border px-3 py-1.5 flex items-center gap-3 flex-wrap",
-        eligible ? "bg-emerald-50/60 border-emerald-200" : "bg-muted/20",
-      )}>
-        <div className="flex gap-1 flex-wrap">
-          {results.map((r) => (
-            <Tooltip key={r.short}>
-              <TooltipTrigger asChild>
-                <div className={cn(
-                  "w-4 h-4 rounded-sm flex items-center justify-center text-[9px] font-bold cursor-default select-none",
-                  r.met ? "bg-emerald-500 text-white" : "bg-zinc-100 border border-zinc-300 text-zinc-400",
-                )}>
-                  {r.short[0]}
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs">
-                <span className={r.met ? "text-emerald-600 font-medium" : "text-muted-foreground"}>
-                  {r.met ? "✓" : "✗"} {r.label}
-                </span>
-              </TooltipContent>
-            </Tooltip>
-          ))}
-        </div>
-        <span className={cn("text-[11px] font-bold tabular-nums", eligible ? "text-emerald-700" : "text-muted-foreground")}>
-          {score}/{CRITERIA.length}
-        </span>
-        {eligible && !onMoveToAvailable && (
-          <span className="text-[10px] font-medium text-emerald-700 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded-sm">
-            TC Ready
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="shrink-0 w-[100px] text-left hover:opacity-80 transition-opacity"
+      >
+        <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">CRITERIA</div>
+        <div className="flex flex-col gap-1">
+          <div className="flex gap-0.5 flex-wrap">
+            {results.map((r) => (
+              <div
+                key={r.short}
+                className={cn(
+                  "w-3 h-3 rounded-sm",
+                  r.met ? "bg-emerald-500" : "bg-zinc-200 dark:bg-zinc-700",
+                )}
+              />
+            ))}
+          </div>
+          <span className={cn("text-[11px] font-bold tabular-nums", eligible ? "text-emerald-700" : "text-muted-foreground")}>
+            {score}/{CRITERIA.length}
+            {eligible && <span className="ml-1 text-emerald-600">✓</span>}
           </span>
-        )}
-        {onMoveToAvailable && (
-          <Button
-            size="sm" variant={eligible ? "default" : "outline"}
-            className="ml-auto h-6 text-[11px] rounded-none px-2"
-            onClick={() => onMoveToAvailable(candidate.id)}
-          >
-            Move to Available
-          </Button>
-        )}
-      </div>
-    </TooltipProvider>
+        </div>
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>TC Criteria — {candidate.full_name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-0.5 py-1">
+            {results.map((r) => (
+              <div key={r.short} className="flex items-center gap-2.5 py-1.5 border-b border-border/50 last:border-0">
+                <span className={cn(
+                  "w-4 h-4 rounded-sm flex items-center justify-center text-[10px] font-bold shrink-0",
+                  r.met ? "bg-emerald-500 text-white" : "bg-zinc-100 border border-zinc-300 text-zinc-400 dark:bg-zinc-800 dark:border-zinc-600",
+                )}>
+                  {r.met ? "✓" : "✗"}
+                </span>
+                <span className={cn("text-sm", r.met ? "text-foreground" : "text-muted-foreground")}>
+                  {r.label}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between pt-3 border-t">
+            <span className={cn("text-sm font-bold", eligible ? "text-emerald-700" : "text-muted-foreground")}>
+              {score}/{CRITERIA.length}
+              {eligible && (
+                <span className="ml-2 text-xs font-medium text-emerald-600 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded-sm">
+                  TC Ready
+                </span>
+              )}
+            </span>
+            {onMoveToAvailable && (
+              <Button
+                size="sm"
+                variant={eligible ? "default" : "outline"}
+                className="h-7 text-xs rounded-none px-3"
+                onClick={() => { onMoveToAvailable(candidate.id); setOpen(false); }}
+              >
+                Move to Available
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -656,8 +682,8 @@ function TcPage() {
           agencyOptions={agencyOptions}
           agencyPhones={agencyPhones}
           narrativeSuggestions={opts.narrative}
-          renderCardSuffix={(c) => (
-            <CriteriaBadge
+          renderExtraColumns={(c) => (
+            <CriteriaColumn
               candidate={c}
               onMoveToAvailable={activeView === "trained"
                 ? (id) => {
