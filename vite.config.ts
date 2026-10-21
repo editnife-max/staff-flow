@@ -23,6 +23,12 @@ export default defineConfig(({ mode }) => {
     build: {
       sourcemap: mode === 'development',
       rollupOptions: {
+        external: [
+          'puppeteer-core',
+          /^puppeteer-core\/.*/,
+          '@puppeteer/browsers',
+          /^@puppeteer\/.*/,
+        ],
         output: {
           manualChunks(id) {
             if (id.includes('node_modules/xlsx')) {

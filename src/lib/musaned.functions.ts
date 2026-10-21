@@ -87,7 +87,7 @@ async function extractText(page: any, selector: string): Promise<string | null> 
 
 // ── Core scraper logic (shared between server fn and cron script) ─────────────
 
-export async function runMusanedFetchCore(opts: {
+async function runMusanedFetchCore(opts: {
   musanedUser: string;
   musanedPass: string;
   candidates: Array<{ id: string; full_name: string; passport_number: string }>;
