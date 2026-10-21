@@ -32,15 +32,87 @@ import {
 } from "@/lib/candidates.functions";
 import type { Database } from "@/integrations/supabase/types";
 import type { Candidate, Status } from "@/components/candidates/types";
-import { MEDICAL_OPTIONS, COC_OPTIONS, PASSPORT_OPTIONS } from "@/components/candidates/types";
+import { MEDICAL_OPTIONS, COC_OPTIONS, PASSPORT_OPTIONS, medDaysAgo } from "@/components/candidates/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const SKILLS_LIST = [
   "Cooking", "Cleaning", "Childcare", "Eldercare", "Ironing",
   "Driving", "Gardening", "Sewing", "Babysitting", "Pet Care", "Nursing",
 ];
+
+export const CEO_OPTIONS = ["Excellent", "Selected", "Reserved"];
+
+const CRITERIA: Array<{ label: string; short: string; check: (c: Candidate) => boolean }> = [
+  { label: "Avatar photo",                       short: "Avatar",    check: (c) => !!c.photo_url },
+  { label: "Full-size photo & passport scan",    short: "Photos",    check: (c) => !!(c.full_photo_url && c.passport_scan_url) },
+  { label: "Video link",                         short: "Video",     check: (c) => !!c.video_url },
+  { label: "Narrative & narrative phone",        short: "Narrative", check: (c) => !!(c.narrative?.trim() && c.narrative_phone?.trim()) },
+  { label: "Original ID & Narrative ID (LMIS)", short: "ID files",  check: (c) => !!((c as any).lmis_id_url && (c as any).lmis_id_relative_url) },
+  { label: "COC done",                           short: "COC",       check: (c) => c.coc_status === "Done" },
+  { label: "Religion & marital status",          short: "Personal",  check: (c) => !!(c.religion && c.marital_status) },
+  { label: "CEO selection (Excellent/Selected/Reserved)", short: "CEO", check: (c) => CEO_OPTIONS.includes(c.selected_by ?? "") },
+  { label: "Medical status (Fit/Booked/In progress)", short: "Medical", check: (c) => ["Fit", "Booked", "In progress"].includes(c.medical_status ?? "") },
+  { label: "Medical Fit & ≤75 days old",         short: "Med Fit",   check: (c) => c.medical_status === "Fit" && !!c.medical_date && medDaysAgo(c.medical_date) <= 75 },
+];
+const CRITERIA_THRESHOLD = Math.ceil(CRITERIA.length / 2); // > half = 6
+
+function CriteriaBadge({ candidate, onMoveToAvailable }: {
+  candidate: Candidate;
+  onMoveToAvailable?: (id: string) => void;
+}) {
+  const results = CRITERIA.map((cr) => ({ ...cr, met: cr.check(candidate) }));
+  const score = results.filter((r) => r.met).length;
+  const eligible = score >= CRITERIA_THRESHOLD;
+
+  return (
+    <TooltipProvider delayDuration={150}>
+      <div className={cn(
+        "border-x border-b border-border px-3 py-1.5 flex items-center gap-3 flex-wrap",
+        eligible ? "bg-emerald-50/60 border-emerald-200" : "bg-muted/20",
+      )}>
+        <div className="flex gap-1 flex-wrap">
+          {results.map((r) => (
+            <Tooltip key={r.short}>
+              <TooltipTrigger asChild>
+                <div className={cn(
+                  "w-4 h-4 rounded-sm flex items-center justify-center text-[9px] font-bold cursor-default select-none",
+                  r.met ? "bg-emerald-500 text-white" : "bg-zinc-100 border border-zinc-300 text-zinc-400",
+                )}>
+                  {r.short[0]}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                <span className={r.met ? "text-emerald-600 font-medium" : "text-muted-foreground"}>
+                  {r.met ? "✓" : "✗"} {r.label}
+                </span>
+              </TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+        <span className={cn("text-[11px] font-bold tabular-nums", eligible ? "text-emerald-700" : "text-muted-foreground")}>
+          {score}/{CRITERIA.length}
+        </span>
+        {eligible && !onMoveToAvailable && (
+          <span className="text-[10px] font-medium text-emerald-700 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded-sm">
+            TC Ready
+          </span>
+        )}
+        {onMoveToAvailable && (
+          <Button
+            size="sm" variant={eligible ? "default" : "outline"}
+            className="ml-auto h-6 text-[11px] rounded-none px-2"
+            onClick={() => onMoveToAvailable(candidate.id)}
+          >
+            Move to Available
+          </Button>
+        )}
+      </div>
+    </TooltipProvider>
+  );
+}
 
 export const Route = createFileRoute("/_authenticated/staff/tc")({
   head: () => ({ meta: [{ title: "Training Centre — Staff-Flow" }] }),
@@ -584,6 +656,17 @@ function TcPage() {
           agencyOptions={agencyOptions}
           agencyPhones={agencyPhones}
           narrativeSuggestions={opts.narrative}
+          renderCardSuffix={(c) => (
+            <CriteriaBadge
+              candidate={c}
+              onMoveToAvailable={activeView === "trained"
+                ? (id) => {
+                    fieldMut.mutate({ id, field: "availability_type", value: "Available" });
+                    toast.success(`${c.full_name ?? "Candidate"} moved to Available`);
+                  }
+                : undefined}
+            />
+          )}
         />
       )}
 
@@ -812,6 +895,7 @@ function TcPage() {
                   )}
                 </div>
                 <FormSelect label="Country *" value={form.musaned_status} onChange={(v) => setForm({ ...form, musaned_status: v })} options={assignCountries.map((c) => c.name)} />
+                <FormSelect label="CEO Selection" value={form.selected_by} onChange={(v) => setForm({ ...form, selected_by: v })} options={CEO_OPTIONS} />
               </div>
             </FormSection>
 

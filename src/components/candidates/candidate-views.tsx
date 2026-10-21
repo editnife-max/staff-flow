@@ -220,7 +220,7 @@ export function ProcessingEditDialog({
 
 export function CandidateCardList({
   candidates, selected, onToggleSelect, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo,
-  countryMeta, officesByCountry, agencyOptions, agencyPhones, compact, narrativeSuggestions, showCvBadge, pageKey,
+  countryMeta, officesByCountry, agencyOptions, agencyPhones, compact, narrativeSuggestions, showCvBadge, pageKey, renderCardSuffix,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -241,6 +241,7 @@ export function CandidateCardList({
   agencyPhones: Record<string, string>;
   narrativeSuggestions?: string[];
   pageKey: string;
+  renderCardSuffix?: (c: Candidate) => React.ReactNode;
 }) {
   const cvReq = useMemo(() => {
     if (!showCvBadge) return null;
@@ -476,28 +477,30 @@ export function CandidateCardList({
           <div ref={scrollRef} className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="space-y-2 min-w-max">
               {paginated.map((c) => (
-                <CandidateCard
-                  key={c.id}
-                  candidate={c}
-                  selected={selected.has(c.id)}
-                  visibleCols={visibleCols}
-                  cancelMode={cancelMode}
-                  compact={compact}
-                  meetsCvReq={cvReq ? checkMeetsCvReq(c, cvReq) : false}
-                  onToggleSelect={() => onToggleSelect(c.id)}
-                  onViewPhotos={() => setViewingPhotos(c)}
-                  onView={() => onView(c)}
-                  onAction={() => onAction(c)}
-                  onEdit={() => onEdit(c)}
-                  onDelete={() => onDelete(c.id)}
-                  onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
-                  onReturn={onReturn ? () => onReturn(c.id) : undefined}
-                  onUndo={onUndo ? () => onUndo(c.id, c) : undefined}
-                  agencyOptions={agencyOptions}
-                  agencyPhones={agencyPhones}
-                  countryOptions={countryOptions}
-                  narrativeSuggestions={narrativeSuggestions}
-                />
+                <React.Fragment key={c.id}>
+                  <CandidateCard
+                    candidate={c}
+                    selected={selected.has(c.id)}
+                    visibleCols={visibleCols}
+                    cancelMode={cancelMode}
+                    compact={compact}
+                    meetsCvReq={cvReq ? checkMeetsCvReq(c, cvReq) : false}
+                    onToggleSelect={() => onToggleSelect(c.id)}
+                    onViewPhotos={() => setViewingPhotos(c)}
+                    onView={() => onView(c)}
+                    onAction={() => onAction(c)}
+                    onEdit={() => onEdit(c)}
+                    onDelete={() => onDelete(c.id)}
+                    onUpdateField={(field, value) => onUpdateField(c.id, field, value)}
+                    onReturn={onReturn ? () => onReturn(c.id) : undefined}
+                    onUndo={onUndo ? () => onUndo(c.id, c) : undefined}
+                    agencyOptions={agencyOptions}
+                    agencyPhones={agencyPhones}
+                    countryOptions={countryOptions}
+                    narrativeSuggestions={narrativeSuggestions}
+                  />
+                  {renderCardSuffix?.(c)}
+                </React.Fragment>
               ))}
             </div>
           </div>
