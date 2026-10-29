@@ -321,6 +321,25 @@ function AssignmentsPage() {
     },
   });
 
+  // ── CV Distribution stats ─────────────────────────────────────────────────────
+  const { data: cvDistStats } = useQuery({
+    queryKey: ["cv-dist-stats", user?.id],
+    enabled: !!user && panelDialog === "cvDist",
+    staleTime: 0,
+    queryFn: async () => {
+      const [procRes, sentRes] = await Promise.all([
+        supabase.from("candidates").select("selected_by").eq("status", "processing").not("selected_by", "is", null),
+        supabase.from("candidates").select("cv_sent_to").eq("status", "available").not("cv_sent_to", "is", null),
+      ]);
+      const procCounts: Record<string, number> = {};
+      for (const r of procRes.data ?? []) { const k = r.selected_by!; procCounts[k] = (procCounts[k] ?? 0) + 1; }
+      const procTotal = Object.values(procCounts).reduce((a, b) => a + b, 0);
+      const sentCounts: Record<string, number> = {};
+      for (const r of sentRes.data ?? []) { const k = r.cv_sent_to!; sentCounts[k] = (sentCounts[k] ?? 0) + 1; }
+      return { procCounts, procTotal, sentCounts };
+    },
+  });
+
   const activeCountry = countries.find((c) => c.id === activeCountryId) ?? countries[0] ?? null;
   const activeOffices  = offices.filter((o) => o.country_id === activeCountry?.id);
 
@@ -1390,17 +1409,13 @@ function AssignmentsPage() {
               CV Distribution
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-[12px] text-muted-foreground leading-relaxed">
-              Clears all current <strong>cv_sent_to</strong> assignments for qualifying available candidates,
-              then redistributes them: country-matched first, then fills each office up to{" "}
-              <strong>{cvReq.base_per_office}</strong> candidates, with overflow split by Processing selection %.
-            </p>
-            <div className="grid grid-cols-2 gap-3 text-[12px]">
-              <div className="border border-border p-2.5">
+          <div className="space-y-3">
+            {/* Settings row */}
+            <div className="flex items-center gap-3 text-[12px]">
+              <div className="border border-border px-2.5 py-2 flex-1">
                 <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Base per office</div>
                 {baseEdit ? (
-                  <div className="flex items-center gap-1 mt-0.5">
+                  <div className="flex items-center gap-1">
                     <input
                       autoFocus type="number" min={1} value={baseDraft}
                       onChange={(e) => setBaseDraft(e.target.value)}
@@ -1418,46 +1433,74 @@ function AssignmentsPage() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold">{cvReq.base_per_office}</span>
+                    <span className="font-bold text-sm">{cvReq.base_per_office}</span>
                     <button type="button" className="text-[10px] text-primary hover:underline"
-                      onClick={() => { setBaseDraft(cvReq.base_per_office ?? "15"); setBaseEdit(true); }}>
-                      Edit
-                    </button>
+                      onClick={() => { setBaseDraft(cvReq.base_per_office ?? "15"); setBaseEdit(true); }}>Edit</button>
                   </div>
                 )}
               </div>
-              <div className="border border-border p-2.5">
+              <div className="border border-border px-2.5 py-2 flex-1">
                 <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Auto-resend after</div>
-                <div className="font-semibold">{cvDaysThreshold} days</div>
-              </div>
-              <div className="border border-border p-2.5">
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Active offices</div>
-                <div className="font-semibold">{offices.filter((o) => !(o as any).is_locked).length} of {offices.length}</div>
-              </div>
-              <div className="border border-border p-2.5">
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Countries</div>
-                <div className="font-semibold">{countries.length}</div>
+                <span className="font-bold text-sm">{cvDaysThreshold} days</span>
               </div>
             </div>
-            {distResult && (
-              <div className="border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 p-3 rounded-sm space-y-1.5">
-                <div className="text-[12px] font-semibold text-emerald-700 dark:text-emerald-400">
-                  {distResult.assigned} candidate{distResult.assigned !== 1 ? "s" : ""} distributed
-                </div>
-                {Object.entries(distResult.byOffice).length > 0 && (
-                  <div className="space-y-0.5 max-h-40 overflow-y-auto">
-                    {Object.entries(distResult.byOffice)
-                      .sort(([, a], [, b]) => b - a)
-                      .map(([office, count]) => (
-                        <div key={office} className="flex justify-between text-[11px] text-muted-foreground">
-                          <span className="truncate">{office}</span>
-                          <span className="shrink-0 font-medium text-foreground ml-2">{count}</span>
-                        </div>
-                      ))}
+
+            {/* Office breakdown table */}
+            {(() => {
+              const activeOfficList = offices.filter((o) => !(o as any).is_locked);
+              const countryMap = new Map(countries.map((c) => [c.id, c]));
+              const procTotal = cvDistStats?.procTotal ?? 0;
+              if (activeOfficList.length === 0) return (
+                <p className="text-[12px] text-muted-foreground text-center py-3">No active offices.</p>
+              );
+              return (
+                <div className="border border-border overflow-hidden">
+                  <div className="grid text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-muted/40 px-3 py-1.5"
+                    style={{ gridTemplateColumns: "1fr auto auto auto" }}>
+                    <span>Office</span>
+                    <span className="text-right pr-4">Current CVs</span>
+                    <span className="text-right pr-4">Base</span>
+                    <span className="text-right">Overflow %</span>
                   </div>
-                )}
-              </div>
-            )}
+                  <div className="divide-y divide-border max-h-48 overflow-y-auto">
+                    {activeOfficList.map((o) => {
+                      const country = countryMap.get(o.country_id ?? "");
+                      const current = cvDistStats?.sentCounts?.[o.name] ?? 0;
+                      const procCount = cvDistStats?.procCounts?.[o.name] ?? 0;
+                      const pct = procTotal > 0 ? Math.round((procCount / procTotal) * 100) : null;
+                      const afterResult = distResult?.byOffice?.[o.name];
+                      return (
+                        <div key={o.id} className="grid items-center px-3 py-1.5 text-[12px] hover:bg-muted/20"
+                          style={{ gridTemplateColumns: "1fr auto auto auto" }}>
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">{o.name}</div>
+                            {country && <div className="text-[10px] text-muted-foreground">{country.flag} {country.name}</div>}
+                          </div>
+                          <div className="text-right pr-4 tabular-nums">
+                            {afterResult != null
+                              ? <span className="font-semibold text-emerald-600 dark:text-emerald-400">{afterResult}</span>
+                              : <span className="text-muted-foreground">{current}</span>}
+                          </div>
+                          <div className="text-right pr-4 tabular-nums text-muted-foreground">
+                            {cvReq.base_per_office}
+                          </div>
+                          <div className="text-right tabular-nums">
+                            {pct != null
+                              ? <span className="text-primary font-medium">{pct}%</span>
+                              : <span className="text-muted-foreground">—</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {distResult && (
+                    <div className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/30 border-t border-emerald-200 dark:border-emerald-800 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                      {distResult.assigned} candidate{distResult.assigned !== 1 ? "s" : ""} distributed
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             <Button
               className="w-full h-8 rounded-none gap-2 text-sm"
               disabled={distRunning}
@@ -1467,6 +1510,7 @@ function AssignmentsPage() {
                 try {
                   const r = await distributeFn();
                   setDistResult(r);
+                  qc.invalidateQueries({ queryKey: ["cv-dist-stats", user?.id] });
                   toast.success(`Distributed ${r.assigned} candidates across ${Object.keys(r.byOffice).length} offices`);
                 } catch (e: any) {
                   toast.error(e.message ?? "Distribution failed");
