@@ -362,27 +362,25 @@ function AssignmentsPage() {
     enabled: !!user && summaryView,
     staleTime: 0,
     queryFn: async () => {
-      // Fetch all candidates with any CV activity — RLS scopes to manager's data
       const { data } = await supabase
         .from("candidates")
         .select("id, cv_sent_to, cv_resent_offices, selected_by")
+        .eq("manager_id", user!.id)
         .or("cv_sent_to.not.is.null,cv_resent_offices.not.is.null,selected_by.not.is.null");
       return (data ?? []) as { id: string; cv_sent_to: string | null; cv_resent_offices: unknown; selected_by: string | null }[];
     },
   });
 
   const officeStats = useMemo(() => activeOffices.map(o => {
-    const name = o.name;
-    const sentTo    = summaryCandidates.filter(c => c.cv_sent_to === name);
-    const pending   = sentTo.filter(c => !c.selected_by);
-    const selected  = summaryCandidates.filter(c => c.selected_by === name);
-    // Sent = unique candidates that are either currently sent or selected by this office
-    const sentIds = new Set([...sentTo.map(c => c.id), ...selected.map(c => c.id)]);
-    const resent = summaryCandidates.filter(c => {
+    const name     = o.name;
+    const sentTo   = summaryCandidates.filter(c => c.cv_sent_to === name);
+    const pending  = sentTo.filter(c => !c.selected_by);
+    const selected = summaryCandidates.filter(c => c.selected_by === name);
+    const resent   = summaryCandidates.filter(c => {
       const arr = c.cv_resent_offices;
       return Array.isArray(arr) && (arr as string[]).includes(name);
     });
-    return { name, sent: sentIds.size, selected: selected.length, pending: pending.length, resent: resent.length };
+    return { name, sent: sentTo.length, selected: selected.length, pending: pending.length, resent: resent.length };
   }), [activeOffices, summaryCandidates]);
 
   function downloadOfficeCsv() {
