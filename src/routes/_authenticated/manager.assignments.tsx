@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock, Download, BarChart3, AlertCircle, Lock, Unlock, KeyRound, Eye, EyeOff, Search, Users, GraduationCap, Play, FileSignature, Send, Loader2, ListChecks, Shuffle } from "lucide-react";
+import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock, Download, BarChart3, AlertCircle, Lock, Unlock, KeyRound, Eye, EyeOff, Search, Users, GraduationCap, Play, FileSignature, Send, Loader2, ListChecks, Shuffle, RefreshCw } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -344,25 +344,31 @@ function AssignmentsPage() {
   const activeOffices  = offices.filter((o) => o.country_id === activeCountry?.id);
 
   const { data: summaryCandidates = [] } = useQuery({
-    queryKey: ["office-summary-candidates", user?.id, activeCountry?.id],
-    enabled: !!user && summaryView && !!activeCountry,
+    queryKey: ["office-summary-candidates", user?.id],
+    enabled: !!user && summaryView,
     staleTime: 0,
     queryFn: async () => {
-      const names = offices.filter(o => o.country_id === activeCountry!.id).map(o => o.name);
-      if (names.length === 0) return [];
+      // Fetch all candidates with any CV activity — RLS scopes to manager's data
       const { data } = await supabase
         .from("candidates")
         .select("id, cv_sent_to, cv_resent_offices, selected_by")
-        .in("cv_sent_to", names);
-      return (data ?? []) as { id: string; cv_sent_to: string | null; cv_resent_offices: string[] | null; selected_by: string | null }[];
+        .or("cv_sent_to.not.is.null,cv_resent_offices.not.is.null,selected_by.not.is.null");
+      return (data ?? []) as { id: string; cv_sent_to: string | null; cv_resent_offices: unknown; selected_by: string | null }[];
     },
   });
 
   const officeStats = useMemo(() => activeOffices.map(o => {
     const name = o.name;
-    const sent = summaryCandidates.filter(c => c.cv_sent_to === name);
-    const resentReceived = summaryCandidates.filter(c => (c.cv_resent_offices as string[] | null)?.includes(name) ?? false);
-    return { name, sent: sent.length, selected: sent.filter(c => !!c.selected_by).length, pending: sent.filter(c => !c.selected_by).length, resent: resentReceived.length };
+    const sentTo    = summaryCandidates.filter(c => c.cv_sent_to === name);
+    const pending   = sentTo.filter(c => !c.selected_by);
+    const selected  = summaryCandidates.filter(c => c.selected_by === name);
+    // Sent = unique candidates that are either currently sent or selected by this office
+    const sentIds = new Set([...sentTo.map(c => c.id), ...selected.map(c => c.id)]);
+    const resent = summaryCandidates.filter(c => {
+      const arr = c.cv_resent_offices;
+      return Array.isArray(arr) && (arr as string[]).includes(name);
+    });
+    return { name, sent: sentIds.size, selected: selected.length, pending: pending.length, resent: resent.length };
   }), [activeOffices, summaryCandidates]);
 
   function downloadOfficeCsv() {
@@ -773,10 +779,17 @@ function AssignmentsPage() {
                             <div className="flex flex-col gap-2">
                               <div className="flex items-center justify-between">
                                 <span className="text-xs text-muted-foreground">{cOffices.length} offices</span>
-                                <button type="button" onClick={downloadOfficeCsv}
-                                  className="flex items-center gap-1 text-xs text-primary hover:underline">
-                                  <Download className="h-3 w-3" /> Export CSV
-                                </button>
+                                <div className="flex items-center gap-3">
+                                  <button type="button"
+                                    onClick={() => qc.invalidateQueries({ queryKey: ["office-summary-candidates", user?.id] })}
+                                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                                    <RefreshCw className="h-3 w-3" /> Refresh
+                                  </button>
+                                  <button type="button" onClick={downloadOfficeCsv}
+                                    className="flex items-center gap-1 text-xs text-primary hover:underline">
+                                    <Download className="h-3 w-3" /> Export CSV
+                                  </button>
+                                </div>
                               </div>
                               <table className="w-full text-xs border-collapse">
                                 <thead>
@@ -1511,6 +1524,7 @@ function AssignmentsPage() {
                   const r = await distributeFn();
                   setDistResult(r);
                   qc.invalidateQueries({ queryKey: ["cv-dist-stats", user?.id] });
+                  qc.invalidateQueries({ queryKey: ["office-summary-candidates", user?.id] });
                   toast.success(`Distributed ${r.assigned} candidates across ${Object.keys(r.byOffice).length} offices`);
                 } catch (e: any) {
                   toast.error(e.message ?? "Distribution failed");

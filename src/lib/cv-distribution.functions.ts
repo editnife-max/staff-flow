@@ -157,6 +157,37 @@ async function applyAssignment(
   return totalUpdated;
 }
 
+async function trackResentOffices(
+  managerId: string,
+  assignment: Record<string, string>,
+  oldOffices: Record<string, string | null>,
+): Promise<void> {
+  const moved = Object.entries(assignment)
+    .filter(([id, newOffice]) => { const o = oldOffices[id]; return !!o && o !== newOffice; })
+    .map(([id]) => ({ id, oldOffice: oldOffices[id]! }));
+  if (moved.length === 0) return;
+
+  const { data: current } = await supabaseAdmin
+    .from("candidates")
+    .select("id, cv_resent_offices")
+    .in("id", moved.map((m) => m.id))
+    .eq("manager_id", managerId);
+
+  const resentMap = new Map(
+    (current ?? []).map((r) => [r.id, (Array.isArray(r.cv_resent_offices) ? r.cv_resent_offices : []) as string[]]),
+  );
+
+  await Promise.all(
+    moved.map(({ id, oldOffice }) =>
+      supabaseAdmin
+        .from("candidates")
+        .update({ cv_resent_offices: [...(resentMap.get(id) ?? []), oldOffice] as never })
+        .eq("id", id)
+        .eq("manager_id", managerId),
+    ),
+  );
+}
+
 // ─── Server functions ─────────────────────────────────────────────────────────
 
 export const distributeCandidates = createServerFn({ method: "POST" })
@@ -181,10 +212,10 @@ export const distributeCandidates = createServerFn({ method: "POST" })
     ]);
     if (offices.length === 0) return { assigned: 0, byOffice: {} };
 
-    // Query qualifying candidates
+    // Query qualifying candidates (include cv_sent_to to track history)
     let query = supabaseAdmin
       .from("candidates")
-      .select("id, musaned_status")
+      .select("id, musaned_status, cv_sent_to")
       .eq("manager_id", managerId)
       .eq("status", "available")
       .is("selected_by", null);
@@ -197,6 +228,10 @@ export const distributeCandidates = createServerFn({ method: "POST" })
     const { data: candidates } = await query;
     if (!candidates || candidates.length === 0) return { assigned: 0, byOffice: {} };
 
+    // Capture old offices before nulling
+    const oldOffices: Record<string, string | null> = {};
+    for (const c of candidates) oldOffices[c.id] = c.cv_sent_to;
+
     // Null all cv_sent_to first
     const ids = candidates.map((c) => c.id);
     await supabaseAdmin
@@ -208,8 +243,9 @@ export const distributeCandidates = createServerFn({ method: "POST" })
     // Run algorithm
     const assignment = runAlgorithm(candidates, offices, processingPct, basePerOffice);
 
-    // Save
+    // Save and track history
     const assigned = await applyAssignment(managerId, assignment);
+    await trackResentOffices(managerId, assignment, oldOffices);
 
     // Count per office
     const byOffice: Record<string, number> = {};
@@ -273,6 +309,7 @@ export const checkAndResendExpiredCvs = createServerFn({ method: "POST" })
     );
 
     const redistributed = await applyAssignment(managerId, assignment);
+    await trackResentOffices(managerId, assignment, excludeFor);
     return { redistributed };
   });
 
