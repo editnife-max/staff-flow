@@ -276,6 +276,9 @@ export const distributeCandidates = createServerFn({ method: "POST" })
     if (req.coc     && req.coc     !== "all") query = query.eq("coc_status", req.coc);
     if (req.narrative  && req.narrative  !== "all") query = query.eq("narrative", req.narrative);
     if (req.experience && req.experience !== "all") query = query.eq("experience", req.experience);
+    if (req.passport_scan   === "Yes") query = query.not("passport_scan_url", "is", null);
+    if (req.full_size_photo === "Yes") query = query.not("full_photo_url", "is", null);
+    if (req.photo_cv        === "Yes") query = query.not("photo_url", "is", null);
 
     const { data: candidates } = await query;
     if (!candidates || candidates.length === 0) return { assigned: 0, byOffice: {} };
@@ -372,10 +375,10 @@ export const autoDistributeNewCandidate = createServerFn({ method: "POST" })
     const managerId = await resolveManagerId(context.userId);
     if (!managerId) return { sentTo: null };
 
-    // Load candidate
+    // Load candidate (include photo/scan fields for CV Ready check)
     const { data: candidate } = await supabaseAdmin
       .from("candidates")
-      .select("id, musaned_status, status, medical_status, coc_status, narrative, experience, selected_by")
+      .select("id, musaned_status, status, medical_status, coc_status, narrative, experience, selected_by, passport_scan_url, full_photo_url, photo_url")
       .eq("id", data.candidateId)
       .eq("manager_id", managerId)
       .maybeSingle();
@@ -391,11 +394,14 @@ export const autoDistributeNewCandidate = createServerFn({ method: "POST" })
     const req = (profileRow?.cv_page_requirements as Record<string, string>) ?? {};
     const basePerOffice = parseInt(req.base_per_office ?? "15", 10) || 15;
 
-    // Check candidate meets requirements
+    // Check candidate meets all CV Ready requirements
     if (req.medical    && req.medical    !== "all" && candidate.medical_status !== req.medical) return { sentTo: null };
     if (req.coc        && req.coc        !== "all" && candidate.coc_status     !== req.coc) return { sentTo: null };
     if (req.narrative  && req.narrative  !== "all" && candidate.narrative      !== req.narrative) return { sentTo: null };
     if (req.experience && req.experience !== "all" && candidate.experience     !== req.experience) return { sentTo: null };
+    if (req.passport_scan   === "Yes" && !candidate.passport_scan_url)  return { sentTo: null };
+    if (req.full_size_photo === "Yes" && !candidate.full_photo_url)     return { sentTo: null };
+    if (req.photo_cv        === "Yes" && !candidate.photo_url)          return { sentTo: null };
 
     const [offices, processingPct] = await Promise.all([
       loadActiveOffices(managerId),
