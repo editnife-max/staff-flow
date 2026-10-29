@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, FileText, User, ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, ChevronUp,
@@ -24,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn, calcAge } from "@/lib/utils";
 import { StatusBadge } from "@/components/status-badge";
 import type { Database } from "@/integrations/supabase/types";
+import { checkAndResendExpiredCvs } from "@/lib/cv-distribution.functions";
 
 export const Route = createFileRoute("/_authenticated/staff/cv-generator")({
   head: () => ({ meta: [{ title: "CV Page — Staff-Flow" }] }),
@@ -188,6 +190,17 @@ const MEDICAL_OPTIONS = ["Fit", "Booked", "Unfit", "No", "In progress", "Expired
 function CvGeneratorPage() {
   const { user } = useAuth();
   const qc       = useQueryClient();
+
+  const resendExpiredFn = useServerFn(checkAndResendExpiredCvs);
+  useEffect(() => {
+    if (!user) return;
+    resendExpiredFn({}).then((r) => {
+      if (r.redistributed > 0) {
+        toast.info(`${r.redistributed} candidate${r.redistributed > 1 ? "s" : ""} auto-redistributed`);
+        qc.invalidateQueries({ queryKey: ["cv-candidates"] });
+      }
+    }).catch(() => {});
+  }, [user?.id]);
   const search   = Route.useSearch();
   const [query,   setQuery]   = useState("");
   const [filters, setFilters] = useState({

@@ -33,6 +33,7 @@ import {
   getCandidates,
 } from "@/lib/candidates.functions";
 import { generateNarrative } from "@/lib/narrative.functions";
+import { autoDistributeNewCandidate } from "@/lib/cv-distribution.functions";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@/components/ui/command";
@@ -272,6 +273,7 @@ function ManagerCandidatesPage() {
   const navigate = useNavigate();
   const { tab: tabParam } = Route.useSearch();
   const upsert         = useServerFn(upsertCandidate);
+  const autoDistFn     = useServerFn(autoDistributeNewCandidate);
   const remove         = useServerFn(deleteCandidate);
   const bulkDel        = useServerFn(bulkDeleteCandidates);
   const bulkStatus     = useServerFn(bulkUpdateStatus);
@@ -843,10 +845,15 @@ function ManagerCandidatesPage() {
       };
       return upsert({ data: { id: editing?.id, data: payload } });
     },
-    onSuccess: () => {
+    onSuccess: (r) => {
       toast.success(editing ? "Candidate updated" : "Candidate added");
       qc.invalidateQueries({ queryKey: ["manager-candidates"] });
       setOpen(false); setEditing(null); setForm(initialForm);
+      if (!editing) {
+        autoDistFn({ data: { candidateId: r.id } }).then((res) => {
+          if (res.sentTo) toast.info(`CV auto-sent to ${res.sentTo}`);
+        }).catch(() => {});
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });

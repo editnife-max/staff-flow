@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock, Download, BarChart3, AlertCircle, Lock, Unlock, KeyRound, Eye, EyeOff, Search, Users, GraduationCap, Play, FileSignature, Send, Loader2, ListChecks } from "lucide-react";
+import { Plus, Trash2, Globe, Building2, ChevronRight, ChevronLeft, FileText, Upload, ExternalLink, CheckCircle2, CircleDot, Clock, Download, BarChart3, AlertCircle, Lock, Unlock, KeyRound, Eye, EyeOff, Search, Users, GraduationCap, Play, FileSignature, Send, Loader2, ListChecks, Shuffle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +17,7 @@ import { ALL_TC_CRITERIA, ALL_TC_CRITERIA_KEYS } from "@/components/candidates/t
 import { addCountry, deleteCountry, addOffice, deleteOffice, lockOffice, deleteCvTemplate, optimizeCvTemplate, saveMusanedCredentials, saveEnjazCredentials, saveMofaCredentials, saveLmisCredentials, getManagerCredentials } from "@/lib/assignments.functions";
 import { runLmisPhase1 } from "@/lib/lmis-contract.functions";
 import { runMusanedFetch } from "@/lib/musaned.functions";
+import { distributeCandidates } from "@/lib/cv-distribution.functions";
 
 type AssignCountry  = Database["public"]["Tables"]["assignment_countries"]["Row"];
 type AssignOffice   = Database["public"]["Tables"]["assignment_offices"]["Row"];
@@ -98,7 +99,12 @@ function AssignmentsPage() {
   const runMusanedFn = useServerFn(runMusanedFetch);
 
   // ── panel dialog ──────────────────────────────────────────────────────────────
-  const [panelDialog, setPanelDialog] = useState<"countries" | "offices" | "cvTemplates" | "cvReq" | "tcCriteria" | null>(null);
+  const [panelDialog, setPanelDialog] = useState<"countries" | "offices" | "cvTemplates" | "cvReq" | "tcCriteria" | "cvDist" | null>(null);
+
+  // ── CV Distribution ───────────────────────────────────────────────────────────
+  const distributeFn = useServerFn(distributeCandidates);
+  const [distRunning, setDistRunning] = useState(false);
+  const [distResult,  setDistResult]  = useState<{ assigned: number; byOffice: Record<string, number> } | null>(null);
 
   // ── CV requirement days ──────────────────────────────────────────────────────
   const [cvDaysEdit,  setCvDaysEdit]  = useState(false);
@@ -619,6 +625,18 @@ function AssignmentsPage() {
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold">TC Criteria</div>
             <div className="text-xs text-muted-foreground">{tcCriteriaKeys.length} of {ALL_TC_CRITERIA.length} active</div>
+          </div>
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        </button>
+
+        <button type="button" onClick={() => { setPanelDialog("cvDist"); setDistResult(null); }}
+          className="border border-border bg-background flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
+          <Shuffle className="h-4 w-4 text-primary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold">CV Distribution</div>
+            <div className="text-xs text-muted-foreground">
+              {offices.filter((o) => !(o as any).is_locked).length} active offices · resend after {cvDaysThreshold}d
+            </div>
           </div>
           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         </button>
@@ -1359,6 +1377,85 @@ function AssignmentsPage() {
                 Disable all
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── CV Distribution Dialog ───────────────────────────────────── */}
+      <Dialog open={panelDialog === "cvDist"} onOpenChange={(o) => { if (!o) setPanelDialog(null); }}>
+        <DialogContent className="sm:max-w-md rounded-none">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shuffle className="h-4 w-4 text-primary" />
+              CV Distribution
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-[12px] text-muted-foreground leading-relaxed">
+              Clears all current <strong>cv_sent_to</strong> assignments for qualifying available candidates,
+              then redistributes them: country-matched first, then fills each office up to{" "}
+              <strong>{cvReq.base_per_office}</strong> candidates, with overflow split by Processing selection %.
+            </p>
+            <div className="grid grid-cols-2 gap-3 text-[12px]">
+              <div className="border border-border p-2.5">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Base per office</div>
+                <div className="font-semibold">{cvReq.base_per_office}</div>
+              </div>
+              <div className="border border-border p-2.5">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Auto-resend after</div>
+                <div className="font-semibold">{cvDaysThreshold} days</div>
+              </div>
+              <div className="border border-border p-2.5">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Active offices</div>
+                <div className="font-semibold">{offices.filter((o) => !(o as any).is_locked).length} of {offices.length}</div>
+              </div>
+              <div className="border border-border p-2.5">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Countries</div>
+                <div className="font-semibold">{countries.length}</div>
+              </div>
+            </div>
+            {distResult && (
+              <div className="border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 p-3 rounded-sm space-y-1.5">
+                <div className="text-[12px] font-semibold text-emerald-700 dark:text-emerald-400">
+                  {distResult.assigned} candidate{distResult.assigned !== 1 ? "s" : ""} distributed
+                </div>
+                {Object.entries(distResult.byOffice).length > 0 && (
+                  <div className="space-y-0.5 max-h-40 overflow-y-auto">
+                    {Object.entries(distResult.byOffice)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([office, count]) => (
+                        <div key={office} className="flex justify-between text-[11px] text-muted-foreground">
+                          <span className="truncate">{office}</span>
+                          <span className="shrink-0 font-medium text-foreground ml-2">{count}</span>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            )}
+            <Button
+              className="w-full h-8 rounded-none gap-2 text-sm"
+              disabled={distRunning}
+              onClick={async () => {
+                setDistRunning(true);
+                setDistResult(null);
+                try {
+                  const r = await distributeFn();
+                  setDistResult(r);
+                  toast.success(`Distributed ${r.assigned} candidates across ${Object.keys(r.byOffice).length} offices`);
+                } catch (e: any) {
+                  toast.error(e.message ?? "Distribution failed");
+                } finally {
+                  setDistRunning(false);
+                }
+              }}
+            >
+              {distRunning ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Running…</>
+              ) : (
+                <><Shuffle className="h-4 w-4" /> Run Distribution</>
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
