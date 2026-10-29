@@ -1399,7 +1399,32 @@ function AssignmentsPage() {
             <div className="grid grid-cols-2 gap-3 text-[12px]">
               <div className="border border-border p-2.5">
                 <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Base per office</div>
-                <div className="font-semibold">{cvReq.base_per_office}</div>
+                {baseEdit ? (
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <input
+                      autoFocus type="number" min={1} value={baseDraft}
+                      onChange={(e) => setBaseDraft(e.target.value)}
+                      className="w-12 border border-input rounded-none px-1.5 h-6 text-sm"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { const n = parseInt(baseDraft); if (!isNaN(n) && n > 0) { saveCvReq.mutate({ ...cvReq, base_per_office: String(n) }); setBaseEdit(false); } }
+                        if (e.key === "Escape") setBaseEdit(false);
+                      }}
+                    />
+                    <Button size="sm" className="h-6 rounded-none px-1.5 text-xs" disabled={saveCvReq.isPending}
+                      onClick={() => { const n = parseInt(baseDraft); if (!isNaN(n) && n > 0) { saveCvReq.mutate({ ...cvReq, base_per_office: String(n) }); setBaseEdit(false); } }}>
+                      {saveCvReq.isPending ? "…" : "Save"}
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-6 rounded-none px-1 text-xs" onClick={() => setBaseEdit(false)}>✕</Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">{cvReq.base_per_office}</span>
+                    <button type="button" className="text-[10px] text-primary hover:underline"
+                      onClick={() => { setBaseDraft(cvReq.base_per_office ?? "15"); setBaseEdit(true); }}>
+                      Edit
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="border border-border p-2.5">
                 <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Auto-resend after</div>
