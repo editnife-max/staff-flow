@@ -132,6 +132,14 @@ function runAlgorithm(
     }
   }
 
+  // Hard guarantee: every candidate must go to an available office
+  for (const c of candidates) {
+    if (assignment[c.id]) continue;
+    // Try to find any office that isn't excluded for this candidate
+    const chosen = offices.find((o) => excludeFor[c.id] !== o.name) ?? offices[0];
+    assignment[c.id] = chosen.name;
+  }
+
   return assignment;
 }
 
@@ -225,17 +233,6 @@ export async function redistributeFromLockedOffice(
 
   await applyAssignment(managerId, assignment);
   await trackResentOffices(managerId, assignment, excludeFor);
-
-  // Clear any candidates that the algorithm could not place (no other office available)
-  const assignedIds = new Set(Object.keys(assignment));
-  const unassigned = candidates.filter((c) => !assignedIds.has(c.id));
-  if (unassigned.length > 0) {
-    await supabaseAdmin
-      .from("candidates")
-      .update({ cv_sent_to: null, cv_sent_date: null } as never)
-      .in("id", unassigned.map((c) => c.id))
-      .eq("manager_id", managerId);
-  }
 
   return candidates.length;
 }
