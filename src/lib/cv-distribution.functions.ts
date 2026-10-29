@@ -331,8 +331,8 @@ export const checkAndResendExpiredCvs = createServerFn({ method: "POST" })
     cutoff.setDate(cutoff.getDate() - threshold);
     const cutoffStr = cutoff.toISOString().split("T")[0];
 
-    // Find overdue candidates
-    const { data: expiredRaw } = await supabaseAdmin
+    // Find overdue candidates that still meet CV Ready requirements
+    let expiredQuery = supabaseAdmin
       .from("candidates")
       .select("id, musaned_status, cv_sent_to")
       .eq("manager_id", managerId)
@@ -340,6 +340,16 @@ export const checkAndResendExpiredCvs = createServerFn({ method: "POST" })
       .is("selected_by", null)
       .not("cv_sent_to", "is", null)
       .lte("cv_sent_date", cutoffStr);
+
+    if (req.medical    && req.medical    !== "all") expiredQuery = expiredQuery.eq("medical_status", req.medical);
+    if (req.coc        && req.coc        !== "all") expiredQuery = expiredQuery.eq("coc_status", req.coc);
+    if (req.narrative  && req.narrative  !== "all") expiredQuery = expiredQuery.eq("narrative", req.narrative);
+    if (req.experience && req.experience !== "all") expiredQuery = expiredQuery.eq("experience", req.experience);
+    if (req.passport_scan   === "Yes") expiredQuery = expiredQuery.not("passport_scan_url", "is", null);
+    if (req.full_size_photo === "Yes") expiredQuery = expiredQuery.not("full_photo_url", "is", null);
+    if (req.photo_cv        === "Yes") expiredQuery = expiredQuery.not("photo_url", "is", null);
+
+    const { data: expiredRaw } = await expiredQuery;
 
     if (!expiredRaw || expiredRaw.length === 0) return { redistributed: 0 };
 
