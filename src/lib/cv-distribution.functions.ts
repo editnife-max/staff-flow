@@ -188,6 +188,58 @@ async function trackResentOffices(
   );
 }
 
+// ─── Exported utility (used by assignments.functions.ts on office lock) ──────
+
+export async function redistributeFromLockedOffice(
+  managerId: string,
+  lockedOfficeName: string,
+  basePerOffice: number,
+): Promise<number> {
+  // loadActiveOffices excludes locked offices, so the just-locked office is already excluded
+  const [offices, processingPct] = await Promise.all([
+    loadActiveOffices(managerId),
+    loadProcessingPct(managerId),
+  ]);
+
+  const { data: candidates } = await supabaseAdmin
+    .from("candidates")
+    .select("id, musaned_status")
+    .eq("manager_id", managerId)
+    .eq("cv_sent_to", lockedOfficeName)
+    .eq("status", "available");
+
+  if (!candidates?.length) return 0;
+
+  if (offices.length === 0) {
+    await supabaseAdmin
+      .from("candidates")
+      .update({ cv_sent_to: null, cv_sent_date: null } as never)
+      .in("id", candidates.map((c) => c.id))
+      .eq("manager_id", managerId);
+    return candidates.length;
+  }
+
+  // Exclude the locked office so candidates are never reassigned back to it
+  const excludeFor = Object.fromEntries(candidates.map((c) => [c.id, lockedOfficeName]));
+  const assignment = runAlgorithm(candidates, offices, processingPct, basePerOffice, excludeFor);
+
+  await applyAssignment(managerId, assignment);
+  await trackResentOffices(managerId, assignment, excludeFor);
+
+  // Clear any candidates that the algorithm could not place (no other office available)
+  const assignedIds = new Set(Object.keys(assignment));
+  const unassigned = candidates.filter((c) => !assignedIds.has(c.id));
+  if (unassigned.length > 0) {
+    await supabaseAdmin
+      .from("candidates")
+      .update({ cv_sent_to: null, cv_sent_date: null } as never)
+      .in("id", unassigned.map((c) => c.id))
+      .eq("manager_id", managerId);
+  }
+
+  return candidates.length;
+}
+
 // ─── Server functions ─────────────────────────────────────────────────────────
 
 export const distributeCandidates = createServerFn({ method: "POST" })

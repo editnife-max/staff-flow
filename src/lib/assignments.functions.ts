@@ -4,6 +4,7 @@ import PizZip from "pizzip";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { encryptCredential, decryptCredential } from "@/lib/credentials-crypto.server";
+import { redistributeFromLockedOffice } from "@/lib/cv-distribution.functions";
 
 async function resolveManagerId(userId: string): Promise<string> {
   const { data: roles } = await supabaseAdmin
@@ -127,37 +128,15 @@ export const lockOffice = createServerFn({ method: "POST" })
         .maybeSingle();
 
       if (office?.name) {
-        const { data: unlocked } = await supabaseAdmin
-          .from("assignment_offices")
-          .select("name")
-          .eq("manager_id", managerId)
-          .eq("is_locked", false)
-          .neq("id", data.id);
+        const { data: profileRow } = await supabaseAdmin
+          .from("profiles")
+          .select("cv_page_requirements")
+          .eq("id", managerId)
+          .maybeSingle();
+        const req = (profileRow?.cv_page_requirements as Record<string, string>) ?? {};
+        const basePerOffice = parseInt(req.base_per_office ?? "15", 10) || 15;
 
-        const { data: toRedistribute } = await supabaseAdmin
-          .from("candidates")
-          .select("id")
-          .eq("manager_id", managerId)
-          .eq("cv_sent_to", office.name);
-
-        if (toRedistribute?.length && unlocked?.length) {
-          for (let i = 0; i < toRedistribute.length; i++) {
-            const targetOffice = unlocked[i % unlocked.length].name;
-            await supabaseAdmin
-              .from("candidates")
-              .update({ cv_sent_to: targetOffice } as any)
-              .eq("id", toRedistribute[i].id);
-          }
-          redistributed = toRedistribute.length;
-        } else if (toRedistribute?.length && !unlocked?.length) {
-          // No other offices available — clear assignment instead
-          await supabaseAdmin
-            .from("candidates")
-            .update({ cv_sent_to: null, cv_sent_date: null } as any)
-            .eq("manager_id", managerId)
-            .eq("cv_sent_to", office.name);
-          redistributed = toRedistribute.length;
-        }
+        redistributed = await redistributeFromLockedOffice(managerId, office.name, basePerOffice);
       }
     }
 
