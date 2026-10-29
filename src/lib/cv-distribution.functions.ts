@@ -456,7 +456,7 @@ export const autoDistributeNewCandidate = createServerFn({ method: "POST" })
     return { sentTo: chosen };
   });
 
-// Assigns only unassigned available candidates — does NOT reset existing assignments
+// Assigns unassigned + stuck-at-locked candidates — does NOT reset active assignments
 export const autoDistributeUnassigned = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -470,23 +470,44 @@ export const autoDistributeUnassigned = createServerFn({ method: "POST" })
       .maybeSingle();
     const basePerOffice = parseInt(((profileRow?.cv_page_requirements as Record<string, string>) ?? {}).base_per_office ?? "15", 10) || 15;
 
-    // All unassigned available candidates
-    const { data: candidates } = await supabaseAdmin
-      .from("candidates")
-      .select("id, musaned_status")
-      .eq("manager_id", managerId)
-      .eq("status", "available")
-      .is("cv_sent_to", null)
-      .is("selected_by", null);
-    if (!candidates?.length) return { assigned: 0 };
-
-    const [offices, processingPct] = await Promise.all([
+    const [offices, processingPct, lockedRes] = await Promise.all([
       loadActiveOffices(managerId),
       loadProcessingPct(managerId),
+      supabaseAdmin.from("assignment_offices").select("name").eq("manager_id", managerId).eq("is_locked", true),
     ]);
     if (offices.length === 0) return { assigned: 0 };
 
+    const lockedNames = (lockedRes.data ?? []).map((o) => o.name);
+
+    // Pick up: (a) candidates with no office, (b) candidates stuck at a locked office
+    const [nullRes, lockedStuckRes] = await Promise.all([
+      supabaseAdmin
+        .from("candidates")
+        .select("id, musaned_status, cv_sent_to")
+        .eq("manager_id", managerId)
+        .eq("status", "available")
+        .is("selected_by", null)
+        .is("cv_sent_to", null),
+      lockedNames.length > 0
+        ? supabaseAdmin
+            .from("candidates")
+            .select("id, musaned_status, cv_sent_to")
+            .eq("manager_id", managerId)
+            .eq("status", "available")
+            .is("selected_by", null)
+            .in("cv_sent_to", lockedNames)
+        : Promise.resolve({ data: [] as Array<{ id: string; musaned_status: string | null; cv_sent_to: string | null }> }),
+    ]);
+
+    const candidates = [...(nullRes.data ?? []), ...(lockedStuckRes.data ?? [])];
+    if (!candidates.length) return { assigned: 0 };
+
+    // Track old offices so locked-office moves are recorded in cv_resent_offices
+    const oldOffices: Record<string, string | null> = {};
+    for (const c of candidates) oldOffices[c.id] = c.cv_sent_to;
+
     const assignment = runAlgorithm(candidates, offices, processingPct, basePerOffice);
     const assigned = await applyAssignment(managerId, assignment);
+    await trackResentOffices(managerId, assignment, oldOffices);
     return { assigned };
   });
