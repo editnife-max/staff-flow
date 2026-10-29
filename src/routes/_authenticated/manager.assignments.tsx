@@ -17,7 +17,7 @@ import { ALL_TC_CRITERIA, ALL_TC_CRITERIA_KEYS } from "@/components/candidates/t
 import { addCountry, deleteCountry, addOffice, deleteOffice, lockOffice, deleteCvTemplate, optimizeCvTemplate, saveMusanedCredentials, saveEnjazCredentials, saveMofaCredentials, saveLmisCredentials, getManagerCredentials } from "@/lib/assignments.functions";
 import { runLmisPhase1 } from "@/lib/lmis-contract.functions";
 import { runMusanedFetch } from "@/lib/musaned.functions";
-import { distributeCandidates } from "@/lib/cv-distribution.functions";
+import { distributeCandidates, autoDistributeUnassigned } from "@/lib/cv-distribution.functions";
 
 type AssignCountry  = Database["public"]["Tables"]["assignment_countries"]["Row"];
 type AssignOffice   = Database["public"]["Tables"]["assignment_offices"]["Row"];
@@ -102,7 +102,8 @@ function AssignmentsPage() {
   const [panelDialog, setPanelDialog] = useState<"countries" | "offices" | "cvTemplates" | "cvReq" | "tcCriteria" | "cvDist" | null>(null);
 
   // ── CV Distribution ───────────────────────────────────────────────────────────
-  const distributeFn = useServerFn(distributeCandidates);
+  const distributeFn          = useServerFn(distributeCandidates);
+  const autoDistUnassignedFn  = useServerFn(autoDistributeUnassigned);
   const [distRunning, setDistRunning] = useState(false);
   const [distResult,  setDistResult]  = useState<{ assigned: number; byOffice: Record<string, number> } | null>(null);
 
@@ -245,6 +246,19 @@ function AssignmentsPage() {
 
   // reset office page when active country changes
   useEffect(() => { setOfficePage(0); setSummaryView(false); }, [activeCountryId]);
+
+  // auto-distribute unassigned CV Ready candidates on page load
+  useEffect(() => {
+    if (!user) return;
+    autoDistUnassignedFn({}).then((r) => {
+      if (r.assigned > 0) {
+        toast.info(`${r.assigned} CV Ready candidate${r.assigned > 1 ? "s" : ""} auto-distributed`);
+        qc.invalidateQueries({ queryKey: ["manager-candidates"] });
+        qc.invalidateQueries({ queryKey: ["cv-dist-stats", user.id] });
+        qc.invalidateQueries({ queryKey: ["office-summary-candidates", user.id] });
+      }
+    }).catch(() => {});
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── cv template form ─────────────────────────────────────────────────────────
   const [newTemplateName, setNewTemplateName] = useState("");

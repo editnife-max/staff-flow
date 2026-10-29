@@ -453,3 +453,49 @@ export const autoDistributeNewCandidate = createServerFn({ method: "POST" })
 
     return { sentTo: chosen };
   });
+
+// Assigns only unassigned CV Ready candidates — does NOT reset existing assignments
+export const autoDistributeUnassigned = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    if (!managerId) return { assigned: 0 };
+
+    const { data: profileRow } = await supabaseAdmin
+      .from("profiles")
+      .select("cv_page_requirements")
+      .eq("id", managerId)
+      .maybeSingle();
+    const req = (profileRow?.cv_page_requirements as Record<string, string>) ?? {};
+    const basePerOffice = parseInt(req.base_per_office ?? "15", 10) || 15;
+
+    // Query only unassigned CV Ready candidates
+    let query = supabaseAdmin
+      .from("candidates")
+      .select("id, musaned_status")
+      .eq("manager_id", managerId)
+      .eq("status", "available")
+      .is("cv_sent_to", null)
+      .is("selected_by", null);
+
+    if (req.medical    && req.medical    !== "all") query = query.eq("medical_status", req.medical);
+    if (req.coc        && req.coc        !== "all") query = query.eq("coc_status", req.coc);
+    if (req.narrative  && req.narrative  !== "all") query = query.eq("narrative", req.narrative);
+    if (req.experience && req.experience !== "all") query = query.eq("experience", req.experience);
+    if (req.passport_scan   === "Yes") query = query.not("passport_scan_url", "is", null);
+    if (req.full_size_photo === "Yes") query = query.not("full_photo_url", "is", null);
+    if (req.photo_cv        === "Yes") query = query.not("photo_url", "is", null);
+
+    const { data: candidates } = await query;
+    if (!candidates?.length) return { assigned: 0 };
+
+    const [offices, processingPct] = await Promise.all([
+      loadActiveOffices(managerId),
+      loadProcessingPct(managerId),
+    ]);
+    if (offices.length === 0) return { assigned: 0 };
+
+    const assignment = runAlgorithm(candidates, offices, processingPct, basePerOffice);
+    const assigned = await applyAssignment(managerId, assignment);
+    return { assigned };
+  });
