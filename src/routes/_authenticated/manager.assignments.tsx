@@ -373,15 +373,16 @@ function AssignmentsPage() {
 
   const officeStats = useMemo(() => activeOffices.map(o => {
     const name     = o.name;
-    // Sent/Pending: only available candidates — processing ones keep cv_sent_to from their available days
-    const sentTo   = summaryCandidates.filter(c => c.cv_sent_to === name && c.status === "available");
+    const locked   = (o as any).is_locked === true;
+    // Locked offices must never hold candidates — show 0 for Sent/Pending
+    const sentTo   = locked ? [] : summaryCandidates.filter(c => c.cv_sent_to === name && c.status === "available");
     const pending  = sentTo.filter(c => !c.selected_by);
     const selected = summaryCandidates.filter(c => c.selected_by === name);
     const resent   = summaryCandidates.filter(c => {
       const arr = c.cv_resent_offices;
       return Array.isArray(arr) && (arr as string[]).includes(name);
     });
-    return { name, sent: sentTo.length, selected: selected.length, pending: pending.length, resent: resent.length };
+    return { name, locked, sent: sentTo.length, selected: selected.length, pending: pending.length, resent: resent.length };
   }), [activeOffices, summaryCandidates]);
 
   function downloadOfficeCsv() {

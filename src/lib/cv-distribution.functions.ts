@@ -287,13 +287,29 @@ export const distributeCandidates = createServerFn({ method: "POST" })
     const oldOffices: Record<string, string | null> = {};
     for (const c of candidates) oldOffices[c.id] = c.cv_sent_to;
 
-    // Null all cv_sent_to first
+    // Clear all qualifying candidates first
     const ids = candidates.map((c) => c.id);
     await supabaseAdmin
       .from("candidates")
       .update({ cv_sent_to: null, cv_sent_date: null } as never)
       .in("id", ids)
       .eq("manager_id", managerId);
+
+    // Also evict any available candidates still sitting at locked offices
+    const { data: lockedOfficesRaw } = await supabaseAdmin
+      .from("assignment_offices")
+      .select("name")
+      .eq("manager_id", managerId)
+      .eq("is_locked", true);
+    const lockedNames = (lockedOfficesRaw ?? []).map((o) => o.name);
+    if (lockedNames.length > 0) {
+      await supabaseAdmin
+        .from("candidates")
+        .update({ cv_sent_to: null, cv_sent_date: null } as never)
+        .eq("manager_id", managerId)
+        .eq("status", "available")
+        .in("cv_sent_to", lockedNames);
+    }
 
     // Run algorithm
     const assignment = runAlgorithm(candidates, offices, processingPct, basePerOffice);
