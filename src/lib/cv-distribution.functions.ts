@@ -261,23 +261,13 @@ export const distributeCandidates = createServerFn({ method: "POST" })
     ]);
     if (offices.length === 0) return { assigned: 0, byOffice: {} };
 
-    // Query qualifying candidates (include cv_sent_to to track history)
-    let query = supabaseAdmin
+    // All available candidates — distribution sends everyone, not just CV Ready
+    const { data: candidates } = await supabaseAdmin
       .from("candidates")
       .select("id, musaned_status, cv_sent_to")
       .eq("manager_id", managerId)
       .eq("status", "available")
       .is("selected_by", null);
-
-    if (req.medical && req.medical !== "all") query = query.eq("medical_status", req.medical);
-    if (req.coc     && req.coc     !== "all") query = query.eq("coc_status", req.coc);
-    if (req.narrative  && req.narrative  !== "all") query = query.eq("narrative", req.narrative);
-    if (req.experience && req.experience !== "all") query = query.eq("experience", req.experience);
-    if (req.passport_scan   === "Yes") query = query.not("passport_scan_url", "is", null);
-    if (req.full_size_photo === "Yes") query = query.not("full_photo_url", "is", null);
-    if (req.photo_cv        === "Yes") query = query.not("photo_url", "is", null);
-
-    const { data: candidates } = await query;
     if (!candidates || candidates.length === 0) return { assigned: 0, byOffice: {} };
 
     // Capture old offices before nulling
@@ -337,15 +327,14 @@ export const checkAndResendExpiredCvs = createServerFn({ method: "POST" })
       .eq("id", managerId)
       .maybeSingle();
     const threshold = profileRow?.cv_days_threshold ?? 5;
-    const req = (profileRow?.cv_page_requirements as Record<string, string>) ?? {};
-    const basePerOffice = parseInt(req.base_per_office ?? "15", 10) || 15;
+    const basePerOffice = parseInt(((profileRow?.cv_page_requirements as Record<string, string>) ?? {}).base_per_office ?? "15", 10) || 15;
 
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - threshold);
     const cutoffStr = cutoff.toISOString().split("T")[0];
 
-    // Find overdue candidates that still meet CV Ready requirements
-    let expiredQuery = supabaseAdmin
+    // All overdue available candidates — same broad scope as distributeCandidates
+    const { data: expiredRaw } = await supabaseAdmin
       .from("candidates")
       .select("id, musaned_status, cv_sent_to")
       .eq("manager_id", managerId)
@@ -353,16 +342,6 @@ export const checkAndResendExpiredCvs = createServerFn({ method: "POST" })
       .is("selected_by", null)
       .not("cv_sent_to", "is", null)
       .lte("cv_sent_date", cutoffStr);
-
-    if (req.medical    && req.medical    !== "all") expiredQuery = expiredQuery.eq("medical_status", req.medical);
-    if (req.coc        && req.coc        !== "all") expiredQuery = expiredQuery.eq("coc_status", req.coc);
-    if (req.narrative  && req.narrative  !== "all") expiredQuery = expiredQuery.eq("narrative", req.narrative);
-    if (req.experience && req.experience !== "all") expiredQuery = expiredQuery.eq("experience", req.experience);
-    if (req.passport_scan   === "Yes") expiredQuery = expiredQuery.not("passport_scan_url", "is", null);
-    if (req.full_size_photo === "Yes") expiredQuery = expiredQuery.not("full_photo_url", "is", null);
-    if (req.photo_cv        === "Yes") expiredQuery = expiredQuery.not("photo_url", "is", null);
-
-    const { data: expiredRaw } = await expiredQuery;
 
     if (!expiredRaw || expiredRaw.length === 0) return { redistributed: 0 };
 
@@ -477,7 +456,7 @@ export const autoDistributeNewCandidate = createServerFn({ method: "POST" })
     return { sentTo: chosen };
   });
 
-// Assigns only unassigned CV Ready candidates — does NOT reset existing assignments
+// Assigns only unassigned available candidates — does NOT reset existing assignments
 export const autoDistributeUnassigned = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -489,27 +468,16 @@ export const autoDistributeUnassigned = createServerFn({ method: "POST" })
       .select("cv_page_requirements")
       .eq("id", managerId)
       .maybeSingle();
-    const req = (profileRow?.cv_page_requirements as Record<string, string>) ?? {};
-    const basePerOffice = parseInt(req.base_per_office ?? "15", 10) || 15;
+    const basePerOffice = parseInt(((profileRow?.cv_page_requirements as Record<string, string>) ?? {}).base_per_office ?? "15", 10) || 15;
 
-    // Query only unassigned CV Ready candidates
-    let query = supabaseAdmin
+    // All unassigned available candidates
+    const { data: candidates } = await supabaseAdmin
       .from("candidates")
       .select("id, musaned_status")
       .eq("manager_id", managerId)
       .eq("status", "available")
       .is("cv_sent_to", null)
       .is("selected_by", null);
-
-    if (req.medical    && req.medical    !== "all") query = query.eq("medical_status", req.medical);
-    if (req.coc        && req.coc        !== "all") query = query.eq("coc_status", req.coc);
-    if (req.narrative  && req.narrative  !== "all") query = query.eq("narrative", req.narrative);
-    if (req.experience && req.experience !== "all") query = query.eq("experience", req.experience);
-    if (req.passport_scan   === "Yes") query = query.not("passport_scan_url", "is", null);
-    if (req.full_size_photo === "Yes") query = query.not("full_photo_url", "is", null);
-    if (req.photo_cv        === "Yes") query = query.not("photo_url", "is", null);
-
-    const { data: candidates } = await query;
     if (!candidates?.length) return { assigned: 0 };
 
     const [offices, processingPct] = await Promise.all([
