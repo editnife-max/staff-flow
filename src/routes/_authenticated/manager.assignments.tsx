@@ -364,16 +364,17 @@ function AssignmentsPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("candidates")
-        .select("id, cv_sent_to, cv_resent_offices, selected_by")
+        .select("id, cv_sent_to, cv_resent_offices, selected_by, status")
         .eq("manager_id", user!.id)
         .or("cv_sent_to.not.is.null,cv_resent_offices.not.is.null,selected_by.not.is.null");
-      return (data ?? []) as { id: string; cv_sent_to: string | null; cv_resent_offices: unknown; selected_by: string | null }[];
+      return (data ?? []) as { id: string; cv_sent_to: string | null; cv_resent_offices: unknown; selected_by: string | null; status: string | null }[];
     },
   });
 
   const officeStats = useMemo(() => activeOffices.map(o => {
     const name     = o.name;
-    const sentTo   = summaryCandidates.filter(c => c.cv_sent_to === name);
+    // Sent/Pending: only available candidates — processing ones keep cv_sent_to from their available days
+    const sentTo   = summaryCandidates.filter(c => c.cv_sent_to === name && c.status === "available");
     const pending  = sentTo.filter(c => !c.selected_by);
     const selected = summaryCandidates.filter(c => c.selected_by === name);
     const resent   = summaryCandidates.filter(c => {
