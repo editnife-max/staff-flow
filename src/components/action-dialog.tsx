@@ -14,13 +14,15 @@ import type { Candidate, CvTemplate } from "@/lib/docx-fill";
 import { buildFilledDocx } from "@/lib/docx-fill";
 import { docxBytesToPdf, docxBytesToPdfPrint, downloadDocx, canvasToPdf, convertDocxToPdfViaCloudmersive } from "@/lib/pdf-export";
 import { candidateToCanvas } from "@/components/cv-preview";
+import { downloadNormalCvPdf, downloadNormalCvDocx } from "@/lib/normal-cv";
 
 export type { CvTemplate, Candidate };
 
 export const DOWNLOAD_TYPES = [
-  { id: "summary-pdf",  label: "Download Summary (PDF)",    group: "export" as const },
-  { id: "excel",        label: "Download Excel",            group: "export" as const },
-  { id: "excel-ticket", label: "Download Excel for Ticket", group: "export" as const },
+  { id: "summary-pdf",  label: "Download Summary (PDF)",    group: "export"     as const },
+  { id: "excel",        label: "Download Excel",            group: "export"     as const },
+  { id: "excel-ticket", label: "Download Excel for Ticket", group: "export"     as const },
+  { id: "normal-cv",    label: "Normal CV",                 group: "normal-cv"  as const },
 ];
 
 export const EXPORT_COLUMNS: { key: keyof Candidate; label: string }[] = [
@@ -154,6 +156,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
     ? templates.find((t) => t.id === downloadType) ?? null
     : null;
   const isDocxTemplate  = !!matchedTemplate && matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
+  const isNormalCv      = currentType.group === "normal-cv";
 
   const toggleCol = (key: string) =>
     setSelectedCols((prev) => {
@@ -167,6 +170,32 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
     const bv = String(b[sortBy as keyof Candidate] ?? "").toLowerCase();
     return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
   });
+
+  const handleNormalCvPdf = async () => {
+    setDownloading(true);
+    try {
+      if (isBulk) toast.info(`Generating ${sortedCandidates.length} Normal CV PDFs…`);
+      for (const c of sortedCandidates) await downloadNormalCvPdf(c);
+      toast.success(`Normal CV PDF${isBulk ? "s" : ""} downloaded`);
+    } catch (e: any) {
+      toast.error(e.message || "PDF generation failed");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleNormalCvDocx = async () => {
+    setDownloading(true);
+    try {
+      if (isBulk) toast.info(`Generating ${sortedCandidates.length} Normal CV DOCXs…`);
+      for (const c of sortedCandidates) await downloadNormalCvDocx(c);
+      toast.success(`Normal CV DOCX${isBulk ? "s" : ""} downloaded`);
+    } catch (e: any) {
+      toast.error(e.message || "DOCX generation failed");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const handleDocxDownload = async () => {
     if (!matchedTemplate || !preview) return;
@@ -466,24 +495,39 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {isDocxTemplate && (
-              <Button variant="outline" onClick={handleDocxDownload} disabled={downloading} className="rounded-none shrink-0">
-                <FileText className="h-4 w-4 mr-2" />
-                {downloading
-                  ? "Downloading…"
-                  : isBulk
-                    ? `Download ${candidates.length} × DOCX`
-                    : "Download DOCX"}
-              </Button>
+            {isNormalCv ? (
+              <>
+                <Button variant="outline" onClick={handleNormalCvDocx} disabled={downloading} className="rounded-none shrink-0">
+                  <FileText className="h-4 w-4 mr-2" />
+                  {downloading ? "Downloading…" : isBulk ? `${candidates.length} × DOCX` : "Download DOCX"}
+                </Button>
+                <Button onClick={handleNormalCvPdf} disabled={downloading} className="rounded-none shrink-0">
+                  <Download className="h-4 w-4 mr-2" />
+                  {downloading ? "Downloading…" : isBulk ? `${candidates.length} × PDF` : "Download PDF"}
+                </Button>
+              </>
+            ) : (
+              <>
+                {isDocxTemplate && (
+                  <Button variant="outline" onClick={handleDocxDownload} disabled={downloading} className="rounded-none shrink-0">
+                    <FileText className="h-4 w-4 mr-2" />
+                    {downloading
+                      ? "Downloading…"
+                      : isBulk
+                        ? `Download ${candidates.length} × DOCX`
+                        : "Download DOCX"}
+                  </Button>
+                )}
+                <Button onClick={handleDownload} disabled={downloading} className="rounded-none shrink-0">
+                  <Download className="h-4 w-4 mr-2" />
+                  {downloading
+                    ? "Downloading…"
+                    : isBulk
+                      ? `Download ${candidates.length} × ${currentType.label}`
+                      : `Download — ${currentType.label}`}
+                </Button>
+              </>
             )}
-            <Button onClick={handleDownload} disabled={downloading} className="rounded-none shrink-0">
-              <Download className="h-4 w-4 mr-2" />
-              {downloading
-                ? "Downloading…"
-                : isBulk
-                  ? `Download ${candidates.length} × ${currentType.label}`
-                  : `Download — ${currentType.label}`}
-            </Button>
           </div>
         </div>
       </DialogContent>
