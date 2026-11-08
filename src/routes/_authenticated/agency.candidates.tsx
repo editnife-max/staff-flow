@@ -24,6 +24,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { getStaffList, sendCandidatesNotification } from "@/lib/notifications.functions";
 import { getAgencyCvTemplate } from "@/lib/agencies.functions";
 import { candidateToCanvas } from "@/components/cv-preview";
+import { downloadCvLayoutPdf, layoutForTemplate } from "@/components/cv-layouts";
 import { canvasToPdf, downloadDocx, docxBytesToPdf } from "@/lib/pdf-export";
 import type { CvTemplate } from "@/lib/docx-fill";
 import { buildFilledDocx } from "@/lib/docx-fill";
@@ -594,7 +595,10 @@ function CvViewDialog({ candidate: c, template, onClose, translatedName, lang = 
   const handleDownloadPdf = async () => {
     setDlPdf(true);
     try {
-      if (isDocx) {
+      const layout = layoutForTemplate(template);
+      if (layout) {
+        await downloadCvLayoutPdf(layout, c as any, `${c.full_name} — CV.pdf`, { videoUrl: c.video_url });
+      } else if (isDocx) {
         const bytes = await buildFilledDocx(template!, c as any, false, c.video_url ?? undefined);
         await docxBytesToPdf(bytes, `${c.full_name} — CV.pdf`, undefined, false, c.video_url ?? undefined);
       } else {
@@ -773,7 +777,12 @@ function AgencyCandidateCard({
   const handleDownloadCv = async () => {
     setDlCv(true);
     try {
-      if (template && template.file_url.split("?")[0].toLowerCase().endsWith(".docx")) {
+      // "CV PDF" button: a template with a code-built layout gets its exact PDF
+      // (no passport page, same as the View CV dialog's PDF for agencies).
+      const layout = layoutForTemplate(template);
+      if (layout) {
+        await downloadCvLayoutPdf(layout, c as any, `${c.full_name} — CV.pdf`, { videoUrl: c.video_url });
+      } else if (template && template.file_url.split("?")[0].toLowerCase().endsWith(".docx")) {
         const bytes = await buildFilledDocx(template, c as any, true, c.video_url ?? undefined);
         downloadDocx(bytes, `${c.full_name} — CV.docx`);
       } else {

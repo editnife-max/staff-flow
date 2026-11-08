@@ -135,7 +135,7 @@ export async function docxBytesToPdfPrint(
   });
 }
 
-function addVideoLinkPage(pdf: jsPDF, videoUrl: string): void {
+export function addVideoLinkPage(pdf: jsPDF, videoUrl: string): void {
   pdf.addPage([794, 1123]);
   pdf.setFontSize(20);
   pdf.setTextColor(26, 58, 82);
