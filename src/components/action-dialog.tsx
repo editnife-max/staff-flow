@@ -14,7 +14,7 @@ import type { Candidate, CvTemplate } from "@/lib/docx-fill";
 import { buildFilledDocx } from "@/lib/docx-fill";
 import { docxBytesToPdf, docxBytesToPdfPrint, downloadDocx, canvasToPdf, convertDocxToPdfViaCloudmersive } from "@/lib/pdf-export";
 import { candidateToCanvas } from "@/components/cv-preview";
-import { downloadNormalCvPdf, downloadNormalCvDocx } from "@/lib/normal-cv";
+import { downloadNormalCvPdf, downloadNormalCvDocx, downloadVideoCvPdf } from "@/lib/normal-cv";
 
 export type { CvTemplate, Candidate };
 
@@ -157,6 +157,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
     : null;
   const isDocxTemplate  = !!matchedTemplate && matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
   const isNormalCv      = currentType.group === "normal-cv";
+  const isVideoCv       = currentType.group === "video-cv";
 
   const toggleCol = (key: string) =>
     setSelectedCols((prev) => {
@@ -192,6 +193,19 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
       toast.success(`Normal CV DOCX${isBulk ? "s" : ""} downloaded`);
     } catch (e: any) {
       toast.error(e.message || "DOCX generation failed");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleVideoCvPdf = async () => {
+    setDownloading(true);
+    try {
+      if (isBulk) toast.info(`Generating ${sortedCandidates.length} Video CVs…`);
+      for (const c of sortedCandidates) await downloadVideoCvPdf(c);
+      toast.success(`Video CV${isBulk ? "s" : ""} downloaded`);
+    } catch (e: any) {
+      toast.error(e.message || "PDF generation failed");
     } finally {
       setDownloading(false);
     }
@@ -506,6 +520,11 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
                   {downloading ? "Downloading…" : isBulk ? `${candidates.length} × PDF` : "Download PDF"}
                 </Button>
               </>
+            ) : isVideoCv ? (
+              <Button onClick={handleVideoCvPdf} disabled={downloading} className="rounded-none shrink-0">
+                <Download className="h-4 w-4 mr-2" />
+                {downloading ? "Downloading…" : isBulk ? `${candidates.length} × PDF` : "Download PDF"}
+              </Button>
             ) : (
               <>
                 {isDocxTemplate && (

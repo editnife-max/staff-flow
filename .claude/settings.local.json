@@ -192,7 +192,14 @@
       "Bash(Sort-Object LastWriteTime -Descending)",
       "Bash(Select-Object -First 3 Name)",
       "Bash(xargs grep \"assignment\")",
-      "Bash(npx supabase *)"
+      "Bash(npx supabase *)",
+      "Bash(bunx vite *)",
+      "Bash(\"/c/Program Files/Volta/node.exe\" ./node_modules/.bin/vite build)",
+      "Bash(Select-String -Pattern \"error TS|error\\\\[|✓ built\")",
+      "Bash(Select-Object -First 10)",
+      "Bash(xargs -0 grep -l \"assignment_countries\")",
+      "PowerShell(Copy-Item *)",
+      "WebFetch(domain:drive.google.com)"
     ]
   },
   "enableAllProjectMcpServers": true,
