@@ -16,6 +16,8 @@ export default defineConfig(({ mode }) => {
     },
     optimizeDeps: {
       include: ['xlsx-js-style', 'xlsx'],
+      // Server-only (dynamic import in *.functions.ts); its yargs dep breaks client pre-bundling
+      exclude: ['puppeteer-core', '@puppeteer/browsers'],
     },
     ssr: {
       noExternal: ['xlsx-js-style', 'xlsx'],
