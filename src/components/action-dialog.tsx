@@ -15,6 +15,7 @@ import { buildFilledDocx } from "@/lib/docx-fill";
 import { docxBytesToPdf, docxBytesToPdfPrint, downloadDocx, canvasToPdf, convertDocxToPdfViaCloudmersive } from "@/lib/pdf-export";
 import { candidateToCanvas } from "@/components/cv-preview";
 import { downloadNormalCvPdf, downloadNormalCvDocx, downloadVideoCvPdf } from "@/lib/normal-cv";
+import { NORMAL_CV_OPTION, downloadCvLayoutPdf, layoutForTemplate } from "@/components/cv-layouts";
 
 export type { CvTemplate, Candidate };
 
@@ -106,6 +107,17 @@ function fileTimestamp(): string {
   return `${yyyy}-${mm}-${dd} ${hh}-${min} ${ampm}`;
 }
 
+/**
+ * PDF for an uploaded DOCX template that has no code-built layout. Cloudmersive when a key
+ * is configured, otherwise the in-browser docx-preview render. Neither matches Word exactly;
+ * add a layout in src/components/cv-layouts for templates that need an exact PDF.
+ */
+async function docxToPdf(bytes: Uint8Array, filename: string): Promise<void> {
+  if (import.meta.env.VITE_CLOUDMERSIVE_API_KEY) return convertDocxToPdfViaCloudmersive(bytes, filename);
+  // The filled DOCX already embeds the passport page and video link.
+  return docxBytesToPdf(bytes, filename);
+}
+
 export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
   const { user } = useAuth();
 
@@ -147,6 +159,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
 
   const allDownloadTypes = [
     ...DOWNLOAD_TYPES,
+    { id: NORMAL_CV_OPTION.id, label: NORMAL_CV_OPTION.label, group: "cv" as const },
     ...templates.map((t) => ({ id: t.id, label: t.name, group: "cv" as const })),
   ];
 
@@ -156,8 +169,13 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
     ? templates.find((t) => t.id === downloadType) ?? null
     : null;
   const isDocxTemplate  = !!matchedTemplate && matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
+<<<<<<< HEAD
   const isNormalCv      = currentType.group === "normal-cv";
   const isVideoCv       = currentType.group === "video-cv";
+=======
+  // Code-built layout used for the PDF (Normal, or a known uploaded template's design).
+  const cvLayout = downloadType === NORMAL_CV_OPTION.id ? NORMAL_CV_OPTION.layout : layoutForTemplate(matchedTemplate);
+>>>>>>> origin/fix/cv-pdf-layouts
 
   const toggleCol = (key: string) =>
     setSelectedCols((prev) => {
@@ -238,13 +256,23 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
     if (candidates.length === 0) return;
     setDownloading(true);
     try {
-      if (isCV) {
+      if (isCV && cvLayout) {
+        if (isBulk) toast.info(`Generating ${candidates.length} PDFs — please wait…`);
+        for (const c of sortedCandidates) {
+          await downloadCvLayoutPdf(cvLayout, c, `${c.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`, {
+            passportUrl: c.passport_scan_url,
+            videoUrl: c.video_url,
+          });
+        }
+        toast.success(isBulk ? `${candidates.length} PDFs downloaded` : `${currentType.label} downloaded`);
+
+      } else if (isCV) {
         if (isBulk) {
-          toast.info(`Generating ${candidates.length} PDFs via Cloudmersive — please wait…`);
+          toast.info(`Generating ${candidates.length} PDFs — please wait…`);
           for (const c of sortedCandidates) {
             if (isDocxTemplate) {
               const bytes = await buildFilledDocx(matchedTemplate!, c, true, c.video_url ?? undefined);
-              await convertDocxToPdfViaCloudmersive(bytes, `${c.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`);
+              await docxToPdf(bytes, `${c.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`);
             } else {
               const canvas = await candidateToCanvas(c, matchedTemplate);
               await canvasToPdf(canvas, `${c.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`, c.passport_scan_url ?? undefined, c.video_url ?? undefined);
@@ -256,8 +284,8 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
             const isDocx = matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
             if (isDocx) {
               const bytes = await buildFilledDocx(matchedTemplate, preview!, true, preview!.video_url ?? undefined);
-              toast.info("Converting to PDF via Cloudmersive — please wait…");
-              await convertDocxToPdfViaCloudmersive(bytes, `${preview!.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`);
+              toast.info("Converting to PDF — please wait…");
+              await docxToPdf(bytes, `${preview!.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`);
             } else {
               const canvas = await candidateToCanvas(preview!, matchedTemplate);
               await canvasToPdf(canvas, `${preview!.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`, preview!.passport_scan_url ?? undefined, preview!.video_url ?? undefined);
@@ -502,7 +530,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
         {/* Footer */}
         <div className="px-6 py-3 border-t shrink-0 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            {isCV && !matchedTemplate && (
+            {isCV && !matchedTemplate && !cvLayout && (
               <p className="text-xs text-muted-foreground">
                 No template found for &ldquo;{currentType.label}&rdquo; — will download as basic CV.
               </p>

@@ -210,7 +210,7 @@ export const CV_FIELD_MAP = (c: Candidate): [string, string][] => [
 ];
 
 // ── Arabic value translations ─────────────────────────────────────────────────
-const AR_OCCUPATION: Record<string, string> = {
+export const AR_OCCUPATION: Record<string, string> = {
   HOUSEMAID: "عاملة منزلية",
   "HOUSE MAID": "عاملة منزلية",
   "DOMESTIC WORKER": "عاملة منزلية",
@@ -224,7 +224,7 @@ const AR_OCCUPATION: Record<string, string> = {
   DRIVER: "سائق",
   GARDENER: "بستاني",
 };
-const AR_RELIGION: Record<string, string> = {
+export const AR_RELIGION: Record<string, string> = {
   MUSLIM: "مسلمة",
   ISLAM: "مسلمة",
   CHRISTIAN: "مسيحية",
@@ -232,14 +232,14 @@ const AR_RELIGION: Record<string, string> = {
   HINDU: "هندوسية",
   BUDDHIST: "بوذية",
 };
-const AR_MARITAL: Record<string, string> = {
+export const AR_MARITAL: Record<string, string> = {
   MARRIED: "متزوجة",
   SINGLE: "عزباء",
   DIVORCED: "مطلقة",
   WIDOWED: "أرملة",
   WIDOW: "أرملة",
 };
-const AR_EDUCATION: Record<string, string> = {
+export const AR_EDUCATION: Record<string, string> = {
   PRIMARY: "إبتدائي",
   ELEMENTARY: "إبتدائي",
   SECONDARY: "ثانوي",
@@ -252,12 +252,12 @@ const AR_EDUCATION: Record<string, string> = {
   MIDDLE: "متوسط",
   JUNIOR: "متوسط",
 };
-const AR_EXPERIENCE: Record<string, string> = {
+export const AR_EXPERIENCE: Record<string, string> = {
   "FIRST TIME": "لم يسبق لها العمل",
   "NO EXPERIENCE": "لم يسبق لها العمل",
   EXPERIENCED: "لديها خبرة",
 };
-const AR_LEVEL: Record<string, string> = {
+export const AR_LEVEL: Record<string, string> = {
   EXCELLENT: "ممتاز",
   "VERY GOOD": "جيد جداً",
   GOOD: "جيد",
@@ -269,7 +269,7 @@ const AR_LEVEL: Record<string, string> = {
   NO: "لا يوجد",
 };
 
-function toArabic(value: string | null | undefined, map: Record<string, string>): string {
+export function toArabic(value: string | null | undefined, map: Record<string, string>): string {
   if (!value) return "";
   const trimmed = value.trim();
   return map[trimmed.toUpperCase()] ?? map[trimmed] ?? trimmed;
@@ -402,7 +402,7 @@ export const CV_ARABIC_FIELD_MAP = (c: Candidate): [string, string][] => [
   ["المدة", c.experience_years ?? ""],
 ];
 
-function computeAge(dob: string | null | undefined): string {
+export function computeAge(dob: string | null | undefined): string {
   if (!dob) return "";
   const birth = new Date(dob);
   if (isNaN(birth.getTime())) return "";
