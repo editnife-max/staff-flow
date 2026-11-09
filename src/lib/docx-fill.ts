@@ -192,6 +192,14 @@ export const CV_FIELD_MAP = (c: Candidate): [string, string][] => [
   ["HOUSE MAID MOB", c.narrative_phone ?? c.emergency_contact ?? ""],
   ["COUNTRY", c.experience_country ?? ""],
   ["HIGHEST EDUCATIONAL LEVEL", toEnglish(c.education, EN_EDUCATION)],
+  // ── Normal CV template labels ─────────────────────────────────────────────
+  ["CONTACT NUMBER", c.narrative_phone ?? c.emergency_contact ?? ""],
+  ["POSITION APPLIED FOR", toEnglish(c.occupation, EN_OCCUPATION)],
+  ["EXPECTED SALARY", deriveSalary(c)],
+  ["CONTRACT PERIOD", "2 YEARS"],
+  ["NUMBER OF CHILDREN", c.children != null ? String(c.children) : ""],
+  ["ENGLISH LEVEL", toEnglish(c.english_level, EN_LEVEL)],
+  ["ARABIC LEVEL", toEnglish(c.arabic_level, EN_LEVEL)],
   [
     "DATE OF BIRTH & AGE",
     (c.dob ?? "") +
@@ -379,6 +387,19 @@ export const CV_ARABIC_FIELD_MAP = (c: Candidate): [string, string][] => [
   ["الطول", c.height != null ? `${c.height} cm` : ""],
   ["العمر", c.age != null ? String(c.age) : computeAge(c.dob)],
   ["تاريخ الميلاد", c.dob ?? ""],
+  // ── Normal CV template Arabic labels ─────────────────────────────────────
+  ["الاسم الكامل", c.full_name ?? ""],
+  ["رقم الهاتف", c.narrative_phone ?? c.emergency_contact ?? ""],
+  ["الوظيفة المطلوبة", toArabic(c.occupation, AR_OCCUPATION)],
+  ["الجنسية", c.country ?? ""],
+  ["مكان الميلاد", c.birth_place ?? ""],
+  ["العنوان", c.living_town ?? c.birth_place ?? ""],
+  ["مستوى اللغة الإنجليزية", c.english_level ?? ""],
+  ["مستوى اللغة العربية", c.arabic_level ?? ""],
+  ["المستوى التعليمي", toArabic(c.education, AR_EDUCATION)],
+  ["رقم الجواز", c.passport_number ?? ""],
+  ["الدولة", c.experience_country ?? ""],
+  ["المدة", c.experience_years ?? ""],
 ];
 
 function computeAge(dob: string | null | undefined): string {
