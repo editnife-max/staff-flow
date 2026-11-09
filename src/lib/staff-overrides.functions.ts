@@ -55,6 +55,42 @@ export const setStaffOverride = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const getMyEffectiveAccess = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: roleRow } = await supabaseAdmin
+      .from("user_roles")
+      .select("manager_id")
+      .eq("user_id", context.userId)
+      .eq("role", "staff")
+      .maybeSingle();
+
+    const managerId = roleRow?.manager_id;
+    if (!managerId) return { restrictedColumns: [] as string[], grantedColumns: [] as string[], deniedColumns: [] as string[], deniedPages: [] as string[] };
+
+    const [profileRes, overridesRes] = await Promise.all([
+      supabaseAdmin.from("profiles").select("restricted_columns").eq("id", managerId).maybeSingle(),
+      (supabaseAdmin as any)
+        .from("staff_permission_overrides")
+        .select("type, target, mode")
+        .eq("manager_id", managerId)
+        .eq("staff_user_id", context.userId),
+    ]);
+
+    const raw = ((profileRes.data as any)?.restricted_columns ?? {}) as Record<string, boolean>;
+    const restrictedColumns = Object.keys(raw).filter((k) => raw[k] === true);
+    const overrides: Array<{ type: string; target: string; mode: string }> = overridesRes.data ?? [];
+
+    return {
+      restrictedColumns,
+      grantedColumns:  overrides.filter((o) => o.type === "column_edit"  && o.mode === "grant").map((o) => o.target),
+      deniedColumns:   overrides.filter((o) => o.type === "column_edit"  && o.mode === "deny").map((o) => o.target),
+      deniedPages:     overrides.filter((o) => o.type === "page_access"  && o.mode === "deny").map((o) => o.target),
+    };
+  });
+
 export const clearStaffOverride = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>

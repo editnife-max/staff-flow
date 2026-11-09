@@ -37,6 +37,7 @@ import {
   bulkImportCandidates, nextCandidateCode, searchCandidates, checkWafidMedical,
   getCandidates,
 } from "@/lib/candidates.functions";
+import { getMyEffectiveAccess } from "@/lib/staff-overrides.functions";
 import { generateNarrative } from "@/lib/narrative.functions";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
@@ -452,6 +453,7 @@ function StaffCandidatesPage() {
   const getNextCode         = useServerFn(nextCandidateCode);
   const fetchCandidates     = useServerFn(getCandidates);
   const doGenerateNarrative = useServerFn(generateNarrative);
+  const fetchEffectiveAccess = useServerFn(getMyEffectiveAccess);
 
   const { tab: tabParam } = Route.useSearch();
   const [selected, setSelected] = useState<Set<string>>(() => {
@@ -643,6 +645,45 @@ function StaffCandidatesPage() {
     () => Object.fromEntries(foreignAgencies.map((a) => [a.name, a.contact_phone ?? ""])),
     [foreignAgencies],
   );
+
+  const { data: effectiveAccess } = useQuery({
+    queryKey: ["my-effective-access"],
+    queryFn: () => fetchEffectiveAccess({}),
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+
+  const restrictedKeys = useMemo<Set<string>>(() => {
+    if (!effectiveAccess) return new Set();
+    const { restrictedColumns, grantedColumns, deniedColumns } = effectiveAccess;
+    const keys = new Set([
+      ...restrictedColumns.filter((k) => !grantedColumns.includes(k)),
+      ...deniedColumns,
+    ]);
+    return keys;
+  }, [effectiveAccess]);
+
+  const deniedPages = useMemo<Set<string>>(
+    () => new Set(effectiveAccess?.deniedPages ?? []),
+    [effectiveAccess],
+  );
+
+  const allowedTabs = useMemo(
+    () => TABS.filter((t) => !deniedPages.has(t.key)),
+    [deniedPages],
+  );
+
+  // Redirect away from denied tabs once effective access is loaded
+  useEffect(() => {
+    if (!effectiveAccess) return;
+    if (deniedPages.has(tab)) {
+      const first = TABS.find((t) => !deniedPages.has(t.key));
+      if (first) {
+        navigate({ to: "/staff/candidates", search: { tab: first.key }, replace: true });
+        setTab(first.key);
+      }
+    }
+  }, [effectiveAccess, tab, deniedPages]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { available: 0, processing: 0, arrived: 0, returned: 0, canceled: 0 };
@@ -1386,7 +1427,7 @@ function StaffCandidatesPage() {
       <Card className="rounded-none">
         <CardContent className="p-4">
           <div className="flex items-center gap-8 border-b border-border">
-            {TABS.map((t) => (
+            {allowedTabs.map((t) => (
               <button
                 key={t.key}
                 onClick={() => {
@@ -1699,6 +1740,7 @@ function StaffCandidatesPage() {
           officesByCountry={officesByCountry}
           agencyPhones={agencyPhones}
           agencyOptions={agencyOptions}
+          restrictedKeys={restrictedKeys}
         />
       ) : (
         <CandidateCardList
@@ -1729,6 +1771,7 @@ function StaffCandidatesPage() {
           agencyOptions={agencyOptions}
           agencyPhones={agencyPhones}
           narrativeSuggestions={opts.narrative}
+          restrictedKeys={restrictedKeys}
         />
       )}
 
@@ -2363,9 +2406,20 @@ type EditableField =
   | "availability_type" | "video_url" | "ticket_pdf_url" | "visa_pdf_url" | "qr_url"
   | "return_ticket_url" | "stamp_url";
 
+const CARD_KEY_TO_LABEL: Record<string, string> = {
+  medical_status:   "MEDICAL STATUS",
+  coc_status:       "COC STATUS",
+  narrative:        "NARRATIVE",
+  experience:       "EXPERIENCE",
+  musaned_status:   "COUNTRY",
+  selected_by:      "SELECTED BY",
+  cv_sent_to:       "CV SENT TO",
+};
+
 function CandidateCardList({
   candidates, selected, onToggleSelect, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo,
   countryMeta, officesByCountry, agencyOptions, agencyPhones, compact, narrativeSuggestions, pageKey,
+  restrictedKeys = new Set(),
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -2384,6 +2438,7 @@ function CandidateCardList({
   agencyPhones: Record<string, string>;
   narrativeSuggestions?: string[];
   pageKey: string;
+  restrictedKeys?: Set<string>;
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
@@ -2480,9 +2535,14 @@ function CandidateCardList({
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
   const allSel = paginated.length > 0 && paginated.every((c) => selected.has(c.id));
   const someSel = !allSel && paginated.some((c) => selected.has(c.id));
+  const restrictedLabelCols = useMemo(
+    () => new Set(Object.entries(CARD_KEY_TO_LABEL).filter(([k]) => restrictedKeys.has(k)).map(([, v]) => v)),
+    [restrictedKeys],
+  );
   const visibleCols = (CANDIDATE_CARD_COLS as readonly string[]).filter((l) => {
     if (l === "TICKET PDF") return !!compact;
     if (hiddenCols.has(l)) return false;
+    if (restrictedLabelCols.has(l)) return false;
     return true;
   });
 
@@ -2589,7 +2649,7 @@ function CandidateCardList({
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                    {CANDIDATE_CARD_COLS.filter((l) => l !== "TICKET PDF" || compact).map((label) => (
+                    {CANDIDATE_CARD_COLS.filter((l) => (l !== "TICKET PDF" || compact) && !restrictedLabelCols.has(l)).map((label) => (
                       <label key={label} className="flex items-center gap-1.5 text-xs cursor-pointer py-1 hover:text-primary">
                         <Checkbox
                           checked={!hiddenCols.has(label)}
@@ -3331,6 +3391,7 @@ const INITIAL_PROC_FILTERS = {
 function ProcessingTable({
   candidates, selected, onToggleSelect, onAction, onUpdateField, onEdit, onDelete, cancelMode,
   countryMeta, officesByCountry, agencyPhones, agencyOptions, pageKey,
+  restrictedKeys = new Set(),
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -3345,6 +3406,7 @@ function ProcessingTable({
   agencyPhones: Record<string, string>;
   agencyOptions: string[];
   pageKey: string;
+  restrictedKeys?: Set<string>;
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
@@ -3523,7 +3585,7 @@ function ProcessingTable({
     }
   }, [candidates, arrivedCheckCandidate]);
   const paginated = filteredCandidates.slice((page - 1) * pageSize, page * pageSize);
-  const visibleCols = allCols.filter((col) => !hiddenCols.has(col.key));
+  const visibleCols = allCols.filter((col) => !hiddenCols.has(col.key) && !restrictedKeys.has(col.key));
   const allSel = paginated.length > 0 && paginated.every((c) => selected.has(c.id));
   const someSel = !allSel && paginated.some((c) => selected.has(c.id));
 
@@ -3708,7 +3770,7 @@ function ProcessingTable({
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                  {allCols.map((col) => (
+                  {allCols.filter((col) => !restrictedKeys.has(col.key)).map((col) => (
                     <label key={col.key} className="flex items-center gap-1.5 text-xs cursor-pointer py-1 hover:text-primary">
                       <Checkbox
                         checked={!hiddenCols.has(col.key)}
