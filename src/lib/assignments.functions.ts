@@ -4,7 +4,6 @@ import PizZip from "pizzip";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { encryptCredential, decryptCredential } from "@/lib/credentials-crypto.server";
-import { redistributeFromLockedOffice } from "@/lib/cv-distribution.functions";
 
 async function resolveManagerId(userId: string): Promise<string> {
   const { data: roles } = await supabaseAdmin
@@ -136,6 +135,7 @@ export const lockOffice = createServerFn({ method: "POST" })
         const req = (profileRow?.cv_page_requirements as Record<string, string>) ?? {};
         const basePerOffice = parseInt(req.base_per_office ?? "15", 10) || 15;
 
+        const { redistributeFromLockedOffice } = await import("@/lib/cv-distribution.server");
         redistributed = await redistributeFromLockedOffice(managerId, office.name, basePerOffice);
       }
     }
