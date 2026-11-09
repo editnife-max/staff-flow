@@ -2,19 +2,25 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { Clock, Users, Wifi, WifiOff, CalendarClock, ShieldCheck, ShieldX, RefreshCw, AlertTriangle } from "lucide-react";
+import {
+  Clock, Users, Wifi, WifiOff, CalendarClock, ShieldCheck, ShieldX,
+  RefreshCw, AlertTriangle, Columns3, FileKey,
+} from "lucide-react";
 import { toast } from "sonner";
 import { getTeamActivity } from "@/lib/staff-sessions.functions";
-import { excuseLateDay, unsuspendStaff, backfillStaffAbsents, backfillTeamAbsents, getStaffAttendance, getTodayLateStaff } from "@/lib/staff-attendance.functions";
+import {
+  excuseLateDay, unsuspendStaff, backfillStaffAbsents,
+  backfillTeamAbsents, getStaffAttendance, getTodayLateStaff,
+} from "@/lib/staff-attendance.functions";
+import { getStaffOverrides, setStaffOverride, clearStaffOverride } from "@/lib/staff-overrides.functions";
+import type { StaffOverride, OverrideMode } from "@/lib/staff-overrides.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/manager/staff-activity")({
@@ -55,6 +61,33 @@ type AttendanceRow = {
   excused_at: string | null;
 };
 
+type DetailView = "late-login" | "column-overrides" | "page-access";
+
+const OVERRIDABLE_COLUMNS = [
+  { key: "medical_status",   label: "Medical Status" },
+  { key: "coc_status",       label: "COC" },
+  { key: "narrative",        label: "Narrative" },
+  { key: "experience",       label: "Experience" },
+  { key: "tasheer_status",   label: "Tasheer" },
+  { key: "wokala_status",    label: "Wokala" },
+  { key: "visa_status",      label: "Visa Status" },
+  { key: "insurance_status", label: "Insurance" },
+  { key: "lmis_status",      label: "LMIS" },
+  { key: "ticket_status",    label: "Ticket" },
+  { key: "musaned_status",   label: "Country" },
+  { key: "selected_by",      label: "Assigned To" },
+  { key: "cv_sent_to",       label: "CV Sent To" },
+];
+
+const OVERRIDABLE_PAGES = [
+  { key: "tc",        label: "TC" },
+  { key: "available", label: "Available" },
+  { key: "processing", label: "Processing" },
+  { key: "arrived",   label: "Arrival" },
+  { key: "returned",  label: "Return" },
+  { key: "canceled",  label: "Cancellation" },
+];
+
 function formatTime(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -90,23 +123,18 @@ function candidatesForPeriod(m: TeamMember, period: Period): number {
   return m.candidatesYear;
 }
 
-// ─── Late Login Dialog ────────────────────────────────────────────────────────
-function LateLoginDialog({ member, open, onClose }: {
-  member: TeamMember | null;
-  open: boolean;
-  onClose: () => void;
-}) {
+// ─── Late Login Panel ─────────────────────────────────────────────────────────
+function LateLoginPanel({ member }: { member: TeamMember }) {
   const qc = useQueryClient();
-  const doBackfillStaff = useServerFn(backfillStaffAbsents);
-  const doGetAttendance = useServerFn(getStaffAttendance);
+  const doBackfillStaff  = useServerFn(backfillStaffAbsents);
+  const doGetAttendance  = useServerFn(getStaffAttendance);
 
   const { data: attendance = [], refetch: refetchAttendance } = useQuery<AttendanceRow[]>({
-    queryKey: ["staff-attendance", member?.staffUserId],
-    enabled: open && !!member?.staffUserId,
+    queryKey: ["staff-attendance", member.staffUserId],
     staleTime: 0,
     queryFn: async () => {
-      await doBackfillStaff({ data: { staffUserId: member!.staffUserId } });
-      return doGetAttendance({ data: { staffUserId: member!.staffUserId } });
+      await doBackfillStaff({ data: { staffUserId: member.staffUserId } });
+      return doGetAttendance({ data: { staffUserId: member.staffUserId } });
     },
   });
 
@@ -121,11 +149,10 @@ function LateLoginDialog({ member, open, onClose }: {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const doUnsuspend   = useServerFn(unsuspendStaff);
-
+  const doUnsuspend  = useServerFn(unsuspendStaff);
   const unsuspendMut = useMutation({
     mutationFn: async () => {
-      const result = await doUnsuspend({ data: { staffId: member!.staffId } });
+      const result = await doUnsuspend({ data: { staffId: member.staffId } });
       if (!result.ok) throw new Error(result.error ?? "Failed to remove suspension");
     },
     onSuccess: () => {
@@ -136,114 +163,412 @@ function LateLoginDialog({ member, open, onClose }: {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const incidentRows    = attendance.filter((r) => r.is_late || r.absent);
-  const unexcusedCount  = attendance.filter((r) => !r.excused && (r.is_late || r.absent)).length;
-  const MAX_INCIDENTS   = 3;
+  const incidentRows   = attendance.filter((r) => r.is_late || r.absent);
+  const unexcusedCount = attendance.filter((r) => !r.excused && (r.is_late || r.absent)).length;
+  const MAX_INCIDENTS  = 3;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CalendarClock className="h-4 w-4" />
-            Late Login History — {member?.name}
-          </DialogTitle>
-        </DialogHeader>
-
-        {member?.isSuspended && (
-          <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <ShieldX className="h-4 w-4 text-destructive" />
-              <span className="text-sm font-medium text-destructive">Account suspended</span>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 text-xs px-3 text-emerald-600 border-emerald-300 hover:bg-emerald-50"
-              disabled={unsuspendMut.isPending}
-              onClick={() => unsuspendMut.mutate()}
-            >
-              <ShieldCheck className="h-3 w-3 mr-1" />
-              {unsuspendMut.isPending ? "Removing…" : "Remove suspension"}
-            </Button>
+    <div className="space-y-4">
+      {member.isSuspended && (
+        <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <ShieldX className="h-4 w-4 text-destructive" />
+            <span className="text-sm font-medium text-destructive">Account suspended</span>
           </div>
-        )}
-
-        {/* Incident counter */}
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span className="font-medium uppercase tracking-wide">Last 30 Days</span>
-          <span className={cn(
-            "font-semibold",
-            unexcusedCount >= MAX_INCIDENTS ? "text-destructive" :
-            unexcusedCount >= MAX_INCIDENTS - 1 ? "text-amber-600" :
-            "text-foreground",
-          )}>
-            {unexcusedCount} / {MAX_INCIDENTS} incidents
-          </span>
+          <Button
+            size="sm" variant="outline"
+            className="h-7 text-xs px-3 text-emerald-600 border-emerald-300 hover:bg-emerald-50"
+            disabled={unsuspendMut.isPending}
+            onClick={() => unsuspendMut.mutate()}
+          >
+            <ShieldCheck className="h-3 w-3 mr-1" />
+            {unsuspendMut.isPending ? "Removing…" : "Remove suspension"}
+          </Button>
         </div>
+      )}
 
-        <div>
-          {incidentRows.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">No late logins or absent days in the past 30 days.</p>
-          ) : (
-            <div className="space-y-2">
-              {incidentRows.map((rec) => {
-                const loginTime = rec.first_login_at
-                  ? new Date(new Date(rec.first_login_at).getTime() + 3 * 60 * 60 * 1000)
-                      .toISOString()
-                      .slice(11, 16)
-                  : null;
-                return (
-                  <div
-                    key={rec.id}
-                    className="rounded-md border border-border bg-muted/20 px-4 py-3 space-y-1.5"
-                  >
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-semibold">{fmtDate(rec.date)}</span>
-                        {loginTime ? (
-                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            {loginTime} EAT
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">No login</span>
-                        )}
-                        {rec.excused ? (
-                          <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-sm text-xs font-medium">
-                            <ShieldCheck className="h-3 w-3" /> Excused
-                          </span>
-                        ) : rec.absent ? (
-                          <span className="inline-flex items-center gap-1 bg-red-500/10 text-red-600 px-2 py-0.5 rounded-sm text-xs font-medium">
-                            <ShieldX className="h-3 w-3" /> No Login
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-sm text-xs font-medium">
-                            <ShieldX className="h-3 w-3" /> Late
-                          </span>
-                        )}
-                      </div>
-                      {!rec.excused && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs px-3 text-emerald-600 border-emerald-300 hover:bg-emerald-50"
-                          disabled={excuseMut.isPending}
-                          onClick={() => excuseMut.mutate(rec.id)}
-                        >
-                          Excuse
-                        </Button>
-                      )}
-                    </div>
-                    {rec.reason && (
-                      <p className="text-xs text-muted-foreground italic leading-snug">
-                        "{rec.reason}"
-                      </p>
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span className="font-medium uppercase tracking-wide">Last 30 Days</span>
+        <span className={cn(
+          "font-semibold",
+          unexcusedCount >= MAX_INCIDENTS ? "text-destructive" :
+          unexcusedCount >= MAX_INCIDENTS - 1 ? "text-amber-600" :
+          "text-foreground",
+        )}>
+          {unexcusedCount} / {MAX_INCIDENTS} incidents
+        </span>
+      </div>
+
+      {incidentRows.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic">No late logins or absent days in the past 30 days.</p>
+      ) : (
+        <div className="space-y-2">
+          {incidentRows.map((rec) => {
+            const loginTime = rec.first_login_at
+              ? new Date(new Date(rec.first_login_at).getTime() + 3 * 60 * 60 * 1000)
+                  .toISOString().slice(11, 16)
+              : null;
+            return (
+              <div key={rec.id} className="rounded-md border border-border bg-muted/20 px-4 py-3 space-y-1.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-semibold">{fmtDate(rec.date)}</span>
+                    {loginTime ? (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />{loginTime} EAT
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">No login</span>
+                    )}
+                    {rec.excused ? (
+                      <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-sm text-xs font-medium">
+                        <ShieldCheck className="h-3 w-3" /> Excused
+                      </span>
+                    ) : rec.absent ? (
+                      <span className="inline-flex items-center gap-1 bg-red-500/10 text-red-600 px-2 py-0.5 rounded-sm text-xs font-medium">
+                        <ShieldX className="h-3 w-3" /> No Login
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-sm text-xs font-medium">
+                        <ShieldX className="h-3 w-3" /> Late
+                      </span>
                     )}
                   </div>
-                );
-              })}
+                  {!rec.excused && (
+                    <Button
+                      size="sm" variant="outline"
+                      className="h-7 text-xs px-3 text-emerald-600 border-emerald-300 hover:bg-emerald-50"
+                      disabled={excuseMut.isPending}
+                      onClick={() => excuseMut.mutate(rec.id)}
+                    >
+                      Excuse
+                    </Button>
+                  )}
+                </div>
+                {rec.reason && (
+                  <p className="text-xs text-muted-foreground italic leading-snug">"{rec.reason}"</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Override toggle row ──────────────────────────────────────────────────────
+function OverrideRow({
+  label, current, onSet, onClear, pendingKey, activeKey,
+  grantLabel, denyLabel,
+}: {
+  label: string;
+  current: OverrideMode | null;
+  onSet: (mode: OverrideMode) => void;
+  onClear: () => void;
+  pendingKey: string | null;
+  activeKey: string;
+  grantLabel: string;
+  denyLabel: string;
+}) {
+  const isLoading = pendingKey === activeKey;
+  const handleClick = (mode: OverrideMode) => {
+    if (current === mode) onClear();
+    else onSet(mode);
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-3 py-2.5 border-b border-border/60 last:border-0">
+      <span className="text-sm font-medium flex-1 min-w-0 truncate">{label}</span>
+      <div className="flex items-center gap-1.5 shrink-0">
+        {current && (
+          <span className={cn(
+            "text-[10px] font-semibold px-2 py-0.5 rounded-full",
+            current === "grant" || current === "deny" && grantLabel === "Allow"
+              ? current === "grant" ? "bg-emerald-500/10 text-emerald-700" : "bg-red-500/10 text-red-700"
+              : current === "deny" ? "bg-red-500/10 text-red-700" : "bg-emerald-500/10 text-emerald-700",
+          )}>
+            {current === "grant" ? grantLabel : denyLabel}
+          </span>
+        )}
+        <Button
+          size="sm" variant={current === "grant" ? "default" : "outline"}
+          className={cn(
+            "h-7 text-xs px-3",
+            current === "grant"
+              ? "bg-emerald-600 hover:bg-emerald-700 text-white border-0"
+              : "text-emerald-700 border-emerald-300 hover:bg-emerald-50",
+          )}
+          disabled={isLoading}
+          onClick={() => handleClick("grant")}
+        >
+          {grantLabel}
+        </Button>
+        <Button
+          size="sm" variant={current === "deny" ? "default" : "outline"}
+          className={cn(
+            "h-7 text-xs px-3",
+            current === "deny"
+              ? "bg-red-600 hover:bg-red-700 text-white border-0"
+              : "text-red-700 border-red-300 hover:bg-red-50",
+          )}
+          disabled={isLoading}
+          onClick={() => handleClick("deny")}
+        >
+          {denyLabel}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Column Overrides Panel ───────────────────────────────────────────────────
+function ColumnOverridesPanel({ member, overrides, onRefresh }: {
+  member: TeamMember;
+  overrides: StaffOverride[];
+  onRefresh: () => void;
+}) {
+  const doSet   = useServerFn(setStaffOverride);
+  const doClear = useServerFn(clearStaffOverride);
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
+
+  const colOverrides = overrides.filter((o) => o.type === "column_edit");
+  const getMode = (target: string): OverrideMode | null =>
+    colOverrides.find((o) => o.target === target)?.mode ?? null;
+
+  const handleSet = async (target: string, mode: OverrideMode) => {
+    setPendingKey(target);
+    try {
+      await doSet({ data: { staffUserId: member.staffUserId, type: "column_edit", target, mode } });
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to save override");
+    } finally {
+      setPendingKey(null);
+    }
+  };
+
+  const handleClear = async (target: string) => {
+    setPendingKey(target);
+    try {
+      await doClear({ data: { staffUserId: member.staffUserId, type: "column_edit", target } });
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to clear override");
+    } finally {
+      setPendingKey(null);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-md border border-border bg-muted/30 px-3 py-2.5 text-xs space-y-1 text-muted-foreground">
+        <p><span className="font-semibold text-emerald-700">Grant</span> — let this user edit a column that is globally restricted.</p>
+        <p><span className="font-semibold text-red-700">Deny</span> — hide the column &amp; prevent editing even if their role normally allows it.</p>
+      </div>
+      <div>
+        {OVERRIDABLE_COLUMNS.map((col) => (
+          <OverrideRow
+            key={col.key}
+            label={col.label}
+            current={getMode(col.key)}
+            onSet={(mode) => handleSet(col.key, mode)}
+            onClear={() => handleClear(col.key)}
+            pendingKey={pendingKey}
+            activeKey={col.key}
+            grantLabel="Grant"
+            denyLabel="Deny"
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Page Access Panel ────────────────────────────────────────────────────────
+function PageAccessPanel({ member, overrides, onRefresh }: {
+  member: TeamMember;
+  overrides: StaffOverride[];
+  onRefresh: () => void;
+}) {
+  const doSet   = useServerFn(setStaffOverride);
+  const doClear = useServerFn(clearStaffOverride);
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
+
+  const pageOverrides = overrides.filter((o) => o.type === "page_access");
+  const getMode = (target: string): OverrideMode | null =>
+    pageOverrides.find((o) => o.target === target)?.mode ?? null;
+
+  const handleSet = async (target: string, mode: OverrideMode) => {
+    setPendingKey(target);
+    try {
+      await doSet({ data: { staffUserId: member.staffUserId, type: "page_access", target, mode } });
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to save override");
+    } finally {
+      setPendingKey(null);
+    }
+  };
+
+  const handleClear = async (target: string) => {
+    setPendingKey(target);
+    try {
+      await doClear({ data: { staffUserId: member.staffUserId, type: "page_access", target } });
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e.message ?? "Failed to clear override");
+    } finally {
+      setPendingKey(null);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-md border border-border bg-muted/30 px-3 py-2.5 text-xs space-y-1 text-muted-foreground">
+        <p>Current access is derived from the staff role configuration.</p>
+        <p><span className="font-semibold text-emerald-700">Allow</span> — grant access even if role denies.</p>
+        <p><span className="font-semibold text-red-700">Deny</span> — block access even if role allows.</p>
+      </div>
+      <div>
+        {OVERRIDABLE_PAGES.map((page) => {
+          const mode = getMode(page.key);
+          return (
+            <div key={page.key} className="flex items-center justify-between gap-3 py-2.5 border-b border-border/60 last:border-0">
+              <div className="flex-1 min-w-0">
+                <span className="text-sm font-medium">{page.label}</span>
+                <span className="ml-2 text-[10px] text-muted-foreground">
+                  {mode ? (mode === "grant" ? "Allowed (override)" : "Denied (override)") : "Role default (Allowed)"}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Button
+                  size="sm" variant={mode === "grant" ? "default" : "outline"}
+                  className={cn(
+                    "h-7 text-xs px-3",
+                    mode === "grant"
+                      ? "bg-emerald-600 hover:bg-emerald-700 text-white border-0"
+                      : "text-emerald-700 border-emerald-300 hover:bg-emerald-50",
+                  )}
+                  disabled={pendingKey === page.key}
+                  onClick={() => mode === "grant" ? handleClear(page.key) : handleSet(page.key, "grant")}
+                >
+                  Allow
+                </Button>
+                <Button
+                  size="sm" variant={mode === "deny" ? "default" : "outline"}
+                  className={cn(
+                    "h-7 text-xs px-3",
+                    mode === "deny"
+                      ? "bg-red-600 hover:bg-red-700 text-white border-0"
+                      : "text-red-700 border-red-300 hover:bg-red-50",
+                  )}
+                  disabled={pendingKey === page.key}
+                  onClick={() => mode === "deny" ? handleClear(page.key) : handleSet(page.key, "deny")}
+                >
+                  Deny
+                </Button>
+              </div>
             </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Staff Detail Dialog ──────────────────────────────────────────────────────
+function StaffDetailDialog({ member, open, onClose }: {
+  member: TeamMember | null;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [view, setView] = useState<DetailView>("late-login");
+  const doGetOverrides  = useServerFn(getStaffOverrides);
+
+  const { data: overrides = [], refetch: refetchOverrides } = useQuery<StaffOverride[]>({
+    queryKey: ["staff-overrides", member?.staffUserId],
+    enabled: open && !!member?.staffUserId && view !== "late-login",
+    staleTime: 0,
+    queryFn: () => doGetOverrides({ data: { staffUserId: member!.staffUserId } }),
+  });
+
+  const handleClose = () => {
+    setView("late-login");
+    onClose();
+  };
+
+  const NAV: { key: DetailView; label: string; Icon: React.ElementType }[] = [
+    { key: "late-login",       label: "Late Login History",      Icon: CalendarClock },
+    { key: "column-overrides", label: "Column Editing Overrides", Icon: Columns3 },
+    { key: "page-access",      label: "Page Access Overrides",    Icon: FileKey },
+  ];
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col p-0 gap-0">
+        {/* Header */}
+        <DialogHeader className="px-5 pt-5 pb-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="relative shrink-0">
+              <Avatar className="h-9 w-9">
+                <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                  {member?.name.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <span className={cn(
+                "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background",
+                member?.isOnline ? "bg-emerald-500" : "bg-zinc-400",
+              )} />
+            </div>
+            <div>
+              <DialogTitle className="text-base">{member?.name}</DialogTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {member?.isOnline ? "Online now" : `Last seen: ${formatLastSeen(member?.lastSeen ?? null)}`}
+              </p>
+            </div>
+          </div>
+        </DialogHeader>
+
+        {/* Nav buttons */}
+        <div className="flex border-b border-border shrink-0 bg-muted/20">
+          {NAV.map(({ key, label, Icon }) => (
+            <button
+              key={key}
+              onClick={() => setView(key)}
+              className={cn(
+                "flex-1 flex flex-col items-center gap-1 py-2.5 px-2 text-[11px] font-medium transition-colors border-b-2",
+                view === key
+                  ? "border-primary text-primary bg-background"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40",
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              <span className="leading-tight text-center">{label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Panel content */}
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          {member && (
+            <>
+              {view === "late-login" && <LateLoginPanel member={member} />}
+              {view === "column-overrides" && (
+                <ColumnOverridesPanel
+                  member={member}
+                  overrides={overrides}
+                  onRefresh={refetchOverrides}
+                />
+              )}
+              {view === "page-access" && (
+                <PageAccessPanel
+                  member={member}
+                  overrides={overrides}
+                  onRefresh={refetchOverrides}
+                />
+              )}
+            </>
           )}
         </div>
       </DialogContent>
@@ -275,12 +600,10 @@ function MemberCard({ member, period, onClick, onUnsuspend, unsuspending }: {
                 {member.name.slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <span
-              className={cn(
-                "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background",
-                member.isOnline ? "bg-emerald-500" : "bg-zinc-400",
-              )}
-            />
+            <span className={cn(
+              "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background",
+              member.isOnline ? "bg-emerald-500" : "bg-zinc-400",
+            )} />
           </div>
 
           <div className="flex-1 min-w-0">
@@ -327,8 +650,7 @@ function MemberCard({ member, period, onClick, onUnsuspend, unsuspending }: {
         {member.isSuspended && onUnsuspend && (
           <div className="mt-3 pt-3 border-t border-border">
             <Button
-              size="sm"
-              variant="outline"
+              size="sm" variant="outline"
               className="w-full h-7 text-xs text-emerald-600 border-emerald-300 hover:bg-emerald-50 rounded-none gap-1.5"
               disabled={unsuspending}
               onClick={(e) => { e.stopPropagation(); onUnsuspend(); }}
@@ -343,15 +665,16 @@ function MemberCard({ member, period, onClick, onUnsuspend, unsuspending }: {
   );
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
 function StaffActivityPage() {
-  const [period, setPeriod]             = useState<Period>("today");
+  const [period, setPeriod]                   = useState<Period>("today");
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
-  const [syncing, setSyncing]           = useState(false);
-  const qc                              = useQueryClient();
-  const doGetTeamActivity               = useServerFn(getTeamActivity);
-  const doBackfill                      = useServerFn(backfillTeamAbsents);
-  const doGetTodayLate                  = useServerFn(getTodayLateStaff);
-  const doUnsuspendCard                 = useServerFn(unsuspendStaff);
+  const [syncing, setSyncing]                 = useState(false);
+  const qc                                    = useQueryClient();
+  const doGetTeamActivity                     = useServerFn(getTeamActivity);
+  const doBackfill                            = useServerFn(backfillTeamAbsents);
+  const doGetTodayLate                        = useServerFn(getTodayLateStaff);
+  const doUnsuspendCard                       = useServerFn(unsuspendStaff);
 
   const unsuspendCardMut = useMutation({
     mutationFn: (staffId: string) => doUnsuspendCard({ data: { staffId } }),
@@ -363,14 +686,12 @@ function StaffActivityPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Backfill absent records for all staff on every page mount
   const { data: _backfillDone } = useQuery({
     queryKey: ["backfill-absents"],
     queryFn: () => doBackfill(),
     staleTime: 0,
   });
 
-  // Today's staff who haven't logged in past 9 AM — runs after backfill, refreshes every minute
   const { data: todayLate = [] } = useQuery({
     queryKey: ["today-late-staff"],
     queryFn: () => doGetTodayLate(),
@@ -397,12 +718,10 @@ function StaffActivityPage() {
     }
   }
 
-  const members: TeamMember[] = Array.isArray(team) ? team : [];
-  // Derive selected member live from the latest query data so suspension changes
-  // are reflected immediately after the team-activity query refetches.
-  const selectedMember = selectedStaffId ? (members.find((m) => m.staffId === selectedStaffId) ?? null) : null;
-  const onlineCount      = members.filter((m) => m.isOnline).length;
-  const totalHoursToday  = members.reduce((acc, m) => acc + m.hoursToday, 0);
+  const members: TeamMember[]  = Array.isArray(team) ? team : [];
+  const selectedMember         = selectedStaffId ? (members.find((m) => m.staffId === selectedStaffId) ?? null) : null;
+  const onlineCount            = members.filter((m) => m.isOnline).length;
+  const totalHoursToday        = members.reduce((acc, m) => acc + m.hoursToday, 0);
 
   const sorted = [...members].sort((a, b) => {
     if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
@@ -430,11 +749,8 @@ function StaffActivityPage() {
             {members.length} total staff
           </Badge>
           <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            disabled={syncing}
-            onClick={syncAbsences}
+            variant="outline" size="sm" className="gap-1.5"
+            disabled={syncing} onClick={syncAbsences}
           >
             <RefreshCw className={cn("h-3.5 w-3.5", syncing && "animate-spin")} />
             {syncing ? "Syncing…" : "Sync Absences"}
@@ -442,7 +758,6 @@ function StaffActivityPage() {
         </div>
       </div>
 
-      {/* Today's no-login alert — shown only past 9 AM EAT when staff haven't logged in */}
       {todayLate.length > 0 && (
         <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
           <CardHeader className="pb-2 pt-4 px-4">
@@ -525,7 +840,6 @@ function StaffActivityPage() {
             ))}
           </div>
 
-          {/* Summary table */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Summary Table</CardTitle>
@@ -571,7 +885,7 @@ function StaffActivityPage() {
         </>
       )}
 
-      <LateLoginDialog
+      <StaffDetailDialog
         member={selectedMember}
         open={!!selectedStaffId}
         onClose={() => setSelectedStaffId(null)}
