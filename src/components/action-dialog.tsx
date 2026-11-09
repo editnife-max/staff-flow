@@ -169,13 +169,10 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
     ? templates.find((t) => t.id === downloadType) ?? null
     : null;
   const isDocxTemplate  = !!matchedTemplate && matchedTemplate.file_url.split("?")[0].toLowerCase().endsWith(".docx");
-<<<<<<< HEAD
   const isNormalCv      = currentType.group === "normal-cv";
   const isVideoCv       = currentType.group === "video-cv";
-=======
   // Code-built layout used for the PDF (Normal, or a known uploaded template's design).
   const cvLayout = downloadType === NORMAL_CV_OPTION.id ? NORMAL_CV_OPTION.layout : layoutForTemplate(matchedTemplate);
->>>>>>> origin/fix/cv-pdf-layouts
 
   const toggleCol = (key: string) =>
     setSelectedCols((prev) => {
