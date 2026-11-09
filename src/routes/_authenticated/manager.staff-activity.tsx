@@ -80,12 +80,15 @@ const OVERRIDABLE_COLUMNS = [
 ];
 
 const OVERRIDABLE_PAGES = [
-  { key: "tc",        label: "TC" },
-  { key: "available", label: "Available" },
-  { key: "processing", label: "Processing" },
-  { key: "arrived",   label: "Arrival" },
-  { key: "returned",  label: "Return" },
-  { key: "canceled",  label: "Cancellation" },
+  { key: "candidates",   label: "HR Pool" },
+  { key: "cv_generator", label: "CV Page" },
+  { key: "attendance",   label: "My Attendance" },
+  { key: "tc",           label: "TC" },
+  { key: "available",    label: "Available tab" },
+  { key: "processing",   label: "Processing tab" },
+  { key: "arrived",      label: "Arrival tab" },
+  { key: "returned",     label: "Return tab" },
+  { key: "canceled",     label: "Cancellation tab" },
 ];
 
 function formatTime(iso: string | null): string {

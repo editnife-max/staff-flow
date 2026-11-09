@@ -27,6 +27,7 @@ import {
 } from "@/lib/notifications.functions";
 import { updateCandidateField } from "@/lib/candidates.functions";
 import { getManagerTcEnabled } from "@/lib/settings.functions";
+import { getMyEffectiveAccess } from "@/lib/staff-overrides.functions";
 import { useStaffSession } from "@/hooks/use-staff-session";
 import { recordStaffLogin } from "@/lib/staff-attendance.functions";
 import { DarkModeToggle } from "@/components/dark-mode-toggle";
@@ -37,11 +38,11 @@ export const Route = createFileRoute("/_authenticated/staff")({
 });
 
 const NAV_TOP = [
-  { to: "/staff/dashboard",    label: "Dashboard",    icon: LayoutDashboard },
-  { to: "/staff/candidates",   label: "HR Pool",      icon: Users,          exact: false },
-  { to: "/staff/cv-generator", label: "CV Page",      icon: FileText },
-  { to: "/staff/attendance",   label: "My Attendance", icon: CalendarClock },
-  { to: "/staff/tc",           label: "TC",           icon: GraduationCap },
+  { to: "/staff/dashboard",    label: "Dashboard",     icon: LayoutDashboard, pageKey: "dashboard"    },
+  { to: "/staff/candidates",   label: "HR Pool",       icon: Users,           pageKey: "candidates",   exact: false },
+  { to: "/staff/cv-generator", label: "CV Page",       icon: FileText,        pageKey: "cv_generator" },
+  { to: "/staff/attendance",   label: "My Attendance", icon: CalendarClock,   pageKey: "attendance"   },
+  { to: "/staff/tc",           label: "TC",            icon: GraduationCap,   pageKey: "tc"           },
 ];
 
 type Notification = {
@@ -82,7 +83,8 @@ function StaffLayout() {
   const doDecline = useServerFn(declineCandidatesNotification);
 
   const updateFieldFn = useServerFn(updateCandidateField);
-  const getTcEnabled  = useServerFn(getManagerTcEnabled);
+  const getTcEnabled        = useServerFn(getManagerTcEnabled);
+  const fetchEffectiveAccess = useServerFn(getMyEffectiveAccess);
 
   const { data: tcData } = useQuery({
     queryKey: ["manager-tc-enabled", user?.id],
@@ -91,7 +93,15 @@ function StaffLayout() {
     staleTime: 60_000,
   });
 
+  const { data: effectiveAccess } = useQuery({
+    queryKey: ["my-effective-access"],
+    queryFn: () => fetchEffectiveAccess({}),
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+
   const tcEnabled = tcData?.tc_enabled ?? true;
+  const deniedPages = new Set(effectiveAccess?.deniedPages ?? []);
 
   const [notifOpen, setNotifOpen]         = useState(false);
   const [activeNotif, setActiveNotif]     = useState<Notification | null>(null);
@@ -271,7 +281,11 @@ function StaffLayout() {
           </Link>
 
           <nav className="flex-1 flex flex-wrap items-center gap-x-8 gap-y-2">
-            {NAV_TOP.filter((n) => n.to !== "/staff/tc" || tcEnabled).map((n) => {
+            {NAV_TOP.filter((n) => {
+              if (n.pageKey === "tc" && !tcEnabled) return false;
+              if (deniedPages.has(n.pageKey)) return false;
+              return true;
+            }).map((n) => {
               const Icon = n.icon;
               return (
                 <Link key={n.label} to={n.to}
