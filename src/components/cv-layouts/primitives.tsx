@@ -143,6 +143,168 @@ export function Cell({
   );
 }
 
+/**
+ * Marks an element as a clickable area in the exported PDF. The PDF page is a raster
+ * render, so buildCvLayoutPdf reads each marked element's box and adds a link annotation.
+ */
+export const CV_LINK_ATTR = "data-cv-link";
+
+function PlayIcon({ color }: { color: string }) {
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        width: 0,
+        height: 0,
+        flexShrink: 0,
+        borderTop: "6px solid transparent",
+        borderBottom: "6px solid transparent",
+        borderLeft: `10px solid ${color}`,
+        marginLeft: 2,
+      }}
+    />
+  );
+}
+
+function DownloadIcon({ color }: { color: string }) {
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        position: "relative",
+        width: 12,
+        height: 13,
+        flexShrink: 0,
+      }}
+    >
+      <span
+        style={{ position: "absolute", left: 5, top: 0, width: 2.4, height: 6, background: color }}
+      />
+      <span
+        style={{
+          position: "absolute",
+          left: 1,
+          top: 5,
+          width: 0,
+          height: 0,
+          borderLeft: "5.2px solid transparent",
+          borderRight: "5.2px solid transparent",
+          borderTop: `5px solid ${color}`,
+        }}
+      />
+      <span
+        style={{
+          position: "absolute",
+          left: 0,
+          bottom: 0,
+          width: 12,
+          height: 2.2,
+          background: color,
+        }}
+      />
+    </span>
+  );
+}
+
+function VideoButton({
+  href,
+  filled,
+  color,
+  height,
+  icon,
+  en,
+  ar,
+}: {
+  href: string;
+  filled: boolean;
+  color: string;
+  height: number;
+  icon: React.ReactNode;
+  en: string;
+  ar: string;
+}) {
+  const fg = filled ? "#ffffff" : color;
+  return (
+    <div
+      {...{ [CV_LINK_ATTR]: href }}
+      style={{
+        flex: 1,
+        minWidth: 0,
+        height,
+        boxSizing: "border-box",
+        borderRadius: 6,
+        border: `1.5px solid ${color}`,
+        background: filled ? color : "#ffffff",
+        color: fg,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 7,
+        padding: "0 6px",
+      }}
+    >
+      {icon}
+      <div
+        style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", minWidth: 0 }}
+      >
+        <span style={{ fontSize: 10.5, fontWeight: 700, lineHeight: "13px", whiteSpace: "nowrap" }}>
+          {en}
+        </span>
+        <span
+          dir="rtl"
+          style={{
+            fontSize: 9.5,
+            fontWeight: 600,
+            lineHeight: "13px",
+            whiteSpace: "nowrap",
+            unicodeBidi: "isolate",
+          }}
+        >
+          {ar}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** "Play video" + "Download video" buttons, shown under a candidate's full-size photo. */
+export function VideoButtons({
+  play,
+  download,
+  color,
+  height = 38,
+  style,
+}: {
+  play: string;
+  download: string;
+  color: string;
+  height?: number;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div style={{ display: "flex", gap: 7, boxSizing: "border-box", ...style }}>
+      <VideoButton
+        href={play}
+        filled
+        color={color}
+        height={height}
+        icon={<PlayIcon color="#ffffff" />}
+        en="Play Video"
+        ar="تشغيل الفيديو"
+      />
+      <VideoButton
+        href={download}
+        filled={false}
+        color={color}
+        height={height}
+        icon={<DownloadIcon color={color} />}
+        en="Download Video"
+        ar="تحميل الفيديو"
+      />
+    </div>
+  );
+}
+
 /** A check mark drawn with borders, so it renders without depending on a symbol font. */
 export function Tick({
   size = 12,

@@ -99,6 +99,56 @@ export interface CvPhotos {
   fullPhoto: string | null;
 }
 
+/** Links behind the CV's "Play video" / "Download video" buttons. */
+export interface VideoLinks {
+  /** Opens the video in a player (Drive preview, or the file itself in the browser). */
+  play: string;
+  /** Saves the file straight from storage, with no page or proxy in between. */
+  download: string;
+}
+
+/**
+ * Builds play/download links for a candidate's video URL. Download links ask the host to
+ * send the file as an attachment so it saves directly instead of opening a player:
+ * Google Drive skips its large-file virus-scan page (confirm=t), Supabase storage honours
+ * `?download`, Dropbox honours `dl=1`. Other hosts get the original URL for both.
+ */
+export function videoLinks(raw: string | null | undefined): VideoLinks | null {
+  const url = (raw ?? "").trim();
+  if (!/^https?:\/\//i.test(url)) return null;
+
+  const driveId =
+    /drive\.google\.com\/file\/d\/([\w-]+)/.exec(url)?.[1] ??
+    /drive\.google\.com\/(?:open|uc)\?(?:[^#]*&)?id=([\w-]+)/.exec(url)?.[1];
+  if (driveId) {
+    return {
+      play: `https://drive.google.com/file/d/${driveId}/view`,
+      download: `https://drive.usercontent.google.com/download?id=${driveId}&export=download&confirm=t`,
+    };
+  }
+
+  try {
+    const u = new URL(url);
+    if (u.pathname.includes("/storage/v1/object/public/")) {
+      const dl = new URL(u);
+      dl.searchParams.set("download", "");
+      return { play: url, download: dl.toString() };
+    }
+    if (/(^|\.)dropbox\.com$/i.test(u.hostname)) {
+      const play = new URL(u);
+      play.searchParams.set("raw", "1");
+      play.searchParams.delete("dl");
+      const dl = new URL(u);
+      dl.searchParams.set("dl", "1");
+      dl.searchParams.delete("raw");
+      return { play: play.toString(), download: dl.toString() };
+    }
+  } catch {
+    /* not a parseable URL: fall through */
+  }
+  return { play: url, download: url };
+}
+
 export interface CvData {
   fullName: string;
   serial: string;
@@ -137,6 +187,8 @@ export interface CvData {
   phone2: string;
   remark: string;
   photos: CvPhotos;
+  /** Video CV links, or null when the candidate has no video. */
+  video: VideoLinks | null;
   hasSkill: (key: SkillKey) => boolean;
 }
 
@@ -153,12 +205,27 @@ function titleCase(s: string): string {
 
 // The candidates table stores nationality as a demonym ("Ethiopian") or leaves it empty.
 const COUNTRY_FROM_DEMONYM: Record<string, string> = {
-  ETHIOPIAN: "ETHIOPIA", KENYAN: "KENYA", UGANDAN: "UGANDA", FILIPINO: "PHILIPPINES",
-  FILIPINA: "PHILIPPINES", INDONESIAN: "INDONESIA", "SRI LANKAN": "SRI LANKA", INDIAN: "INDIA",
-  BANGLADESHI: "BANGLADESH", NEPALI: "NEPAL", GHANAIAN: "GHANA", NIGERIAN: "NIGERIA",
-  BURUNDIAN: "BURUNDI", RWANDAN: "RWANDA", TANZANIAN: "TANZANIA", SUDANESE: "SUDAN",
-  ERITREAN: "ERITREA", SOMALI: "SOMALIA", "SIERRA LEONEAN": "SIERRA LEONE",
-  MALAGASY: "MADAGASCAR", PAKISTANI: "PAKISTAN",
+  ETHIOPIAN: "ETHIOPIA",
+  KENYAN: "KENYA",
+  UGANDAN: "UGANDA",
+  FILIPINO: "PHILIPPINES",
+  FILIPINA: "PHILIPPINES",
+  INDONESIAN: "INDONESIA",
+  "SRI LANKAN": "SRI LANKA",
+  INDIAN: "INDIA",
+  BANGLADESHI: "BANGLADESH",
+  NEPALI: "NEPAL",
+  GHANAIAN: "GHANA",
+  NIGERIAN: "NIGERIA",
+  BURUNDIAN: "BURUNDI",
+  RWANDAN: "RWANDA",
+  TANZANIAN: "TANZANIA",
+  SUDANESE: "SUDAN",
+  ERITREAN: "ERITREA",
+  SOMALI: "SOMALIA",
+  "SIERRA LEONEAN": "SIERRA LEONE",
+  MALAGASY: "MADAGASCAR",
+  PAKISTANI: "PAKISTAN",
 };
 
 /**
@@ -223,6 +290,7 @@ export function buildCvData(c: Candidate, photos: CvPhotos): CvData {
     phone2: c.emergency_contact ?? "",
     remark: c.notes ?? c.remark ?? "",
     photos,
+    video: videoLinks(c.video_url),
     hasSkill: (key) => SKILL_KEYWORDS[key].some((k) => skillsUpper.includes(k)),
   };
 }

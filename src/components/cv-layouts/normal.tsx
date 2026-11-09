@@ -1,7 +1,7 @@
 // "Normal" CV — bilingual recruitment CV built from the supplied design image.
 import React from "react";
 import type { CvData, SkillKey } from "./cv-data";
-import { Page, PhotoBox, Tick } from "./primitives";
+import { Page, PhotoBox, Tick, VideoButtons } from "./primitives";
 
 export const NORMAL_FONT_FAMILY = "Cairo";
 const FONT = `'${NORMAL_FONT_FAMILY}', 'Segoe UI', Tahoma, Arial, sans-serif`;
@@ -301,12 +301,22 @@ export function NormalCv({ d }: { d: CvData }) {
             left: 11,
             top: 44,
             width: 265,
-            height: 510,
+            // Leave room for the video buttons under the photo.
+            height: d.video ? 462 : 510,
             border: `1px solid ${C.line}`,
             borderRadius: 6,
             backgroundColor: "#ffffff",
           }}
         />
+        {d.video && (
+          <VideoButtons
+            play={d.video.play}
+            download={d.video.download}
+            color={C.navy}
+            height={40}
+            style={{ position: "absolute", left: 11, top: 514, width: 265 }}
+          />
+        )}
       </div>
 
       {/* Nationality */}

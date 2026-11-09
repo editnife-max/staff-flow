@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { renderAsync as docxRenderAsync } from "docx-preview";
-import { fetchImgBytes, bytesToDims } from "@/lib/docx-fill";
+import { fetchImgBytes } from "@/lib/docx-fill";
 
 // ---------------------------------------------------------------------------
 // Cloudmersive DOCX → PDF
@@ -224,32 +224,55 @@ export async function docxBytesToPdf(bytes: Uint8Array, filename: string, passpo
   }
 }
 
-export async function addPassportScanPage(pdf: jsPDF, url: string): Promise<void> {
+/** A passport scan decoded and re-encoded as JPEG, ready to place on a PDF page. */
+export interface PreparedScan {
+  dataUrl: string;
+  w: number;
+  h: number;
+}
+
+/**
+ * Fetches and decodes a passport scan. Separate from adding the page so callers can start
+ * it while the CV page is still rendering.
+ */
+export async function preparePassportScan(url: string): Promise<PreparedScan | null> {
   // Use fetchImgBytes (fetch-based) so cross-origin restrictions never block the load.
   const fetched = await fetchImgBytes(url);
-  if (!fetched) return;
-
-  const dims = await bytesToDims(fetched.bytes);
-  const iW   = dims.w || 800;
-  const iH   = dims.h || 600;
+  if (!fetched) return null;
 
   // Draw via a local blob URL so the canvas is never tainted by cross-origin restrictions.
+  // The image is decoded once and gives both its size and its pixels.
   const blobUrl = URL.createObjectURL(
     new Blob([fetched.bytes as BlobPart], { type: fetched.ext === "png" ? "image/png" : "image/jpeg" }),
   );
-  let dataUrl: string;
   try {
-    const cvs  = document.createElement("canvas");
-    cvs.width  = iW;
-    cvs.height = iH;
     const imgEl = new Image();
     await new Promise<void>((res, rej) => { imgEl.onload = () => res(); imgEl.onerror = rej; imgEl.src = blobUrl; });
-    cvs.getContext("2d")!.drawImage(imgEl, 0, 0);
-    dataUrl = cvs.toDataURL("image/jpeg", 0.95);
+    const w = imgEl.naturalWidth || 800;
+    const h = imgEl.naturalHeight || 600;
+    const cvs = document.createElement("canvas");
+    cvs.width = w;
+    cvs.height = h;
+    const ctx = cvs.getContext("2d")!;
+    ctx.fillStyle = "#ffffff"; // transparent PNG areas would turn black in JPEG
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(imgEl, 0, 0);
+    return { dataUrl: cvs.toDataURL("image/jpeg", 0.92), w, h };
+  } catch {
+    return null;
   } finally {
     URL.revokeObjectURL(blobUrl);
   }
+}
 
+export async function addPassportScanPage(pdf: jsPDF, url: string): Promise<void> {
+  const scan = await preparePassportScan(url);
+  if (scan) addPreparedScanPage(pdf, scan);
+}
+
+/** Adds a page with the scan centred at 74% of the page, landscape when the scan is wide. */
+export function addPreparedScanPage(pdf: jsPDF, scan: PreparedScan): void {
+  const { dataUrl, w: iW, h: iH } = scan;
   const isLandscape = iW > iH;
   const pageW = isLandscape ? 1123 : 794;
   const pageH = isLandscape ? 794 : 1123;

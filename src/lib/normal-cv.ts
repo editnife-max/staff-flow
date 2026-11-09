@@ -16,9 +16,16 @@ async function fetchImageDataUrl(url: string): Promise<string | null> {
   }
 }
 
-// ─── Shared builder: fill template + inject QR ───────────────────────────────
+// ─── Shared builder: fill template (+ optional video QR) ─────────────────────
 
-async function buildNormalCvDocxBytes(c: Candidate): Promise<Uint8Array> {
+/**
+ * Fills public/normal-cv.docx. `withVideoQr` stamps a QR code for the candidate's video in
+ * the top-left corner; the downloads leave it off (the PDF has Play / Download buttons).
+ */
+async function buildNormalCvDocxBytes(
+  c: Candidate,
+  { withVideoQr = false }: { withVideoQr?: boolean } = {},
+): Promise<Uint8Array> {
   const { buildFilledDocx } = await import("./docx-fill");
 
   let bytes = await buildFilledDocx(
@@ -27,7 +34,7 @@ async function buildNormalCvDocxBytes(c: Candidate): Promise<Uint8Array> {
     true,
   );
 
-  if (c.video_url) {
+  if (withVideoQr && c.video_url) {
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(c.video_url)}`;
     const qrDataUrl = await fetchImageDataUrl(qrUrl);
     if (qrDataUrl) {
@@ -96,7 +103,11 @@ async function buildNormalCvDocxBytes(c: Candidate): Promise<Uint8Array> {
       xml = xml.slice(0, insertAt) + qrPara + xml.slice(insertAt);
 
       zip.file("word/document.xml", new TextEncoder().encode(xml));
-      bytes = zip.generate({ type: "uint8array", compression: "DEFLATE", compressionOptions: { level: 6 } });
+      bytes = zip.generate({
+        type: "uint8array",
+        compression: "DEFLATE",
+        compressionOptions: { level: 6 },
+      });
     }
   }
 
@@ -105,10 +116,17 @@ async function buildNormalCvDocxBytes(c: Candidate): Promise<Uint8Array> {
 
 // ─── PDF ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Renders the template's design from code (cv-layouts/normal-classic) instead of converting
+ * the DOCX: browser DOCX renderers mis-place its tables and RTL labels. Page 1 is the CV
+ * with Play / Download video buttons under the photo; page 2 is the passport scan.
+ */
 export async function downloadNormalCvPdf(c: Candidate): Promise<void> {
-  const { docxBytesToPdf } = await import("./pdf-export");
-  const bytes = await buildNormalCvDocxBytes(c);
-  await docxBytesToPdf(bytes, `${c.full_name || "Candidate"} — Normal CV.pdf`);
+  const { downloadCvLayoutPdf } = await import("@/components/cv-layouts");
+  await downloadCvLayoutPdf("normal-classic", c, `${c.full_name || "Candidate"} — Normal CV.pdf`, {
+    passportUrl: c.passport_scan_url,
+    videoUrl: c.video_url,
+  });
 }
 
 // ─── DOCX ────────────────────────────────────────────────────────────────────
@@ -125,12 +143,13 @@ export async function downloadVideoCvPdf(c: Candidate): Promise<void> {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-  const W = 210, H = 297;
+  const W = 210,
+    H = 297;
   const ML = 10;
 
   const fill = (r: number, g: number, b: number) => doc.setFillColor(r, g, b);
-  const pen  = (r: number, g: number, b: number) => doc.setDrawColor(r, g, b);
-  const ink  = (r: number, g: number, b: number) => doc.setTextColor(r, g, b);
+  const pen = (r: number, g: number, b: number) => doc.setDrawColor(r, g, b);
+  const ink = (r: number, g: number, b: number) => doc.setTextColor(r, g, b);
 
   // ── HEADER ──
   fill(26, 58, 82);
@@ -138,45 +157,61 @@ export async function downloadVideoCvPdf(c: Candidate): Promise<void> {
   fill(92, 184, 196);
   doc.rect(W / 2, 0, W / 2, 22, "F");
   ink(255, 255, 255);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
   doc.text("VIDEO CV", ML, 9);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
   doc.text("YOUR TRUSTED PARTNER", ML, 15);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(8.5);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
   doc.text("QUALIFIED  ·  RELIABLE  ·  TRUSTWORTHY", W / 2 + 4, 12.5);
 
   // ── FULL PHOTO ──
-  const photoW = 90, photoH = 112;
+  const photoW = 90,
+    photoH = 112;
   const photoX = (W - photoW) / 2;
   const photoY = 28;
 
-  const photoDataUrl = (c.full_photo_url || c.photo_url)
-    ? await fetchImageDataUrl((c.full_photo_url || c.photo_url)!)
-    : null;
+  const photoDataUrl =
+    c.full_photo_url || c.photo_url
+      ? await fetchImageDataUrl((c.full_photo_url || c.photo_url)!)
+      : null;
 
-  pen(200, 210, 220); doc.setLineWidth(0.3);
+  pen(200, 210, 220);
+  doc.setLineWidth(0.3);
   if (photoDataUrl) {
     const ext = photoDataUrl.startsWith("data:image/png") ? "PNG" : "JPEG";
-    try { doc.addImage(photoDataUrl, ext, photoX, photoY, photoW, photoH); } catch { /* skip */ }
+    try {
+      doc.addImage(photoDataUrl, ext, photoX, photoY, photoW, photoH);
+    } catch {
+      /* skip */
+    }
     doc.rect(photoX, photoY, photoW, photoH, "S");
   } else {
     fill(240, 242, 245);
     doc.rect(photoX, photoY, photoW, photoH, "FD");
-    ink(170, 180, 190); doc.setFont("helvetica", "normal"); doc.setFontSize(8);
+    ink(170, 180, 190);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
     doc.text("NO PHOTO", W / 2, photoY + photoH / 2, { align: "center" });
   }
 
   // ── NAME ──
   let y = photoY + photoH + 6;
   ink(26, 58, 82);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
   doc.text(c.full_name || "—", W / 2, y, { align: "center" });
   y += 6;
 
   // ── NATIONALITY · POSITION ──
   ink(100, 120, 140);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(9);
-  const sub = [c.country || "ETHIOPIAN", c.occupation || "HOUSE MAID"].filter(Boolean).join("  ·  ");
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  const sub = [c.country || "ETHIOPIAN", c.occupation || "HOUSE MAID"]
+    .filter(Boolean)
+    .join("  ·  ");
   doc.text(sub, W / 2, y, { align: "center" });
   y += 10;
 
@@ -189,16 +224,23 @@ export async function downloadVideoCvPdf(c: Candidate): Promise<void> {
 
     if (qrDataUrl) {
       const ext = qrDataUrl.startsWith("data:image/png") ? "PNG" : "JPEG";
-      try { doc.addImage(qrDataUrl, ext, qrX, y, qrSz, qrSz); } catch { /* skip */ }
-      pen(200, 210, 220); doc.setLineWidth(0.3);
+      try {
+        doc.addImage(qrDataUrl, ext, qrX, y, qrSz, qrSz);
+      } catch {
+        /* skip */
+      }
+      pen(200, 210, 220);
+      doc.setLineWidth(0.3);
       doc.rect(qrX, y, qrSz, qrSz, "S");
     }
     y += qrSz + 4;
 
     fill(92, 184, 196);
     ink(255, 255, 255);
-    doc.setFont("helvetica", "bold"); doc.setFontSize(8);
-    const labelW = 70, labelH = 7;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    const labelW = 70,
+      labelH = 7;
     doc.rect((W - labelW) / 2, y, labelW, labelH, "F");
     doc.text("SCAN TO WATCH VIDEO CV", W / 2, y + 5, { align: "center" });
   }
@@ -207,11 +249,11 @@ export async function downloadVideoCvPdf(c: Candidate): Promise<void> {
   fill(26, 58, 82);
   doc.rect(0, H - 9, W, 9, "F");
   ink(255, 255, 255);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(7);
-  doc.text(
-    "RECRUITMENT CV  ·  QUALIFIED  ·  RELIABLE  ·  TRUSTWORTHY",
-    W / 2, H - 4, { align: "center" },
-  );
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.text("RECRUITMENT CV  ·  QUALIFIED  ·  RELIABLE  ·  TRUSTWORTHY", W / 2, H - 4, {
+    align: "center",
+  });
 
   doc.save(`${c.full_name || "Candidate"} — Video CV.pdf`);
 }

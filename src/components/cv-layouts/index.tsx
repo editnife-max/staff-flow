@@ -11,25 +11,36 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { fetchImgBytes } from "@/lib/docx-fill";
 import type { Candidate, CvTemplate } from "@/lib/docx-fill";
-import { addPassportScanPage, addVideoLinkPage } from "@/lib/pdf-export";
+import { addPreparedScanPage, addVideoLinkPage, preparePassportScan } from "@/lib/pdf-export";
 import { buildCvData, type CvData, type CvPhotos } from "./cv-data";
-import { PAGE_H, PAGE_W } from "./primitives";
+import { CV_LINK_ATTR, PAGE_H, PAGE_W } from "./primitives";
 import { NormalCv, NORMAL_FONT_FAMILY } from "./normal";
+import { NormalClassicCv, NORMAL_CLASSIC_FONT_FAMILY } from "./normal-classic";
 import { TadbeerCv } from "./tadbeer";
 import { JawaCv } from "./jawa";
 import { MonacoCv } from "./monaco";
 import { FormatNCv } from "./format-n";
 
-export type CvLayoutId = "normal" | "tadbeer" | "jawa" | "monaco" | "format-n";
+export type CvLayoutId = "normal" | "normal-classic" | "tadbeer" | "jawa" | "monaco" | "format-n";
 
 interface LayoutDef {
   Component: React.ComponentType<{ d: CvData }>;
   /** Google Fonts family to load before rendering (system fonts need nothing). */
   webFont?: string;
+  /**
+   * The layout draws its own Play / Download video buttons under the full photo,
+   * so the PDF gets no separate video-link page.
+   */
+  inlineVideo?: boolean;
 }
 
 const LAYOUTS: Record<CvLayoutId, LayoutDef> = {
-  normal: { Component: NormalCv, webFont: NORMAL_FONT_FAMILY },
+  normal: { Component: NormalCv, webFont: NORMAL_FONT_FAMILY, inlineVideo: true },
+  "normal-classic": {
+    Component: NormalClassicCv,
+    webFont: NORMAL_CLASSIC_FONT_FAMILY,
+    inlineVideo: true,
+  },
   tadbeer: { Component: TadbeerCv },
   jawa: { Component: JawaCv },
   monaco: { Component: MonacoCv },
@@ -137,11 +148,38 @@ function fixFontMetricsProbe(): () => void {
   return () => style.remove();
 }
 
+/** A clickable area on the CV page, in page px. */
+interface CvLink {
+  url: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** Boxes of every element marked with CV_LINK_ATTR, relative to the page. */
+function collectLinks(page: HTMLElement): CvLink[] {
+  const origin = page.getBoundingClientRect();
+  return Array.from(page.querySelectorAll<HTMLElement>(`[${CV_LINK_ATTR}]`)).flatMap((el) => {
+    const url = el.getAttribute(CV_LINK_ATTR);
+    const r = el.getBoundingClientRect();
+    if (!url || !r.width || !r.height) return [];
+    return [{ url, x: r.left - origin.left, y: r.top - origin.top, w: r.width, h: r.height }];
+  });
+}
+
 /** Renders one candidate in the given layout to an A4 canvas (2× scale). */
 export async function renderCvLayoutCanvas(
   layout: CvLayoutId,
   c: Candidate,
 ): Promise<HTMLCanvasElement> {
+  return (await renderCvLayout(layout, c)).canvas;
+}
+
+async function renderCvLayout(
+  layout: CvLayoutId,
+  c: Candidate,
+): Promise<{ canvas: HTMLCanvasElement; links: CvLink[] }> {
   const def = LAYOUTS[layout];
   const owned: string[] = [];
   const container = document.createElement("div");
@@ -149,16 +187,21 @@ export async function renderCvLayoutCanvas(
   document.body.appendChild(container);
   const root = createRoot(container);
   try {
-    if (def.webFont) await ensureWebFont(def.webFont);
-    const [photo, fullPhoto] = await Promise.all([
+    // Font and photos are independent downloads; fetch them together.
+    const [, photo, fullPhoto] = await Promise.all([
+      def.webFont ? ensureWebFont(def.webFont) : null,
       toBlobUrl(c.photo_url ?? c.full_photo_url, owned),
       toBlobUrl(c.full_photo_url ?? c.photo_url, owned),
     ]);
     const photos: CvPhotos = { photo, fullPhoto };
-    flushSync(() => root.render(<def.Component d={buildCvData(c, photos)} />));
+    const data = buildCvData(c, photos);
+    // Video buttons only exist in layouts that draw them; others keep the link page.
+    if (!def.inlineVideo) data.video = null;
+    flushSync(() => root.render(<def.Component d={data} />));
     const page = container.firstElementChild as HTMLElement;
     await preloadBackgrounds(page);
     await document.fonts.ready;
+    const links = collectLinks(page);
 
     const restoreProbe = fixFontMetricsProbe();
     const canvas = await html2canvas(page, {
@@ -181,7 +224,7 @@ export async function renderCvLayoutCanvas(
       },
     }).finally(restoreProbe);
     if (!canvas.width || !canvas.height) throw new Error("CV rendered to a blank page");
-    return canvas;
+    return { canvas, links };
   } finally {
     root.unmount();
     container.remove();
@@ -192,22 +235,30 @@ export async function renderCvLayoutCanvas(
 export interface CvPdfOptions {
   /** Appends the passport scan as page 2. */
   passportUrl?: string | null;
-  /** Appends a page linking to the candidate's video CV. */
+  /**
+   * The candidate's video CV. Layouts with inline video buttons link it from the CV page
+   * (taken from the candidate record); other layouts append a page with the link.
+   */
   videoUrl?: string | null;
 }
 
-/** Builds an A4 PDF for one candidate: the CV page, then optional passport and video pages. */
+/** Builds an A4 PDF for one candidate: the CV page, then the optional passport page. */
 export async function buildCvLayoutPdf(
   layout: CvLayoutId,
   c: Candidate,
   opts: CvPdfOptions = {},
 ): Promise<jsPDF> {
-  const canvas = await renderCvLayoutCanvas(layout, c);
+  const def = LAYOUTS[layout];
+  // Fetch and decode the passport scan while the CV page renders.
+  const scanP = opts.passportUrl ? preparePassportScan(opts.passportUrl) : Promise.resolve(null);
+  const [{ canvas, links }, scan] = await Promise.all([renderCvLayout(layout, c), scanP]);
+
   // px_scaling makes 1px = 0.75pt, so 794×1123px is a true A4 page (595×842pt).
   const pdf = new jsPDF({ unit: "px", format: [PAGE_W, PAGE_H], hotfixes: ["px_scaling"] });
-  pdf.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, PAGE_W, PAGE_H);
-  if (opts.passportUrl) await addPassportScanPage(pdf, opts.passportUrl);
-  if (opts.videoUrl) addVideoLinkPage(pdf, opts.videoUrl);
+  pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, PAGE_W, PAGE_H);
+  for (const l of links) pdf.link(l.x, l.y, l.w, l.h, { url: l.url });
+  if (scan) addPreparedScanPage(pdf, scan);
+  if (opts.videoUrl && !def.inlineVideo) addVideoLinkPage(pdf, opts.videoUrl);
   return pdf;
 }
 
