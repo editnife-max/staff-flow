@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Search, FilePlus, RotateCcw, FileText,
   ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
-  Globe, ScanSearch, Loader2,
+  Globe, ScanSearch, Loader2, ChevronLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +31,7 @@ import {
   searchCandidates, nextCandidateCode,
 } from "@/lib/candidates.functions";
 import { getManagerTcCriteria } from "@/lib/settings.functions";
+import { getMyEffectiveAccess } from "@/lib/staff-overrides.functions";
 import type { Database } from "@/integrations/supabase/types";
 import type { Candidate, Status } from "@/components/candidates/types";
 import { MEDICAL_OPTIONS, COC_OPTIONS, PASSPORT_OPTIONS, medDaysAgo, ALL_TC_CRITERIA, ALL_TC_CRITERIA_KEYS, TC_CEO_OPTIONS } from "@/components/candidates/types";
@@ -45,87 +46,41 @@ const SKILLS_LIST = [
 
 export const CEO_OPTIONS = TC_CEO_OPTIONS;
 
-function CriteriaColumn({ candidate, criteria, threshold, onMoveToAvailable }: {
+function CriteriaColumn({ candidate, criteria, threshold, onOpen }: {
   candidate: Candidate;
   criteria: typeof ALL_TC_CRITERIA;
   threshold: number;
-  onMoveToAvailable?: (id: string) => void;
+  onOpen: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const results = criteria.map((cr) => ({ ...cr, met: cr.check(candidate) }));
   const score = results.filter((r) => r.met).length;
   const eligible = score >= threshold;
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="shrink-0 w-[100px] text-left hover:opacity-80 transition-opacity"
-      >
-        <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">CRITERIA</div>
-        <div className="flex flex-col gap-1">
-          <div className="flex gap-0.5 flex-wrap">
-            {results.map((r) => (
-              <div
-                key={r.short}
-                className={cn(
-                  "w-3 h-3 rounded-sm",
-                  r.met ? "bg-emerald-500" : "bg-zinc-200 dark:bg-zinc-700",
-                )}
-              />
-            ))}
-          </div>
-          <span className={cn("text-[11px] font-bold tabular-nums", eligible ? "text-emerald-700" : "text-muted-foreground")}>
-            {score}/{criteria.length}
-            {eligible && <span className="ml-1 text-emerald-600">✓</span>}
-          </span>
-        </div>
-      </button>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>TC Criteria — {candidate.full_name}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-0.5 py-1">
-            {results.map((r) => (
-              <div key={r.short} className="flex items-center gap-2.5 py-1.5 border-b border-border/50 last:border-0">
-                <span className={cn(
-                  "w-4 h-4 rounded-sm flex items-center justify-center text-[10px] font-bold shrink-0",
-                  r.met ? "bg-emerald-500 text-white" : "bg-zinc-100 border border-zinc-300 text-zinc-400 dark:bg-zinc-800 dark:border-zinc-600",
-                )}>
-                  {r.met ? "✓" : "✗"}
-                </span>
-                <span className={cn("text-sm", r.met ? "text-foreground" : "text-muted-foreground")}>
-                  {r.label}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div className="flex items-center justify-between pt-3 border-t">
-            <span className={cn("text-sm font-bold", eligible ? "text-emerald-700" : "text-muted-foreground")}>
-              {score}/{criteria.length}
-              {eligible && (
-                <span className="ml-2 text-xs font-medium text-emerald-600 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded-sm">
-                  TC Ready
-                </span>
+    <button
+      type="button"
+      onClick={onOpen}
+      className="shrink-0 w-[100px] text-left hover:opacity-80 transition-opacity"
+    >
+      <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">CRITERIA</div>
+      <div className="flex flex-col gap-1">
+        <div className="flex gap-0.5 flex-wrap">
+          {results.map((r) => (
+            <div
+              key={r.short}
+              className={cn(
+                "w-3 h-3 rounded-sm",
+                r.met ? "bg-emerald-500" : "bg-zinc-200 dark:bg-zinc-700",
               )}
-            </span>
-            {onMoveToAvailable && (
-              <Button
-                size="sm"
-                variant={eligible ? "default" : "outline"}
-                className="h-7 text-xs rounded-none px-3"
-                onClick={() => { onMoveToAvailable(candidate.id); setOpen(false); }}
-              >
-                Move to Available
-              </Button>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+            />
+          ))}
+        </div>
+        <span className={cn("text-[11px] font-bold tabular-nums", eligible ? "text-emerald-700" : "text-muted-foreground")}>
+          {score}/{criteria.length}
+          {eligible && <span className="ml-1 text-emerald-600">✓</span>}
+        </span>
+      </div>
+    </button>
   );
 }
 
@@ -205,12 +160,38 @@ function TcPage() {
   const toggleSelect = (id: string) =>
     setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  const fetchCandidates   = useServerFn(getCandidates);
-  const upsert            = useServerFn(upsertCandidate);
-  const updateField       = useServerFn(updateCandidateField);
-  const doSearch          = useServerFn(searchCandidates);
-  const getNextCode       = useServerFn(nextCandidateCode);
-  const fetchTcCriteria   = useServerFn(getManagerTcCriteria);
+  const fetchCandidates      = useServerFn(getCandidates);
+  const upsert               = useServerFn(upsertCandidate);
+  const updateField          = useServerFn(updateCandidateField);
+  const doSearch             = useServerFn(searchCandidates);
+  const getNextCode          = useServerFn(nextCandidateCode);
+  const fetchTcCriteria      = useServerFn(getManagerTcCriteria);
+  const fetchEffectiveAccess = useServerFn(getMyEffectiveAccess);
+
+  const { data: effectiveAccess } = useQuery({
+    queryKey: ["my-effective-access"],
+    queryFn: () => fetchEffectiveAccess({}),
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+
+  const deniedPages = useMemo(() => new Set(effectiveAccess?.deniedPages ?? []), [effectiveAccess]);
+
+  const allowedViews = useMemo(
+    () => VIEW_TABS.filter((v) => !deniedPages.has(v.key)),
+    [deniedPages],
+  );
+
+  useEffect(() => {
+    if (!effectiveAccess) return;
+    if (deniedPages.has(activeView)) {
+      const first = VIEW_TABS.find((v) => !deniedPages.has(v.key));
+      if (first) navigate({ to: "/staff/tc", search: { view: first.key }, replace: true });
+    }
+  }, [effectiveAccess, activeView, deniedPages]);
+
+  // ── Criteria dialog state ────────────────────────────────────────────────
+  const [criteriaViewId, setCriteriaViewId] = useState<string | null>(null);
 
   // ⌘K
   useEffect(() => {
@@ -534,7 +515,7 @@ function TcPage() {
 
       {/* View tabs */}
       <div className="flex gap-1 border-b">
-        {VIEW_TABS.map((v) => (
+        {allowedViews.map((v) => (
           <button
             key={v.key}
             type="button"
@@ -696,12 +677,7 @@ function TcPage() {
               candidate={c}
               criteria={CRITERIA}
               threshold={CRITERIA_THRESHOLD}
-              onMoveToAvailable={activeView === "trained"
-                ? (id) => {
-                    fieldMut.mutate({ id, field: "availability_type", value: "Available" });
-                    toast.success(`${c.full_name ?? "Candidate"} moved to Available`);
-                  }
-                : undefined}
+              onOpen={() => setCriteriaViewId(c.id)}
             />
           )}
         />
@@ -820,6 +796,83 @@ function TcPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* TC Criteria dialog — page-level for Previous/Approve/Deny navigation */}
+      {(() => {
+        const criteriaViewIdx = criteriaViewId ? filtered.findIndex((c) => c.id === criteriaViewId) : -1;
+        const criteriaCandidate = criteriaViewIdx >= 0 ? filtered[criteriaViewIdx] : null;
+        if (!criteriaCandidate) return null;
+        const results = CRITERIA.map((cr) => ({ ...cr, met: cr.check(criteriaCandidate) }));
+        const score = results.filter((r) => r.met).length;
+        const eligible = score >= CRITERIA_THRESHOLD;
+        return (
+          <Dialog open onOpenChange={(o) => { if (!o) setCriteriaViewId(null); }}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>TC Criteria — {criteriaCandidate.full_name}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-0.5 py-1">
+                {results.map((r) => (
+                  <div key={r.short} className="flex items-center gap-2.5 py-1.5 border-b border-border/50 last:border-0">
+                    <span className={cn(
+                      "w-4 h-4 rounded-sm flex items-center justify-center text-[10px] font-bold shrink-0",
+                      r.met ? "bg-emerald-500 text-white" : "bg-zinc-100 border border-zinc-300 text-zinc-400 dark:bg-zinc-800 dark:border-zinc-600",
+                    )}>
+                      {r.met ? "✓" : "✗"}
+                    </span>
+                    <span className={cn("text-sm", r.met ? "text-foreground" : "text-muted-foreground")}>
+                      {r.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between pt-3 border-t">
+                <span className={cn("text-sm font-bold", eligible ? "text-emerald-700" : "text-muted-foreground")}>
+                  {score}/{CRITERIA.length}
+                  {eligible && (
+                    <span className="ml-2 text-xs font-medium text-emerald-600 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded-sm">
+                      TC Ready
+                    </span>
+                  )}
+                </span>
+                <div className="flex items-center gap-2">
+                  {criteriaViewIdx > 0 && (
+                    <Button
+                      size="sm" variant="outline"
+                      className="h-7 text-xs rounded-none gap-1"
+                      onClick={() => setCriteriaViewId(filtered[criteriaViewIdx - 1].id)}
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" /> Previous
+                    </Button>
+                  )}
+                  <Button
+                    size="sm" variant="outline"
+                    className="h-7 text-xs rounded-none text-destructive border-destructive/40 hover:bg-destructive/5"
+                    onClick={() => {
+                      fieldMut.mutate({ id: criteriaCandidate.id, field: "availability_type", value: null });
+                      toast.success(`${criteriaCandidate.full_name ?? "Candidate"} removed from TC`);
+                      setCriteriaViewId(null);
+                    }}
+                  >
+                    Deny
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs rounded-none"
+                    onClick={() => {
+                      fieldMut.mutate({ id: criteriaCandidate.id, field: "availability_type", value: "Available" });
+                      toast.success(`${criteriaCandidate.full_name ?? "Candidate"} moved to Available`);
+                      setCriteriaViewId(null);
+                    }}
+                  >
+                    Approve
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
 
       {/* Add / Edit dialog */}
       <Dialog open={open} onOpenChange={(o) => { if (!o) closeForm(); }}>
