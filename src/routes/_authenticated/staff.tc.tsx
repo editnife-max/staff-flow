@@ -812,130 +812,122 @@ function TcPage() {
         const current = results[step];
         return (
           <Dialog open onOpenChange={(o) => { if (!o) { setCriteriaViewId(null); setCriteriaStep(0); } }}>
-            <DialogContent className="max-w-xs p-0 overflow-hidden rounded-none">
+            <DialogContent className="max-w-lg p-0 overflow-hidden rounded-none">
+              <div className="flex">
 
-              {/* Candidate photo header */}
-              <div className="relative">
-                {criteriaCandidate.photo_url ? (
-                  <img
-                    src={criteriaCandidate.photo_url}
-                    alt={criteriaCandidate.full_name ?? ""}
-                    className="w-full h-44 object-cover object-top"
-                  />
-                ) : (
-                  <div className="w-full h-44 bg-muted flex items-center justify-center">
-                    <Avatar className="h-20 w-20">
-                      <AvatarFallback className="text-2xl">
-                        {(criteriaCandidate.full_name ?? "?").slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+                {/* Left — photo */}
+                <div className="relative w-44 shrink-0">
+                  {criteriaCandidate.photo_url ? (
+                    <img
+                      src={criteriaCandidate.photo_url}
+                      alt={criteriaCandidate.full_name ?? ""}
+                      className="h-full w-full object-cover object-top"
+                      style={{ minHeight: 320 }}
+                    />
+                  ) : (
+                    <div className="h-full w-full bg-muted flex items-center justify-center" style={{ minHeight: 320 }}>
+                      <Avatar className="h-16 w-16">
+                        <AvatarFallback className="text-xl">
+                          {(criteriaCandidate.full_name ?? "?").slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                  )}
+                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-3 py-3">
+                    <p className="text-white font-semibold text-xs leading-tight line-clamp-2">
+                      {criteriaCandidate.full_name}
+                    </p>
+                    <p className={cn("text-[11px] font-medium mt-0.5", eligible ? "text-emerald-300" : "text-white/60")}>
+                      {score}/{CRITERIA.length}{eligible ? " · ✓ Ready" : ""}
+                    </p>
                   </div>
-                )}
-                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-4 py-3">
-                  <p className="text-white font-semibold text-sm leading-tight">{criteriaCandidate.full_name}</p>
-                  <p className={cn("text-xs font-medium mt-0.5", eligible ? "text-emerald-300" : "text-white/60")}>
-                    {score}/{CRITERIA.length} criteria met{eligible ? " · TC Ready ✓" : ""}
-                  </p>
                 </div>
-              </div>
 
-              {/* Step dots */}
-              <div className="flex justify-center gap-1.5 pt-3 px-4">
-                {results.map((r, i) => (
-                  <button
-                    key={r.short}
-                    type="button"
-                    onClick={() => setCriteriaStep(i)}
-                    className={cn(
-                      "h-1.5 rounded-full transition-all",
-                      i === step
-                        ? "w-5 bg-primary"
-                        : r.met
-                          ? "w-1.5 bg-emerald-400"
-                          : "w-1.5 bg-zinc-300 dark:bg-zinc-600",
-                    )}
-                  />
-                ))}
-              </div>
+                {/* Right — criteria carousel */}
+                <div className="flex-1 flex flex-col p-4 gap-3">
 
-              {/* Current criterion card */}
-              <div className="px-4 pt-3 pb-2">
-                <div className={cn(
-                  "flex flex-col items-center gap-3 p-4 border text-center",
-                  current.met
-                    ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30"
-                    : "border-border bg-muted/30",
-                )}>
-                  <span className={cn(
-                    "h-10 w-10 rounded-full flex items-center justify-center text-lg font-bold",
+                  {/* Step dots */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {results.map((r, i) => (
+                      <button
+                        key={r.short}
+                        type="button"
+                        onClick={() => setCriteriaStep(i)}
+                        className={cn(
+                          "h-1.5 rounded-full transition-all",
+                          i === step
+                            ? "w-5 bg-primary"
+                            : r.met
+                              ? "w-1.5 bg-emerald-400"
+                              : "w-1.5 bg-zinc-300 dark:bg-zinc-600",
+                        )}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Current criterion */}
+                  <div className={cn(
+                    "flex-1 flex flex-col items-center justify-center gap-3 p-4 border text-center",
                     current.met
-                      ? "bg-emerald-500 text-white"
-                      : "bg-zinc-200 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400",
+                      ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30"
+                      : "border-border bg-muted/30",
                   )}>
-                    {current.met ? "✓" : "✗"}
-                  </span>
-                  <div>
-                    <p className="text-[11px] text-muted-foreground mb-0.5 tabular-nums">
-                      {step + 1} / {results.length}
-                    </p>
-                    <p className={cn(
-                      "text-sm font-semibold leading-snug",
-                      current.met ? "text-emerald-700 dark:text-emerald-300" : "text-foreground",
+                    <span className={cn(
+                      "h-10 w-10 rounded-full flex items-center justify-center text-lg font-bold shrink-0",
+                      current.met
+                        ? "bg-emerald-500 text-white"
+                        : "bg-zinc-200 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400",
                     )}>
-                      {current.label}
-                    </p>
+                      {current.met ? "✓" : "✗"}
+                    </span>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground tabular-nums">{step + 1} / {results.length}</p>
+                      <p className={cn(
+                        "text-sm font-semibold leading-snug mt-0.5",
+                        current.met ? "text-emerald-700 dark:text-emerald-300" : "text-foreground",
+                      )}>
+                        {current.label}
+                      </p>
+                    </div>
                   </div>
+
+                  {/* Navigation + actions */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none"
+                        disabled={step === 0}
+                        onClick={() => setCriteriaStep((s) => Math.max(0, s - 1))}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none"
+                        disabled={step === results.length - 1}
+                        onClick={() => setCriteriaStep((s) => Math.min(results.length - 1, s + 1))}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline"
+                        className="h-7 text-xs rounded-none text-destructive border-destructive/40 hover:bg-destructive/5"
+                        onClick={() => {
+                          fieldMut.mutate({ id: criteriaCandidate.id, field: "availability_type", value: null });
+                          toast.success(`${criteriaCandidate.full_name ?? "Candidate"} removed from TC`);
+                          setCriteriaViewId(null); setCriteriaStep(0);
+                        }}>
+                        Deny
+                      </Button>
+                      <Button size="sm" className="h-7 text-xs rounded-none"
+                        onClick={() => {
+                          fieldMut.mutate({ id: criteriaCandidate.id, field: "availability_type", value: "Available" });
+                          toast.success(`${criteriaCandidate.full_name ?? "Candidate"} moved to Available`);
+                          setCriteriaViewId(null); setCriteriaStep(0);
+                        }}>
+                        Approve
+                      </Button>
+                    </div>
+                  </div>
+
                 </div>
               </div>
-
-              {/* Footer */}
-              <div className="flex items-center justify-between gap-2 px-4 pb-4">
-                <div className="flex gap-1">
-                  <Button
-                    size="sm" variant="outline"
-                    className="h-7 w-7 p-0 rounded-none"
-                    disabled={step === 0}
-                    onClick={() => setCriteriaStep((s) => Math.max(0, s - 1))}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm" variant="outline"
-                    className="h-7 w-7 p-0 rounded-none"
-                    disabled={step === results.length - 1}
-                    onClick={() => setCriteriaStep((s) => Math.min(results.length - 1, s + 1))}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm" variant="outline"
-                    className="h-7 text-xs rounded-none text-destructive border-destructive/40 hover:bg-destructive/5"
-                    onClick={() => {
-                      fieldMut.mutate({ id: criteriaCandidate.id, field: "availability_type", value: null });
-                      toast.success(`${criteriaCandidate.full_name ?? "Candidate"} removed from TC`);
-                      setCriteriaViewId(null);
-                      setCriteriaStep(0);
-                    }}
-                  >
-                    Deny
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="h-7 text-xs rounded-none"
-                    onClick={() => {
-                      fieldMut.mutate({ id: criteriaCandidate.id, field: "availability_type", value: "Available" });
-                      toast.success(`${criteriaCandidate.full_name ?? "Candidate"} moved to Available`);
-                      setCriteriaViewId(null);
-                      setCriteriaStep(0);
-                    }}
-                  >
-                    Approve
-                  </Button>
-                </div>
-              </div>
-
             </DialogContent>
           </Dialog>
         );
