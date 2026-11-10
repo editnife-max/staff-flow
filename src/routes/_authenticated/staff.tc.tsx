@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Search, FilePlus, RotateCcw, FileText,
   ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
-  Globe, ScanSearch, Loader2, ChevronLeft,
+  Globe, ScanSearch, Loader2, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -192,6 +192,9 @@ function TcPage() {
 
   // ── Criteria dialog state ────────────────────────────────────────────────
   const [criteriaViewId, setCriteriaViewId] = useState<string | null>(null);
+  const [criteriaStep, setCriteriaStep] = useState(0);
+
+  useEffect(() => { setCriteriaStep(0); }, [criteriaViewId]);
 
   // ⌘K
   useEffect(() => {
@@ -797,7 +800,7 @@ function TcPage() {
         </DialogContent>
       </Dialog>
 
-      {/* TC Criteria dialog — page-level for Previous/Approve/Deny navigation */}
+      {/* TC Criteria dialog — carousel: one criterion at a time with photo */}
       {(() => {
         const criteriaViewIdx = criteriaViewId ? filtered.findIndex((c) => c.id === criteriaViewId) : -1;
         const criteriaCandidate = criteriaViewIdx >= 0 ? filtered[criteriaViewIdx] : null;
@@ -805,46 +808,107 @@ function TcPage() {
         const results = CRITERIA.map((cr) => ({ ...cr, met: cr.check(criteriaCandidate) }));
         const score = results.filter((r) => r.met).length;
         const eligible = score >= CRITERIA_THRESHOLD;
+        const step = Math.min(criteriaStep, results.length - 1);
+        const current = results[step];
         return (
-          <Dialog open onOpenChange={(o) => { if (!o) setCriteriaViewId(null); }}>
-            <DialogContent className="max-w-sm">
-              <DialogHeader>
-                <DialogTitle>TC Criteria — {criteriaCandidate.full_name}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-0.5 py-1">
-                {results.map((r) => (
-                  <div key={r.short} className="flex items-center gap-2.5 py-1.5 border-b border-border/50 last:border-0">
-                    <span className={cn(
-                      "w-4 h-4 rounded-sm flex items-center justify-center text-[10px] font-bold shrink-0",
-                      r.met ? "bg-emerald-500 text-white" : "bg-zinc-100 border border-zinc-300 text-zinc-400 dark:bg-zinc-800 dark:border-zinc-600",
-                    )}>
-                      {r.met ? "✓" : "✗"}
-                    </span>
-                    <span className={cn("text-sm", r.met ? "text-foreground" : "text-muted-foreground")}>
-                      {r.label}
-                    </span>
+          <Dialog open onOpenChange={(o) => { if (!o) { setCriteriaViewId(null); setCriteriaStep(0); } }}>
+            <DialogContent className="max-w-xs p-0 overflow-hidden rounded-none">
+
+              {/* Candidate photo header */}
+              <div className="relative">
+                {criteriaCandidate.photo_url ? (
+                  <img
+                    src={criteriaCandidate.photo_url}
+                    alt={criteriaCandidate.full_name ?? ""}
+                    className="w-full h-44 object-cover object-top"
+                  />
+                ) : (
+                  <div className="w-full h-44 bg-muted flex items-center justify-center">
+                    <Avatar className="h-20 w-20">
+                      <AvatarFallback className="text-2xl">
+                        {(criteriaCandidate.full_name ?? "?").slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
                   </div>
+                )}
+                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-4 py-3">
+                  <p className="text-white font-semibold text-sm leading-tight">{criteriaCandidate.full_name}</p>
+                  <p className={cn("text-xs font-medium mt-0.5", eligible ? "text-emerald-300" : "text-white/60")}>
+                    {score}/{CRITERIA.length} criteria met{eligible ? " · TC Ready ✓" : ""}
+                  </p>
+                </div>
+              </div>
+
+              {/* Step dots */}
+              <div className="flex justify-center gap-1.5 pt-3 px-4">
+                {results.map((r, i) => (
+                  <button
+                    key={r.short}
+                    type="button"
+                    onClick={() => setCriteriaStep(i)}
+                    className={cn(
+                      "h-1.5 rounded-full transition-all",
+                      i === step
+                        ? "w-5 bg-primary"
+                        : r.met
+                          ? "w-1.5 bg-emerald-400"
+                          : "w-1.5 bg-zinc-300 dark:bg-zinc-600",
+                    )}
+                  />
                 ))}
               </div>
-              <div className="flex items-center justify-between pt-3 border-t">
-                <span className={cn("text-sm font-bold", eligible ? "text-emerald-700" : "text-muted-foreground")}>
-                  {score}/{CRITERIA.length}
-                  {eligible && (
-                    <span className="ml-2 text-xs font-medium text-emerald-600 bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded-sm">
-                      TC Ready
-                    </span>
-                  )}
-                </span>
-                <div className="flex items-center gap-2">
-                  {criteriaViewIdx > 0 && (
-                    <Button
-                      size="sm" variant="outline"
-                      className="h-7 text-xs rounded-none gap-1"
-                      onClick={() => setCriteriaViewId(filtered[criteriaViewIdx - 1].id)}
-                    >
-                      <ChevronLeft className="h-3.5 w-3.5" /> Previous
-                    </Button>
-                  )}
+
+              {/* Current criterion card */}
+              <div className="px-4 pt-3 pb-2">
+                <div className={cn(
+                  "flex flex-col items-center gap-3 p-4 border text-center",
+                  current.met
+                    ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30"
+                    : "border-border bg-muted/30",
+                )}>
+                  <span className={cn(
+                    "h-10 w-10 rounded-full flex items-center justify-center text-lg font-bold",
+                    current.met
+                      ? "bg-emerald-500 text-white"
+                      : "bg-zinc-200 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400",
+                  )}>
+                    {current.met ? "✓" : "✗"}
+                  </span>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground mb-0.5 tabular-nums">
+                      {step + 1} / {results.length}
+                    </p>
+                    <p className={cn(
+                      "text-sm font-semibold leading-snug",
+                      current.met ? "text-emerald-700 dark:text-emerald-300" : "text-foreground",
+                    )}>
+                      {current.label}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between gap-2 px-4 pb-4">
+                <div className="flex gap-1">
+                  <Button
+                    size="sm" variant="outline"
+                    className="h-7 w-7 p-0 rounded-none"
+                    disabled={step === 0}
+                    onClick={() => setCriteriaStep((s) => Math.max(0, s - 1))}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm" variant="outline"
+                    className="h-7 w-7 p-0 rounded-none"
+                    disabled={step === results.length - 1}
+                    onClick={() => setCriteriaStep((s) => Math.min(results.length - 1, s + 1))}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex gap-2">
                   <Button
                     size="sm" variant="outline"
                     className="h-7 text-xs rounded-none text-destructive border-destructive/40 hover:bg-destructive/5"
@@ -852,6 +916,7 @@ function TcPage() {
                       fieldMut.mutate({ id: criteriaCandidate.id, field: "availability_type", value: null });
                       toast.success(`${criteriaCandidate.full_name ?? "Candidate"} removed from TC`);
                       setCriteriaViewId(null);
+                      setCriteriaStep(0);
                     }}
                   >
                     Deny
@@ -863,12 +928,14 @@ function TcPage() {
                       fieldMut.mutate({ id: criteriaCandidate.id, field: "availability_type", value: "Available" });
                       toast.success(`${criteriaCandidate.full_name ?? "Candidate"} moved to Available`);
                       setCriteriaViewId(null);
+                      setCriteriaStep(0);
                     }}
                   >
                     Approve
                   </Button>
                 </div>
               </div>
+
             </DialogContent>
           </Dialog>
         );
