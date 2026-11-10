@@ -20,6 +20,7 @@ import { DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import { updateCandidateField, logFlightReadiness, getCandidates } from "@/lib/candidates.functions";
+import { getMyEffectiveAccess } from "@/lib/staff-overrides.functions";
 import { acceptCandidatesNotification, declineCandidatesNotification } from "@/lib/notifications.functions";
 import { getMySessionStats } from "@/lib/staff-sessions.functions";
 import { useStaffSession } from "@/hooks/use-staff-session";
@@ -928,6 +929,16 @@ function StaffDashboard() {
   const queryClient = useQueryClient();
   const updateFieldFn = useServerFn(updateCandidateField);
   const fetchCandidates = useServerFn(getCandidates);
+  const fetchEffectiveAccess = useServerFn(getMyEffectiveAccess);
+
+  const { data: effectiveAccess } = useQuery({
+    queryKey: ["my-effective-access"],
+    queryFn: () => fetchEffectiveAccess({}),
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+
+  const deniedStatusTabs = new Set(effectiveAccess?.deniedPages ?? []);
 
   const [preloadedCandidates] = useState<Candidate[]>(() => {
     if (typeof window === "undefined") return [];
@@ -1363,7 +1374,7 @@ function StaffDashboard() {
           <p className="text-[11px] text-muted-foreground">{total} total</p>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-          {STATUS_CONFIG.map((s) => {
+          {STATUS_CONFIG.filter((s) => !deniedStatusTabs.has(s.key)).map((s) => {
             const count = counts[s.key];
             const pct   = total > 0 ? Math.round((count / total) * 100) : 0;
             const Icon  = s.icon;
