@@ -93,17 +93,6 @@ export function LayoutPanel({ config, update }: PanelProps) {
           })}
         </div>
         <p className="text-xs text-muted-foreground">{structure.description}</p>
-        <Row label="Photo side">
-          <Segmented
-            label="Photo side"
-            value={config.photoSide}
-            onChange={(v) => update((c) => ({ ...c, photoSide: v }))}
-            options={[
-              { value: "left", label: "Left" },
-              { value: "right", label: "Right" },
-            ]}
-          />
-        </Row>
         {(config.structure === "photo-column" || config.structure === "sidebar") && (
           <Row label={`${structure.sideLabel} width`}>
             <Segmented
@@ -120,8 +109,8 @@ export function LayoutPanel({ config, update }: PanelProps) {
         )}
       </Group>
 
-      <Group title="Main photo">
-        <Row label="Show main photo">
+      <Group title="Full-size photo">
+        <Row label="Show full-size photo">
           <Switch
             checked={config.photo.show}
             onCheckedChange={(v) => update(patch("photo", { show: v }))}
@@ -129,14 +118,14 @@ export function LayoutPanel({ config, update }: PanelProps) {
         </Row>
         {config.photo.show && (
           <>
-            <Row label="Which photo">
+            <Row label="Position">
               <Segmented
-                label="Which photo"
-                value={config.photo.source}
-                onChange={(v) => update(patch("photo", { source: v }))}
+                label="Full-size photo position"
+                value={config.photoSide}
+                onChange={(v) => update((c) => ({ ...c, photoSide: v }))}
                 options={[
-                  { value: "full", label: "Full size" },
-                  { value: "head", label: "Passport size" },
+                  { value: "left", label: "Left" },
+                  { value: "right", label: "Right" },
                 ]}
               />
             </Row>
@@ -152,9 +141,9 @@ export function LayoutPanel({ config, update }: PanelProps) {
                 ]}
               />
             </Row>
-            <Row label="Size">
+            <Row label="Full-size photo size">
               <Segmented
-                label="Photo size"
+                label="Full-size photo size"
                 value={config.photo.size}
                 onChange={(v) => update(patch("photo", { size: v }))}
                 options={[
@@ -184,12 +173,10 @@ export function LayoutPanel({ config, update }: PanelProps) {
       </Group>
 
       <Group
-        title="Second photo"
-        description={`For CVs that show both photos: adds the ${
-          config.photo.source === "full" ? "passport-size" : "full-size"
-        } photo as well.`}
+        title="Passport-size photo"
+        description="Keeps the passport photo in a top corner, separate from the full-size photo."
       >
-        <Row label="Show second photo">
+        <Row label="Show passport-size photo">
           <Switch
             checked={config.photo.second.show}
             onCheckedChange={(v) => update(patchSecond({ show: v }))}
@@ -197,7 +184,7 @@ export function LayoutPanel({ config, update }: PanelProps) {
         </Row>
         {config.photo.second.show && (
           <>
-            <Row label="Placement">
+            <Row label="Top corner">
               <Select
                 value={config.photo.second.placement}
                 onValueChange={(v) => update(patchSecond({ placement: v as SecondPlacement }))}
@@ -214,26 +201,6 @@ export function LayoutPanel({ config, update }: PanelProps) {
                 </SelectContent>
               </Select>
             </Row>
-            {config.photo.second.placement === "name" && config.nameBlock.style === "none" && (
-              <p className="text-[11px] text-amber-600">
-                The candidate name band is hidden, so this photo won&apos;t show. Turn the name band
-                on below.
-              </p>
-            )}
-            {config.photo.second.placement === "column" && (
-              <Row label="Size">
-                <Segmented
-                  label="Second photo size"
-                  value={config.photo.second.size}
-                  onChange={(v) => update(patchSecond({ size: v }))}
-                  options={[
-                    { value: "s", label: "Small" },
-                    { value: "m", label: "Medium" },
-                    { value: "l", label: "Large" },
-                  ]}
-                />
-              </Row>
-            )}
             <Row label="Shape">
               <Segmented
                 label="Second photo shape"

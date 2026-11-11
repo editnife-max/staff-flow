@@ -97,13 +97,11 @@ export type NameSize = "auto" | "s" | "m" | "l" | "xl";
 
 export type PhotoShape = "rect" | "rounded" | "circle";
 
-/** Where the second photo goes (the passport-size one when the main photo is full-size). */
-export type SecondPlacement = "column" | "header-left" | "header-right" | "name";
+/** The passport photo stays in a top corner, separate from the full-size photo. */
+export type SecondPlacement = "header-left" | "header-right";
 export const SECOND_PLACEMENTS: Array<{ id: SecondPlacement; label: string }> = [
-  { id: "column", label: "With the main photo" },
-  { id: "header-left", label: "Header · left" },
-  { id: "header-right", label: "Header · right" },
-  { id: "name", label: "Beside the candidate's name" },
+  { id: "header-left", label: "Top · left" },
+  { id: "header-right", label: "Top · right" },
 ];
 export type NameBlockStyle = "band" | "plain" | "none";
 
@@ -438,12 +436,11 @@ export interface CustomCvConfig {
 
   photo: {
     show: boolean;
-    source: "full" | "head";
     shape: PhotoShape;
     size: Size;
     frame: boolean;
     videoButtons: boolean;
-    /** Optional second photo: the other one (passport-size when the main is full-size). */
+    /** Optional passport-size photo, kept in a top corner separately from the full-size photo. */
     second: {
       show: boolean;
       placement: SecondPlacement;
@@ -558,12 +555,11 @@ export function defaultConfig(): CustomCvConfig {
     },
     photo: {
       show: true,
-      source: "full",
       shape: "rounded",
       size: "m",
       frame: true,
       videoButtons: true,
-      second: { show: false, placement: "column", size: "m", shape: "rect" },
+      second: { show: false, placement: "header-left", size: "m", shape: "rect" },
     },
     nameBlock: { style: "band", showPosition: true, showNationality: true },
     sections: defaultSections(),
@@ -760,11 +756,11 @@ export const PRESETS: Array<{
   {
     id: "two-photos",
     name: "Two Photos",
-    description: "Passport photo above the full-size photo in the photo column.",
+    description: "Full-size photo in the photo column; passport photo in a separate top corner.",
     config: () =>
       preset(
         {
-          photo: { size: "l", second: { show: true, placement: "column", size: "m" } },
+          photo: { size: "l", second: { show: true, placement: "header-left", size: "s" } },
           theme: { primary: "#0f4c5c", secondary: "#e36414" },
         },
         (s) => zones({ contact: "main" })(s),
@@ -790,7 +786,7 @@ export const PRESETS: Array<{
             headingStyle: "underline",
             density: "compact",
           },
-          photo: { size: "s", second: { show: true, placement: "column", size: "m" } },
+          photo: { size: "s", second: { show: true, placement: "header-left", size: "s" } },
           nameBlock: { style: "plain" },
         },
         (s) =>
@@ -850,7 +846,7 @@ export const PRESETS: Array<{
             headingStyle: "bar",
             density: "compact",
           },
-          photo: { size: "m", second: { show: true, placement: "name", size: "s" } },
+          photo: { size: "m", second: { show: true, placement: "header-left", size: "s" } },
           nameBlock: { style: "band" },
         },
         (s) =>
@@ -995,18 +991,15 @@ export function normalizeConfig(raw: unknown): CustomCvConfig {
     },
     photo: {
       show: bool(p.show, d.photo.show),
-      source: pick(p.source, ["full", "head"] as const, d.photo.source),
       shape: pick(p.shape, ["rect", "rounded", "circle"] as const, d.photo.shape),
       size: pick(p.size, ["s", "m", "l"] as const, d.photo.size),
       frame: bool(p.frame, d.photo.frame),
       videoButtons: bool(p.videoButtons, d.photo.videoButtons),
       second: {
         show: bool(obj(p.second).show, d.photo.second.show),
-        placement: pick(
-          obj(p.second).placement,
-          SECOND_PLACEMENTS.map((x) => x.id),
-          d.photo.second.placement,
-        ),
+        // Former templates could stack the two photos in a column or name band. Keep the
+        // passport photo in a top corner after normalization.
+        placement: pick(obj(p.second).placement, SECOND_PLACEMENTS.map((x) => x.id), "header-left"),
         size: pick(obj(p.second).size, ["s", "m", "l"] as const, d.photo.second.size),
         shape: pick(
           obj(p.second).shape,
