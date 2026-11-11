@@ -9,9 +9,13 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { fetchImgBytes } from "@/lib/docx-fill";
 import type { Candidate, CvTemplate } from "@/lib/docx-fill";
-import { addPreparedScanPage, addVideoLinkPage, preparePassportScan } from "@/lib/pdf-export";
+import {
+  addPreparedScanPage,
+  prefetchImgBytes,
+  preparePassportScan,
+  takeImgBytes,
+} from "@/lib/pdf-export";
 import { buildCvData, type CvData, type CvPhotos } from "./cv-data";
 import { CV_LINK_ATTR, PAGE_H, PAGE_W } from "./primitives";
 import { NormalCv, NORMAL_FONT_FAMILY } from "./normal";
@@ -23,28 +27,41 @@ import { FormatNCv } from "./format-n";
 
 export type CvLayoutId = "normal" | "normal-classic" | "tadbeer" | "jawa" | "monaco" | "format-n";
 
+// Every layout draws Play / Download video buttons under its full-size photo (from
+// CvData.video), so their PDFs have no separate video-link page.
 interface LayoutDef {
   Component: React.ComponentType<{ d: CvData }>;
   /** Google Fonts family to load before rendering (system fonts need nothing). */
   webFont?: string;
-  /**
-   * The layout draws its own Play / Download video buttons under the full photo,
-   * so the PDF gets no separate video-link page.
-   */
-  inlineVideo?: boolean;
+  /** Static images the layout draws (letterheads, logos), warmed up ahead of a download. */
+  assets?: string[];
 }
 
 const LAYOUTS: Record<CvLayoutId, LayoutDef> = {
-  normal: { Component: NormalCv, webFont: NORMAL_FONT_FAMILY, inlineVideo: true },
-  "normal-classic": {
-    Component: NormalClassicCv,
-    webFont: NORMAL_CLASSIC_FONT_FAMILY,
-    inlineVideo: true,
+  normal: { Component: NormalCv, webFont: NORMAL_FONT_FAMILY },
+  "normal-classic": { Component: NormalClassicCv, webFont: NORMAL_CLASSIC_FONT_FAMILY },
+  tadbeer: {
+    Component: TadbeerCv,
+    assets: ["/cv-assets/tadbeer-logo.png", "/cv-assets/tadbeer-flag.png"],
   },
-  tadbeer: { Component: TadbeerCv },
-  jawa: { Component: JawaCv },
-  monaco: { Component: MonacoCv },
-  "format-n": { Component: FormatNCv },
+  jawa: {
+    Component: JawaCv,
+    assets: [
+      "/cv-assets/jawa-phone.png",
+      "/cv-assets/jawa-whatsapp.png",
+      "/cv-assets/jawa-logo.png",
+      "/cv-assets/jawa-footer.png",
+    ],
+  },
+  monaco: { Component: MonacoCv, assets: ["/cv-assets/monaco-header.jpg"] },
+  "format-n": {
+    Component: FormatNCv,
+    assets: [
+      "/cv-assets/tatweer-logo.png",
+      "/cv-assets/tatweer-phone.jpg",
+      "/cv-assets/tatweer-whatsapp.jpg",
+    ],
+  },
 };
 
 /** Built-in "Normal" entry shown alongside the uploaded templates. */
@@ -103,10 +120,46 @@ function ensureWebFont(family: string): Promise<void> {
   return p;
 }
 
+const warmedAssets = new Map<string, Promise<void>>();
+function warmImage(src: string): Promise<void> {
+  let p = warmedAssets.get(src);
+  if (!p) {
+    p = new Promise<void>((res) => {
+      const i = new Image();
+      i.onload = () => res();
+      i.onerror = () => res();
+      i.src = src;
+    });
+    warmedAssets.set(src, p);
+  }
+  return p;
+}
+
+/**
+ * Loads what CV exports need before the first click: web fonts (the slowest step of a
+ * first download) and every layout's letterhead images. Safe to call repeatedly.
+ */
+export function warmUpCvExport(): void {
+  for (const def of Object.values(LAYOUTS)) {
+    if (def.webFont) void ensureWebFont(def.webFont);
+    def.assets?.forEach((a) => void warmImage(a));
+  }
+}
+
+/**
+ * Starts downloading a candidate's photos and passport scan. Bulk exports call this for
+ * the next candidate while the current one renders, so its images are ready in time.
+ */
+export function prefetchCvAssets(c: Candidate): void {
+  prefetchImgBytes(c.photo_url ?? c.full_photo_url);
+  prefetchImgBytes(c.full_photo_url ?? c.photo_url);
+  prefetchImgBytes(c.passport_scan_url);
+}
+
 /** Fetches a photo into a same-origin blob URL so the canvas is never tainted. */
 async function toBlobUrl(src: string | null | undefined, owned: string[]): Promise<string | null> {
   if (!src) return null;
-  const img = await fetchImgBytes(src);
+  const img = await takeImgBytes(src);
   if (!img) return null;
   const url = URL.createObjectURL(
     new Blob([img.bytes as BlobPart], { type: img.ext === "png" ? "image/png" : "image/jpeg" }),
@@ -187,17 +240,20 @@ async function renderCvLayout(
   document.body.appendChild(container);
   const root = createRoot(container);
   try {
-    // Font and photos are independent downloads; fetch them together.
-    const [, photo, fullPhoto] = await Promise.all([
+    // Font, photos and letterhead images are independent downloads; fetch them together.
+    // The head shot and full photo often fall back to the same URL: download it once.
+    const photoSrc = c.photo_url ?? c.full_photo_url;
+    const fullSrc = c.full_photo_url ?? c.photo_url;
+    const photoP = toBlobUrl(photoSrc, owned);
+    const fullP = fullSrc === photoSrc ? photoP : toBlobUrl(fullSrc, owned);
+    const [, , photo, fullPhoto] = await Promise.all([
       def.webFont ? ensureWebFont(def.webFont) : null,
-      toBlobUrl(c.photo_url ?? c.full_photo_url, owned),
-      toBlobUrl(c.full_photo_url ?? c.photo_url, owned),
+      Promise.all((def.assets ?? []).map(warmImage)),
+      photoP,
+      fullP,
     ]);
     const photos: CvPhotos = { photo, fullPhoto };
-    const data = buildCvData(c, photos);
-    // Video buttons only exist in layouts that draw them; others keep the link page.
-    if (!def.inlineVideo) data.video = null;
-    flushSync(() => root.render(<def.Component d={data} />));
+    flushSync(() => root.render(<def.Component d={buildCvData(c, photos)} />));
     const page = container.firstElementChild as HTMLElement;
     await preloadBackgrounds(page);
     await document.fonts.ready;
@@ -236,8 +292,8 @@ export interface CvPdfOptions {
   /** Appends the passport scan as page 2. */
   passportUrl?: string | null;
   /**
-   * The candidate's video CV. Layouts with inline video buttons link it from the CV page
-   * (taken from the candidate record); other layouts append a page with the link.
+   * The video behind the Play / Download buttons under the full-size photo. Defaults to
+   * the candidate's video_url; null hides the buttons.
    */
   videoUrl?: string | null;
 }
@@ -248,17 +304,16 @@ export async function buildCvLayoutPdf(
   c: Candidate,
   opts: CvPdfOptions = {},
 ): Promise<jsPDF> {
-  const def = LAYOUTS[layout];
+  const cand = opts.videoUrl !== undefined ? { ...c, video_url: opts.videoUrl } : c;
   // Fetch and decode the passport scan while the CV page renders.
   const scanP = opts.passportUrl ? preparePassportScan(opts.passportUrl) : Promise.resolve(null);
-  const [{ canvas, links }, scan] = await Promise.all([renderCvLayout(layout, c), scanP]);
+  const [{ canvas, links }, scan] = await Promise.all([renderCvLayout(layout, cand), scanP]);
 
   // px_scaling makes 1px = 0.75pt, so 794×1123px is a true A4 page (595×842pt).
   const pdf = new jsPDF({ unit: "px", format: [PAGE_W, PAGE_H], hotfixes: ["px_scaling"] });
   pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, PAGE_W, PAGE_H);
   for (const l of links) pdf.link(l.x, l.y, l.w, l.h, { url: l.url });
   if (scan) addPreparedScanPage(pdf, scan);
-  if (opts.videoUrl && !def.inlineVideo) addVideoLinkPage(pdf, opts.videoUrl);
   return pdf;
 }
 

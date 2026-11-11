@@ -2,7 +2,7 @@
 // rows stretched by SY to fill A4. Values follow buildFilledDocx's Jawa rules.
 import React from "react";
 import type { CvData, SkillKey } from "./cv-data";
-import { Ar, Cell, type CellProps, Page, PhotoBox, Tick } from "./primitives";
+import { Ar, Cell, type CellProps, Page, PhotoBox, Tick, VideoButtons } from "./primitives";
 
 const GREY = "#e8e8e8";
 const HEAD: React.CSSProperties = {
@@ -178,10 +178,19 @@ export function JawaCv({ d }: { d: CvData }) {
 
       {/* Full-size photo */}
       <G x0={49} y0={245} x1={364} y1={727} pad={0}>
+        {d.video && (
+          <VideoButtons
+            play={d.video.play}
+            download={d.video.download}
+            color="#996633"
+            height={40}
+            style={{ position: "absolute", left: 8, right: 8, bottom: 8 }}
+          />
+        )}
         <PhotoBox
           src={d.photos.fullPhoto}
           fit="contain"
-          style={{ position: "absolute", left: 6, top: 6, right: 6, bottom: 6 }}
+          style={{ position: "absolute", left: 6, top: 6, right: 6, bottom: d.video ? 56 : 6 }}
           placeholder={
             <span
               style={{

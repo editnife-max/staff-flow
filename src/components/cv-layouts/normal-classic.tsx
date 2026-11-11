@@ -382,6 +382,7 @@ export function NormalClassicCv({ d }: { d: CvData }) {
             download={d.video.download}
             color={C.green}
             height={BUTTONS_H}
+            font={FONT}
             style={{ marginTop: 10 }}
           />
         )}

@@ -224,6 +224,35 @@ export async function docxBytesToPdf(bytes: Uint8Array, filename: string, passpo
   }
 }
 
+// ---------------------------------------------------------------------------
+// Image prefetch: bulk CV exports start downloading the next candidate's photos while
+// the current one renders. Each prefetched download is handed out once, then dropped,
+// so a long bulk run never holds every candidate's images in memory.
+// ---------------------------------------------------------------------------
+type ImgBytes = Awaited<ReturnType<typeof fetchImgBytes>>;
+const prefetched = new Map<string, Promise<ImgBytes>>();
+
+/** Starts downloading an image now; a later takeImgBytes(url) gets the result. */
+export function prefetchImgBytes(url: string | null | undefined): void {
+  if (!url || prefetched.has(url)) return;
+  const p = fetchImgBytes(url);
+  prefetched.set(url, p);
+  // Never claimed (e.g. the user downloaded Excel instead): let it go.
+  setTimeout(() => {
+    if (prefetched.get(url) === p) prefetched.delete(url);
+  }, 120_000);
+}
+
+/** The prefetched download for `url` if one is pending, otherwise a fresh fetch. */
+export function takeImgBytes(url: string): Promise<ImgBytes> {
+  const p = prefetched.get(url);
+  if (p) {
+    prefetched.delete(url);
+    return p;
+  }
+  return fetchImgBytes(url);
+}
+
 /** A passport scan decoded and re-encoded as JPEG, ready to place on a PDF page. */
 export interface PreparedScan {
   dataUrl: string;
@@ -236,8 +265,8 @@ export interface PreparedScan {
  * it while the CV page is still rendering.
  */
 export async function preparePassportScan(url: string): Promise<PreparedScan | null> {
-  // Use fetchImgBytes (fetch-based) so cross-origin restrictions never block the load.
-  const fetched = await fetchImgBytes(url);
+  // Fetch-based (not <img>) so cross-origin restrictions never block the load.
+  const fetched = await takeImgBytes(url);
   if (!fetched) return null;
 
   // Draw via a local blob URL so the canvas is never tainted by cross-origin restrictions.
