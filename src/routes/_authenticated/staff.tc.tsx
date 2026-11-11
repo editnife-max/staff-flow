@@ -385,9 +385,10 @@ function TcPage() {
   // TC candidates split by view
   const basePool = useMemo(() => {
     if (activeView === "failed")
-      return allCandidates.filter((c) => c.availability_type === "TC_failed");
+      return allCandidates.filter((c) => c.availability_type === "TC_failed" && c.status !== "canceled");
     return allCandidates.filter((c) =>
       c.availability_type === "TC" &&
+      c.status !== "canceled" &&
       (activeView === "trained" ? !!c.video_url : !c.video_url),
     );
   }, [allCandidates, activeView]);
@@ -1354,8 +1355,8 @@ function TcPage() {
                   fieldMut.mutate({ id: tcRemove.id, field: "remark", value: tcRemoveReason.trim() });
                   toast.success(`${tcRemove.name} moved to Failed Girls`);
                 } else {
+                  fieldMut.mutate({ id: tcRemove.id, field: "availability_type", value: "Available" });
                   fieldMut.mutate({ id: tcRemove.id, field: "status", value: "canceled" });
-                  fieldMut.mutate({ id: tcRemove.id, field: "availability_type", value: null });
                   toast.success(`${tcRemove.name} cancelled and removed`);
                 }
                 setTcRemove(null);
