@@ -77,6 +77,7 @@ const OVERRIDABLE_COLUMNS = [
   { key: "musaned_status",   label: "Country" },
   { key: "selected_by",      label: "Assigned To" },
   { key: "cv_sent_to",       label: "CV Sent To" },
+  { key: "criteria",         label: "Criteria" },
 ];
 
 const OVERRIDABLE_PAGES = [

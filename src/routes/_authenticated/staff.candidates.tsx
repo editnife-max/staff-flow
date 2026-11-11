@@ -1807,32 +1807,41 @@ function StaffCandidatesPage() {
           narrativeSuggestions={opts.narrative}
           restrictedKeys={restrictedKeys}
           viewOnlyKeys={viewOnlyKeys}
-          renderExtraColumns={tab === "available" ? (c) => {
+          renderExtraColumns={tab === "available" && !restrictedKeys.has("criteria") ? (c) => {
             const results = CRITERIA.map((cr) => ({ ...cr, met: cr.check(c) }));
             const score = results.filter((r) => r.met).length;
             const eligible = score >= CRITERIA_THRESHOLD;
             const approved = (c as any).cv_approved === true;
-            return (
+            const criteriaViewOnly = viewOnlyKeys.has("criteria");
+            const inner = (
+              <div className="flex flex-col gap-1">
+                <div className="flex gap-0.5 flex-wrap">
+                  {results.map((r) => (
+                    <div key={r.short} className={cn("w-3 h-3 rounded-sm", r.met ? "bg-emerald-500" : "bg-zinc-200 dark:bg-zinc-700")} />
+                  ))}
+                </div>
+                <span className={cn("text-[11px] font-bold tabular-nums", eligible ? "text-emerald-700" : "text-muted-foreground")}>
+                  {score}/{CRITERIA.length}
+                  {eligible && <span className="ml-1 text-emerald-600">✓</span>}
+                </span>
+                {approved && (
+                  <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">✓ Approved</span>
+                )}
+              </div>
+            );
+            return criteriaViewOnly ? (
+              <div className="shrink-0 w-[100px] text-left">
+                <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">CRITERIA</div>
+                {inner}
+              </div>
+            ) : (
               <button
                 type="button"
                 onClick={() => setCriteriaPopupId(c.id)}
                 className="shrink-0 w-[100px] text-left hover:opacity-80 transition-opacity"
               >
                 <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">CRITERIA</div>
-                <div className="flex flex-col gap-1">
-                  <div className="flex gap-0.5 flex-wrap">
-                    {results.map((r) => (
-                      <div key={r.short} className={cn("w-3 h-3 rounded-sm", r.met ? "bg-emerald-500" : "bg-zinc-200 dark:bg-zinc-700")} />
-                    ))}
-                  </div>
-                  <span className={cn("text-[11px] font-bold tabular-nums", eligible ? "text-emerald-700" : "text-muted-foreground")}>
-                    {score}/{CRITERIA.length}
-                    {eligible && <span className="ml-1 text-emerald-600">✓</span>}
-                  </span>
-                  {approved && (
-                    <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">✓ Approved</span>
-                  )}
-                </div>
+                {inner}
               </button>
             );
           } : undefined}
