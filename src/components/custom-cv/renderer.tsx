@@ -804,8 +804,7 @@ function Zone({
 const SECOND_W = { s: 74, m: 92, l: 112 } as const;
 
 function secondSrc(ctx: Ctx): string | null {
-  const { photo: head, fullPhoto: full } = ctx.d.photos;
-  return ctx.c.photo.source === "head" ? (full ?? head) : (head ?? full);
+  return ctx.d.photos.photo ?? ctx.d.photos.fullPhoto;
 }
 
 function secondSize(ctx: Ctx, width?: number): { w: number; h: number } {
@@ -857,8 +856,8 @@ function SecondPhoto({ ctx, dark, width }: { ctx: Ctx; dark: boolean; width?: nu
 }
 
 /**
- * The photo area: the main photo and/or the second photo (when it's placed "with the
- * main photo"). Stacked in a column, or side by side in a row.
+ * The full-size photo area. The passport-size photo is rendered separately in a top header
+ * corner, so the two photos never stack together in a column.
  */
 function PhotoArea({
   ctx,
@@ -876,22 +875,18 @@ function PhotoArea({
   direction: "column" | "row";
 }) {
   const main = ctx.c.photo.show;
-  const second = secondAt(ctx, "column");
-  if (!main && !second) return null;
-  const sec = secondSize(ctx);
+  if (!main) return null;
   if (direction === "row") {
     return (
       <div
         style={{
           display: "flex",
-          flexDirection: ctx.c.photoSide === "right" ? "row-reverse" : "row",
+          flexDirection: "row",
           alignItems: "flex-start",
-          gap: 8,
           flexShrink: 0,
         }}
       >
-        {main && <Photo ctx={ctx} width={width} height={height} dark={dark} />}
-        {second && <SecondPhoto ctx={ctx} dark={dark} />}
+        <Photo ctx={ctx} width={width} height={height} dark={dark} />
       </div>
     );
   }
@@ -906,21 +901,14 @@ function PhotoArea({
         width,
       }}
     >
-      {second && (
-        <SecondPhoto ctx={ctx} dark={dark} width={main ? undefined : Math.min(width, 150)} />
-      )}
-      {main && (
-        <Photo ctx={ctx} width={width} height={height - (second ? sec.h + 8 : 0)} dark={dark} />
-      )}
+      <Photo ctx={ctx} width={width} height={height} dark={dark} />
     </div>
   );
 }
 
 /** Width a row-direction PhotoArea takes. */
 function photoAreaWidth(ctx: Ctx, mainW: number): number {
-  const main = ctx.c.photo.show ? mainW : 0;
-  const second = secondAt(ctx, "column") ? secondSize(ctx).w : 0;
-  return main + second + (main && second ? 8 : 0);
+  return ctx.c.photo.show ? mainW : 0;
 }
 
 function Photo({
@@ -935,10 +923,7 @@ function Photo({
   dark: boolean;
 }) {
   const { photo } = ctx.c;
-  const src =
-    photo.source === "head"
-      ? (ctx.d.photos.photo ?? ctx.d.photos.fullPhoto)
-      : (ctx.d.photos.fullPhoto ?? ctx.d.photos.photo);
+  const src = ctx.d.photos.fullPhoto ?? ctx.d.photos.photo;
   const video = photo.videoButtons ? ctx.d.video : null;
   const boxH = Math.max(80, height - (video ? 44 : 0));
   const circle = photo.shape === "circle";
@@ -1056,9 +1041,8 @@ function Header({ ctx, width, logoSrc }: { ctx: Ctx; width: number; logoSrc: str
   const logoH = Math.min(LOGO_H[h.logoSize], H - 16);
   const logoW = Math.round(logoH * 2.4);
   const logoUrl = logoSrc ?? h.logoUrl;
-  // The second photo can sit in a header corner, filling the header's height.
-  const photoH = H - 14;
-  const photoW = ctx.c.photo.second.shape === "circle" ? photoH : Math.round(photoH / 1.28);
+  // Passport photo stays small in a top corner and does not share the full-size photo column.
+  const photoW = Math.min(SECOND_W[ctx.c.photo.second.size], Math.round((H - 14) / 1.28));
 
   const slots: Align[] = ["left", "center", "right"];
   const at = (pos: SlotPosition, slot: Align) => pos === slot;
@@ -1310,8 +1294,6 @@ function NameBlock({ ctx }: { ctx: Ctx }) {
   const subAr = [n.showPosition ? d.occupationAr : "", n.showNationality ? d.nationalityAr : ""]
     .filter(Boolean)
     .join("  ·  ");
-  // The second photo can sit at the start of the name band.
-  const photo = secondAt(ctx, "name");
   if (n.style === "band") {
     const bg = ctx.c.header.style === "band" ? ctx.secondary : ctx.primary;
     const fg = onColor(bg);
@@ -1322,17 +1304,16 @@ function NameBlock({ ctx }: { ctx: Ctx }) {
           background: bg,
           color: fg,
           borderRadius: ctx.radius,
-          padding: photo ? "6px 14px 6px 6px" : "8px 14px",
+          padding: "8px 14px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           gap: 12,
         }}
       >
-        {photo && <SecondPhoto ctx={ctx} dark={onColor(bg) === "#ffffff"} width={56} />}
         <span
           style={{
-            fontSize: fitFont(d.fullName, photo ? 370 : 430, 21 * ctx.s, 14),
+            fontSize: fitFont(d.fullName, 430, 21 * ctx.s, 14),
             fontWeight: 800,
             whiteSpace: "nowrap",
             overflow: "hidden",
@@ -1372,11 +1353,10 @@ function NameBlock({ ctx }: { ctx: Ctx }) {
         gap: 12,
       }}
     >
-      {photo && <SecondPhoto ctx={ctx} dark={false} width={58} />}
       <div style={{ minWidth: 0, flex: 1 }}>
         <div
           style={{
-            fontSize: fitFont(d.fullName, photo ? 450 : 520, 26 * ctx.s, 16),
+            fontSize: fitFont(d.fullName, 520, 26 * ctx.s, 16),
             fontWeight: 800,
             color: ctx.primary,
             lineHeight: 1.15,
@@ -1590,7 +1570,7 @@ export function CustomCv({ d, config, logoSrc = null }: CustomCvProps) {
     const sideW = colW + 26;
     const mainW = PAGE_W - sideW - pad * 2;
     const dark = surfaceOf(ctx, true);
-    const photoW = sideW - 32;
+    const photoW = Math.min(sideW - 32, SINGLE_PHOTO_WIDTH[config.photo.size]);
     return (
       <Page style={{ background: t.background, fontFamily: font, color: t.text }}>
         <div
@@ -1735,7 +1715,7 @@ export function CustomCv({ d, config, logoSrc = null }: CustomCvProps) {
           <div style={{ display: "flex", justifyContent: "center", flexShrink: 0 }}>
             <PhotoArea
               ctx={ctx}
-              width={Math.min(colW2, 280)}
+              width={Math.min(colW2, SINGLE_PHOTO_WIDTH[config.photo.size])}
               height={PHOTO_HEIGHT[config.photo.size]}
               dark={false}
               direction="column"
