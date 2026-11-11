@@ -901,14 +901,22 @@ function TcPage() {
             toast.success(`${c?.full_name ?? "Candidate"} moved back to Entered Girls`);
           } : undefined}
           excludeCols={["CV SENT TO", "CV SENT DATE", "AVAILABILITY", "SELECTED BY", "NOTES"]}
-          renderExtraColumns={(c) => activeView !== "failed" ? (
+          renderExtraColumns={(c) => activeView === "failed" ? (
+            <div className="shrink-0 w-[180px]">
+              <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">REASON</div>
+              {(c as any).remark
+                ? <p className="text-xs text-foreground break-words line-clamp-3">{(c as any).remark}</p>
+                : <p className="text-xs text-muted-foreground italic">—</p>
+              }
+            </div>
+          ) : (
             <CriteriaColumn
               candidate={c}
               criteria={CRITERIA}
               threshold={CRITERIA_THRESHOLD}
               onOpen={() => setCriteriaViewId(c.id)}
             />
-          ) : null}
+          )}
         />
       )}
 
