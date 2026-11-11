@@ -614,8 +614,6 @@ function TcPage() {
         const tcPool = allCandidates.filter((c) => c.availability_type === "TC" || c.availability_type === "TC_failed");
         const noAvatar  = tcPool.filter((c) => !(c as any).photo_url);
         const noProfile = tcPool.filter((c) => !(c as any).full_photo_url);
-        const noVideo   = allCandidates.filter((c) => c.availability_type === "TC" && !c.video_url);
-
         const WARNINGS = [
           { key: "avatar",  label: "No Avatar Photo",       list: noAvatar  },
           { key: "profile", label: "No Full Profile Photo", list: noProfile },
@@ -637,14 +635,6 @@ function TcPage() {
               >
                 <p className={cn("text-4xl font-bold tabular-nums leading-none", s.value)}>{s.count}</p>
                 <p className="text-sm text-muted-foreground mt-2 font-medium">{s.label}</p>
-                {s.view === "trained" && noVideo.length > 0 && (
-                  <div className="mt-3 flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-                    <AlertTriangle className="h-3 w-3 shrink-0" />
-                    <span className="text-xs font-medium">
-                      {noVideo.length} girl{noVideo.length !== 1 ? "s" : ""} need video
-                    </span>
-                  </div>
-                )}
               </button>
             ))}
 
