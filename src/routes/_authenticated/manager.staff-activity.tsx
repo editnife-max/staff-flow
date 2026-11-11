@@ -260,10 +260,16 @@ function LateLoginPanel({ member }: { member: TeamMember }) {
   );
 }
 
+type ModeOption = {
+  mode: OverrideMode;
+  label: string;
+  activeClass: string;
+  inactiveClass: string;
+};
+
 // ─── Override toggle row ──────────────────────────────────────────────────────
 function OverrideRow({
-  label, current, onSet, onClear, pendingKey, activeKey,
-  grantLabel, denyLabel,
+  label, current, onSet, onClear, pendingKey, activeKey, options,
 }: {
   label: string;
   current: OverrideMode | null;
@@ -271,8 +277,7 @@ function OverrideRow({
   onClear: () => void;
   pendingKey: string | null;
   activeKey: string;
-  grantLabel: string;
-  denyLabel: string;
+  options: ModeOption[];
 }) {
   const isLoading = pendingKey === activeKey;
   const handleClick = (mode: OverrideMode) => {
@@ -280,50 +285,50 @@ function OverrideRow({
     else onSet(mode);
   };
 
+  const activeBadge = options.find((o) => o.mode === current);
+
   return (
     <div className="flex items-center justify-between gap-3 py-2.5 border-b border-border/60 last:border-0">
       <span className="text-sm font-medium flex-1 min-w-0 truncate">{label}</span>
       <div className="flex items-center gap-1.5 shrink-0">
-        {current && (
-          <span className={cn(
-            "text-[10px] font-semibold px-2 py-0.5 rounded-full",
-            current === "grant" || current === "deny" && grantLabel === "Allow"
-              ? current === "grant" ? "bg-emerald-500/10 text-emerald-700" : "bg-red-500/10 text-red-700"
-              : current === "deny" ? "bg-red-500/10 text-red-700" : "bg-emerald-500/10 text-emerald-700",
-          )}>
-            {current === "grant" ? grantLabel : denyLabel}
+        {activeBadge && (
+          <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", activeBadge.activeClass)}>
+            {activeBadge.label}
           </span>
         )}
-        <Button
-          size="sm" variant={current === "grant" ? "default" : "outline"}
-          className={cn(
-            "h-7 text-xs px-3",
-            current === "grant"
-              ? "bg-emerald-600 hover:bg-emerald-700 text-white border-0"
-              : "text-emerald-700 border-emerald-300 hover:bg-emerald-50",
-          )}
-          disabled={isLoading}
-          onClick={() => handleClick("grant")}
-        >
-          {grantLabel}
-        </Button>
-        <Button
-          size="sm" variant={current === "deny" ? "default" : "outline"}
-          className={cn(
-            "h-7 text-xs px-3",
-            current === "deny"
-              ? "bg-red-600 hover:bg-red-700 text-white border-0"
-              : "text-red-700 border-red-300 hover:bg-red-50",
-          )}
-          disabled={isLoading}
-          onClick={() => handleClick("deny")}
-        >
-          {denyLabel}
-        </Button>
+        {options.map((opt) => (
+          <Button
+            key={opt.mode}
+            size="sm"
+            variant={current === opt.mode ? "default" : "outline"}
+            className={cn(
+              "h-7 text-xs px-3",
+              current === opt.mode ? opt.activeClass + " text-white border-0" : opt.inactiveClass,
+            )}
+            disabled={isLoading}
+            onClick={() => handleClick(opt.mode)}
+          >
+            {opt.label}
+          </Button>
+        ))}
       </div>
     </div>
   );
 }
+
+const COLUMN_MODE_OPTIONS: ModeOption[] = [
+  { mode: "view",  label: "Viewer", activeClass: "bg-blue-600 hover:bg-blue-700",   inactiveClass: "text-blue-700 border-blue-300 hover:bg-blue-50" },
+  { mode: "edit",  label: "Editor", activeClass: "bg-teal-600 hover:bg-teal-700",   inactiveClass: "text-teal-700 border-teal-300 hover:bg-teal-50" },
+  { mode: "grant", label: "Grant",  activeClass: "bg-emerald-600 hover:bg-emerald-700", inactiveClass: "text-emerald-700 border-emerald-300 hover:bg-emerald-50" },
+  { mode: "deny",  label: "Deny",   activeClass: "bg-red-600 hover:bg-red-700",     inactiveClass: "text-red-700 border-red-300 hover:bg-red-50" },
+];
+
+const PAGE_MODE_OPTIONS: ModeOption[] = [
+  { mode: "view",  label: "Viewer", activeClass: "bg-blue-600 hover:bg-blue-700",   inactiveClass: "text-blue-700 border-blue-300 hover:bg-blue-50" },
+  { mode: "edit",  label: "Editor", activeClass: "bg-teal-600 hover:bg-teal-700",   inactiveClass: "text-teal-700 border-teal-300 hover:bg-teal-50" },
+  { mode: "grant", label: "Allow",  activeClass: "bg-emerald-600 hover:bg-emerald-700", inactiveClass: "text-emerald-700 border-emerald-300 hover:bg-emerald-50" },
+  { mode: "deny",  label: "Deny",   activeClass: "bg-red-600 hover:bg-red-700",     inactiveClass: "text-red-700 border-red-300 hover:bg-red-50" },
+];
 
 // ─── Column Overrides Panel ───────────────────────────────────────────────────
 function ColumnOverridesPanel({ member, overrides, onRefresh }: {
@@ -366,6 +371,8 @@ function ColumnOverridesPanel({ member, overrides, onRefresh }: {
   return (
     <div className="space-y-3">
       <div className="rounded-md border border-border bg-muted/30 px-3 py-2.5 text-xs space-y-1 text-muted-foreground">
+        <p><span className="font-semibold text-blue-700">Viewer</span> — can see the column but cannot edit it.</p>
+        <p><span className="font-semibold text-teal-700">Editor</span> — can see and edit the column.</p>
         <p><span className="font-semibold text-emerald-700">Grant</span> — let this user edit a column that is globally restricted.</p>
         <p><span className="font-semibold text-red-700">Deny</span> — hide the column &amp; prevent editing even if their role normally allows it.</p>
       </div>
@@ -379,8 +386,7 @@ function ColumnOverridesPanel({ member, overrides, onRefresh }: {
             onClear={() => handleClear(col.key)}
             pendingKey={pendingKey}
             activeKey={col.key}
-            grantLabel="Grant"
-            denyLabel="Deny"
+            options={COLUMN_MODE_OPTIONS}
           />
         ))}
       </div>
@@ -430,51 +436,24 @@ function PageAccessPanel({ member, overrides, onRefresh }: {
     <div className="space-y-3">
       <div className="rounded-md border border-border bg-muted/30 px-3 py-2.5 text-xs space-y-1 text-muted-foreground">
         <p>Current access is derived from the staff role configuration.</p>
+        <p><span className="font-semibold text-blue-700">Viewer</span> — read-only access to the page.</p>
+        <p><span className="font-semibold text-teal-700">Editor</span> — full editing access to the page.</p>
         <p><span className="font-semibold text-emerald-700">Allow</span> — grant access even if role denies.</p>
         <p><span className="font-semibold text-red-700">Deny</span> — block access even if role allows.</p>
       </div>
       <div>
-        {OVERRIDABLE_PAGES.map((page) => {
-          const mode = getMode(page.key);
-          return (
-            <div key={page.key} className="flex items-center justify-between gap-3 py-2.5 border-b border-border/60 last:border-0">
-              <div className="flex-1 min-w-0">
-                <span className="text-sm font-medium">{page.label}</span>
-                <span className="ml-2 text-[10px] text-muted-foreground">
-                  {mode ? (mode === "grant" ? "Allowed (override)" : "Denied (override)") : "Role default (Allowed)"}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <Button
-                  size="sm" variant={mode === "grant" ? "default" : "outline"}
-                  className={cn(
-                    "h-7 text-xs px-3",
-                    mode === "grant"
-                      ? "bg-emerald-600 hover:bg-emerald-700 text-white border-0"
-                      : "text-emerald-700 border-emerald-300 hover:bg-emerald-50",
-                  )}
-                  disabled={pendingKey === page.key}
-                  onClick={() => mode === "grant" ? handleClear(page.key) : handleSet(page.key, "grant")}
-                >
-                  Allow
-                </Button>
-                <Button
-                  size="sm" variant={mode === "deny" ? "default" : "outline"}
-                  className={cn(
-                    "h-7 text-xs px-3",
-                    mode === "deny"
-                      ? "bg-red-600 hover:bg-red-700 text-white border-0"
-                      : "text-red-700 border-red-300 hover:bg-red-50",
-                  )}
-                  disabled={pendingKey === page.key}
-                  onClick={() => mode === "deny" ? handleClear(page.key) : handleSet(page.key, "deny")}
-                >
-                  Deny
-                </Button>
-              </div>
-            </div>
-          );
-        })}
+        {OVERRIDABLE_PAGES.map((page) => (
+          <OverrideRow
+            key={page.key}
+            label={page.label}
+            current={getMode(page.key)}
+            onSet={(mode) => handleSet(page.key, mode)}
+            onClear={() => handleClear(page.key)}
+            pendingKey={pendingKey}
+            activeKey={page.key}
+            options={PAGE_MODE_OPTIONS}
+          />
+        ))}
       </div>
     </div>
   );

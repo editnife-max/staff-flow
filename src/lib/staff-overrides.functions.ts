@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type OverrideType = "column_edit" | "page_access";
-export type OverrideMode = "grant" | "deny";
+export type OverrideMode = "grant" | "deny" | "view" | "edit";
 
 export type StaffOverride = {
   id: string;
@@ -34,7 +34,7 @@ export const setStaffOverride = createServerFn({ method: "POST" })
       staffUserId: z.string().uuid(),
       type: z.enum(["column_edit", "page_access"]),
       target: z.string().min(1),
-      mode: z.enum(["grant", "deny"]),
+      mode: z.enum(["grant", "deny", "view", "edit"]),
     }).parse(input),
   )
   .handler(async ({ context, data }) => {
@@ -68,7 +68,14 @@ export const getMyEffectiveAccess = createServerFn({ method: "GET" })
       .maybeSingle();
 
     const managerId = roleRow?.manager_id;
-    if (!managerId) return { restrictedColumns: [] as string[], grantedColumns: [] as string[], deniedColumns: [] as string[], deniedPages: [] as string[] };
+    if (!managerId) return {
+      restrictedColumns:  [] as string[],
+      grantedColumns:     [] as string[],
+      deniedColumns:      [] as string[],
+      viewOnlyColumns:    [] as string[],
+      deniedPages:        [] as string[],
+      grantedPages:       [] as string[],
+    };
 
     const [profileRes, overridesRes] = await Promise.all([
       supabaseAdmin.from("profiles").select("restricted_columns").eq("id", managerId).maybeSingle(),
@@ -85,9 +92,13 @@ export const getMyEffectiveAccess = createServerFn({ method: "GET" })
 
     return {
       restrictedColumns,
-      grantedColumns:  overrides.filter((o) => o.type === "column_edit"  && o.mode === "grant").map((o) => o.target),
-      deniedColumns:   overrides.filter((o) => o.type === "column_edit"  && o.mode === "deny").map((o) => o.target),
-      deniedPages:     overrides.filter((o) => o.type === "page_access"  && o.mode === "deny").map((o) => o.target),
+      // grant + edit both allow editing a restricted column
+      grantedColumns:   overrides.filter((o) => o.type === "column_edit" && (o.mode === "grant" || o.mode === "edit")).map((o) => o.target),
+      deniedColumns:    overrides.filter((o) => o.type === "column_edit" && o.mode === "deny").map((o) => o.target),
+      viewOnlyColumns:  overrides.filter((o) => o.type === "column_edit" && o.mode === "view").map((o) => o.target),
+      deniedPages:      overrides.filter((o) => o.type === "page_access" && o.mode === "deny").map((o) => o.target),
+      // view + edit + grant all allow page access
+      grantedPages:     overrides.filter((o) => o.type === "page_access" && (o.mode === "grant" || o.mode === "view" || o.mode === "edit")).map((o) => o.target),
     };
   });
 

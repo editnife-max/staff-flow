@@ -690,6 +690,12 @@ function StaffCandidatesPage() {
     return keys;
   }, [effectiveAccess]);
 
+  // Columns the manager set to "view" mode — staff can see but not edit
+  const viewOnlyKeys = useMemo<Set<string>>(
+    () => new Set(effectiveAccess?.viewOnlyColumns ?? []),
+    [effectiveAccess],
+  );
+
   const deniedPages = useMemo<Set<string>>(
     () => new Set(effectiveAccess?.deniedPages ?? []),
     [effectiveAccess],
@@ -1768,6 +1774,7 @@ function StaffCandidatesPage() {
           agencyPhones={agencyPhones}
           agencyOptions={agencyOptions}
           restrictedKeys={restrictedKeys}
+          viewOnlyKeys={viewOnlyKeys}
         />
       ) : (
         <CandidateCardList
@@ -1799,6 +1806,7 @@ function StaffCandidatesPage() {
           agencyPhones={agencyPhones}
           narrativeSuggestions={opts.narrative}
           restrictedKeys={restrictedKeys}
+          viewOnlyKeys={viewOnlyKeys}
           renderExtraColumns={tab === "available" ? (c) => {
             const results = CRITERIA.map((cr) => ({ ...cr, met: cr.check(c) }));
             const score = results.filter((r) => r.met).length;
@@ -2692,7 +2700,7 @@ const CARD_KEY_TO_LABEL: Record<string, string> = {
 function CandidateCardList({
   candidates, selected, onToggleSelect, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo,
   countryMeta, officesByCountry, agencyOptions, agencyPhones, compact, narrativeSuggestions, pageKey,
-  restrictedKeys = new Set(), renderExtraColumns,
+  restrictedKeys = new Set(), viewOnlyKeys = new Set(), renderExtraColumns,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -2712,6 +2720,7 @@ function CandidateCardList({
   narrativeSuggestions?: string[];
   pageKey: string;
   restrictedKeys?: Set<string>;
+  viewOnlyKeys?: Set<string>;
   renderExtraColumns?: (c: Candidate) => React.ReactNode;
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
@@ -2812,6 +2821,10 @@ function CandidateCardList({
   const restrictedLabelCols = useMemo(
     () => new Set(Object.entries(CARD_KEY_TO_LABEL).filter(([k]) => restrictedKeys.has(k)).map(([, v]) => v)),
     [restrictedKeys],
+  );
+  const viewOnlyLabelCols = useMemo(
+    () => new Set(Object.entries(CARD_KEY_TO_LABEL).filter(([k]) => viewOnlyKeys.has(k)).map(([, v]) => v)),
+    [viewOnlyKeys],
   );
   const visibleCols = (CANDIDATE_CARD_COLS as readonly string[]).filter((l) => {
     if (l === "TICKET PDF") return !!compact;
@@ -2967,6 +2980,7 @@ function CandidateCardList({
                   agencyPhones={agencyPhones}
                   countryOptions={countryOptions}
                   narrativeSuggestions={narrativeSuggestions}
+                  viewOnlyLabelCols={viewOnlyLabelCols}
                   renderExtraColumns={renderExtraColumns?.(c)}
                 />
               ))}
@@ -3256,7 +3270,7 @@ function CandidateDetailDialog({ candidate, onClose, agencyPhones = {} }: { cand
 }
 
 function CandidateCard({
-  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo, agencyOptions, agencyPhones, countryOptions, compact, narrativeSuggestions, renderExtraColumns,
+  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo, agencyOptions, agencyPhones, countryOptions, compact, narrativeSuggestions, viewOnlyLabelCols, renderExtraColumns,
 }: {
   candidate: Candidate;
   selected: boolean;
@@ -3275,6 +3289,7 @@ function CandidateCard({
   agencyPhones: Record<string, string>;
   countryOptions: string[];
   narrativeSuggestions?: string[];
+  viewOnlyLabelCols?: Set<string>;
   renderExtraColumns?: React.ReactNode;
 }) {
   const qcCard = useQueryClient();
@@ -3440,11 +3455,14 @@ function CandidateCard({
               }
               const f = allFields.find((f) => f.label === colLabel);
               if (!f) return null;
+              const isViewOnly = viewOnlyLabelCols?.has(colLabel);
               return (
                 <div key={colLabel} className="shrink-0 w-[110px]">
                   <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">{colLabel}</div>
                   <div className="text-sm text-foreground break-words">
-                    {"edit" in f && f.edit === "text" ? (
+                    {isViewOnly ? (
+                      <span className="text-sm text-foreground">{f.value || "—"}</span>
+                    ) : "edit" in f && f.edit === "text" ? (
                       <InlineText value={f.value} onSave={(v) => onUpdateField(f.field, v)} suggestions={f.field === "narrative" ? narrativeSuggestions : undefined} />
                     ) : "edit" in f && f.edit === "date" ? (
                       <InlineDate value={f.value} display={f.display} showDays={"showDays" in f ? f.showDays : undefined} onSave={(v) => onUpdateField(f.field, v)} />
@@ -3668,7 +3686,7 @@ const INITIAL_PROC_FILTERS = {
 function ProcessingTable({
   candidates, selected, onToggleSelect, onAction, onUpdateField, onEdit, onDelete, cancelMode,
   countryMeta, officesByCountry, agencyPhones, agencyOptions, pageKey,
-  restrictedKeys = new Set(),
+  restrictedKeys = new Set(), viewOnlyKeys = new Set(),
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -3684,6 +3702,7 @@ function ProcessingTable({
   agencyOptions: string[];
   pageKey: string;
   restrictedKeys?: Set<string>;
+  viewOnlyKeys?: Set<string>;
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
@@ -4089,6 +4108,7 @@ function ProcessingTable({
                   officesByCountry={officesByCountry}
                   agencyPhones={agencyPhones}
                   narrativeSuggestions={narrativeOpts}
+                  viewOnlyKeys={viewOnlyKeys}
                 />
               ))}
             </div>
@@ -4206,7 +4226,7 @@ async function downloadFile(url: string) {
 
 function ProcessingCard({
   candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onUpdateField, onEdit, onDelete, cancelMode,
-  officesByCountry, agencyPhones, narrativeSuggestions,
+  officesByCountry, agencyPhones, narrativeSuggestions, viewOnlyKeys,
 }: {
   candidate: Candidate;
   selected: boolean;
@@ -4221,6 +4241,7 @@ function ProcessingCard({
   officesByCountry: Record<string, string[]>;
   agencyPhones: Record<string, string>;
   narrativeSuggestions?: string[];
+  viewOnlyKeys?: Set<string>;
 }) {
   const qcCard = useQueryClient();
   const checkWafidFn = useServerFn(checkWafidMedical);
@@ -4347,11 +4368,14 @@ function ProcessingCard({
             {visibleCols.map((col) => {
               const raw = candidate[col.key as keyof Candidate];
               const strVal = raw == null ? "" : String(raw);
+              const isViewOnly = viewOnlyKeys?.has(col.key);
               return (
                 <div key={col.key} className="shrink-0 w-[110px]">
                   <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">{col.header}</div>
                   <div className="text-sm text-foreground break-words">
-                    {col.type === "copy" ? (
+                    {isViewOnly ? (
+                      <span className="text-sm text-foreground">{strVal || "—"}</span>
+                    ) : col.type === "copy" ? (
                       strVal ? (
                         <button
                           type="button"
