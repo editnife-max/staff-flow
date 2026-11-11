@@ -907,11 +907,14 @@ function CandidateCard({
                 <AvatarFallback className="text-[11px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
             </button>
-            <div className="shrink-0 w-[110px]">
+            <div className="shrink-0 w-[140px]">
               <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">FULL NAME</div>
               <button type="button" onClick={onView} className={cn("text-sm font-semibold text-left hover:text-primary hover:underline transition-colors break-words", compact ? "line-clamp-1" : "line-clamp-2")}>
                 {candidate.full_name || "—"}
               </button>
+              <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                {[candidate.candidate_code, candidate.country, candidate.narrative, candidate.passport_number].filter(Boolean).join(" · ")}
+              </p>
             </div>
           </div>
           <div className={cn("flex-1 flex items-start gap-2", candidate.visa_status === "Waiting Replacement" && "pointer-events-none opacity-60")}>
