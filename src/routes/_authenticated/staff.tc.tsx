@@ -700,7 +700,7 @@ function TcPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium leading-tight truncate">{c.full_name ?? "—"}</p>
                       <p className="text-xs text-muted-foreground truncate">
-                        {[c.candidate_code, c.country, c.availability_type === "TC_failed" ? "Failed" : c.video_url ? "Trained" : "Entered"].filter(Boolean).join(" · ")}
+                        {[c.narrative, c.passport_number].filter(Boolean).join(" · ")}
                       </p>
                     </div>
                     <div className="shrink-0">
