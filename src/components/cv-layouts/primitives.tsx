@@ -239,15 +239,16 @@ function VideoButton({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        gap: 7,
-        padding: "0 6px",
+        gap: 6,
+        padding: "0 5px",
+        overflow: "hidden",
       }}
     >
       {icon}
       <div
         style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", minWidth: 0 }}
       >
-        <span style={{ fontSize: 10.5, fontWeight: 700, lineHeight: "13px", whiteSpace: "nowrap" }}>
+        <span style={{ fontSize: 10, fontWeight: 700, lineHeight: "13px", whiteSpace: "nowrap" }}>
           {en}
         </span>
         <span
@@ -273,16 +274,19 @@ export function VideoButtons({
   download,
   color,
   height = 38,
+  font = "Arial, Tahoma, sans-serif",
   style,
 }: {
   play: string;
   download: string;
   color: string;
   height?: number;
+  /** Button font; defaults to a sans stack so serif-bodied layouts still get clean labels. */
+  font?: string;
   style?: React.CSSProperties;
 }) {
   return (
-    <div style={{ display: "flex", gap: 7, boxSizing: "border-box", ...style }}>
+    <div style={{ display: "flex", gap: 6, boxSizing: "border-box", fontFamily: font, ...style }}>
       <VideoButton
         href={play}
         filled

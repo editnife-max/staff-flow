@@ -15,7 +15,13 @@ import { buildFilledDocx } from "@/lib/docx-fill";
 import { docxBytesToPdf, docxBytesToPdfPrint, downloadDocx, canvasToPdf, convertDocxToPdfViaCloudmersive } from "@/lib/pdf-export";
 import { candidateToCanvas } from "@/components/cv-preview";
 import { downloadNormalCvPdf, downloadNormalCvDocx, downloadVideoCvPdf } from "@/lib/normal-cv";
-import { NORMAL_CV_OPTION, downloadCvLayoutPdf, layoutForTemplate } from "@/components/cv-layouts";
+import {
+  NORMAL_CV_OPTION,
+  downloadCvLayoutPdf,
+  layoutForTemplate,
+  prefetchCvAssets,
+  warmUpCvExport,
+} from "@/components/cv-layouts";
 
 export type { CvTemplate, Candidate };
 
@@ -144,6 +150,14 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
   const isBulk = candidates.length > 1;
   const preview = candidates[0] ?? null;
 
+  // Load CV fonts, letterheads and the first candidate's images while the user picks a
+  // download type, so the first PDF does not wait on them.
+  useEffect(() => {
+    if (candidates.length === 0) return;
+    warmUpCvExport();
+    prefetchCvAssets(candidates[0]);
+  }, [candidates]);
+
   // Reset selected columns to sensible defaults whenever the download type changes.
   useEffect(() => {
     if (downloadType === "excel-ticket") {
@@ -191,7 +205,10 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
     setDownloading(true);
     try {
       if (isBulk) toast.info(`Generating ${sortedCandidates.length} Normal CV PDFs…`);
-      for (const c of sortedCandidates) await downloadNormalCvPdf(c);
+      for (const [i, c] of sortedCandidates.entries()) {
+        if (sortedCandidates[i + 1]) prefetchCvAssets(sortedCandidates[i + 1]);
+        await downloadNormalCvPdf(c);
+      }
       toast.success(`Normal CV PDF${isBulk ? "s" : ""} downloaded`);
     } catch (e: any) {
       toast.error(e.message || "PDF generation failed");
@@ -255,7 +272,9 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
     try {
       if (isCV && cvLayout) {
         if (isBulk) toast.info(`Generating ${candidates.length} PDFs — please wait…`);
-        for (const c of sortedCandidates) {
+        for (const [i, c] of sortedCandidates.entries()) {
+          // Next candidate's photos download while this one renders.
+          if (sortedCandidates[i + 1]) prefetchCvAssets(sortedCandidates[i + 1]);
           await downloadCvLayoutPdf(cvLayout, c, `${c.full_name} — ${currentType.label} ${fileTimestamp()}.pdf`, {
             passportUrl: c.passport_scan_url,
             videoUrl: c.video_url,

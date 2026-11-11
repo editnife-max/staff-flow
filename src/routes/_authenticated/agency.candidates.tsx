@@ -24,7 +24,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { getStaffList, sendCandidatesNotification } from "@/lib/notifications.functions";
 import { getAgencyCvTemplate } from "@/lib/agencies.functions";
 import { candidateToCanvas } from "@/components/cv-preview";
-import { downloadCvLayoutPdf, layoutForTemplate } from "@/components/cv-layouts";
+import { downloadCvLayoutPdf, layoutForTemplate, warmUpCvExport } from "@/components/cv-layouts";
 import { canvasToPdf, downloadDocx, docxBytesToPdf } from "@/lib/pdf-export";
 import type { CvTemplate } from "@/lib/docx-fill";
 import { buildFilledDocx } from "@/lib/docx-fill";
@@ -246,6 +246,11 @@ function AgencyCandidatesPage() {
     queryFn: () => fetchTemplate(),
     enabled: !!user?.id,
   });
+
+  // The agency's CV layout is known: load its fonts and letterhead before the first download.
+  React.useEffect(() => {
+    if (layoutForTemplate(agencyTemplate)) warmUpCvExport();
+  }, [agencyTemplate]);
 
   const { data: candidates = [], isLoading } = useQuery<Candidate[]>({
     queryKey: ["agency-candidates"],

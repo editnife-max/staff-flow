@@ -314,6 +314,7 @@ export function NormalCv({ d }: { d: CvData }) {
             download={d.video.download}
             color={C.navy}
             height={40}
+            font={FONT}
             style={{ position: "absolute", left: 11, top: 514, width: 265 }}
           />
         )}

@@ -1,8 +1,11 @@
-// TADBEER CV Form — geometry measured from Word's PDF of the template (Letter page),
-// with rows stretched by SY to fill A4. Values follow buildFilledDocx's TADBEER rules.
+// TADBEER CV Form — the template's design on a regular grid. Values follow
+// buildFilledDocx's TADBEER rules.
+//
+// Two tables share every edge: the left one (14–436) and the right one (442–780).
+// Rows are uniform per section and the bottom of the page is filled, so nothing floats.
 import React from "react";
 import type { CvData, LevelStep, SkillKey } from "./cv-data";
-import { Ar, Cell, type CellProps, Page, PhotoBox, Tick } from "./primitives";
+import { Ar, Cell, Page, PhotoBox, Tick, VideoButtons } from "./primitives";
 
 const DARK = "#365f91";
 const LIGHT = "#8db3e0";
@@ -10,12 +13,12 @@ const BLUE_TITLE = "#006fc0";
 const LABEL: React.CSSProperties = {
   fontFamily: "Arial, sans-serif",
   fontWeight: 700,
-  fontSize: 11.7,
+  fontSize: 11.5,
 };
 const VALUE: React.CSSProperties = {
   fontFamily: "'Times New Roman', Times, serif",
   fontWeight: 700,
-  fontSize: 13,
+  fontSize: 13.5,
 };
 const AR: React.CSSProperties = {
   fontFamily: "Arial, Tahoma, sans-serif",
@@ -23,14 +26,32 @@ const AR: React.CSSProperties = {
   fontSize: 12.9,
 };
 
-const SY = 1.08;
-const OY = 22;
-const y = (v: number) => Math.round(OY + v * SY);
+// ── Grid ──────────────────────────────────────────────────────────────────────
+const X0 = 14;
+const X1 = 780;
+/** Left table: label | value | Arabic label. */
+const L = [X0, 120, 330, 436] as const;
+/** Right table: label | value | Arabic label. */
+const R = [442, 540, 660, X1] as const;
+/** Top block, right of the ID photo: label | value | Arabic label. */
+const PHOTO_X1 = 135;
+const T = [PHOTO_X1, 240, 630, X1] as const;
 
-/** Cell on the template's measured grid (y values are pre-stretch). */
-function G(p: CellProps) {
-  return <Cell {...p} y0={y(p.y0)} y1={y(p.y1)} />;
-}
+const TOP = 126;
+const REF_H = 28;
+const POST_H = 42;
+const NAME_Y = TOP + REF_H + 3 * POST_H; // 280
+const TITLES_Y = NAME_Y + 30; // 310
+const ROWS_Y = TITLES_Y + 28; // 338
+const ROW_H = 27;
+const LANG_Y = ROWS_Y + 12 * ROW_H; // 662
+const LEVEL_H = 25;
+const EMP_Y = LANG_Y + 30 + 28 + 4 * LEVEL_H; // 820
+const WORK_Y = EMP_Y + 30 + 2 * 26; // 902
+const SKILLS_Y = WORK_Y + 30 + 26 + 26; // 984
+const SKILL_HEAD_H = 56;
+const SKILLS_Y1 = SKILLS_Y + SKILL_HEAD_H + 44; // 1084
+const FULL_PHOTO_Y = ROWS_Y + 4 * ROW_H; // 446
 
 function ArLabel({
   children,
@@ -44,19 +65,89 @@ function ArLabel({
   return <Ar style={{ ...AR, fontSize: size, color }}>{children}</Ar>;
 }
 
-const LEVEL_ROWS: Array<[LevelStep, string, number, number]> = [
-  ["POOR", "لا شيء", 634, 666],
-  ["LITTLE", "قليل", 666, 687],
-  ["FAIR", "وسط", 687, 708],
-  ["FLUENT", "ممتاز", 708, 730],
+/** Section title row: English left, Arabic right. */
+function Title({
+  x0,
+  x1,
+  y0,
+  y1,
+  en,
+  ar,
+  size = 14,
+}: {
+  x0: number;
+  x1: number;
+  y0: number;
+  y1: number;
+  en: string;
+  ar: string;
+  size?: number;
+}) {
+  return (
+    <Cell x0={x0} y0={y0} x1={x1} y1={y1} pad={8}>
+      <div
+        style={{
+          display: "flex",
+          width: "100%",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <span style={{ ...LABEL, fontSize: size }}>{en}</span>
+        <ArLabel size={size + 0.5}>{ar}</ArLabel>
+      </div>
+    </Cell>
+  );
+}
+
+/** label | value | Arabic label across the given column edges. */
+function Row({
+  cols,
+  y0,
+  y1,
+  en,
+  ar,
+  children,
+  labelSize,
+}: {
+  cols: readonly [number, number, number, number];
+  y0: number;
+  y1: number;
+  en: React.ReactNode;
+  ar: string;
+  children?: React.ReactNode;
+  labelSize?: number;
+}) {
+  return (
+    <>
+      <Cell x0={cols[0]} y0={y0} x1={cols[1]} y1={y1} bg={LIGHT} pad={6}>
+        <span style={{ ...LABEL, fontSize: labelSize ?? LABEL.fontSize }}>{en}</span>
+      </Cell>
+      <Cell x0={cols[1]} y0={y0} x1={cols[2]} y1={y1} align="center">
+        {children}
+      </Cell>
+      <Cell x0={cols[2]} y0={y0} x1={cols[3]} y1={y1} bg={LIGHT} align="right" pad={6}>
+        <ArLabel>{ar}</ArLabel>
+      </Cell>
+    </>
+  );
+}
+
+const LEVEL_ROWS: Array<[LevelStep, string]> = [
+  ["POOR", "لا شيء"],
+  ["LITTLE", "قليل"],
+  ["FAIR", "وسط"],
+  ["FLUENT", "ممتاز"],
 ];
 
-const SKILL_COLS: Array<[SkillKey[], string, string, number, number]> = [
-  [["babySitting", "childCare"], "جليسة أطفال", "Baby Sitting", 12, 118],
-  [["cleaning"], "التنظيف", "Cleaning", 118, 225],
-  [["cooking"], "الطبخ", "Cooking", 225, 330],
-  [["washing"], "الغسيل", "Washing", 330, 444],
+const SKILL_COLS: Array<[SkillKey[], string, string]> = [
+  [["babySitting", "childCare"], "جليسة أطفال", "Baby Sitting"],
+  [["cleaning"], "التنظيف", "Cleaning"],
+  [["cooking"], "الطبخ", "Cooking"],
+  [["washing"], "الغسيل", "Washing"],
 ];
+/** Skill columns split the left table into four equal parts. */
+const SKILL_X = [L[0], 120, 225, 330, L[3]];
 
 function today(): string {
   const d = new Date();
@@ -64,25 +155,37 @@ function today(): string {
 }
 
 export function TadbeerCv({ d }: { d: CvData }) {
-  const leftRows: Array<[string, string, string, number, number]> = [
-    ["Nationality", "الجنسية", d.nationalityEn, 320, 342],
-    ["Religion", "الديانة", d.religionEn, 342, 364],
-    ["Date of Birth", "تاريخ الميلاد", d.dob, 364, 383],
-    ["AGE", "العمر", d.age, 383, 399],
-    ["Place Of  Birth", "مكان الميلاد", d.birthPlace, 399, 417],
-    ["Living Town", "مكان السكن", d.livingTown, 417, 437],
-    ["Marital Status", "الحالة الاجتماعية", d.maritalEn, 437, 455],
-    ["No. Of Children", "عدد الأطفال", d.children, 455, 472],
-    ["Weight", "الوزن", d.weight, 472, 495],
-    ["Height", "الطول", d.height, 495, 515],
-    ["Complexion", "لون البشرة", "", 515, 532],
+  const leftRows: Array<[string, string, string]> = [
+    ["Nationality", "الجنسية", d.nationalityEn],
+    ["Religion", "الديانة", d.religionEn],
+    ["Date of Birth", "تاريخ الميلاد", d.dob],
+    ["Age", "العمر", d.age],
+    ["Place of Birth", "مكان الميلاد", d.birthPlace],
+    ["Living Town", "مكان السكن", d.livingTown],
+    ["Marital Status", "الحالة الاجتماعية", d.maritalEn],
+    ["No. of Children", "عدد الأطفال", d.children],
+    ["Weight", "الوزن", d.weight],
+    ["Height", "الطول", d.height],
+    ["Complexion", "لون البشرة", ""],
+    ["Education", "الدرجة العلمية", d.educationEn],
   ];
-  const passportRows: Array<[string, string, string, number, number]> = [
-    ["Passport No.", "رقم الجواز", d.passportNo, 320, 342],
-    ["Date Of Issue", "تاريخ الاصدار", d.passportIssue, 342, 364],
-    ["Place Of  Issue", "مكان الاصدار", d.placeOfIssue, 364, 383],
-    ["Date Of  EXP.", "تاريخ الانتهاء", d.passportExpiry, 383, 399],
+  const passportRows: Array<[string, string, string]> = [
+    ["Passport No.", "رقم الجواز", d.passportNo],
+    ["Date of Issue", "تاريخ الاصدار", d.passportIssue],
+    ["Place of Issue", "مكان الاصدار", d.placeOfIssue],
+    ["Date of Expiry", "تاريخ الانتهاء", d.passportExpiry],
   ];
+  const postRows: Array<[string, string, string]> = [
+    ["Post Applied For", "الوظيفة", d.occupationEn],
+    ["Monthly Salary", "الراتب الشهري", d.salary],
+    ["Contract Period", "مدة العقد", "02 Years"],
+  ];
+
+  // Full-size photo panel spans the passport rows' bottom to the work-experience end.
+  const panel = { x0: R[0], y0: FULL_PHOTO_Y, x1: R[3], y1: SKILLS_Y };
+  const inset = 9;
+  const BUTTONS_H = 40;
+  const photoH = panel.y1 - panel.y0 - inset * 2 - (d.video ? BUTTONS_H + inset : 0);
 
   return (
     <Page>
@@ -90,200 +193,137 @@ export function TadbeerCv({ d }: { d: CvData }) {
       <img
         src="/cv-assets/tadbeer-logo.png"
         alt=""
-        style={{ position: "absolute", left: 41, top: y(62), width: 196, height: 66 }}
-      />
-      <img
-        src="/cv-assets/tadbeer-flag.png"
-        alt=""
-        style={{ position: "absolute", left: 540, top: y(0), width: 226, height: 198 }}
+        style={{ position: "absolute", left: 30, top: 32, width: 186, height: 63 }}
       />
       <div
         style={{
           position: "absolute",
-          left: 300,
-          top: y(88),
-          width: 160,
+          left: 237,
+          top: 44,
+          width: 320,
           textAlign: "center",
           color: BLUE_TITLE,
-          fontSize: 24,
+          fontSize: 26,
           fontWeight: 700,
-          fontFamily: "'Times New Roman', serif",
         }}
       >
         <Ar style={{ fontFamily: "'Times New Roman', Arial, serif" }}>سيرة ذاتية</Ar>
       </div>
+      <img
+        src="/cv-assets/tadbeer-flag.png"
+        alt=""
+        style={{ position: "absolute", left: 650, top: 8, width: 124, height: 109 }}
+      />
 
-      {/* Ref / date / destination */}
-      <G x0={12} y0={150} x1={135} y1={168} />
-      <G x0={135} y0={150} x1={240} y1={168} bg={DARK} align="center">
-        <span style={{ ...LABEL, fontSize: 10.4, color: "#fff" }}>REF. NO</span>
-      </G>
-      <G x0={240} y0={150} x1={377} y1={168} align="center">
-        <span style={VALUE}>{d.serial || "-"}</span>
-      </G>
-      <G x0={377} y0={150} x1={444} y1={168} bg={DARK} align="center">
-        <span style={{ ...LABEL, fontSize: 10.4, color: "#fff" }}>DATE</span>
-      </G>
-      <G x0={444} y0={150} x1={560} y1={168} align="center">
-        <span style={VALUE}>{today()}</span>
-      </G>
-      <G x0={560} y0={150} x1={629} y1={168} bg={DARK} align="center">
-        <span style={{ ...LABEL, fontSize: 10.4, color: "#fff" }}>TO</span>
-      </G>
-      <G x0={629} y0={150} x1={788} y1={168} align="center">
-        <span style={VALUE}>KSA</span>
-      </G>
-      <G x0={135} y0={168} x1={788} y1={182} />
-
-      {/* Head photo */}
-      <G x0={12} y0={168} x1={135} y1={276} pad={0}>
+      {/* ID photo: fills the top-left block down to the name row */}
+      <Cell x0={X0} y0={TOP} x1={PHOTO_X1} y1={NAME_Y} pad={0}>
         <PhotoBox
           src={d.photos.photo}
           fit="cover"
           position="center top"
           style={{ width: "100%", height: "100%" }}
         />
-      </G>
+      </Cell>
 
-      {/* Post / salary / contract */}
+      {/* Ref / date / destination */}
       {(
         [
-          ["Post Applied For", "الوظيفة", d.occupationEn, 182, 212, 15.6],
-          ["Monthly Salary", "الراتب الشهري", d.salary, 212, 231, 15.6],
-          ["Contract Period", "مدة العقد", "02 Years", 231, 276, 15.6],
+          ["REF. NO", d.serial || "-", PHOTO_X1, 240, 377],
+          ["DATE", today(), 377, 444, 560],
+          ["TO", "KSA", 560, 629, X1],
         ] as const
-      ).map(([en, ar, v, a, b, size]) => (
-        <React.Fragment key={en}>
-          <G
-            x0={135}
-            y0={a}
-            x1={240}
-            y1={b}
-            bg={LIGHT}
-            align="center"
-            valign="top"
-            style={{ paddingTop: 2 }}
-          >
-            <span style={LABEL}>{en}</span>
-          </G>
-          <G x0={240} y0={a} x1={630} y1={b} align="center" valign="top" style={{ paddingTop: 1 }}>
-            <span style={{ ...VALUE, fontSize: size }}>{v}</span>
-          </G>
-          <G
-            x0={630}
-            y0={a}
-            x1={788}
-            y1={b}
-            bg={LIGHT}
-            align="right"
-            valign="top"
-            style={{ paddingTop: 2 }}
-          >
-            <ArLabel>{ar}</ArLabel>
-          </G>
+      ).map(([label, value, a, b, c]) => (
+        <React.Fragment key={label}>
+          <Cell x0={a} y0={TOP} x1={b} y1={TOP + REF_H} bg={DARK} align="center">
+            <span style={{ ...LABEL, fontSize: 10.5, color: "#fff" }}>{label}</span>
+          </Cell>
+          <Cell x0={b} y0={TOP} x1={c} y1={TOP + REF_H} align="center">
+            <span style={VALUE}>{value}</span>
+          </Cell>
         </React.Fragment>
       ))}
+
+      {/* Post / salary / contract */}
+      {postRows.map(([en, ar, v], i) => {
+        const y0 = TOP + REF_H + i * POST_H;
+        return (
+          <Row key={en} cols={T} y0={y0} y1={y0 + POST_H} en={en} ar={ar}>
+            <span style={{ ...VALUE, fontSize: 16 }}>{v}</span>
+          </Row>
+        );
+      })}
 
       {/* Name */}
-      <G x0={12} y0={276} x1={240} y1={301} bg={DARK} align="center">
-        <span style={{ ...LABEL, fontSize: 12.9, color: "#fff" }}>NAME IN FULL</span>
-      </G>
-      <G x0={240} y0={276} x1={630} y1={301} align="center">
-        <span style={{ ...LABEL, fontSize: 13.5 }}>{d.fullName}</span>
-      </G>
-      <G x0={630} y0={276} x1={788} y1={301} bg={DARK} align="center">
-        <ArLabel size={15.6} color="#fff">
+      <Cell x0={X0} y0={NAME_Y} x1={T[1]} y1={TITLES_Y} bg={DARK} align="center">
+        <span style={{ ...LABEL, fontSize: 13, color: "#fff" }}>NAME IN FULL</span>
+      </Cell>
+      <Cell x0={T[1]} y0={NAME_Y} x1={T[2]} y1={TITLES_Y} align="center">
+        <span style={{ ...LABEL, fontSize: 14 }}>{d.fullName}</span>
+      </Cell>
+      <Cell x0={T[2]} y0={NAME_Y} x1={X1} y1={TITLES_Y} bg={DARK} align="center">
+        <ArLabel size={15.5} color="#fff">
           الاسم الكامل
         </ArLabel>
-      </G>
+      </Cell>
 
       {/* Section titles */}
-      <G x0={12} y0={301} x1={441} y1={320} pad={2}>
-        <div
-          style={{
-            display: "flex",
-            width: "100%",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <span style={{ ...LABEL, fontSize: 15.6 }}>DETAILS OF APPLICATION</span>
-          <ArLabel size={15}>بيانات صاحب العمل</ArLabel>
-        </div>
-      </G>
-      <G x0={446} y0={301} x1={788} y1={320} pad={2}>
-        <div
-          style={{
-            display: "flex",
-            width: "100%",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <span style={{ ...LABEL, fontSize: 14.3 }}>PASSPORT DETAILS</span>
-          <ArLabel size={15}>بيانات جواز السفر</ArLabel>
-        </div>
-      </G>
+      <Title
+        x0={L[0]}
+        x1={L[3]}
+        y0={TITLES_Y}
+        y1={ROWS_Y}
+        en="DETAILS OF APPLICATION"
+        ar="بيانات صاحب العمل"
+      />
+      <Title
+        x0={R[0]}
+        x1={R[3]}
+        y0={TITLES_Y}
+        y1={ROWS_Y}
+        en="PASSPORT DETAILS"
+        ar="بيانات جواز السفر"
+      />
 
       {/* Application details */}
-      {leftRows.map(([en, ar, v, a, b]) => (
-        <React.Fragment key={en}>
-          <G x0={12} y0={a} x1={118} y1={b} bg={LIGHT} pad={2}>
-            <span style={LABEL}>{en}</span>
-          </G>
-          <G x0={118} y0={a} x1={337} y1={b} align="center">
-            <span style={VALUE}>{v}</span>
-          </G>
-          <G x0={337} y0={a} x1={441} y1={b} bg={LIGHT} align="right" pad={2}>
-            <ArLabel>{ar}</ArLabel>
-          </G>
-        </React.Fragment>
+      {leftRows.map(([en, ar, v], i) => (
+        <Row
+          key={en}
+          cols={L}
+          y0={ROWS_Y + i * ROW_H}
+          y1={ROWS_Y + (i + 1) * ROW_H}
+          en={en}
+          ar={ar}
+        >
+          <span style={VALUE}>{v}</span>
+        </Row>
       ))}
-      <G x0={12} y0={532} x1={118} y1={567} bg={LIGHT} pad={2}>
-        <span style={LABEL}>
-          Educational
-          <br />
-          Qualification
-        </span>
-      </G>
-      <G x0={118} y0={532} x1={337} y1={567} align="center">
-        <span style={VALUE}>{d.educationEn}</span>
-      </G>
-      <G x0={337} y0={532} x1={441} y1={567} bg={LIGHT} align="right" pad={2}>
-        <ArLabel>الدرجة العلمية</ArLabel>
-      </G>
 
       {/* Passport details */}
-      {passportRows.map(([en, ar, v, a, b]) => (
-        <React.Fragment key={en}>
-          <G x0={446} y0={a} x1={541} y1={b} bg={LIGHT} pad={2}>
-            <span style={{ ...LABEL, fontSize: 10.4 }}>{en}</span>
-          </G>
-          <G x0={541} y0={a} x1={661} y1={b} align="center">
-            <span style={{ ...LABEL, fontSize: 12 }}>{v}</span>
-          </G>
-          <G x0={661} y0={a} x1={788} y1={b} bg={LIGHT} align="right" pad={2}>
-            <ArLabel>{ar}</ArLabel>
-          </G>
-        </React.Fragment>
+      {passportRows.map(([en, ar, v], i) => (
+        <Row
+          key={en}
+          cols={R}
+          y0={ROWS_Y + i * ROW_H}
+          y1={ROWS_Y + (i + 1) * ROW_H}
+          en={en}
+          ar={ar}
+          labelSize={10.5}
+        >
+          <span style={{ ...LABEL, fontSize: 12.5 }}>{v}</span>
+        </Row>
       ))}
-      <G x0={446} y0={399} x1={788} y1={432} pad={3}>
-        <span style={{ ...VALUE, fontSize: 12.9 }}>
-          HOUSE MAID{" "}
-          <span style={{ fontFamily: "Calibri, Arial, sans-serif", fontSize: 15.6 }}>MOB:</span>{" "}
-          {d.phone1}
-        </span>
-      </G>
-      <G x0={446} y0={432} x1={788} y1={881} pad={0}>
+
+      {/* Full-size photo + video buttons */}
+      <Cell x0={panel.x0} y0={panel.y0} x1={panel.x1} y1={panel.y1} pad={0}>
         <PhotoBox
           src={d.photos.fullPhoto}
           fit="contain"
           style={{
             position: "absolute",
-            left: 11,
-            top: 6,
-            width: 320,
-            height: y(846) - y(437),
+            left: inset,
+            top: inset,
+            right: inset,
+            height: photoH,
             border: d.photos.fullPhoto ? undefined : "1px solid #000",
           }}
           placeholder={
@@ -293,78 +333,87 @@ export function TadbeerCv({ d }: { d: CvData }) {
                 left: 6,
                 top: 4,
                 fontFamily: "'Times New Roman', serif",
-                fontSize: 12.9,
+                fontSize: 13,
               }}
             >
               Full size photo
             </span>
           }
         />
-      </G>
+        {d.video && (
+          <VideoButtons
+            play={d.video.play}
+            download={d.video.download}
+            color={DARK}
+            height={BUTTONS_H}
+            style={{ position: "absolute", left: inset, right: inset, bottom: inset }}
+          />
+        )}
+      </Cell>
 
       {/* Languages */}
-      <G x0={12} y0={567} x1={441} y1={600} pad={12}>
-        <div
-          style={{
-            display: "flex",
-            width: "100%",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <span style={{ ...LABEL, fontSize: 16.8 }}>KNOWLEDGE LANGUAGES</span>
-          <ArLabel size={15.6}>إجادة اللغات</ArLabel>
-        </div>
-      </G>
-      <G x0={12} y0={600} x1={118} y1={634} bg={DARK} align="center">
-        <span style={{ ...LABEL, fontSize: 10.4, color: "#fff" }}>ENGLISH</span>
-      </G>
-      <G x0={118} y0={600} x1={230} y1={634} bg={DARK} align="center">
-        <ArLabel color="#fff">إنجليزي</ArLabel>
-      </G>
-      <G x0={230} y0={600} x1={337} y1={634} bg={DARK} align="center">
-        <span style={{ ...LABEL, fontSize: 10.4, color: "#fff" }}>ARABIC</span>
-      </G>
-      <G x0={337} y0={600} x1={441} y1={634} bg={DARK} align="center">
-        <ArLabel size={15.6} color="#fff">
-          عربي
-        </ArLabel>
-      </G>
-      {LEVEL_ROWS.map(([step, ar, a, b]) => (
-        <React.Fragment key={step}>
-          <G x0={12} y0={a} x1={118} y1={b} bg={LIGHT} align="center">
-            <span style={{ ...LABEL, fontSize: 10.4 }}>{step}</span>
-          </G>
-          <G x0={118} y0={a} x1={230} y1={b} align="center">
-            {d.englishStep === step && <Tick size={13} />}
-          </G>
-          <G x0={230} y0={a} x1={337} y1={b} align="center">
-            {d.arabicStep === step && <Tick size={13} />}
-          </G>
-          <G x0={337} y0={a} x1={441} y1={b} bg={LIGHT} align="center">
-            <ArLabel>{ar}</ArLabel>
-          </G>
-        </React.Fragment>
+      <Title
+        x0={L[0]}
+        x1={L[3]}
+        y0={LANG_Y}
+        y1={LANG_Y + 30}
+        en="KNOWLEDGE LANGUAGES"
+        ar="إجادة اللغات"
+        size={15}
+      />
+      {(
+        [
+          [<span style={{ ...LABEL, fontSize: 10.5, color: "#fff" }}>ENGLISH</span>, L[0], L[1]],
+          [<ArLabel color="#fff">إنجليزي</ArLabel>, L[1], 225],
+          [<span style={{ ...LABEL, fontSize: 10.5, color: "#fff" }}>ARABIC</span>, 225, L[2]],
+          [
+            <ArLabel size={15} color="#fff">
+              عربي
+            </ArLabel>,
+            L[2],
+            L[3],
+          ],
+        ] as const
+      ).map(([content, a, b]) => (
+        <Cell key={a} x0={a} y0={LANG_Y + 30} x1={b} y1={LANG_Y + 58} bg={DARK} align="center">
+          {content}
+        </Cell>
       ))}
+      {LEVEL_ROWS.map(([step, ar], i) => {
+        const y0 = LANG_Y + 58 + i * LEVEL_H;
+        const y1 = y0 + LEVEL_H;
+        return (
+          <React.Fragment key={step}>
+            <Cell x0={L[0]} y0={y0} x1={L[1]} y1={y1} bg={LIGHT} align="center">
+              <span style={{ ...LABEL, fontSize: 10.5 }}>{step}</span>
+            </Cell>
+            <Cell x0={L[1]} y0={y0} x1={225} y1={y1} align="center">
+              {d.englishStep === step && <Tick size={13} />}
+            </Cell>
+            <Cell x0={225} y0={y0} x1={L[2]} y1={y1} align="center">
+              {d.arabicStep === step && <Tick size={13} />}
+            </Cell>
+            <Cell x0={L[2]} y0={y0} x1={L[3]} y1={y1} bg={LIGHT} align="center">
+              <ArLabel>{ar}</ArLabel>
+            </Cell>
+          </React.Fragment>
+        );
+      })}
 
       {/* Previous employment */}
-      <G x0={12} y0={730} x1={441} y1={758} pad={10}>
-        <div
-          style={{
-            display: "flex",
-            width: "100%",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <span style={{ ...LABEL, fontSize: 12.9 }}>PREVIOUS EMPLOYMENT ABROAD</span>
-          <ArLabel size={15.6}>الخبرة خارج البلد</ArLabel>
-        </div>
-      </G>
-      <G x0={12} y0={758} x1={118} y1={779} bg={DARK} pad={2}>
-        <span style={{ ...LABEL, fontSize: 9, color: "#fff" }}>COUNTRY</span>
-      </G>
-      <G x0={118} y0={758} x1={337} y1={779} align="center">
+      <Title
+        x0={L[0]}
+        x1={L[3]}
+        y0={EMP_Y}
+        y1={EMP_Y + 30}
+        en="PREVIOUS EMPLOYMENT ABROAD"
+        ar="الخبرة خارج البلد"
+        size={13}
+      />
+      <Cell x0={L[0]} y0={EMP_Y + 30} x1={L[1]} y1={EMP_Y + 56} bg={DARK} pad={6}>
+        <span style={{ ...LABEL, fontSize: 10.5, color: "#fff" }}>COUNTRY</span>
+      </Cell>
+      <Cell x0={L[1]} y0={EMP_Y + 30} x1={L[2]} y1={EMP_Y + 56} align="center">
         {d.isFirstTime ? (
           <span style={{ ...VALUE, color: "#ff0000" }}>
             1<sup style={{ fontSize: 8.4 }}>ST</sup> TIME
@@ -372,93 +421,94 @@ export function TadbeerCv({ d }: { d: CvData }) {
         ) : (
           <span style={VALUE}>{d.experienceCountry}</span>
         )}
-      </G>
-      <G x0={337} y0={758} x1={441} y1={779} bg={DARK} align="center">
-        <ArLabel size={15.6} color="#fff">
+      </Cell>
+      <Cell x0={L[2]} y0={EMP_Y + 30} x1={L[3]} y1={EMP_Y + 56} bg={DARK} align="right" pad={6}>
+        <ArLabel size={14} color="#fff">
           البلد
         </ArLabel>
-      </G>
-      <G x0={12} y0={779} x1={118} y1={799} bg={LIGHT} pad={2}>
-        <span style={{ ...LABEL, fontSize: 10.4 }}>PERIOD</span>
-      </G>
-      <G x0={118} y0={779} x1={337} y1={799} align="center">
-        <span style={{ ...VALUE, fontWeight: 400, fontSize: 11.7 }}>
-          {d.experienceYears || "0"}
-        </span>
-      </G>
-      <G x0={337} y0={779} x1={441} y1={799} bg={LIGHT} align="center">
-        <ArLabel size={15.6}>المدة</ArLabel>
-      </G>
+      </Cell>
+      <Row cols={L} y0={EMP_Y + 56} y1={EMP_Y + 82} en="PERIOD" ar="المدة" labelSize={10.5}>
+        <span style={VALUE}>{d.experienceYears || "0"}</span>
+      </Row>
 
       {/* Work experience */}
-      <G x0={12} y0={799} x1={441} y1={831} pad={24}>
-        <div
-          style={{
-            display: "flex",
-            width: "100%",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <span style={{ ...LABEL, fontSize: 14.3 }}>EXPERIENCE WORK</span>
-          <ArLabel size={15.6}>خبرة العمل</ArLabel>
-        </div>
-      </G>
-      <G x0={12} y0={831} x1={118} y1={861} bg={LIGHT} align="center">
-        <ArLabel>الديكور</ArLabel>
-      </G>
-      <G x0={118} y0={831} x1={337} y1={861} bg={LIGHT} align="center">
-        <ArLabel>القيادة</ArLabel>
-      </G>
-      <G x0={337} y0={831} x1={441} y1={861} bg={LIGHT} align="center">
-        <ArLabel>الخياطة</ArLabel>
-      </G>
-      <G x0={12} y0={861} x1={118} y1={881} align="center">
-        <span style={VALUE}>YES</span>
-      </G>
-      <G x0={118} y0={861} x1={337} y1={881} />
-      <G x0={337} y0={861} x1={441} y1={881} align="center">
-        <span style={VALUE}>YES</span>
-      </G>
-
-      {/* Skills */}
-      {SKILL_COLS.map(([keys, ar, en, a, b]) => (
-        <React.Fragment key={en}>
-          <G
-            x0={a}
-            y0={881}
-            x1={b}
-            y1={937}
-            bg={LIGHT}
-            align="center"
-            style={{ justifyContent: "space-between", padding: "4px 2px" }}
-          >
+      <Title
+        x0={L[0]}
+        x1={L[3]}
+        y0={WORK_Y}
+        y1={WORK_Y + 30}
+        en="EXPERIENCE WORK"
+        ar="خبرة العمل"
+      />
+      {(
+        [
+          ["الديكور", "YES", L[0], L[1]],
+          ["القيادة", "", L[1], L[2]],
+          ["الخياطة", "YES", L[2], L[3]],
+        ] as const
+      ).map(([ar, v, a, b]) => (
+        <React.Fragment key={ar}>
+          <Cell x0={a} y0={WORK_Y + 30} x1={b} y1={WORK_Y + 56} bg={LIGHT} align="center">
             <ArLabel>{ar}</ArLabel>
-            <span style={{ ...LABEL, fontSize: 10.4 }}>{en}</span>
-          </G>
-          <G x0={a} y0={937} x1={b} y1={988} align="center">
-            {keys.some((k) => d.hasSkill(k)) && <Tick size={13} />}
-          </G>
+          </Cell>
+          <Cell x0={a} y0={WORK_Y + 56} x1={b} y1={SKILLS_Y} align="center">
+            {v && <span style={VALUE}>{v}</span>}
+          </Cell>
         </React.Fragment>
       ))}
-      <G x0={444} y0={881} x1={523} y1={937} bg={LIGHT} align="center">
-        <span style={LABEL}>Deduction</span>
-      </G>
-      <G x0={523} y0={881} x1={720} y1={937} />
-      <G x0={720} y0={881} x1={788} y1={937} bg={LIGHT} align="center" pad={1}>
-        <ArLabel size={12}>المبلغ المقتطع</ArLabel>
-      </G>
-      <G x0={444} y0={937} x1={523} y1={988} bg={LIGHT} align="center">
-        <span style={LABEL}>Notes</span>
-      </G>
-      <G x0={523} y0={937} x1={720} y1={988} align="center">
-        <span style={VALUE}>
-          She is ready to for <span style={{ fontSize: 9 }}>KSA</span>
-        </span>
-      </G>
-      <G x0={720} y0={937} x1={788} y1={988} bg={LIGHT} align="center">
-        <ArLabel>ملاحظات</ArLabel>
-      </G>
+
+      {/* Skills */}
+      {SKILL_COLS.map(([keys, ar, en], i) => (
+        <React.Fragment key={en}>
+          <Cell
+            x0={SKILL_X[i]}
+            y0={SKILLS_Y}
+            x1={SKILL_X[i + 1]}
+            y1={SKILLS_Y + SKILL_HEAD_H}
+            bg={LIGHT}
+            align="center"
+            style={{ justifyContent: "space-evenly" }}
+          >
+            <ArLabel>{ar}</ArLabel>
+            <span style={{ ...LABEL, fontSize: 10.5 }}>{en}</span>
+          </Cell>
+          <Cell
+            x0={SKILL_X[i]}
+            y0={SKILLS_Y + SKILL_HEAD_H}
+            x1={SKILL_X[i + 1]}
+            y1={SKILLS_Y1}
+            align="center"
+          >
+            {keys.some((k) => d.hasSkill(k)) && <Tick size={13} />}
+          </Cell>
+        </React.Fragment>
+      ))}
+
+      {/* Deduction / notes */}
+      {(
+        [
+          ["Deduction", "", "المبلغ المقتطع", SKILLS_Y, SKILLS_Y + SKILL_HEAD_H],
+          [
+            "Notes",
+            <span style={VALUE}>She is ready for KSA</span>,
+            "ملاحظات",
+            SKILLS_Y + SKILL_HEAD_H,
+            SKILLS_Y1,
+          ],
+        ] as const
+      ).map(([en, v, ar, a, b]) => (
+        <React.Fragment key={en}>
+          <Cell x0={R[0]} y0={a} x1={R[1]} y1={b} bg={LIGHT} align="center">
+            <span style={LABEL}>{en}</span>
+          </Cell>
+          <Cell x0={R[1]} y0={a} x1={700} y1={b} align="center">
+            {v}
+          </Cell>
+          <Cell x0={700} y0={a} x1={R[3]} y1={b} bg={LIGHT} align="center" pad={2}>
+            <ArLabel size={12}>{ar}</ArLabel>
+          </Cell>
+        </React.Fragment>
+      ))}
     </Page>
   );
 }

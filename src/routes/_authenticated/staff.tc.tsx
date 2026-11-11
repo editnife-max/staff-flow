@@ -155,6 +155,12 @@ const initialFilters = {
   cv_sent_to: [] as string[],
 };
 
+const toNumOrNull = (v: string | number | null | undefined): number | null => {
+  if (v === "" || v == null) return null;
+  const n = Number(v);
+  return isNaN(n) ? null : n;
+};
+
 const initialForm = {
   first_name: "", last_name: "",
   photo_url: "", full_photo_url: "", passport_scan_url: "",
@@ -425,6 +431,9 @@ function TcPage() {
         ...f,
         full_name: [f.first_name, f.last_name].filter(Boolean).join(" ") || f.first_name || f.last_name || "",
         availability_type: "TC",
+        children: toNumOrNull(f.children),
+        weight: toNumOrNull(f.weight),
+        height: toNumOrNull(f.height),
       };
       return upsert({ data: { id: editing?.id, data: payload as never } });
     },
