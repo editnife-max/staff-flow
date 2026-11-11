@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Search, FilePlus, RotateCcw, FileText,
   ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
-  Globe, ScanSearch, Loader2, ChevronLeft, ChevronRight, Download,
+  Globe, ScanSearch, Loader2, ChevronLeft, ChevronRight, Download, AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -593,27 +593,78 @@ function TcPage() {
         const stats = [
           { label: "Entered Girls", count: enteredCount, view: "entered" as const,
             bg: "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800",
-            value: "text-blue-700 dark:text-blue-300", bar: "bg-blue-500" },
+            value: "text-blue-700 dark:text-blue-300" },
           { label: "Failed Girls",  count: failedCount,  view: "failed"  as const,
             bg: "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800",
-            value: "text-red-700 dark:text-red-300",   bar: "bg-red-400" },
+            value: "text-red-700 dark:text-red-300" },
           { label: "Trained Girls", count: trainedCount, view: "trained" as const,
             bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800",
-            value: "text-emerald-700 dark:text-emerald-300", bar: "bg-emerald-500" },
+            value: "text-emerald-700 dark:text-emerald-300" },
         ];
+
+        const tcPool = allCandidates.filter((c) => c.availability_type === "TC" || c.availability_type === "TC_failed");
+        const noAvatar  = tcPool.filter((c) => !(c as any).photo_url);
+        const noProfile = tcPool.filter((c) => !(c as any).full_photo_url);
+        const noVideo   = allCandidates.filter((c) => c.availability_type === "TC" && !c.video_url);
+
+        const WARNINGS = [
+          { key: "avatar",  label: "No Avatar Photo",         list: noAvatar  },
+          { key: "profile", label: "No Full Profile Photo",   list: noProfile },
+          { key: "video",   label: "No Video Link",           list: noVideo   },
+        ].filter((w) => w.list.length > 0);
+
+        const viewForCandidate = (c: Candidate) =>
+          c.availability_type === "TC_failed" ? "failed" as const
+          : (c as any).video_url ? "trained" as const
+          : "entered" as const;
+
         return (
-          <div className="grid grid-cols-3 gap-4">
-            {stats.map((s) => (
-              <button
-                key={s.label}
-                type="button"
-                onClick={() => navigate({ to: "/staff/tc", search: { nav: "cp", view: s.view }, replace: true })}
-                className={cn("rounded-none border p-5 text-left hover:opacity-90 transition-opacity", s.bg)}
-              >
-                <p className={cn("text-4xl font-bold tabular-nums leading-none", s.value)}>{s.count}</p>
-                <p className="text-sm text-muted-foreground mt-2 font-medium">{s.label}</p>
-              </button>
-            ))}
+          <div className="space-y-5">
+            <div className="grid grid-cols-3 gap-4">
+              {stats.map((s) => (
+                <button
+                  key={s.label}
+                  type="button"
+                  onClick={() => navigate({ to: "/staff/tc", search: { nav: "cp", view: s.view }, replace: true })}
+                  className={cn("rounded-none border p-5 text-left hover:opacity-90 transition-opacity", s.bg)}
+                >
+                  <p className={cn("text-4xl font-bold tabular-nums leading-none", s.value)}>{s.count}</p>
+                  <p className="text-sm text-muted-foreground mt-2 font-medium">{s.label}</p>
+                </button>
+              ))}
+            </div>
+
+            {WARNINGS.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Warnings</p>
+                {WARNINGS.map((w) => (
+                  <div key={w.key} className="border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 rounded-none p-3">
+                    <div className="flex items-center gap-2 mb-2.5">
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+                        {w.list.length} girl{w.list.length !== 1 ? "s" : ""} — {w.label}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {w.list.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            const v = viewForCandidate(c);
+                            navigate({ to: "/staff/tc", search: { nav: "cp", view: v }, replace: true });
+                            setCriteriaViewId(c.id);
+                          }}
+                          className="text-[11px] px-2 py-0.5 bg-white dark:bg-zinc-900 border border-amber-300 dark:border-amber-700 hover:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/50 transition-colors text-amber-900 dark:text-amber-200 rounded-sm"
+                        >
+                          {c.full_name ?? c.candidate_code ?? "Unknown"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
       })()}
