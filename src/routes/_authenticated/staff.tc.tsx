@@ -894,6 +894,12 @@ function TcPage() {
           agencyPhones={agencyPhones}
           narrativeSuggestions={opts.narrative}
           directDelete
+          onUndo={activeView === "failed" ? (id) => {
+            const c = allCandidates.find((x) => x.id === id);
+            fieldMut.mutate({ id, field: "availability_type", value: "TC" });
+            fieldMut.mutate({ id, field: "remark", value: null });
+            toast.success(`${c?.full_name ?? "Candidate"} moved back to Entered Girls`);
+          } : undefined}
           excludeCols={["CV SENT TO", "CV SENT DATE", "AVAILABILITY", "SELECTED BY"]}
           renderExtraColumns={(c) => (
             <CriteriaColumn
