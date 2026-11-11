@@ -239,6 +239,22 @@ function TcPage() {
     }
   }, [effectiveAccess, activeNav, activeView, deniedPages]);
 
+  // ── Warning modal state ──────────────────────────────────────────────────
+  const [warningModal, setWarningModal] = useState<"avatar" | "profile" | null>(null);
+
+  const noAvatar = useMemo(
+    () => allCandidates.filter((c) =>
+      (c.availability_type === "TC" || c.availability_type === "TC_failed") && !(c as any).photo_url,
+    ),
+    [allCandidates],
+  );
+  const noProfile = useMemo(
+    () => allCandidates.filter((c) =>
+      (c.availability_type === "TC" || c.availability_type === "TC_failed") && !(c as any).full_photo_url,
+    ),
+    [allCandidates],
+  );
+
   // ── Criteria dialog state ────────────────────────────────────────────────
   const [criteriaViewId, setCriteriaViewId] = useState<string | null>(null);
   const [criteriaStep, setCriteriaStep] = useState(0);
@@ -611,18 +627,10 @@ function TcPage() {
             value: "text-emerald-700 dark:text-emerald-300" },
         ];
 
-        const tcPool = allCandidates.filter((c) => c.availability_type === "TC" || c.availability_type === "TC_failed");
-        const noAvatar  = tcPool.filter((c) => !(c as any).photo_url);
-        const noProfile = tcPool.filter((c) => !(c as any).full_photo_url);
         const WARNINGS = [
-          { key: "avatar",  label: "No Avatar Photo",       list: noAvatar  },
-          { key: "profile", label: "No Full Profile Photo", list: noProfile },
+          { key: "avatar"  as const, label: "No Avatar Photo",      list: noAvatar  },
+          { key: "profile" as const, label: "No Full Profile Photo", list: noProfile },
         ].filter((w) => w.list.length > 0);
-
-        const viewForCandidate = (c: Candidate) =>
-          c.availability_type === "TC_failed" ? "failed" as const
-          : (c as any).video_url ? "trained" as const
-          : "entered" as const;
 
         return (
           <div className="grid grid-cols-3 gap-4 items-start">
@@ -642,18 +650,69 @@ function TcPage() {
             {WARNINGS.length > 0 && (
               <div className="space-y-2">
                 {WARNINGS.map((w) => (
-                  <div key={w.key} className="border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 rounded-none p-5">
+                  <button
+                    key={w.key}
+                    type="button"
+                    onClick={() => setWarningModal(w.key)}
+                    className="w-full text-left border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 rounded-none p-5 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors"
+                  >
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                       <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">
                         {w.list.length} girl{w.list.length !== 1 ? "s" : ""} — {w.label}
                       </span>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
           </div>
+        );
+      })()}
+
+      {/* ── Warning fix modal ────────────────────────────────── */}
+      {warningModal && (() => {
+        const isAvatar = warningModal === "avatar";
+        const list     = isAvatar ? noAvatar : noProfile;
+        const field    = isAvatar ? "photo_url" : "full_photo_url";
+        const title    = isAvatar ? "No Avatar Photo" : "No Full Profile Photo";
+        const label    = isAvatar ? "Avatar Photo" : "Full Profile Photo";
+
+        return (
+          <Dialog open onOpenChange={(o) => { if (!o) setWarningModal(null); }}>
+            <DialogContent className="max-w-lg p-0 overflow-hidden rounded-none flex flex-col" style={{ maxHeight: "82vh" }}>
+              <DialogHeader className="px-5 py-3 border-b shrink-0">
+                <DialogTitle className="text-sm font-semibold flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  {title} — {list.length} girl{list.length !== 1 ? "s" : ""}
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="flex-1 overflow-y-auto divide-y">
+                {list.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-10">All fixed ✓</p>
+                ) : list.map((c) => (
+                  <div key={c.id} className="flex items-start gap-4 px-5 py-4">
+                    <Avatar className="h-11 w-11 shrink-0 rounded-none">
+                      {(c as any).photo_url && <AvatarImage src={(c as any).photo_url} className="object-cover" />}
+                      <AvatarFallback className="rounded-none text-xs">{(c.full_name ?? "?")[0]}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium leading-tight">{c.full_name ?? "—"}</p>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        {[c.candidate_code, c.country, c.availability_type === "TC_failed" ? "Failed" : c.video_url ? "Trained" : "Entered"].filter(Boolean).join(" · ")}
+                      </p>
+                      <PhotoUpload
+                        label={label}
+                        value={(c as any)[field] ?? ""}
+                        onChange={(url) => fieldMut.mutate({ id: c.id, field, value: url })}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </DialogContent>
+          </Dialog>
         );
       })()}
 
