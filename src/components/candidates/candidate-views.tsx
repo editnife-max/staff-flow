@@ -220,7 +220,7 @@ export function ProcessingEditDialog({
 
 export function CandidateCardList({
   candidates, selected, onToggleSelect, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo,
-  countryMeta, officesByCountry, agencyOptions, agencyPhones, compact, narrativeSuggestions, showCvBadge, pageKey, renderExtraColumns, excludeCols,
+  countryMeta, officesByCountry, agencyOptions, agencyPhones, compact, narrativeSuggestions, showCvBadge, pageKey, renderExtraColumns, excludeCols, directDelete,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -233,6 +233,7 @@ export function CandidateCardList({
   cancelMode?: boolean;
   compact?: boolean;
   showCvBadge?: boolean;
+  directDelete?: boolean;
   onReturn?: (id: string) => void;
   onUndo?: (id: string, c: Candidate) => void;
   countryMeta: Array<{ name: string; flag: string }>;
@@ -486,6 +487,7 @@ export function CandidateCardList({
                   visibleCols={visibleCols}
                   cancelMode={cancelMode}
                   compact={compact}
+                  directDelete={directDelete}
                   meetsCvReq={cvReq ? checkMeetsCvReq(c, cvReq) : false}
                   onToggleSelect={() => onToggleSelect(c.id)}
                   onViewPhotos={() => setViewingPhotos(c)}
@@ -769,12 +771,13 @@ export function CandidateHistoryDialog({ candidateId, candidateName, createdAt, 
 }
 
 function CandidateCard({
-  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo, agencyOptions, agencyPhones, countryOptions, compact, narrativeSuggestions, meetsCvReq, renderExtraColumns,
+  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onView, onAction, onEdit, onDelete, onUpdateField, cancelMode, directDelete, onReturn, onUndo, agencyOptions, agencyPhones, countryOptions, compact, narrativeSuggestions, meetsCvReq, renderExtraColumns,
 }: {
   candidate: Candidate;
   selected: boolean;
   visibleCols: readonly string[];
   cancelMode?: boolean;
+  directDelete?: boolean;
   compact?: boolean;
   meetsCvReq?: boolean;
   onToggleSelect: () => void;
@@ -1133,7 +1136,7 @@ function CandidateCard({
               </button>
             )}
             <button
-              onClick={() => setDeleteRequestOpen(true)}
+              onClick={() => directDelete ? onDelete() : setDeleteRequestOpen(true)}
               className="text-xs text-destructive hover:underline"
             >
               Delete
