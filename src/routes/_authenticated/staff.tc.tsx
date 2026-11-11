@@ -112,13 +112,20 @@ function CriteriaColumn({ candidate, criteria, threshold, onOpen }: {
 export const Route = createFileRoute("/_authenticated/staff/tc")({
   head: () => ({ meta: [{ title: "Training Centre — Staff-Flow" }] }),
   validateSearch: z.object({
-    view: z.enum(["entered", "trained"]).optional(),
+    nav:  z.enum(["dashboard", "cp"]).optional(),
+    view: z.enum(["entered", "failed", "trained"]).optional(),
   }),
   component: TcPage,
 });
 
+const NAV_TABS = [
+  { key: "dashboard" as const, label: "Dashboard" },
+  { key: "cp"        as const, label: "CP"        },
+];
+
 const VIEW_TABS = [
   { key: "entered" as const, label: "Entered Girls" },
+  { key: "failed"  as const, label: "Failed Girls"  },
   { key: "trained" as const, label: "Trained Girls" },
 ];
 
@@ -160,8 +167,9 @@ function TcPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { view: viewParam } = Route.useSearch();
+  const { nav: navParam, view: viewParam } = Route.useSearch();
 
+  const activeNav  = navParam  ?? "dashboard";
   const activeView = viewParam ?? "entered";
 
   const [filters, setFilters] = useState(initialFilters);
@@ -202,6 +210,11 @@ function TcPage() {
 
   const deniedPages = useMemo(() => new Set(effectiveAccess?.deniedPages ?? []), [effectiveAccess]);
 
+  const allowedNavTabs = useMemo(
+    () => NAV_TABS.filter((n) => !deniedPages.has(n.key)),
+    [deniedPages],
+  );
+
   const allowedViews = useMemo(
     () => VIEW_TABS.filter((v) => !deniedPages.has(v.key)),
     [deniedPages],
@@ -209,11 +222,16 @@ function TcPage() {
 
   useEffect(() => {
     if (!effectiveAccess) return;
-    if (deniedPages.has(activeView)) {
-      const first = VIEW_TABS.find((v) => !deniedPages.has(v.key));
-      if (first) navigate({ to: "/staff/tc", search: { view: first.key }, replace: true });
+    if (deniedPages.has(activeNav)) {
+      const firstNav = NAV_TABS.find((n) => !deniedPages.has(n.key));
+      if (firstNav) navigate({ to: "/staff/tc", search: { nav: firstNav.key }, replace: true });
+      return;
     }
-  }, [effectiveAccess, activeView, deniedPages]);
+    if (activeNav === "cp" && deniedPages.has(activeView)) {
+      const firstView = VIEW_TABS.find((v) => !deniedPages.has(v.key));
+      if (firstView) navigate({ to: "/staff/tc", search: { nav: "cp", view: firstView.key }, replace: true });
+    }
+  }, [effectiveAccess, activeNav, activeView, deniedPages]);
 
   // ── Criteria dialog state ────────────────────────────────────────────────
   const [criteriaViewId, setCriteriaViewId] = useState<string | null>(null);
@@ -338,14 +356,15 @@ function TcPage() {
     [foreignAgencies],
   );
 
-  // TC candidates are marked by availability_type === "TC"; split by video presence
-  const basePool = useMemo(
-    () => allCandidates.filter((c) =>
+  // TC candidates split by view
+  const basePool = useMemo(() => {
+    if (activeView === "failed")
+      return allCandidates.filter((c) => c.availability_type === "TC_failed");
+    return allCandidates.filter((c) =>
       c.availability_type === "TC" &&
-      (activeView === "trained" ? !!c.video_url : !c.video_url)
-    ),
-    [allCandidates, activeView],
-  );
+      (activeView === "trained" ? !!c.video_url : !c.video_url),
+    );
+  }, [allCandidates, activeView]);
 
   const opts = useMemo(() => ({
     narrative: Array.from(new Set(basePool.map((c) => c.narrative ?? "").filter(Boolean))).sort(),
@@ -530,7 +549,7 @@ function TcPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold tracking-tight">Training Centre</h1>
         <div className="flex items-center gap-2">
-          {activeView === "entered" && (
+          {activeNav === "cp" && activeView === "entered" && (
             <Button size="sm" className="gap-2 text-xs h-8 rounded-none" onClick={openCreate}>
               <FilePlus className="h-4 w-4" /> ADD NEW CANDIDATE
             </Button>
@@ -547,6 +566,61 @@ function TcPage() {
         </div>
       </div>
 
+      {/* Top nav — Dashboard | CP */}
+      <div className="flex gap-1 border-b">
+        {allowedNavTabs.map((n) => (
+          <button
+            key={n.key}
+            type="button"
+            onClick={() => navigate({ to: "/staff/tc", search: { nav: n.key }, replace: true })}
+            className={cn(
+              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+              activeNav === n.key
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {n.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Dashboard ─────────────────────────────────────────── */}
+      {activeNav === "dashboard" && (() => {
+        const enteredCount = allCandidates.filter((c) => c.availability_type === "TC" && !c.video_url).length;
+        const failedCount  = allCandidates.filter((c) => c.availability_type === "TC_failed").length;
+        const trainedCount = allCandidates.filter((c) => c.availability_type === "TC" && !!c.video_url).length;
+        const stats = [
+          { label: "Entered Girls", count: enteredCount, view: "entered" as const,
+            bg: "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800",
+            value: "text-blue-700 dark:text-blue-300", bar: "bg-blue-500" },
+          { label: "Failed Girls",  count: failedCount,  view: "failed"  as const,
+            bg: "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800",
+            value: "text-red-700 dark:text-red-300",   bar: "bg-red-400" },
+          { label: "Trained Girls", count: trainedCount, view: "trained" as const,
+            bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800",
+            value: "text-emerald-700 dark:text-emerald-300", bar: "bg-emerald-500" },
+        ];
+        return (
+          <div className="grid grid-cols-3 gap-4">
+            {stats.map((s) => (
+              <button
+                key={s.label}
+                type="button"
+                onClick={() => navigate({ to: "/staff/tc", search: { nav: "cp", view: s.view }, replace: true })}
+                className={cn("rounded-none border p-5 text-left hover:opacity-90 transition-opacity", s.bg)}
+              >
+                <p className={cn("text-4xl font-bold tabular-nums leading-none", s.value)}>{s.count}</p>
+                <p className="text-sm text-muted-foreground mt-2 font-medium">{s.label}</p>
+              </button>
+            ))}
+          </div>
+        );
+      })()}
+
+      {/* ── CP ────────────────────────────────────────────────── */}
+      {activeNav === "cp" && <>
+
       {/* View tabs */}
       <div className="flex gap-1 border-b">
         {allowedViews.map((v) => (
@@ -555,7 +629,7 @@ function TcPage() {
             type="button"
             onClick={() => {
               setSelected(new Set());
-              navigate({ to: "/staff/tc", search: { view: v.key }, replace: true });
+              navigate({ to: "/staff/tc", search: { nav: "cp", view: v.key }, replace: true });
             }}
             className={cn(
               "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
@@ -1085,8 +1159,8 @@ function TcPage() {
                   <Button size="sm" variant="outline"
                     className="h-7 text-xs rounded-none text-destructive border-destructive/40 hover:bg-destructive/5"
                     onClick={() => {
-                      fieldMut.mutate({ id: cc.id, field: "availability_type", value: null });
-                      toast.success(`${cc.full_name ?? "Candidate"} removed from TC`);
+                      fieldMut.mutate({ id: cc.id, field: "availability_type", value: "TC_failed" });
+                      toast.success(`${cc.full_name ?? "Candidate"} moved to Failed Girls`);
                       closeCriteria();
                     }}>
                     Deny
@@ -1270,6 +1344,9 @@ function TcPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      </>}
+
     </div>
   );
 }
