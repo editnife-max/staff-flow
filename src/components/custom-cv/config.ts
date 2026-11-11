@@ -931,6 +931,10 @@ export function normalizeConfig(raw: unknown): CustomCvConfig {
   const t = obj(r.theme);
   const h = obj(r.header);
   const p = obj(r.photo);
+  const secondPhoto = obj(p.second);
+  // Older configs could make the passport photo primary and the full-size photo secondary.
+  // Migrate those visibility toggles to the new fixed roles before dropping `source`.
+  const legacyHeadFirst = p.source === "head";
   const n = obj(r.nameBlock);
   const f = obj(r.footer);
   const fontScale =
@@ -990,19 +994,23 @@ export function normalizeConfig(raw: unknown): CustomCvConfig {
       tagline: str(h.tagline, 90),
     },
     photo: {
-      show: bool(p.show, d.photo.show),
+      show: legacyHeadFirst
+        ? bool(secondPhoto.show, d.photo.second.show)
+        : bool(p.show, d.photo.show),
       shape: pick(p.shape, ["rect", "rounded", "circle"] as const, d.photo.shape),
       size: pick(p.size, ["s", "m", "l"] as const, d.photo.size),
       frame: bool(p.frame, d.photo.frame),
       videoButtons: bool(p.videoButtons, d.photo.videoButtons),
       second: {
-        show: bool(obj(p.second).show, d.photo.second.show),
+        show: legacyHeadFirst
+          ? bool(p.show, d.photo.show)
+          : bool(secondPhoto.show, d.photo.second.show),
         // Former templates could stack the two photos in a column or name band. Keep the
         // passport photo in a top corner after normalization.
-        placement: pick(obj(p.second).placement, SECOND_PLACEMENTS.map((x) => x.id), "header-left"),
-        size: pick(obj(p.second).size, ["s", "m", "l"] as const, d.photo.second.size),
+        placement: pick(secondPhoto.placement, SECOND_PLACEMENTS.map((x) => x.id), "header-left"),
+        size: pick(secondPhoto.size, ["s", "m", "l"] as const, d.photo.second.size),
         shape: pick(
-          obj(p.second).shape,
+          secondPhoto.shape,
           ["rect", "rounded", "circle"] as const,
           d.photo.second.shape,
         ),
