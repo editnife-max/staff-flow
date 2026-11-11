@@ -100,6 +100,7 @@ const InlineFieldSchema = z.object({
     "visa_pdf_url",
     "qr_url",
     "photo_url", "full_photo_url", "passport_scan_url",
+    "cv_approved",
   ]),
   value: z.string().nullable(),
 });
@@ -137,6 +138,7 @@ async function resolveCreatedByName(userId: string): Promise<string | null> {
 const UNTRACKED_FIELDS = new Set([
   "lmis_insu_url", "lmis_coc_url", "lmis_id_url", "lmis_id_relative_url", "video_url",
   "photo_url", "full_photo_url", "passport_scan_url", "medical_days", "ticket_pdf_url", "visa_pdf_url", "qr_url",
+  "cv_approved",
 ]);
 
 async function resolveManagerId(userId: string): Promise<string | null> {
@@ -318,6 +320,7 @@ export const updateCandidateField = createServerFn({ method: "POST" })
     const coerced =
       data.field === "medical_days" && raw !== null ? Number(raw) :
       data.field === "passport_accepted" && raw !== null ? raw === "true" :
+      data.field === "cv_approved" && raw !== null ? raw === "true" :
       raw;
     const payload: Record<string, unknown> = { [data.field]: coerced };
 

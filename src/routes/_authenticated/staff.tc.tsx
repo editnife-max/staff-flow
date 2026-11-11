@@ -1296,8 +1296,9 @@ function TcPage() {
                   </Button>
                   <Button size="sm" className="h-7 text-xs rounded-none"
                     onClick={() => {
+                      fieldMut.mutate({ id: cc.id, field: "cv_approved", value: "true" });
                       fieldMut.mutate({ id: cc.id, field: "availability_type", value: "Available" });
-                      toast.success(`${cc.full_name ?? "Candidate"} moved to Available`);
+                      toast.success(`${cc.full_name ?? "Candidate"} approved & moved to Available`);
                       closeCriteria();
                     }}>
                     Approve

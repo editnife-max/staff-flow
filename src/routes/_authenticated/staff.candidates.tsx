@@ -1797,10 +1797,11 @@ function StaffCandidatesPage() {
             const results = CRITERIA.map((cr) => ({ ...cr, met: cr.check(c) }));
             const score = results.filter((r) => r.met).length;
             const eligible = score >= CRITERIA_THRESHOLD;
+            const approved = (c as any).cv_approved === true;
             return (
-              <div className="shrink-0 w-[100px]">
+              <div className="shrink-0 w-[120px]">
                 <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">CRITERIA</div>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1.5">
                   <div className="flex gap-0.5 flex-wrap">
                     {results.map((r) => (
                       <div key={r.short} className={cn("w-3 h-3 rounded-sm", r.met ? "bg-emerald-500" : "bg-zinc-200 dark:bg-zinc-700")} />
@@ -1810,6 +1811,17 @@ function StaffCandidatesPage() {
                     {score}/{CRITERIA.length}
                     {eligible && <span className="ml-1 text-emerald-600">✓</span>}
                   </span>
+                  {approved ? (
+                    <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">✓ CV Approved</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => fieldMut.mutate({ id: c.id, field: "cv_approved", value: "true" })}
+                      className="text-[10px] font-semibold text-primary hover:underline text-left"
+                    >
+                      Approve for CV
+                    </button>
+                  )}
                 </div>
               </div>
             );
