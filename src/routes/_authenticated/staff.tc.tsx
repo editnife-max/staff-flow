@@ -653,27 +653,11 @@ function TcPage() {
               <div className="space-y-2">
                 {WARNINGS.map((w) => (
                   <div key={w.key} className="border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 rounded-none p-5">
-                    <div className="flex items-center gap-2 mb-3">
+                    <div className="flex items-center gap-2">
                       <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                       <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">
                         {w.list.length} girl{w.list.length !== 1 ? "s" : ""} — {w.label}
                       </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {w.list.map((c) => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => {
-                            const v = viewForCandidate(c);
-                            navigate({ to: "/staff/tc", search: { nav: "cp", view: v }, replace: true });
-                            setCriteriaViewId(c.id);
-                          }}
-                          className="text-[11px] px-2 py-0.5 bg-white dark:bg-zinc-900 border border-amber-300 dark:border-amber-700 hover:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/50 transition-colors text-amber-900 dark:text-amber-200 rounded-sm"
-                        >
-                          {c.full_name ?? c.candidate_code ?? "Unknown"}
-                        </button>
-                      ))}
                     </div>
                   </div>
                 ))}
