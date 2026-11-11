@@ -909,14 +909,14 @@ function TcPage() {
                 : <p className="text-xs text-muted-foreground italic">—</p>
               }
             </div>
-          ) : (
+          ) : activeView === "trained" ? (
             <CriteriaColumn
               candidate={c}
               criteria={CRITERIA}
               threshold={CRITERIA_THRESHOLD}
               onOpen={() => setCriteriaViewId(c.id)}
             />
-          )}
+          ) : null}
         />
       )}
 
