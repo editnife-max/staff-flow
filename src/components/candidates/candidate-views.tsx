@@ -913,7 +913,7 @@ function CandidateCard({
                 {candidate.full_name || "—"}
               </button>
               <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                {[candidate.candidate_code, candidate.country, candidate.narrative, candidate.passport_number].filter(Boolean).join(" · ")}
+                {[candidate.narrative, candidate.passport_number].filter(Boolean).join(" · ")}
               </p>
             </div>
           </div>
