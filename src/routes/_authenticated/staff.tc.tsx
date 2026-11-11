@@ -196,6 +196,10 @@ function TcPage() {
   const [trainedPick, setTrainedPick] = useState<Candidate | null>(null);
   const [trainedVideoUrl, setTrainedVideoUrl] = useState("");
 
+  const [tcRemove, setTcRemove] = useState<{ id: string; name: string } | null>(null);
+  const [tcRemoveMode, setTcRemoveMode] = useState<"failed" | "cancelled">("failed");
+  const [tcRemoveReason, setTcRemoveReason] = useState("");
+
   const toggleSelect = (id: string) =>
     setSelected((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
@@ -872,7 +876,16 @@ function TcPage() {
           onView={(c) => setViewing(c)}
           onAction={(c) => setActionCandidates([c])}
           onEdit={(c) => c.status === "processing" ? setProcessingEdit(c) : openEdit(c)}
-          onDelete={(id) => fieldMut.mutate({ id, field: "status", value: "canceled" })}
+          onDelete={(id) => {
+            if (activeView === "entered") {
+              const c = filtered.find((x) => x.id === id);
+              setTcRemove({ id, name: c?.full_name ?? "Candidate" });
+              setTcRemoveMode("failed");
+              setTcRemoveReason("");
+            } else {
+              fieldMut.mutate({ id, field: "status", value: "canceled" });
+            }
+          }}
           onUpdateField={handleUpdateField}
           countryMeta={countryMeta}
           officesByCountry={officesByCountry}
@@ -1280,6 +1293,79 @@ function TcPage() {
           </Dialog>
         );
       })()}
+
+      {/* TC Remove dialog — Failed / Cancelled */}
+      <Dialog open={!!tcRemove} onOpenChange={(o) => { if (!o) setTcRemove(null); }}>
+        <DialogContent className="max-w-sm rounded-none">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Remove from Entered Girls</DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              What happened to <span className="font-medium text-foreground">{tcRemove?.name}</span>?
+            </p>
+
+            {/* Mode selector */}
+            <div className="flex gap-2">
+              {(["failed", "cancelled"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setTcRemoveMode(m)}
+                  className={cn(
+                    "flex-1 py-2 text-xs font-semibold border rounded-none transition-colors capitalize",
+                    tcRemoveMode === m
+                      ? m === "failed"
+                        ? "bg-red-600 text-white border-red-600"
+                        : "bg-zinc-700 text-white border-zinc-700"
+                      : "bg-background text-muted-foreground hover:bg-muted border-border",
+                  )}
+                >
+                  {m === "failed" ? "Failed" : "Cancelled"}
+                </button>
+              ))}
+            </div>
+
+            {/* Reason — required for failed */}
+            {tcRemoveMode === "failed" && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">Reason <span className="text-destructive">*</span></label>
+                <Textarea
+                  className="rounded-none text-xs resize-none"
+                  rows={3}
+                  placeholder="Why did this candidate fail TC?"
+                  value={tcRemoveReason}
+                  onChange={(e) => setTcRemoveReason(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => setTcRemove(null)}>Cancel</Button>
+            <Button
+              size="sm"
+              variant={tcRemoveMode === "failed" ? "destructive" : "default"}
+              disabled={tcRemoveMode === "failed" && !tcRemoveReason.trim()}
+              className="rounded-none"
+              onClick={() => {
+                if (!tcRemove) return;
+                if (tcRemoveMode === "failed") {
+                  fieldMut.mutate({ id: tcRemove.id, field: "availability_type", value: "TC_failed" });
+                  fieldMut.mutate({ id: tcRemove.id, field: "remark", value: tcRemoveReason.trim() });
+                  toast.success(`${tcRemove.name} moved to Failed Girls`);
+                } else {
+                  fieldMut.mutate({ id: tcRemove.id, field: "status", value: "canceled" });
+                  fieldMut.mutate({ id: tcRemove.id, field: "availability_type", value: null });
+                  toast.success(`${tcRemove.name} cancelled and removed`);
+                }
+                setTcRemove(null);
+              }}
+            >
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add / Edit dialog */}
       <Dialog open={open} onOpenChange={(o) => { if (!o) closeForm(); }}>
