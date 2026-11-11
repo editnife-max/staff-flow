@@ -1371,7 +1371,8 @@ function TcPage() {
                   fieldMut.mutate({ id: tcRemove.id, field: "remark", value: tcRemoveReason.trim() });
                   toast.success(`${tcRemove.name} moved to Failed Girls`);
                 } else {
-                  fieldMut.mutate({ id: tcRemove.id, field: "availability_type", value: "Available" });
+                  // Keep availability_type="TC" so the candidate never enters Regular Available
+                  // without going through the Trained Girls approval path.
                   fieldMut.mutate({ id: tcRemove.id, field: "status", value: "canceled" });
                   toast.success(`${tcRemove.name} cancelled and removed`);
                 }
