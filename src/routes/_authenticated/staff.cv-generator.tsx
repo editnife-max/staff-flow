@@ -26,6 +26,8 @@ import { cn, calcAge } from "@/lib/utils";
 import { StatusBadge } from "@/components/status-badge";
 import type { Database } from "@/integrations/supabase/types";
 import { checkAndResendExpiredCvs } from "@/lib/cv-distribution.functions";
+import { getManagerTcCriteria } from "@/lib/settings.functions";
+import { ALL_TC_CRITERIA, ALL_TC_CRITERIA_KEYS } from "@/components/candidates/types";
 
 export const Route = createFileRoute("/_authenticated/staff/cv-generator")({
   head: () => ({ meta: [{ title: "CV Page — Staff-Flow" }] }),
@@ -191,7 +193,8 @@ function CvGeneratorPage() {
   const { user } = useAuth();
   const qc       = useQueryClient();
 
-  const resendExpiredFn = useServerFn(checkAndResendExpiredCvs);
+  const resendExpiredFn  = useServerFn(checkAndResendExpiredCvs);
+  const fetchTcCriteria  = useServerFn(getManagerTcCriteria);
   useEffect(() => {
     if (!user) return;
     resendExpiredFn({}).then((r) => {
@@ -373,6 +376,24 @@ function CvGeneratorPage() {
   });
   const cvDaysThreshold = managerCvData.threshold;
 
+  const { data: tcCriteriaData } = useQuery({
+    queryKey: ["tc-criteria", user?.id],
+    enabled: !!user,
+    queryFn: () => fetchTcCriteria({}),
+    staleTime: 60_000,
+  });
+
+  const enabledCriteriaKeys: string[] = useMemo(() => {
+    const keys = tcCriteriaData?.tc_criteria_keys;
+    return Array.isArray(keys) ? keys : ALL_TC_CRITERIA_KEYS;
+  }, [tcCriteriaData]);
+
+  const CRITERIA = useMemo(
+    () => ALL_TC_CRITERIA.filter((c) => enabledCriteriaKeys.includes(c.key)),
+    [enabledCriteriaKeys],
+  );
+  const CRITERIA_THRESHOLD = Math.ceil(CRITERIA.length / 2);
+
   const lockedFilters = useMemo(() => {
     const req = managerCvData.requirements;
     const lock = (k: string) => req?.[k] && req[k] !== "all" ? [req[k]] : [];
@@ -419,17 +440,31 @@ function CvGeneratorPage() {
     narrative: Array.from(new Set(candidates.filter((c) => c.status === "available").map((c) => c.narrative ?? "").filter(Boolean))).sort(),
   }), [candidates]);
 
-  // Open directly if id param given (e.g. from HR Pool VIEW button)
+  // Open directly if id param given — only if the candidate passes the criteria gate
   const initialised = useRef(false);
   useEffect(() => {
-    if (initialised.current || !search.id || candidates.length === 0) return;
+    if (initialised.current || !search.id || candidates.length === 0 || CRITERIA.length === 0) return;
     initialised.current = true;
     const c = candidates.find((x) => x.id === search.id);
-    if (c) setActionCandidates([c]);
-  }, [search.id, candidates]);
+    if (!c) return;
+    const avType = (c as any).availability_type;
+    const allowed =
+      (avType === "TC" && c.video_url) ||
+      (avType !== "TC" && avType !== "TC_failed" && CRITERIA.filter((cr) => cr.check(c)).length >= CRITERIA_THRESHOLD);
+    if (allowed) setActionCandidates([c]);
+  }, [search.id, candidates, CRITERIA, CRITERIA_THRESHOLD]);
 
   const filtered = useMemo(() => {
-    let list = candidates.filter((c) => c.status === "available");
+    let list = candidates.filter((c) => {
+      if (c.status !== "available") return false;
+      const avType = (c as any).availability_type;
+      // TC trained girls (have video) → always allowed
+      if (avType === "TC" && c.video_url) return true;
+      // TC entered (no video) or TC failed → excluded
+      if (avType === "TC" || avType === "TC_failed") return false;
+      // Regular available → must meet criteria threshold
+      return CRITERIA.filter((cr) => cr.check(c)).length >= CRITERIA_THRESHOLD;
+    });
     if (query) list = list.filter((c) => c.full_name.toLowerCase().includes(query.toLowerCase()));
     if (filters.medical.length > 0)       list = list.filter((c) => filters.medical.includes(c.medical_status ?? ""));
     if (filters.coc.length > 0)           list = list.filter((c) => filters.coc.includes(c.coc_status ?? ""));
@@ -465,7 +500,7 @@ function CvGeneratorPage() {
         : a.created_at.localeCompare(b.created_at);
     });
     return list;
-  }, [candidates, query, filters, cvDaysThreshold]);
+  }, [candidates, query, filters, cvDaysThreshold, CRITERIA, CRITERIA_THRESHOLD]);
 
   const candidateStatus = useMemo(() => {
     const todayMs = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
