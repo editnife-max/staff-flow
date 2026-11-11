@@ -555,6 +555,7 @@ function StaffCandidatesPage() {
   const [form, setForm] = useState(initialForm);
   const [processingEdit, setProcessingEdit] = useState<Candidate | null>(null);
   const [cocPlacedPending, setCocPlacedPending] = useState<{ id: string } | null>(null);
+  const [criteriaPopupId, setCriteriaPopupId] = useState<string | null>(null);
   const [cocPlacedName, setCocPlacedName] = useState("");
   const [cocPlacedPhone, setCocPlacedPhone] = useState("");
   const [lmisNeededId, setLmisNeededId] = useState<string | null>(null);
@@ -1799,9 +1800,13 @@ function StaffCandidatesPage() {
             const eligible = score >= CRITERIA_THRESHOLD;
             const approved = (c as any).cv_approved === true;
             return (
-              <div className="shrink-0 w-[120px]">
+              <button
+                type="button"
+                onClick={() => setCriteriaPopupId(c.id)}
+                className="shrink-0 w-[100px] text-left hover:opacity-80 transition-opacity"
+              >
                 <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">CRITERIA</div>
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1">
                   <div className="flex gap-0.5 flex-wrap">
                     {results.map((r) => (
                       <div key={r.short} className={cn("w-3 h-3 rounded-sm", r.met ? "bg-emerald-500" : "bg-zinc-200 dark:bg-zinc-700")} />
@@ -1811,19 +1816,11 @@ function StaffCandidatesPage() {
                     {score}/{CRITERIA.length}
                     {eligible && <span className="ml-1 text-emerald-600">✓</span>}
                   </span>
-                  {approved ? (
-                    <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">✓ CV Approved</span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => fieldMut.mutate({ id: c.id, field: "cv_approved", value: "true" })}
-                      className="text-[10px] font-semibold text-primary hover:underline text-left"
-                    >
-                      Approve for CV
-                    </button>
+                  {approved && (
+                    <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">✓ Approved</span>
                   )}
                 </div>
-              </div>
+              </button>
             );
           } : undefined}
         />
@@ -1866,6 +1863,49 @@ function StaffCandidatesPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Criteria popup — Available tab */}
+      {(() => {
+        const cc = criteriaPopupId ? filtered.find((x) => x.id === criteriaPopupId) : null;
+        if (!cc) return null;
+        const results = CRITERIA.map((cr) => ({ ...cr, met: cr.check(cc) }));
+        const score = results.filter((r) => r.met).length;
+        const eligible = score >= CRITERIA_THRESHOLD;
+        const approved = (cc as any).cv_approved === true;
+        return (
+          <Dialog open onOpenChange={(o) => { if (!o) setCriteriaPopupId(null); }}>
+            <DialogContent className="max-w-sm rounded-none">
+              <DialogHeader>
+                <DialogTitle className="text-sm">Criteria — {cc.full_name}</DialogTitle>
+              </DialogHeader>
+              <div className="py-1 space-y-2">
+                {results.map((r) => (
+                  <div key={r.key} className="flex items-center gap-2.5">
+                    <div className={cn("w-4 h-4 rounded-sm shrink-0", r.met ? "bg-emerald-500" : "bg-zinc-200 dark:bg-zinc-700")} />
+                    <span className={cn("text-sm", r.met ? "text-foreground" : "text-muted-foreground line-through")}>{r.label}</span>
+                  </div>
+                ))}
+                <div className={cn("text-sm font-semibold pt-1", eligible ? "text-emerald-700" : "text-muted-foreground")}>
+                  {score}/{CRITERIA.length} criteria met
+                </div>
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setCriteriaPopupId(null)}>Close</Button>
+                {approved ? (
+                  <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 self-center">✓ CV Approved</span>
+                ) : (
+                  <Button size="sm" onClick={() => {
+                    fieldMut.mutate({ id: cc.id, field: "cv_approved", value: "true" });
+                    setCriteriaPopupId(null);
+                  }}>
+                    Approve for CV
+                  </Button>
+                )}
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
 
       {/* Add / Edit dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
