@@ -902,12 +902,22 @@ function TcPage() {
           } : undefined}
           excludeCols={["CV SENT TO", "CV SENT DATE", "AVAILABILITY", "SELECTED BY"]}
           renderExtraColumns={(c) => (
-            <CriteriaColumn
-              candidate={c}
-              criteria={CRITERIA}
-              threshold={CRITERIA_THRESHOLD}
-              onOpen={() => setCriteriaViewId(c.id)}
-            />
+            <>
+              {activeView === "failed" && (c as any).remark && (
+                <div className="shrink-0 w-[160px]">
+                  <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1">NOTES</div>
+                  <p className="text-xs text-foreground break-words line-clamp-3">{(c as any).remark}</p>
+                </div>
+              )}
+              {activeView !== "failed" && (
+                <CriteriaColumn
+                  candidate={c}
+                  criteria={CRITERIA}
+                  threshold={CRITERIA_THRESHOLD}
+                  onOpen={() => setCriteriaViewId(c.id)}
+                />
+              )}
+            </>
           )}
         />
       )}
