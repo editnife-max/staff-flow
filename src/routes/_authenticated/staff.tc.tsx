@@ -692,16 +692,18 @@ function TcPage() {
                 {list.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-10">All fixed ✓</p>
                 ) : list.map((c) => (
-                  <div key={c.id} className="flex items-start gap-4 px-5 py-4">
-                    <Avatar className="h-11 w-11 shrink-0 rounded-none">
+                  <div key={c.id} className="flex items-center gap-4 px-5 py-3">
+                    <Avatar className="h-10 w-10 shrink-0 rounded-none">
                       {(c as any).photo_url && <AvatarImage src={(c as any).photo_url} className="object-cover" />}
                       <AvatarFallback className="rounded-none text-xs">{(c.full_name ?? "?")[0]}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium leading-tight">{c.full_name ?? "—"}</p>
-                      <p className="text-xs text-muted-foreground mb-3">
+                      <p className="text-sm font-medium leading-tight truncate">{c.full_name ?? "—"}</p>
+                      <p className="text-xs text-muted-foreground truncate">
                         {[c.candidate_code, c.country, c.availability_type === "TC_failed" ? "Failed" : c.video_url ? "Trained" : "Entered"].filter(Boolean).join(" · ")}
                       </p>
+                    </div>
+                    <div className="shrink-0">
                       <PhotoUpload
                         label={label}
                         value={(c as any)[field] ?? ""}
