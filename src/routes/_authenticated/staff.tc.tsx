@@ -1397,7 +1397,6 @@ function TcPage() {
               <PhotoUpload label="Full Photo"    value={form.full_photo_url}     onChange={(url) => setForm({ ...form, full_photo_url: url })} />
               <PhotoUpload label="Passport Scan" value={form.passport_scan_url}  onChange={(url) => setForm({ ...form, passport_scan_url: url })} accept="image/*,application/pdf" />
               <PhotoUpload label="ID Card"       value={form.lmis_id_url}        onChange={(url) => setForm({ ...form, lmis_id_url: url })}        accept="image/*,application/pdf" />
-              <PhotoUpload label="Passport PDF"  value={form.lmis_passport_url}  onChange={(url) => setForm({ ...form, lmis_passport_url: url })}  accept="image/*,application/pdf" />
             </div>
 
             {/* Names & IDs */}
