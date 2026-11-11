@@ -38,6 +38,8 @@ import {
   getCandidates,
 } from "@/lib/candidates.functions";
 import { getMyEffectiveAccess } from "@/lib/staff-overrides.functions";
+import { getManagerTcCriteria } from "@/lib/settings.functions";
+import { ALL_TC_CRITERIA, ALL_TC_CRITERIA_KEYS } from "@/components/candidates/types";
 import { generateNarrative } from "@/lib/narrative.functions";
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
@@ -454,6 +456,7 @@ function StaffCandidatesPage() {
   const fetchCandidates     = useServerFn(getCandidates);
   const doGenerateNarrative = useServerFn(generateNarrative);
   const fetchEffectiveAccess = useServerFn(getMyEffectiveAccess);
+  const fetchTcCriteria      = useServerFn(getManagerTcCriteria);
 
   const { tab: tabParam } = Route.useSearch();
   const [selected, setSelected] = useState<Set<string>>(() => {
@@ -575,6 +578,24 @@ function StaffCandidatesPage() {
       return result;
     },
   });
+
+  const { data: tcCriteriaData } = useQuery({
+    queryKey: ["tc-criteria", user?.id],
+    enabled: !!user,
+    queryFn: () => fetchTcCriteria({}),
+    staleTime: 60_000,
+  });
+
+  const enabledCriteriaKeys: string[] = useMemo(() => {
+    const keys = tcCriteriaData?.tc_criteria_keys;
+    return Array.isArray(keys) ? keys : ALL_TC_CRITERIA_KEYS;
+  }, [tcCriteriaData]);
+
+  const CRITERIA = useMemo(
+    () => ALL_TC_CRITERIA.filter((c) => enabledCriteriaKeys.includes(c.key)),
+    [enabledCriteriaKeys],
+  );
+  const CRITERIA_THRESHOLD = Math.ceil(CRITERIA.length / 2);
 
   const { data: staffList = [] } = useQuery({
     queryKey: ["team-staff", user?.id],
@@ -1772,6 +1793,27 @@ function StaffCandidatesPage() {
           agencyPhones={agencyPhones}
           narrativeSuggestions={opts.narrative}
           restrictedKeys={restrictedKeys}
+          renderExtraColumns={tab === "available" ? (c) => {
+            const results = CRITERIA.map((cr) => ({ ...cr, met: cr.check(c) }));
+            const score = results.filter((r) => r.met).length;
+            const eligible = score >= CRITERIA_THRESHOLD;
+            return (
+              <div className="shrink-0 w-[100px]">
+                <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">CRITERIA</div>
+                <div className="flex flex-col gap-1">
+                  <div className="flex gap-0.5 flex-wrap">
+                    {results.map((r) => (
+                      <div key={r.short} className={cn("w-3 h-3 rounded-sm", r.met ? "bg-emerald-500" : "bg-zinc-200 dark:bg-zinc-700")} />
+                    ))}
+                  </div>
+                  <span className={cn("text-[11px] font-bold tabular-nums", eligible ? "text-emerald-700" : "text-muted-foreground")}>
+                    {score}/{CRITERIA.length}
+                    {eligible && <span className="ml-1 text-emerald-600">✓</span>}
+                  </span>
+                </div>
+              </div>
+            );
+          } : undefined}
         />
       )}
 
@@ -2419,7 +2461,7 @@ const CARD_KEY_TO_LABEL: Record<string, string> = {
 function CandidateCardList({
   candidates, selected, onToggleSelect, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo,
   countryMeta, officesByCountry, agencyOptions, agencyPhones, compact, narrativeSuggestions, pageKey,
-  restrictedKeys = new Set(),
+  restrictedKeys = new Set(), renderExtraColumns,
 }: {
   candidates: Candidate[];
   selected: Set<string>;
@@ -2439,6 +2481,7 @@ function CandidateCardList({
   narrativeSuggestions?: string[];
   pageKey: string;
   restrictedKeys?: Set<string>;
+  renderExtraColumns?: (c: Candidate) => React.ReactNode;
 }) {
   const [viewingPhotos, setViewingPhotos] = useState<Candidate | null>(null);
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
@@ -2693,6 +2736,7 @@ function CandidateCardList({
                   agencyPhones={agencyPhones}
                   countryOptions={countryOptions}
                   narrativeSuggestions={narrativeSuggestions}
+                  renderExtraColumns={renderExtraColumns?.(c)}
                 />
               ))}
             </div>
@@ -2981,7 +3025,7 @@ function CandidateDetailDialog({ candidate, onClose, agencyPhones = {} }: { cand
 }
 
 function CandidateCard({
-  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo, agencyOptions, agencyPhones, countryOptions, compact, narrativeSuggestions,
+  candidate, selected, visibleCols, onToggleSelect, onViewPhotos, onAction, onEdit, onDelete, onUpdateField, cancelMode, onReturn, onUndo, agencyOptions, agencyPhones, countryOptions, compact, narrativeSuggestions, renderExtraColumns,
 }: {
   candidate: Candidate;
   selected: boolean;
@@ -3000,6 +3044,7 @@ function CandidateCard({
   agencyPhones: Record<string, string>;
   countryOptions: string[];
   narrativeSuggestions?: string[];
+  renderExtraColumns?: React.ReactNode;
 }) {
   const qcCard = useQueryClient();
   const checkWafidFn = useServerFn(checkWafidMedical);
@@ -3276,6 +3321,7 @@ function CandidateCard({
                 </div>
               );
             })}
+            {renderExtraColumns}
           </div>
           {/* Actions — sticky right */}
           <div className="sticky right-0 z-10 self-stretch shrink-0 flex flex-col justify-center items-center gap-1.5 px-4 border-l border-border" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
