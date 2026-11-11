@@ -87,21 +87,33 @@ export function layoutForTemplate(
 // Marks <link>/<style> nodes that must survive the stylesheet purge in html2canvas' clone.
 const KEEP_ATTR = "data-cv-keep";
 
-async function loadFontWeights(doc: Document, family: string): Promise<void> {
+/** A Google font and the weights to load. Not every family has every weight. */
+export interface WebFont {
+  family: string;
+  weights?: number[];
+}
+
+const DEFAULT_WEIGHTS = [400, 500, 600, 700, 800];
+
+async function loadFontWeights(
+  doc: Document,
+  family: string,
+  weights = DEFAULT_WEIGHTS,
+): Promise<void> {
   await Promise.all(
-    ["400", "500", "600", "700", "800"].map((w) =>
-      doc.fonts.load(`${w} 16px "${family}"`, "Aa عربي").catch(() => []),
-    ),
+    weights.map((w) => doc.fonts.load(`${w} 16px "${family}"`, "Aa عربي").catch(() => [])),
   );
   await doc.fonts.ready;
 }
 
 const loadedFonts = new Map<string, Promise<void>>();
-function ensureWebFont(family: string): Promise<void> {
-  let p = loadedFonts.get(family);
+/** Loads a Google font once per page (safe to call repeatedly). */
+export function ensureWebFont(family: string, weights = DEFAULT_WEIGHTS): Promise<void> {
+  const key = `${family}:${weights.join(";")}`;
+  let p = loadedFonts.get(key);
   if (!p) {
     p = (async () => {
-      const href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@400;500;600;700;800&display=block`;
+      const href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@${weights.join(";")}&display=block`;
       if (!document.querySelector(`link[href="${href}"]`)) {
         const link = document.createElement("link");
         link.rel = "stylesheet";
@@ -113,9 +125,9 @@ function ensureWebFont(family: string): Promise<void> {
           document.head.appendChild(link);
         });
       }
-      await loadFontWeights(document, family);
+      await loadFontWeights(document, family, weights);
     })();
-    loadedFonts.set(family, p);
+    loadedFonts.set(key, p);
   }
   return p;
 }
@@ -221,19 +233,49 @@ function collectLinks(page: HTMLElement): CvLink[] {
   });
 }
 
+/**
+ * What to render for one CV page. The built-in layouts and Custom CV templates both
+ * render through this, so they share one tested PDF path.
+ */
+export interface CvRenderSpec {
+  /** The A4 page. `images` maps each URL in `images` below to a same-origin blob URL. */
+  element: (d: CvData, images: Map<string, string | null>) => React.ReactElement;
+  font?: WebFont;
+  /** Same-origin static images to warm up (letterheads). */
+  assets?: string[];
+  /** Remote images the page draws (e.g. a company logo), fetched as blob URLs first so the canvas is never tainted. */
+  images?: string[];
+}
+
+function layoutSpec(layout: CvLayoutId): CvRenderSpec {
+  const def = LAYOUTS[layout];
+  return {
+    element: (d) => <def.Component d={d} />,
+    font: def.webFont ? { family: def.webFont } : undefined,
+    assets: def.assets,
+  };
+}
+
 /** Renders one candidate in the given layout to an A4 canvas (2× scale). */
 export async function renderCvLayoutCanvas(
   layout: CvLayoutId,
   c: Candidate,
 ): Promise<HTMLCanvasElement> {
-  return (await renderCvLayout(layout, c)).canvas;
+  return (await renderCvSpec(layoutSpec(layout), c)).canvas;
 }
 
-async function renderCvLayout(
-  layout: CvLayoutId,
+/** Renders one candidate with any render spec to an A4 canvas (2× scale). */
+export async function renderCvSpecCanvas(
+  spec: CvRenderSpec,
+  c: Candidate,
+): Promise<HTMLCanvasElement> {
+  return (await renderCvSpec(spec, c)).canvas;
+}
+
+async function renderCvSpec(
+  spec: CvRenderSpec,
   c: Candidate,
 ): Promise<{ canvas: HTMLCanvasElement; links: CvLink[] }> {
-  const def = LAYOUTS[layout];
   const owned: string[] = [];
   const container = document.createElement("div");
   container.style.cssText = `position:fixed;left:-10000px;top:0;width:${PAGE_W}px;height:${PAGE_H}px;`;
@@ -246,14 +288,17 @@ async function renderCvLayout(
     const fullSrc = c.full_photo_url ?? c.photo_url;
     const photoP = toBlobUrl(photoSrc, owned);
     const fullP = fullSrc === photoSrc ? photoP : toBlobUrl(fullSrc, owned);
-    const [, , photo, fullPhoto] = await Promise.all([
-      def.webFont ? ensureWebFont(def.webFont) : null,
-      Promise.all((def.assets ?? []).map(warmImage)),
+    const imageUrls = [...new Set(spec.images ?? [])];
+    const [, , photo, fullPhoto, imageBlobs] = await Promise.all([
+      spec.font ? ensureWebFont(spec.font.family, spec.font.weights) : null,
+      Promise.all((spec.assets ?? []).map(warmImage)),
       photoP,
       fullP,
+      Promise.all(imageUrls.map((u) => toBlobUrl(u, owned))),
     ]);
     const photos: CvPhotos = { photo, fullPhoto };
-    flushSync(() => root.render(<def.Component d={buildCvData(c, photos)} />));
+    const images = new Map(imageUrls.map((u, i) => [u, imageBlobs[i]]));
+    flushSync(() => root.render(spec.element(buildCvData(c, photos), images)));
     const page = container.firstElementChild as HTMLElement;
     await preloadBackgrounds(page);
     await document.fonts.ready;
@@ -276,7 +321,7 @@ async function renderCvLayout(
         // html2canvas lays text out in this clone but draws it with the main document's
         // fonts. Load the web font here too (awaited by html2canvas), or words are
         // positioned with a fallback font and drawn overlapping in the real one.
-        if (def.webFont) await loadFontWeights(doc, def.webFont);
+        if (spec.font) await loadFontWeights(doc, spec.font.family, spec.font.weights);
       },
     }).finally(restoreProbe);
     if (!canvas.width || !canvas.height) throw new Error("CV rendered to a blank page");
@@ -304,10 +349,19 @@ export async function buildCvLayoutPdf(
   c: Candidate,
   opts: CvPdfOptions = {},
 ): Promise<jsPDF> {
+  return buildCvSpecPdf(layoutSpec(layout), c, opts);
+}
+
+/** Same as buildCvLayoutPdf, for any render spec (used by Custom CV templates). */
+export async function buildCvSpecPdf(
+  spec: CvRenderSpec,
+  c: Candidate,
+  opts: CvPdfOptions = {},
+): Promise<jsPDF> {
   const cand = opts.videoUrl !== undefined ? { ...c, video_url: opts.videoUrl } : c;
   // Fetch and decode the passport scan while the CV page renders.
   const scanP = opts.passportUrl ? preparePassportScan(opts.passportUrl) : Promise.resolve(null);
-  const [{ canvas, links }, scan] = await Promise.all([renderCvLayout(layout, cand), scanP]);
+  const [{ canvas, links }, scan] = await Promise.all([renderCvSpec(spec, cand), scanP]);
 
   // px_scaling makes 1px = 0.75pt, so 794×1123px is a true A4 page (595×842pt).
   const pdf = new jsPDF({ unit: "px", format: [PAGE_W, PAGE_H], hotfixes: ["px_scaling"] });
@@ -324,5 +378,15 @@ export async function downloadCvLayoutPdf(
   opts: CvPdfOptions = {},
 ): Promise<void> {
   const pdf = await buildCvLayoutPdf(layout, c, opts);
+  pdf.save(filename.toLowerCase().endsWith(".pdf") ? filename : `${filename}.pdf`);
+}
+
+export async function downloadCvSpecPdf(
+  spec: CvRenderSpec,
+  c: Candidate,
+  filename: string,
+  opts: CvPdfOptions = {},
+): Promise<void> {
+  const pdf = await buildCvSpecPdf(spec, c, opts);
   pdf.save(filename.toLowerCase().endsWith(".pdf") ? filename : `${filename}.pdf`);
 }

@@ -22,6 +22,12 @@ import {
   prefetchCvAssets,
   warmUpCvExport,
 } from "@/components/cv-layouts";
+import { useServerFn } from "@tanstack/react-start";
+import { listCustomCvTemplates } from "@/lib/custom-cv.functions";
+import { downloadCustomCvPdf, loadCustomCvFont } from "@/components/custom-cv/export";
+
+/** Download-type ids for Custom CV templates are "custom:<template id>". */
+const CUSTOM_PREFIX = "custom:";
 
 export type { CvTemplate, Candidate };
 
@@ -138,6 +144,16 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
     },
   });
 
+  // The company's Custom CV templates (staff see only the active ones).
+  const listCustom = useServerFn(listCustomCvTemplates);
+  const { data: customData } = useQuery({
+    queryKey: ["custom-cv-templates"],
+    enabled: !!user && candidates.length > 0,
+    queryFn: () => listCustom(),
+    staleTime: 60_000,
+  });
+  const customTemplates = (customData?.templates ?? []).filter((t) => t.isActive);
+
   const [downloadType, setDownloadType] = useState("summary-pdf");
   const [sortBy,       setSortBy]       = useState("full_name");
   const [sortDir,      setSortDir]      = useState<"asc" | "desc">("asc");
@@ -175,7 +191,17 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
     ...DOWNLOAD_TYPES,
     { id: NORMAL_CV_OPTION.id, label: NORMAL_CV_OPTION.label, group: "cv" as const },
     ...templates.map((t) => ({ id: t.id, label: t.name, group: "cv" as const })),
+    ...customTemplates.map((t) => ({ id: `${CUSTOM_PREFIX}${t.id}`, label: t.name, group: "custom" as const })),
   ];
+
+  const customTemplate = downloadType.startsWith(CUSTOM_PREFIX)
+    ? customTemplates.find((t) => `${CUSTOM_PREFIX}${t.id}` === downloadType) ?? null
+    : null;
+
+  // Load the chosen Custom CV template's font while the user reviews the dialog.
+  useEffect(() => {
+    if (customTemplate) void loadCustomCvFont(customTemplate.config);
+  }, [customTemplate]);
 
   const currentType     = allDownloadTypes.find((t) => t.id === downloadType) ?? DOWNLOAD_TYPES[0];
   const isCV            = currentType.group === "cv";
@@ -270,7 +296,15 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
     if (candidates.length === 0) return;
     setDownloading(true);
     try {
-      if (isCV && cvLayout) {
+      if (customTemplate) {
+        if (isBulk) toast.info(`Generating ${candidates.length} PDFs — please wait…`);
+        for (const [i, c] of sortedCandidates.entries()) {
+          if (sortedCandidates[i + 1]) prefetchCvAssets(sortedCandidates[i + 1]);
+          await downloadCustomCvPdf(customTemplate.config, c, `${c.full_name} — ${customTemplate.name} ${fileTimestamp()}.pdf`);
+        }
+        toast.success(isBulk ? `${candidates.length} PDFs downloaded` : `${customTemplate.name} downloaded`);
+
+      } else if (isCV && cvLayout) {
         if (isBulk) toast.info(`Generating ${candidates.length} PDFs — please wait…`);
         for (const [i, c] of sortedCandidates.entries()) {
           // Next candidate's photos download while this one renders.
@@ -483,16 +517,21 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
               </button>
               {typeOpen && (
                 <div className="px-4 pb-4 space-y-0.5">
-                  {allDownloadTypes.map((t) => (
-                    <button key={t.id} type="button" onClick={() => setDownloadType(t.id)}
-                      className={cn(
-                        "w-full text-left px-3 py-2 text-sm rounded-none border transition-colors",
-                        downloadType === t.id
-                          ? "border-primary/40 bg-primary/5 text-primary font-medium"
-                          : "border-transparent hover:border-border hover:bg-muted/40 text-muted-foreground",
-                      )}>
-                      {t.label}
-                    </button>
+                  {allDownloadTypes.map((t, i) => (
+                    <React.Fragment key={t.id}>
+                      {t.group === "custom" && allDownloadTypes[i - 1]?.group !== "custom" && (
+                        <p className="px-3 pt-3 pb-1 text-[11px] font-bold uppercase tracking-widest text-foreground/50">Custom CV</p>
+                      )}
+                      <button type="button" onClick={() => setDownloadType(t.id)}
+                        className={cn(
+                          "w-full text-left px-3 py-2 text-sm rounded-none border transition-colors",
+                          downloadType === t.id
+                            ? "border-primary/40 bg-primary/5 text-primary font-medium"
+                            : "border-transparent hover:border-border hover:bg-muted/40 text-muted-foreground",
+                        )}>
+                        {t.label}
+                      </button>
+                    </React.Fragment>
                   ))}
                 </div>
               )}
