@@ -99,6 +99,7 @@ const InlineFieldSchema = z.object({
     "ticket_pdf_url",
     "visa_pdf_url",
     "qr_url",
+    "photo_url", "full_photo_url", "passport_scan_url",
   ]),
   value: z.string().nullable(),
 });
