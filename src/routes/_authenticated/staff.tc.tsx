@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Search, FilePlus, RotateCcw, FileText,
   ArrowUpDown, Users, User, BookOpen, Stethoscope, Briefcase, FileCheck,
-  Globe, ScanSearch, Loader2, ChevronLeft, ChevronRight,
+  Globe, ScanSearch, Loader2, ChevronLeft, ChevronRight, Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,6 +45,31 @@ const SKILLS_LIST = [
 ];
 
 export const CEO_OPTIONS = TC_CEO_OPTIONS;
+
+function QualEmptyState({ label, small }: { label: string; small?: boolean }) {
+  return (
+    <div className={cn(
+      "flex items-center justify-center text-muted-foreground border-2 border-dashed border-border/40 rounded-none",
+      small ? "h-full min-h-[80px]" : "h-full min-h-[160px]",
+    )}>
+      <span className="text-xs">{label}</span>
+    </div>
+  );
+}
+
+function QualInfoField({ label, value, highlight }: { label: string; value?: string | null; highlight?: boolean }) {
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">{label}</p>
+      <p className={cn(
+        "text-sm font-medium",
+        highlight ? "text-emerald-700 dark:text-emerald-300" : value ? "text-foreground" : "text-muted-foreground italic",
+      )}>
+        {value || "—"}
+      </p>
+    </div>
+  );
+}
 
 function CriteriaColumn({ candidate, criteria, threshold, onOpen }: {
   candidate: Candidate;
@@ -193,8 +218,14 @@ function TcPage() {
   // ── Criteria dialog state ────────────────────────────────────────────────
   const [criteriaViewId, setCriteriaViewId] = useState<string | null>(null);
   const [criteriaStep, setCriteriaStep] = useState(0);
+  const [criteriaVerdicts, setCriteriaVerdicts] = useState<Record<string, "approved" | "rejected">>({});
+  const [criteriaComments, setCriteriaComments] = useState<Record<string, string>>({});
 
-  useEffect(() => { setCriteriaStep(0); }, [criteriaViewId]);
+  useEffect(() => {
+    setCriteriaStep(0);
+    setCriteriaVerdicts({});
+    setCriteriaComments({});
+  }, [criteriaViewId]);
 
   // ⌘K
   useEffect(() => {
@@ -800,134 +831,277 @@ function TcPage() {
         </DialogContent>
       </Dialog>
 
-      {/* TC Criteria dialog — carousel: one criterion at a time with photo */}
+      {/* TC Qualification dialog — sidebar list + right content panel */}
       {(() => {
         const criteriaViewIdx = criteriaViewId ? filtered.findIndex((c) => c.id === criteriaViewId) : -1;
-        const criteriaCandidate = criteriaViewIdx >= 0 ? filtered[criteriaViewIdx] : null;
-        if (!criteriaCandidate) return null;
-        const results = CRITERIA.map((cr) => ({ ...cr, met: cr.check(criteriaCandidate) }));
-        const score = results.filter((r) => r.met).length;
-        const eligible = score >= CRITERIA_THRESHOLD;
+        const cc = criteriaViewIdx >= 0 ? filtered[criteriaViewIdx] : null;
+        if (!cc) return null;
+
+        const ca = cc as any;
+        const results = CRITERIA.map((cr) => ({ ...cr, met: cr.check(cc) }));
         const step = Math.min(criteriaStep, results.length - 1);
         const current = results[step];
-        return (
-          <Dialog open onOpenChange={(o) => { if (!o) { setCriteriaViewId(null); setCriteriaStep(0); } }}>
-            <DialogContent className="max-w-lg p-0 overflow-hidden rounded-none">
-              <div className="flex">
 
-                {/* Left — photo */}
-                <div className="relative w-44 shrink-0">
-                  {criteriaCandidate.photo_url ? (
-                    <img
-                      src={criteriaCandidate.photo_url}
-                      alt={criteriaCandidate.full_name ?? ""}
-                      className="h-full w-full object-cover object-top"
-                      style={{ minHeight: 320 }}
-                    />
-                  ) : (
-                    <div className="h-full w-full bg-muted flex items-center justify-center" style={{ minHeight: 320 }}>
-                      <Avatar className="h-16 w-16">
-                        <AvatarFallback className="text-xl">
-                          {(criteriaCandidate.full_name ?? "?").slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
-                  )}
-                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-3 py-3">
-                    <p className="text-white font-semibold text-xs leading-tight line-clamp-2">
-                      {criteriaCandidate.full_name}
-                    </p>
-                    <p className={cn("text-[11px] font-medium mt-0.5", eligible ? "text-emerald-300" : "text-white/60")}>
-                      {score}/{CRITERIA.length}{eligible ? " · ✓ Ready" : ""}
-                    </p>
+        const reviewed = results.filter((r) => r.key in criteriaVerdicts).length;
+        const rejectedCount = Object.values(criteriaVerdicts).filter((v) => v === "rejected").length;
+        const pending = results.length - reviewed;
+
+        const QUAL_GROUPS = [
+          { label: "PHOTO & VIDEO", keys: ["avatar", "photos", "video"] },
+          { label: "DETAIL & MUSANED", keys: ["narrative", "id_files", "coc", "personal", "ceo", "medical", "med_fit"] },
+        ];
+
+        const CRITERION_SUBTITLE: Record<string, string> = {
+          avatar: "Profile photo", photos: "Full-size & passport scan", video: "Training video",
+          narrative: "Narrative & phone", id_files: "ID documents (LMIS)",
+          coc: "Certificate of Competency", personal: "Religion & marital status",
+          ceo: "CEO evaluation", medical: "Medical status", med_fit: "Medical Fit (≤75 days)",
+        };
+
+        const downloadUrl = current?.key === "avatar" ? ca.photo_url
+          : current?.key === "photos" ? (ca.full_photo_url ?? ca.passport_scan_url)
+          : current?.key === "id_files" ? (ca.lmis_id_url ?? ca.lmis_id_relative_url)
+          : null;
+
+        function toggleVerdict(key: string, verdict: "approved" | "rejected") {
+          setCriteriaVerdicts((prev) => {
+            if (prev[key] === verdict) {
+              const { [key]: _removed, ...rest } = prev;
+              return rest;
+            }
+            return { ...prev, [key]: verdict };
+          });
+        }
+
+        function renderContent() {
+          if (!current) return null;
+          switch (current.key) {
+            case "avatar":
+              return ca.photo_url
+                ? <div className="flex items-center justify-center h-full p-4"><img src={ca.photo_url} alt="Avatar" className="max-h-full max-w-full object-contain" /></div>
+                : <QualEmptyState label="No avatar photo" />;
+            case "photos":
+              return (
+                <div className="grid grid-cols-2 gap-3 p-4 h-full">
+                  <div className="flex flex-col gap-1 min-h-0">
+                    <p className="text-[10px] font-semibold uppercase text-muted-foreground shrink-0">Full Photo</p>
+                    <div className="flex-1 min-h-0">{ca.full_photo_url ? <img src={ca.full_photo_url} alt="Full" className="h-full w-full object-contain" /> : <QualEmptyState label="No full photo" small />}</div>
+                  </div>
+                  <div className="flex flex-col gap-1 min-h-0">
+                    <p className="text-[10px] font-semibold uppercase text-muted-foreground shrink-0">Passport Scan</p>
+                    <div className="flex-1 min-h-0">{ca.passport_scan_url ? <img src={ca.passport_scan_url} alt="Passport" className="h-full w-full object-contain" /> : <QualEmptyState label="No scan" small />}</div>
                   </div>
                 </div>
-
-                {/* Right — criteria carousel */}
-                <div className="flex-1 flex flex-col p-4 gap-3">
-
-                  {/* Step dots */}
-                  <div className="flex flex-wrap gap-1.5">
-                    {results.map((r, i) => (
-                      <button
-                        key={r.short}
-                        type="button"
-                        onClick={() => setCriteriaStep(i)}
-                        className={cn(
-                          "h-1.5 rounded-full transition-all",
-                          i === step
-                            ? "w-5 bg-primary"
-                            : r.met
-                              ? "w-1.5 bg-emerald-400"
-                              : "w-1.5 bg-zinc-300 dark:bg-zinc-600",
-                        )}
-                      />
-                    ))}
+              );
+            case "video":
+              return ca.video_url
+                ? <div className="flex flex-col items-center justify-center h-full gap-3 p-6">
+                    <video src={ca.video_url} controls className="max-h-52 max-w-full" />
+                    <a href={ca.video_url} target="_blank" rel="noreferrer" className="text-xs text-primary underline">Open in new tab ↗</a>
                   </div>
+                : <QualEmptyState label="No video link" />;
+            case "id_files":
+              return (
+                <div className="grid grid-cols-2 gap-3 p-4 h-full">
+                  <div className="flex flex-col gap-1 min-h-0">
+                    <p className="text-[10px] font-semibold uppercase text-muted-foreground shrink-0">ID — Candidate</p>
+                    <div className="flex-1 min-h-0">{ca.lmis_id_url ? <img src={ca.lmis_id_url} alt="Candidate ID" className="h-full w-full object-contain" /> : <QualEmptyState label="Not uploaded" small />}</div>
+                  </div>
+                  <div className="flex flex-col gap-1 min-h-0">
+                    <p className="text-[10px] font-semibold uppercase text-muted-foreground shrink-0">ID — Relative</p>
+                    <div className="flex-1 min-h-0">{ca.lmis_id_relative_url ? <img src={ca.lmis_id_relative_url} alt="Relative ID" className="h-full w-full object-contain" /> : <QualEmptyState label="Not uploaded" small />}</div>
+                  </div>
+                </div>
+              );
+            case "narrative":
+              return <div className="p-5 space-y-5"><QualInfoField label="Narrative" value={ca.narrative} /><QualInfoField label="Narrative Phone" value={ca.narrative_phone} /></div>;
+            case "coc":
+              return <div className="p-5"><QualInfoField label="COC Status" value={ca.coc_status} highlight={ca.coc_status === "Done"} /></div>;
+            case "personal":
+              return <div className="p-5 space-y-5"><QualInfoField label="Religion" value={ca.religion} /><QualInfoField label="Marital Status" value={ca.marital_status} /></div>;
+            case "ceo":
+              return <div className="p-5"><QualInfoField label="CEO Selection" value={ca.selected_by} highlight={TC_CEO_OPTIONS.includes(ca.selected_by ?? "")} /></div>;
+            case "medical":
+              return <div className="p-5"><QualInfoField label="Medical Status" value={ca.medical_status} highlight={["Fit", "Booked", "In progress"].includes(ca.medical_status ?? "")} /></div>;
+            case "med_fit":
+              return (
+                <div className="p-5 space-y-5">
+                  <QualInfoField label="Medical Status" value={ca.medical_status} highlight={ca.medical_status === "Fit"} />
+                  <QualInfoField label="Medical Date" value={ca.medical_date} />
+                  {ca.medical_date && <QualInfoField label="Days Since Test" value={`${Math.floor((Date.now() - new Date(ca.medical_date + "T00:00:00").getTime()) / 86400000)} days`} />}
+                </div>
+              );
+            default:
+              return <QualEmptyState label="No preview available" />;
+          }
+        }
 
-                  {/* Current criterion */}
-                  <div className={cn(
-                    "flex-1 flex flex-col items-center justify-center gap-3 p-4 border text-center",
-                    current.met
-                      ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30"
-                      : "border-border bg-muted/30",
-                  )}>
-                    <span className={cn(
-                      "h-10 w-10 rounded-full flex items-center justify-center text-lg font-bold shrink-0",
-                      current.met
-                        ? "bg-emerald-500 text-white"
-                        : "bg-zinc-200 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400",
-                    )}>
-                      {current.met ? "✓" : "✗"}
-                    </span>
+        function closeCriteria() {
+          setCriteriaViewId(null);
+          setCriteriaStep(0);
+          setCriteriaVerdicts({});
+          setCriteriaComments({});
+        }
+
+        return (
+          <Dialog open onOpenChange={(o) => { if (!o) closeCriteria(); }}>
+            <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-none flex flex-col" style={{ maxHeight: "88vh" }}>
+
+              {/* Header */}
+              <DialogHeader className="px-4 py-3 border-b shrink-0">
+                <DialogTitle className="text-sm font-semibold">Qualification — {cc.full_name}</DialogTitle>
+              </DialogHeader>
+
+              {/* Progress */}
+              <div className="flex items-center px-4 py-1.5 bg-muted/40 border-b text-[11px] text-muted-foreground shrink-0">
+                <span>{reviewed} of {results.length} reviewed · {rejectedCount} rejected · {pending} pending</span>
+              </div>
+
+              {/* Body */}
+              <div className="flex flex-1 overflow-hidden min-h-0">
+
+                {/* Sidebar */}
+                <div className="w-44 border-r overflow-y-auto shrink-0 bg-background">
+                  {QUAL_GROUPS.map((group) => {
+                    const items = results.filter((r) => group.keys.includes(r.key));
+                    if (items.length === 0) return null;
+                    return (
+                      <div key={group.label}>
+                        <div className="px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/70 bg-muted/60 border-b">
+                          {group.label}
+                        </div>
+                        {items.map((r) => {
+                          const verdict = criteriaVerdicts[r.key];
+                          const isActive = results[step]?.key === r.key;
+                          return (
+                            <button
+                              key={r.key}
+                              type="button"
+                              onClick={() => setCriteriaStep(results.findIndex((x) => x.key === r.key))}
+                              className={cn(
+                                "w-full flex items-center gap-2.5 px-3 py-2.5 text-left border-r-2 transition-colors hover:bg-muted/40",
+                                isActive ? "bg-blue-50 dark:bg-blue-950/30 border-blue-500" : "border-transparent",
+                              )}
+                            >
+                              <span className={cn(
+                                "h-4 w-4 rounded-sm flex items-center justify-center text-[9px] font-bold shrink-0",
+                                verdict === "approved" ? "bg-emerald-500 text-white"
+                                  : verdict === "rejected" ? "bg-red-500 text-white"
+                                  : r.met ? "bg-emerald-100 text-emerald-600 border border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-400"
+                                  : "bg-zinc-100 border border-zinc-300 text-zinc-400 dark:bg-zinc-800 dark:border-zinc-600",
+                              )}>
+                                {verdict === "approved" ? "✓" : verdict === "rejected" ? "✗" : r.met ? "✓" : "○"}
+                              </span>
+                              <span className={cn(
+                                "text-xs leading-tight truncate",
+                                isActive ? "text-foreground font-medium" : "text-muted-foreground",
+                              )}>
+                                {r.short}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Right panel */}
+                <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+
+                  {/* Criterion header */}
+                  <div className="flex items-start justify-between px-4 py-2.5 border-b bg-background shrink-0">
                     <div>
-                      <p className="text-[11px] text-muted-foreground tabular-nums">{step + 1} / {results.length}</p>
-                      <p className={cn(
-                        "text-sm font-semibold leading-snug mt-0.5",
-                        current.met ? "text-emerald-700 dark:text-emerald-300" : "text-foreground",
-                      )}>
-                        {current.label}
-                      </p>
+                      <p className="text-sm font-semibold">{current?.short ?? ""}</p>
+                      <p className="text-xs text-muted-foreground">{CRITERION_SUBTITLE[current?.key ?? ""] ?? ""}</p>
                     </div>
+                    {downloadUrl && (
+                      <a href={downloadUrl} download target="_blank" rel="noreferrer">
+                        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 rounded-none">
+                          <Download className="h-3.5 w-3.5" /> Download
+                        </Button>
+                      </a>
+                    )}
                   </div>
 
-                  {/* Navigation + actions */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none"
-                        disabled={step === 0}
-                        onClick={() => setCriteriaStep((s) => Math.max(0, s - 1))}>
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none"
-                        disabled={step === results.length - 1}
-                        onClick={() => setCriteriaStep((s) => Math.min(results.length - 1, s + 1))}>
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline"
-                        className="h-7 text-xs rounded-none text-destructive border-destructive/40 hover:bg-destructive/5"
-                        onClick={() => {
-                          fieldMut.mutate({ id: criteriaCandidate.id, field: "availability_type", value: null });
-                          toast.success(`${criteriaCandidate.full_name ?? "Candidate"} removed from TC`);
-                          setCriteriaViewId(null); setCriteriaStep(0);
-                        }}>
-                        Deny
-                      </Button>
-                      <Button size="sm" className="h-7 text-xs rounded-none"
-                        onClick={() => {
-                          fieldMut.mutate({ id: criteriaCandidate.id, field: "availability_type", value: "Available" });
-                          toast.success(`${criteriaCandidate.full_name ?? "Candidate"} moved to Available`);
-                          setCriteriaViewId(null); setCriteriaStep(0);
-                        }}>
-                        Approve
-                      </Button>
-                    </div>
+                  {/* Content */}
+                  <div className="flex-1 overflow-auto min-h-0 bg-muted/10">
+                    {renderContent()}
                   </div>
 
+                  {/* Approve / Reject + Comment */}
+                  <div className="border-t px-4 py-3 space-y-2 bg-background shrink-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button
+                        size="sm" variant="outline"
+                        className={cn("h-7 text-xs gap-1 rounded-none",
+                          criteriaVerdicts[current?.key ?? ""] === "approved"
+                            ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
+                            : "border-emerald-500 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40")}
+                        onClick={() => current && toggleVerdict(current.key, "approved")}
+                      >
+                        ✓ Approve
+                      </Button>
+                      <Button
+                        size="sm" variant="outline"
+                        className={cn("h-7 text-xs gap-1 rounded-none",
+                          criteriaVerdicts[current?.key ?? ""] === "rejected"
+                            ? "bg-red-600 hover:bg-red-700 text-white border-red-600"
+                            : "border-red-400 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40")}
+                        onClick={() => current && toggleVerdict(current.key, "rejected")}
+                      >
+                        ✗ Reject
+                      </Button>
+                      <span className="text-[11px] text-muted-foreground">Click the same verdict again to clear it.</span>
+                    </div>
+                    <Textarea
+                      className="rounded-none text-xs resize-none"
+                      rows={2}
+                      placeholder={`Comment about ${current?.short?.toLowerCase() ?? "criterion"} — what is wrong, or what to fix`}
+                      value={criteriaComments[current?.key ?? ""] ?? ""}
+                      onChange={(e) => current && setCriteriaComments((prev) => ({ ...prev, [current.key]: e.target.value }))}
+                    />
+                  </div>
                 </div>
               </div>
+
+              {/* Footer — candidate-level actions */}
+              <div className="border-t px-4 py-2.5 flex items-center justify-between bg-background shrink-0">
+                <div className="flex gap-2">
+                  {criteriaViewIdx > 0 && (
+                    <Button size="sm" variant="outline" className="h-7 text-xs rounded-none gap-1"
+                      onClick={() => setCriteriaViewId(filtered[criteriaViewIdx - 1].id)}>
+                      <ChevronLeft className="h-3.5 w-3.5" /> Prev
+                    </Button>
+                  )}
+                  {criteriaViewIdx < filtered.length - 1 && (
+                    <Button size="sm" variant="outline" className="h-7 text-xs rounded-none gap-1"
+                      onClick={() => setCriteriaViewId(filtered[criteriaViewIdx + 1].id)}>
+                      Next <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline"
+                    className="h-7 text-xs rounded-none text-destructive border-destructive/40 hover:bg-destructive/5"
+                    onClick={() => {
+                      fieldMut.mutate({ id: cc.id, field: "availability_type", value: null });
+                      toast.success(`${cc.full_name ?? "Candidate"} removed from TC`);
+                      closeCriteria();
+                    }}>
+                    Deny
+                  </Button>
+                  <Button size="sm" className="h-7 text-xs rounded-none"
+                    onClick={() => {
+                      fieldMut.mutate({ id: cc.id, field: "availability_type", value: "Available" });
+                      toast.success(`${cc.full_name ?? "Candidate"} moved to Available`);
+                      closeCriteria();
+                    }}>
+                    Approve
+                  </Button>
+                </div>
+              </div>
+
             </DialogContent>
           </Dialog>
         );
