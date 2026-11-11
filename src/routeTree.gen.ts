@@ -30,6 +30,7 @@ import { Route as AuthenticatedAgencyCandidatesRouteImport } from './routes/_aut
 import { Route as AuthenticatedManagerAgenciesRouteImport } from './routes/_authenticated/manager.agencies'
 import { Route as AuthenticatedManagerAssignmentsRouteImport } from './routes/_authenticated/manager.assignments'
 import { Route as AuthenticatedManagerCandidatesRouteImport } from './routes/_authenticated/manager.candidates'
+import { Route as AuthenticatedManagerCustomCvRouteImport } from './routes/_authenticated/manager.custom-cv'
 import { Route as AuthenticatedManagerCvGeneratorRouteImport } from './routes/_authenticated/manager.cv-generator'
 import { Route as AuthenticatedManagerDashboardRouteImport } from './routes/_authenticated/manager.dashboard'
 import { Route as AuthenticatedManagerInvoiceRouteImport } from './routes/_authenticated/manager.invoice'
@@ -156,6 +157,12 @@ const AuthenticatedManagerCandidatesRoute =
     path: '/candidates',
     getParentRoute: () => AuthenticatedManagerRoute,
   } as any)
+const AuthenticatedManagerCustomCvRoute =
+  AuthenticatedManagerCustomCvRouteImport.update({
+    id: '/custom-cv',
+    path: '/custom-cv',
+    getParentRoute: () => AuthenticatedManagerRoute,
+  } as any)
 const AuthenticatedManagerCvGeneratorRoute =
   AuthenticatedManagerCvGeneratorRouteImport.update({
     id: '/cv-generator',
@@ -249,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
   '/manager/assignments': typeof AuthenticatedManagerAssignmentsRoute
   '/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
+  '/manager/custom-cv': typeof AuthenticatedManagerCustomCvRoute
   '/manager/cv-generator': typeof AuthenticatedManagerCvGeneratorRoute
   '/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
   '/manager/invoice': typeof AuthenticatedManagerInvoiceRoute
@@ -283,6 +291,7 @@ export interface FileRoutesByTo {
   '/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
   '/manager/assignments': typeof AuthenticatedManagerAssignmentsRoute
   '/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
+  '/manager/custom-cv': typeof AuthenticatedManagerCustomCvRoute
   '/manager/cv-generator': typeof AuthenticatedManagerCvGeneratorRoute
   '/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
   '/manager/invoice': typeof AuthenticatedManagerInvoiceRoute
@@ -319,6 +328,7 @@ export interface FileRoutesById {
   '/_authenticated/manager/agencies': typeof AuthenticatedManagerAgenciesRoute
   '/_authenticated/manager/assignments': typeof AuthenticatedManagerAssignmentsRoute
   '/_authenticated/manager/candidates': typeof AuthenticatedManagerCandidatesRoute
+  '/_authenticated/manager/custom-cv': typeof AuthenticatedManagerCustomCvRoute
   '/_authenticated/manager/cv-generator': typeof AuthenticatedManagerCvGeneratorRoute
   '/_authenticated/manager/dashboard': typeof AuthenticatedManagerDashboardRoute
   '/_authenticated/manager/invoice': typeof AuthenticatedManagerInvoiceRoute
@@ -355,6 +365,7 @@ export interface FileRouteTypes {
     | '/manager/agencies'
     | '/manager/assignments'
     | '/manager/candidates'
+    | '/manager/custom-cv'
     | '/manager/cv-generator'
     | '/manager/dashboard'
     | '/manager/invoice'
@@ -389,6 +400,7 @@ export interface FileRouteTypes {
     | '/manager/agencies'
     | '/manager/assignments'
     | '/manager/candidates'
+    | '/manager/custom-cv'
     | '/manager/cv-generator'
     | '/manager/dashboard'
     | '/manager/invoice'
@@ -424,6 +436,7 @@ export interface FileRouteTypes {
     | '/_authenticated/manager/agencies'
     | '/_authenticated/manager/assignments'
     | '/_authenticated/manager/candidates'
+    | '/_authenticated/manager/custom-cv'
     | '/_authenticated/manager/cv-generator'
     | '/_authenticated/manager/dashboard'
     | '/_authenticated/manager/invoice'
@@ -597,6 +610,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedManagerCandidatesRouteImport
       parentRoute: typeof AuthenticatedManagerRoute
     }
+    '/_authenticated/manager/custom-cv': {
+      id: '/_authenticated/manager/custom-cv'
+      path: '/custom-cv'
+      fullPath: '/manager/custom-cv'
+      preLoaderRoute: typeof AuthenticatedManagerCustomCvRouteImport
+      parentRoute: typeof AuthenticatedManagerRoute
+    }
     '/_authenticated/manager/cv-generator': {
       id: '/_authenticated/manager/cv-generator'
       path: '/cv-generator'
@@ -718,6 +738,7 @@ interface AuthenticatedManagerRouteChildren {
   AuthenticatedManagerAgenciesRoute: typeof AuthenticatedManagerAgenciesRoute
   AuthenticatedManagerAssignmentsRoute: typeof AuthenticatedManagerAssignmentsRoute
   AuthenticatedManagerCandidatesRoute: typeof AuthenticatedManagerCandidatesRoute
+  AuthenticatedManagerCustomCvRoute: typeof AuthenticatedManagerCustomCvRoute
   AuthenticatedManagerCvGeneratorRoute: typeof AuthenticatedManagerCvGeneratorRoute
   AuthenticatedManagerDashboardRoute: typeof AuthenticatedManagerDashboardRoute
   AuthenticatedManagerInvoiceRoute: typeof AuthenticatedManagerInvoiceRoute
@@ -731,6 +752,7 @@ const AuthenticatedManagerRouteChildren: AuthenticatedManagerRouteChildren = {
   AuthenticatedManagerAgenciesRoute: AuthenticatedManagerAgenciesRoute,
   AuthenticatedManagerAssignmentsRoute: AuthenticatedManagerAssignmentsRoute,
   AuthenticatedManagerCandidatesRoute: AuthenticatedManagerCandidatesRoute,
+  AuthenticatedManagerCustomCvRoute: AuthenticatedManagerCustomCvRoute,
   AuthenticatedManagerCvGeneratorRoute: AuthenticatedManagerCvGeneratorRoute,
   AuthenticatedManagerDashboardRoute: AuthenticatedManagerDashboardRoute,
   AuthenticatedManagerInvoiceRoute: AuthenticatedManagerInvoiceRoute,

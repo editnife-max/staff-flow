@@ -1,7 +1,7 @@
 import { Outlet, createFileRoute, Navigate, Link, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, Users, Globe2, ClipboardList, CreditCard,
-  MapPin, FileText, Bell, CheckCircle2, Building2, LogOut, ChevronDown, Activity, BookOpen,
+  MapPin, FileText, Bell, CheckCircle2, Building2, LogOut, ChevronDown, Activity, BookOpen, Palette,
 } from "lucide-react";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -38,6 +38,7 @@ const NAV_ITEMS = [
   { to: "/manager/assignments",  label: "Assignments",      icon: MapPin },
   { to: "/manager/invoice",      label: "Invoice",          icon: FileText },
   { to: "/manager/cv-generator", label: "CV Page",          icon: BookOpen },
+  { to: "/manager/custom-cv",    label: "Custom CV",        icon: Palette },
 ];
 
 type InvoiceNotif = {
