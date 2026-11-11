@@ -627,35 +627,33 @@ function TcPage() {
           : "entered" as const;
 
         return (
-          <div className="space-y-5">
-            <div className="grid grid-cols-3 gap-4">
-              {stats.map((s) => (
-                <button
-                  key={s.label}
-                  type="button"
-                  onClick={() => navigate({ to: "/staff/tc", search: { nav: "cp", view: s.view }, replace: true })}
-                  className={cn("rounded-none border p-5 text-left hover:opacity-90 transition-opacity", s.bg)}
-                >
-                  <p className={cn("text-4xl font-bold tabular-nums leading-none", s.value)}>{s.count}</p>
-                  <p className="text-sm text-muted-foreground mt-2 font-medium">{s.label}</p>
-                  {s.view === "trained" && noVideo.length > 0 && (
-                    <div className="mt-3 flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-                      <AlertTriangle className="h-3 w-3 shrink-0" />
-                      <span className="text-xs font-medium">
-                        {noVideo.length} girl{noVideo.length !== 1 ? "s" : ""} need video
-                      </span>
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
+          <div className="grid grid-cols-3 gap-4 items-start">
+            {stats.map((s) => (
+              <button
+                key={s.label}
+                type="button"
+                onClick={() => navigate({ to: "/staff/tc", search: { nav: "cp", view: s.view }, replace: true })}
+                className={cn("rounded-none border p-5 text-left hover:opacity-90 transition-opacity", s.bg)}
+              >
+                <p className={cn("text-4xl font-bold tabular-nums leading-none", s.value)}>{s.count}</p>
+                <p className="text-sm text-muted-foreground mt-2 font-medium">{s.label}</p>
+                {s.view === "trained" && noVideo.length > 0 && (
+                  <div className="mt-3 flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                    <AlertTriangle className="h-3 w-3 shrink-0" />
+                    <span className="text-xs font-medium">
+                      {noVideo.length} girl{noVideo.length !== 1 ? "s" : ""} need video
+                    </span>
+                  </div>
+                )}
+              </button>
+            ))}
 
+            {/* Warnings — col 1 only, naturally below Entered Girls */}
             {WARNINGS.length > 0 && (
               <div className="space-y-2">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Warnings</p>
                 {WARNINGS.map((w) => (
-                  <div key={w.key} className="border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 rounded-none p-3">
-                    <div className="flex items-center gap-2 mb-2.5">
+                  <div key={w.key} className="border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 rounded-none p-5">
+                    <div className="flex items-center gap-2 mb-3">
                       <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                       <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">
                         {w.list.length} girl{w.list.length !== 1 ? "s" : ""} — {w.label}
