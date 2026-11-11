@@ -494,8 +494,14 @@ function StaffCandidatesPage() {
   const currentTabRef = useRef(tab);
   currentTabRef.current = tab;
 
+  const [criteriaPopupId,       setCriteriaPopupId]       = useState<string | null>(null);
+  const [criteriaStep,          setCriteriaStep]          = useState(0);
+  const [criteriaVerdicts,      setCriteriaVerdicts]      = useState<Record<string, "approved" | "rejected">>({});
+  const [criteriaComments,      setCriteriaComments]      = useState<Record<string, string>>({});
+
   useEffect(() => { if (tabParam) setTab(tabParam); }, [tabParam]);
   useEffect(() => { try { sessionStorage.setItem("stf-last-tab", tab); } catch {} }, [tab]);
+  useEffect(() => { setCriteriaStep(0); setCriteriaVerdicts({}); setCriteriaComments({}); }, [criteriaPopupId]);
   const [passport, setPassport] = useState(() => {
     try { return filterCache.current.get(tabParam ?? "available")?.p ?? ""; } catch { return ""; }
   });
@@ -555,7 +561,6 @@ function StaffCandidatesPage() {
   const [form, setForm] = useState(initialForm);
   const [processingEdit, setProcessingEdit] = useState<Candidate | null>(null);
   const [cocPlacedPending, setCocPlacedPending] = useState<{ id: string } | null>(null);
-  const [criteriaPopupId, setCriteriaPopupId] = useState<string | null>(null);
   const [cocPlacedName, setCocPlacedName] = useState("");
   const [cocPlacedPhone, setCocPlacedPhone] = useState("");
   const [lmisNeededId, setLmisNeededId] = useState<string | null>(null);
@@ -1866,42 +1871,216 @@ function StaffCandidatesPage() {
 
       {/* Criteria popup — Available tab */}
       {(() => {
-        const cc = criteriaPopupId ? filtered.find((x) => x.id === criteriaPopupId) : null;
+        const avFiltered = tab === "available" ? filtered : [];
+        const popupIdx = criteriaPopupId ? avFiltered.findIndex((x) => x.id === criteriaPopupId) : -1;
+        const cc = popupIdx >= 0 ? avFiltered[popupIdx] : null;
         if (!cc) return null;
+
+        const ca = cc as any;
         const results = CRITERIA.map((cr) => ({ ...cr, met: cr.check(cc) }));
-        const score = results.filter((r) => r.met).length;
-        const eligible = score >= CRITERIA_THRESHOLD;
-        const approved = (cc as any).cv_approved === true;
-        return (
-          <Dialog open onOpenChange={(o) => { if (!o) setCriteriaPopupId(null); }}>
-            <DialogContent className="max-w-sm rounded-none">
-              <DialogHeader>
-                <DialogTitle className="text-sm">Criteria — {cc.full_name}</DialogTitle>
-              </DialogHeader>
-              <div className="py-1 space-y-2">
-                {results.map((r) => (
-                  <div key={r.key} className="flex items-center gap-2.5">
-                    <div className={cn("w-4 h-4 rounded-sm shrink-0", r.met ? "bg-emerald-500" : "bg-zinc-200 dark:bg-zinc-700")} />
-                    <span className={cn("text-sm", r.met ? "text-foreground" : "text-muted-foreground line-through")}>{r.label}</span>
+        const step = Math.min(criteriaStep, results.length - 1);
+        const current = results[step];
+        const reviewed = results.filter((r) => r.key in criteriaVerdicts).length;
+        const rejectedCount = Object.values(criteriaVerdicts).filter((v) => v === "rejected").length;
+        const pending = results.length - reviewed;
+        const approved = ca.cv_approved === true;
+
+        const QUAL_GROUPS = [
+          { label: "PHOTO & VIDEO",    keys: ["avatar", "photos", "video"] },
+          { label: "DETAIL & MUSANED", keys: ["narrative", "id_files", "coc", "personal", "ceo", "medical", "med_fit"] },
+        ];
+        const CRITERION_SUBTITLE: Record<string, string> = {
+          avatar: "Profile photo", photos: "Full-size & passport scan", video: "Training video",
+          narrative: "Narrative & phone", id_files: "ID documents (LMIS)",
+          coc: "Certificate of Competency", personal: "Religion & marital status",
+          ceo: "CEO evaluation", medical: "Medical status", med_fit: "Medical Fit (≤75 days)",
+        };
+        const downloadUrl = current?.key === "avatar" ? ca.photo_url
+          : current?.key === "photos" ? (ca.full_photo_url ?? ca.passport_scan_url)
+          : current?.key === "id_files" ? (ca.lmis_id_url ?? ca.lmis_id_relative_url)
+          : null;
+
+        function toggleVerdict(key: string, verdict: "approved" | "rejected") {
+          setCriteriaVerdicts((prev) => {
+            if (prev[key] === verdict) { const { [key]: _, ...rest } = prev; return rest; }
+            return { ...prev, [key]: verdict };
+          });
+        }
+
+        function renderContent() {
+          if (!current) return null;
+          switch (current.key) {
+            case "avatar":
+              return ca.photo_url
+                ? <div className="flex items-center justify-center h-full p-4"><img src={ca.photo_url} alt="Avatar" className="max-h-full max-w-full object-contain" /></div>
+                : <div className="flex items-center justify-center h-full min-h-[160px] text-xs text-muted-foreground border-2 border-dashed border-border/40">No avatar photo</div>;
+            case "photos":
+              return (
+                <div className="grid grid-cols-2 gap-3 p-4 h-full">
+                  <div className="flex flex-col gap-1 min-h-0">
+                    <p className="text-[10px] font-semibold uppercase text-muted-foreground shrink-0">Full Photo</p>
+                    <div className="flex-1 min-h-0">{ca.full_photo_url ? <img src={ca.full_photo_url} alt="Full" className="h-full w-full object-contain" /> : <div className="flex items-center justify-center h-full min-h-[80px] text-xs text-muted-foreground border-2 border-dashed border-border/40">No full photo</div>}</div>
                   </div>
-                ))}
-                <div className={cn("text-sm font-semibold pt-1", eligible ? "text-emerald-700" : "text-muted-foreground")}>
-                  {score}/{CRITERIA.length} criteria met
+                  <div className="flex flex-col gap-1 min-h-0">
+                    <p className="text-[10px] font-semibold uppercase text-muted-foreground shrink-0">Passport Scan</p>
+                    <div className="flex-1 min-h-0">{ca.passport_scan_url ? <img src={ca.passport_scan_url} alt="Passport" className="h-full w-full object-contain" /> : <div className="flex items-center justify-center h-full min-h-[80px] text-xs text-muted-foreground border-2 border-dashed border-border/40">No scan</div>}</div>
+                  </div>
+                </div>
+              );
+            case "video":
+              return ca.video_url
+                ? <div className="flex flex-col items-center justify-center h-full gap-3 p-6"><video src={ca.video_url} controls className="max-h-52 max-w-full" /><a href={ca.video_url} target="_blank" rel="noreferrer" className="text-xs text-primary underline">Open in new tab ↗</a></div>
+                : <div className="flex items-center justify-center h-full min-h-[160px] text-xs text-muted-foreground border-2 border-dashed border-border/40">No video link</div>;
+            case "id_files":
+              return (
+                <div className="grid grid-cols-2 gap-3 p-4 h-full">
+                  <div className="flex flex-col gap-1 min-h-0">
+                    <p className="text-[10px] font-semibold uppercase text-muted-foreground shrink-0">ID — Candidate</p>
+                    <div className="flex-1 min-h-0">{ca.lmis_id_url ? <img src={ca.lmis_id_url} alt="ID" className="h-full w-full object-contain" /> : <div className="flex items-center justify-center h-full min-h-[80px] text-xs text-muted-foreground border-2 border-dashed border-border/40">Not uploaded</div>}</div>
+                  </div>
+                  <div className="flex flex-col gap-1 min-h-0">
+                    <p className="text-[10px] font-semibold uppercase text-muted-foreground shrink-0">ID — Relative</p>
+                    <div className="flex-1 min-h-0">{ca.lmis_id_relative_url ? <img src={ca.lmis_id_relative_url} alt="Relative ID" className="h-full w-full object-contain" /> : <div className="flex items-center justify-center h-full min-h-[80px] text-xs text-muted-foreground border-2 border-dashed border-border/40">Not uploaded</div>}</div>
+                  </div>
+                </div>
+              );
+            case "narrative":
+              return <div className="p-5 space-y-5"><div><p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Narrative</p><p className={cn("text-sm font-medium", ca.narrative ? "text-foreground" : "text-muted-foreground italic")}>{ca.narrative || "—"}</p></div><div><p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Narrative Phone</p><p className={cn("text-sm font-medium", ca.narrative_phone ? "text-foreground" : "text-muted-foreground italic")}>{ca.narrative_phone || "—"}</p></div></div>;
+            case "coc":
+              return <div className="p-5"><div><p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">COC Status</p><p className={cn("text-sm font-medium", ca.coc_status === "Done" ? "text-emerald-700 dark:text-emerald-300" : ca.coc_status ? "text-foreground" : "text-muted-foreground italic")}>{ca.coc_status || "—"}</p></div></div>;
+            case "personal":
+              return <div className="p-5 space-y-5"><div><p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Religion</p><p className={cn("text-sm font-medium", ca.religion ? "text-foreground" : "text-muted-foreground italic")}>{ca.religion || "—"}</p></div><div><p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Marital Status</p><p className={cn("text-sm font-medium", ca.marital_status ? "text-foreground" : "text-muted-foreground italic")}>{ca.marital_status || "—"}</p></div></div>;
+            case "ceo":
+              return <div className="p-5"><div><p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">CEO Selection</p><p className={cn("text-sm font-medium", ["Excellent","Selected","Reserved"].includes(ca.selected_by ?? "") ? "text-emerald-700 dark:text-emerald-300" : ca.selected_by ? "text-foreground" : "text-muted-foreground italic")}>{ca.selected_by || "—"}</p></div></div>;
+            case "medical":
+              return <div className="p-5"><div><p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Medical Status</p><p className={cn("text-sm font-medium", ["Fit","Booked","In progress"].includes(ca.medical_status ?? "") ? "text-emerald-700 dark:text-emerald-300" : ca.medical_status ? "text-foreground" : "text-muted-foreground italic")}>{ca.medical_status || "—"}</p></div></div>;
+            case "med_fit":
+              return <div className="p-5 space-y-5"><div><p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Medical Status</p><p className={cn("text-sm font-medium", ca.medical_status === "Fit" ? "text-emerald-700 dark:text-emerald-300" : ca.medical_status ? "text-foreground" : "text-muted-foreground italic")}>{ca.medical_status || "—"}</p></div><div><p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Medical Date</p><p className={cn("text-sm font-medium", ca.medical_date ? "text-foreground" : "text-muted-foreground italic")}>{ca.medical_date || "—"}</p></div>{ca.medical_date && <div><p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Days Since Test</p><p className="text-sm font-medium text-foreground">{`${Math.floor((Date.now() - new Date(ca.medical_date + "T00:00:00").getTime()) / 86400000)} days`}</p></div>}</div>;
+            default:
+              return <div className="flex items-center justify-center h-full min-h-[160px] text-xs text-muted-foreground border-2 border-dashed border-border/40">No preview available</div>;
+          }
+        }
+
+        return (
+          <Dialog open onOpenChange={(o) => { if (!o) { setCriteriaPopupId(null); } }}>
+            <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-none flex flex-col" style={{ maxHeight: "88vh" }}>
+
+              <DialogHeader className="px-4 py-3 border-b shrink-0">
+                <DialogTitle className="text-sm font-semibold">Criteria — {cc.full_name}</DialogTitle>
+              </DialogHeader>
+
+              <div className="flex items-center px-4 py-1.5 bg-muted/40 border-b text-[11px] text-muted-foreground shrink-0">
+                <span>{reviewed} of {results.length} reviewed · {rejectedCount} rejected · {pending} pending</span>
+                {approved && <span className="ml-auto text-emerald-700 dark:text-emerald-400 font-semibold">✓ CV Approved</span>}
+              </div>
+
+              <div className="flex flex-1 overflow-hidden min-h-0">
+                {/* Sidebar */}
+                <div className="w-44 border-r overflow-y-auto shrink-0 bg-background">
+                  {QUAL_GROUPS.map((group) => {
+                    const items = results.filter((r) => group.keys.includes(r.key));
+                    if (items.length === 0) return null;
+                    return (
+                      <div key={group.label}>
+                        <div className="px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/70 bg-muted/60 border-b">{group.label}</div>
+                        {items.map((r) => {
+                          const verdict = criteriaVerdicts[r.key];
+                          const isActive = results[step]?.key === r.key;
+                          return (
+                            <button key={r.key} type="button"
+                              onClick={() => setCriteriaStep(results.findIndex((x) => x.key === r.key))}
+                              className={cn("w-full flex items-center gap-2.5 px-3 py-2.5 text-left border-r-2 transition-colors hover:bg-muted/40",
+                                isActive ? "bg-blue-50 dark:bg-blue-950/30 border-blue-500" : "border-transparent")}>
+                              <span className={cn("h-4 w-4 rounded-sm flex items-center justify-center text-[9px] font-bold shrink-0",
+                                verdict === "approved" ? "bg-emerald-500 text-white"
+                                  : verdict === "rejected" ? "bg-red-500 text-white"
+                                  : r.met ? "bg-emerald-100 text-emerald-600 border border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-400"
+                                  : "bg-zinc-100 border border-zinc-300 text-zinc-400 dark:bg-zinc-800 dark:border-zinc-600")}>
+                                {verdict === "approved" ? "✓" : verdict === "rejected" ? "✗" : r.met ? "✓" : "○"}
+                              </span>
+                              <span className={cn("text-xs leading-tight truncate", isActive ? "text-foreground font-medium" : "text-muted-foreground")}>{r.short}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Right panel */}
+                <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+                  <div className="flex items-start justify-between px-4 py-2.5 border-b bg-background shrink-0">
+                    <div>
+                      <p className="text-sm font-semibold">{current?.short ?? ""}</p>
+                      <p className="text-xs text-muted-foreground">{CRITERION_SUBTITLE[current?.key ?? ""] ?? ""}</p>
+                    </div>
+                    {downloadUrl && (
+                      <a href={downloadUrl} download target="_blank" rel="noreferrer">
+                        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 rounded-none"><Download className="h-3.5 w-3.5" /> Download</Button>
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="flex-1 overflow-auto min-h-0 bg-muted/10">{renderContent()}</div>
+
+                  <div className="border-t px-4 py-3 space-y-2 bg-background shrink-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button size="sm" variant="outline"
+                        className={cn("h-7 text-xs gap-1 rounded-none",
+                          criteriaVerdicts[current?.key ?? ""] === "approved"
+                            ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
+                            : "border-emerald-500 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40")}
+                        onClick={() => current && toggleVerdict(current.key, "approved")}>
+                        ✓ Approve
+                      </Button>
+                      <Button size="sm" variant="outline"
+                        className={cn("h-7 text-xs gap-1 rounded-none",
+                          criteriaVerdicts[current?.key ?? ""] === "rejected"
+                            ? "bg-red-600 hover:bg-red-700 text-white border-red-600"
+                            : "border-red-400 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40")}
+                        onClick={() => current && toggleVerdict(current.key, "rejected")}>
+                        ✗ Reject
+                      </Button>
+                      <span className="text-[11px] text-muted-foreground">Click again to clear.</span>
+                    </div>
+                    <Textarea className="rounded-none text-xs resize-none" rows={2}
+                      placeholder={`Comment about ${current?.short?.toLowerCase() ?? "criterion"}`}
+                      value={criteriaComments[current?.key ?? ""] ?? ""}
+                      onChange={(e) => current && setCriteriaComments((prev) => ({ ...prev, [current.key]: e.target.value }))} />
+                  </div>
                 </div>
               </div>
-              <DialogFooter className="gap-2">
-                <Button variant="ghost" size="sm" onClick={() => setCriteriaPopupId(null)}>Close</Button>
-                {approved ? (
-                  <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 self-center">✓ CV Approved</span>
-                ) : (
-                  <Button size="sm" onClick={() => {
-                    fieldMut.mutate({ id: cc.id, field: "cv_approved", value: "true" });
-                    setCriteriaPopupId(null);
-                  }}>
-                    Approve for CV
-                  </Button>
-                )}
-              </DialogFooter>
+
+              {/* Footer */}
+              <div className="border-t px-4 py-2.5 flex items-center justify-between bg-background shrink-0">
+                <div className="flex gap-2">
+                  {popupIdx > 0 && (
+                    <Button size="sm" variant="outline" className="h-7 text-xs rounded-none gap-1"
+                      onClick={() => setCriteriaPopupId(avFiltered[popupIdx - 1].id)}>
+                      <ChevronLeft className="h-3.5 w-3.5" /> Prev
+                    </Button>
+                  )}
+                  {popupIdx < avFiltered.length - 1 && (
+                    <Button size="sm" variant="outline" className="h-7 text-xs rounded-none gap-1"
+                      onClick={() => setCriteriaPopupId(avFiltered[popupIdx + 1].id)}>
+                      Next <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" className="h-7 text-xs rounded-none"
+                    onClick={() => setCriteriaPopupId(null)}>Close</Button>
+                  {approved ? (
+                    <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 self-center">✓ CV Approved</span>
+                  ) : (
+                    <Button size="sm" className="h-7 text-xs rounded-none"
+                      onClick={() => { fieldMut.mutate({ id: cc.id, field: "cv_approved", value: "true" }); setCriteriaPopupId(null); }}>
+                      Approve for CV
+                    </Button>
+                  )}
+                </div>
+              </div>
+
             </DialogContent>
           </Dialog>
         );
