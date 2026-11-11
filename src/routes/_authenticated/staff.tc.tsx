@@ -242,19 +242,6 @@ function TcPage() {
   // ── Warning modal state ──────────────────────────────────────────────────
   const [warningModal, setWarningModal] = useState<"avatar" | "profile" | null>(null);
 
-  const noAvatar = useMemo(
-    () => allCandidates.filter((c) =>
-      (c.availability_type === "TC" || c.availability_type === "TC_failed") && !(c as any).photo_url,
-    ),
-    [allCandidates],
-  );
-  const noProfile = useMemo(
-    () => allCandidates.filter((c) =>
-      (c.availability_type === "TC" || c.availability_type === "TC_failed") && !(c as any).full_photo_url,
-    ),
-    [allCandidates],
-  );
-
   // ── Criteria dialog state ────────────────────────────────────────────────
   const [criteriaViewId, setCriteriaViewId] = useState<string | null>(null);
   const [criteriaStep, setCriteriaStep] = useState(0);
@@ -376,6 +363,19 @@ function TcPage() {
   const agencyPhones = useMemo<Record<string, string>>(
     () => Object.fromEntries(foreignAgencies.map((a) => [a.name, a.contact_phone ?? ""])),
     [foreignAgencies],
+  );
+
+  const noAvatar = useMemo(
+    () => allCandidates.filter((c) =>
+      (c.availability_type === "TC" || c.availability_type === "TC_failed") && !(c as any).photo_url,
+    ),
+    [allCandidates],
+  );
+  const noProfile = useMemo(
+    () => allCandidates.filter((c) =>
+      (c.availability_type === "TC" || c.availability_type === "TC_failed") && !(c as any).full_photo_url,
+    ),
+    [allCandidates],
   );
 
   // TC candidates split by view
