@@ -654,7 +654,7 @@ function MemberCard({ member, period, onClick, onUnsuspend, unsuspending }: {
           <div className="mt-3 pt-3 border-t border-border">
             <Button
               size="sm" variant="outline"
-              className="w-full h-7 text-xs text-emerald-600 border-emerald-300 hover:bg-emerald-50 rounded-none gap-1.5"
+              className="w-full h-7 text-xs text-emerald-600 border-emerald-300 hover:bg-emerald-50 gap-1.5"
               disabled={unsuspending}
               onClick={(e) => { e.stopPropagation(); onUnsuspend(); }}
             >
@@ -732,10 +732,10 @@ function StaffActivityPage() {
   });
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6 p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Staff Activity</h1>
+          <h1 className="text-[26px] font-semibold leading-tight tracking-tight sm:text-[28px]">Staff Activity</h1>
           <p className="text-muted-foreground text-sm mt-1">Real-time attendance and productivity overview</p>
         </div>
         <div className="flex flex-wrap gap-2">

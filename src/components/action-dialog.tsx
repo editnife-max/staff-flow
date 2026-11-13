@@ -466,7 +466,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
   return (
     <Dialog open={candidates.length > 0} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent
-        className="rounded-none p-0 gap-0 overflow-hidden"
+        className="p-0 gap-0 overflow-hidden"
         style={{ maxWidth: 1400, width: "98vw", maxHeight: "92vh", display: "flex", flexDirection: "column" }}
       >
         <DialogHeader className="px-6 py-4 border-b shrink-0">
@@ -492,13 +492,13 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
               {sortOpen && (
                 <div className="px-4 pb-4 flex items-center gap-2">
                   <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger className="h-8 text-xs rounded-none flex-1"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-8 text-xs flex-1"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {SORT_FIELDS.map((f) => <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <button type="button" onClick={() => setSortDir((d) => d === "asc" ? "desc" : "asc")}
-                    className="h-8 w-8 shrink-0 flex items-center justify-center border rounded-none text-muted-foreground hover:bg-muted">
+                    className="h-8 w-8 shrink-0 flex items-center justify-center border text-muted-foreground hover:bg-muted">
                     <ArrowUpDown className="h-3.5 w-3.5" />
                   </button>
                   <span className="text-xs font-medium text-muted-foreground shrink-0">{sortDir.toUpperCase()}</span>
@@ -524,7 +524,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
                       )}
                       <button type="button" onClick={() => setDownloadType(t.id)}
                         className={cn(
-                          "w-full text-left px-3 py-2 text-sm rounded-none border transition-colors",
+                          "w-full text-left px-3 py-2 text-sm border transition-colors",
                           downloadType === t.id
                             ? "border-primary/40 bg-primary/5 text-primary font-medium"
                             : "border-transparent hover:border-border hover:bg-muted/40 text-muted-foreground",
@@ -570,7 +570,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
                               ? "border-primary/30 bg-primary/5"
                               : "border-transparent bg-transparent opacity-40 hover:opacity-70",
                           )}>
-                          <Checkbox checked={checked} onCheckedChange={() => toggleCol(col.key as string)} className="rounded-none h-4 w-4 shrink-0" />
+                          <Checkbox checked={checked} onCheckedChange={() => toggleCol(col.key as string)} className="h-4 w-4 shrink-0" />
                           <span className={cn("text-xs leading-tight truncate", checked ? "text-foreground font-medium" : "text-muted-foreground")}>{col.label}</span>
                         </label>
                       );
@@ -594,24 +594,24 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
           <div className="flex items-center gap-2">
             {isNormalCv ? (
               <>
-                <Button variant="outline" onClick={handleNormalCvDocx} disabled={downloading} className="rounded-none shrink-0">
+                <Button variant="outline" onClick={handleNormalCvDocx} disabled={downloading} className="shrink-0">
                   <FileText className="h-4 w-4 mr-2" />
                   {downloading ? "Downloading…" : isBulk ? `${candidates.length} × DOCX` : "Download DOCX"}
                 </Button>
-                <Button onClick={handleNormalCvPdf} disabled={downloading} className="rounded-none shrink-0">
+                <Button onClick={handleNormalCvPdf} disabled={downloading} className="shrink-0">
                   <Download className="h-4 w-4 mr-2" />
                   {downloading ? "Downloading…" : isBulk ? `${candidates.length} × PDF` : "Download PDF"}
                 </Button>
               </>
             ) : isVideoCv ? (
-              <Button onClick={handleVideoCvPdf} disabled={downloading} className="rounded-none shrink-0">
+              <Button onClick={handleVideoCvPdf} disabled={downloading} className="shrink-0">
                 <Download className="h-4 w-4 mr-2" />
                 {downloading ? "Downloading…" : isBulk ? `${candidates.length} × PDF` : "Download PDF"}
               </Button>
             ) : (
               <>
                 {isDocxTemplate && (
-                  <Button variant="outline" onClick={handleDocxDownload} disabled={downloading} className="rounded-none shrink-0">
+                  <Button variant="outline" onClick={handleDocxDownload} disabled={downloading} className="shrink-0">
                     <FileText className="h-4 w-4 mr-2" />
                     {downloading
                       ? "Downloading…"
@@ -620,7 +620,7 @@ export function ActionDialog({ candidates, onClose }: ActionDialogProps) {
                         : "Download DOCX"}
                   </Button>
                 )}
-                <Button onClick={handleDownload} disabled={downloading} className="rounded-none shrink-0">
+                <Button onClick={handleDownload} disabled={downloading} className="shrink-0">
                   <Download className="h-4 w-4 mr-2" />
                   {downloading
                     ? "Downloading…"

@@ -1,12 +1,13 @@
-import { Outlet, createFileRoute, Navigate, Link, useNavigate } from "@tanstack/react-router";
+import { Outlet, createFileRoute, Navigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, Users, Globe2, ClipboardList, CreditCard,
-  MapPin, FileText, Bell, CheckCircle2, Building2, LogOut, ChevronDown, Activity, BookOpen, Palette,
+  MapPin, FileText, Bell, CheckCircle2, Activity, BookOpen, Palette,
 } from "lucide-react";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/hooks/use-auth";
+import { PageLoader } from "@/components/page-loader";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -16,12 +17,7 @@ import { backfillTeamAbsents } from "@/lib/staff-attendance.functions";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuSeparator, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { DarkModeToggle } from "@/components/dark-mode-toggle";
+import { RoleShell, headerIconButton, type RoleNavItem } from "@/components/role-shell";
 import { TicketAnnouncementBanner } from "@/components/ticket-announcement-banner";
 import { useDistributionJob } from "@/hooks/use-distribution";
 import { DistributionReportView, JobStatusLine } from "@/components/distribution-report";
@@ -30,17 +26,17 @@ export const Route = createFileRoute("/_authenticated/manager")({
   component: ManagerLayout,
 });
 
-const NAV_ITEMS = [
-  { to: "/manager/dashboard",    label: "Dashboard",        icon: LayoutDashboard },
-  { to: "/manager/staff",          label: "Staff",            icon: Users },
+const NAV_ITEMS: RoleNavItem[] = [
+  { to: "/manager/dashboard",      label: "Dashboard",        icon: LayoutDashboard, tab: true },
+  { to: "/manager/staff",          label: "Staff",            icon: Users,           tab: true },
   { to: "/manager/staff-activity", label: "Staff Activity",   icon: Activity },
-  { to: "/manager/agencies",     label: "Foreign Agencies", icon: Globe2 },
-  { to: "/manager/candidates",   label: "Candidates",       icon: ClipboardList },
-  { to: "/manager/subscription", label: "Subscription",     icon: CreditCard },
-  { to: "/manager/assignments",  label: "Assignments",      icon: MapPin },
-  { to: "/manager/invoice",      label: "Invoice",          icon: FileText },
-  { to: "/manager/cv-generator", label: "CV Page",          icon: BookOpen },
-  { to: "/manager/custom-cv",    label: "Custom CV",        icon: Palette },
+  { to: "/manager/agencies",       label: "Foreign Agencies", icon: Globe2 },
+  { to: "/manager/candidates",     label: "Candidates",       icon: ClipboardList,   tab: true },
+  { to: "/manager/subscription",   label: "Subscription",     icon: CreditCard },
+  { to: "/manager/assignments",    label: "Assignments",      icon: MapPin,          tab: true },
+  { to: "/manager/invoice",        label: "Invoice",          icon: FileText },
+  { to: "/manager/cv-generator",   label: "CV Page",          icon: BookOpen },
+  { to: "/manager/custom-cv",      label: "Custom CV",        icon: Palette },
 ];
 
 type InvoiceNotif = {
@@ -157,16 +153,16 @@ function ManagerBell() {
     <>
       <Popover open={open} onOpenChange={(o) => { if (o) openBell(); else setOpen(false); }}>
         <PopoverTrigger asChild>
-          <button className="relative p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+          <button type="button" className={headerIconButton} aria-label="Notifications">
             <Bell className="h-5 w-5" />
             {unread > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold grid place-items-center leading-none">
+              <span className="absolute top-0.5 right-0.5 h-4 min-w-4 px-0.5 rounded-full ring-2 ring-background bg-destructive text-destructive-foreground text-[10px] font-bold grid place-items-center leading-none">
                 {unread > 9 ? "9+" : unread}
               </span>
             )}
           </button>
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-80 p-0">
+        <PopoverContent align="end" className="w-[min(20rem,calc(100vw-1.5rem))] p-0">
           <div className="px-4 py-3 border-b text-sm font-semibold">Notifications</div>
           <div className="max-h-[360px] overflow-y-auto divide-y">
             {tasheerOverdue.length > 0 && (
@@ -337,8 +333,7 @@ function ManagerBell() {
 }
 
 function ManagerLayout() {
-  const { role, loading, user, signOut } = useAuth();
-  const navigate = useNavigate();
+  const { role, loading } = useAuth();
   const doBackfill = useServerFn(backfillTeamAbsents);
 
   // Register absent days for all staff once per hour automatically
@@ -351,73 +346,12 @@ function ManagerLayout() {
 
   // Only block when we have no role yet (initial load). Skip the guard during
   // token-refresh events so the layout stays mounted and pages don't flash.
-  if (loading && !role) return <div className="p-8 text-muted-foreground">Loading...</div>;
+  if (loading && !role) return <PageLoader />;
   if (!loading && role !== "manager" && role !== "admin") return <Navigate to="/dashboard" />;
 
-  const initials = (user?.email ?? "U").slice(0, 2).toUpperCase();
-
   return (
-    <div className="min-h-screen flex flex-col bg-muted/30">
-      <header className="border-b bg-background">
-        <div className="px-6 py-3 flex items-center gap-8">
-          <Link to="/manager/dashboard" className="flex items-center gap-3 shrink-0">
-            <div className="h-9 w-9 rounded-md bg-primary/10 grid place-items-center">
-              <Building2 className="h-4 w-4 text-primary" />
-            </div>
-            <span className="text-sm font-semibold tracking-tight">Staff-Flow</span>
-          </Link>
-
-          <nav className="flex-1 flex flex-wrap items-center gap-x-6 gap-y-2">
-            {NAV_ITEMS.map((n) => {
-              const Icon = n.icon;
-              return (
-                <Link
-                  key={n.label}
-                  to={n.to}
-                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary py-2"
-                  activeProps={{ className: "text-primary font-semibold border-b-2 border-primary py-2 flex items-center gap-2" }}
-                >
-                  <Icon className="h-4 w-4" />{n.label}
-                </Link>
-              );
-            })}
-          </nav>
-
-          <DarkModeToggle />
-          <ManagerBell />
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-1 shrink-0">
-                <Avatar className="h-9 w-9">
-                  <AvatarFallback className="bg-muted text-muted-foreground text-xs">{initials}</AvatarFallback>
-                </Avatar>
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem disabled className="text-xs">{user?.email}</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={async () => { await signOut(); navigate({ to: "/login" }); }}>
-                <LogOut className="h-4 w-4 mr-2" /> Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </header>
-
-      <main className="flex-1 overflow-auto"><Outlet /></main>
-
-      <footer className="border-t bg-background">
-        <div className="px-6 py-4 text-xs text-muted-foreground flex flex-wrap items-center justify-between gap-2">
-          <div>© {new Date().getFullYear()} Staff-Flow Agency. All rights reserved.</div>
-          <div className="flex items-center gap-4">
-            <Link to="/about" className="hover:text-foreground">About</Link>
-            <Link to="/faq" className="hover:text-foreground">FAQ</Link>
-            <Link to="/contact" className="hover:text-foreground">Contact</Link>
-          </div>
-        </div>
-      </footer>
-    </div>
+    <RoleShell homeTo="/manager/dashboard" roleLabel="Manager" nav={NAV_ITEMS} actions={<ManagerBell />}>
+      <Outlet />
+    </RoleShell>
   );
 }

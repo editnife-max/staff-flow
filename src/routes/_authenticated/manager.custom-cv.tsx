@@ -52,7 +52,7 @@ function CustomCvPage() {
 
   if (editing) {
     return (
-      <div className="h-[calc(100vh-7.5rem)] min-h-[640px] bg-background">
+      <div className="bg-background lg:h-[calc(100dvh-3.5rem)] lg:min-h-[640px]">
         <TemplateEditor initial={editing} onClose={() => setEditing(null)} />
       </div>
     );
@@ -129,10 +129,10 @@ function TemplateList({
   });
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6 p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
+          <h1 className="flex items-center gap-2 text-[26px] font-semibold leading-tight tracking-tight sm:text-[28px]">
             <Palette className="h-6 w-6" /> Custom CV
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
@@ -141,7 +141,7 @@ function TemplateList({
             &ldquo;Choose Download Type&rdquo; when your team downloads candidate CVs.
           </p>
         </div>
-        <Button onClick={onNew} className="rounded-none">
+        <Button onClick={onNew}>
           <Plus className="mr-1.5 h-4 w-4" /> New template
         </Button>
       </div>
@@ -156,7 +156,7 @@ function TemplateList({
             Start from a preset, add your logo and contacts, choose the fields, and make it
             available to your staff.
           </p>
-          <Button onClick={onNew} className="mt-1 rounded-none">
+          <Button onClick={onNew} className="mt-1">
             <Plus className="mr-1.5 h-4 w-4" /> Create your first template
           </Button>
         </div>
@@ -185,7 +185,7 @@ function TemplateList({
                   <Badge
                     variant="outline"
                     className={cn(
-                      "shrink-0 rounded-none",
+                      "shrink-0",
                       t.isActive ? "border-emerald-300 text-emerald-700" : "text-muted-foreground",
                     )}
                   >
@@ -203,7 +203,7 @@ function TemplateList({
                 <div className="mt-auto flex gap-1.5">
                   <Button
                     size="sm"
-                    className="rounded-none"
+                   
                     onClick={() =>
                       onEdit({ id: t.id, name: t.name, isActive: t.isActive, config: t.config })
                     }
@@ -213,7 +213,7 @@ function TemplateList({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="rounded-none"
+                   
                     disabled={duplicateMut.isPending}
                     onClick={() => duplicateMut.mutate(t)}
                   >
@@ -224,7 +224,7 @@ function TemplateList({
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="ml-auto rounded-none text-muted-foreground hover:text-destructive"
+                        className="ml-auto text-muted-foreground hover:text-destructive"
                         aria-label={`Delete ${t.name}`}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -279,7 +279,7 @@ function NewTemplateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl rounded-none">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>New Custom CV template</DialogTitle>
           <DialogDescription>
@@ -316,15 +316,15 @@ function NewTemplateDialog({
             maxLength={60}
             placeholder="e.g. Agency CV – Saudi"
             onChange={(e) => setName(e.target.value)}
-            className="rounded-none"
+           
           />
         </div>
         <DialogFooter>
-          <Button variant="outline" className="rounded-none" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
-            className="rounded-none"
+           
             onClick={() => {
               const p = presets.find((x) => x.id === presetId)!;
               onCreate({

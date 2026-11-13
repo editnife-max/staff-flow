@@ -357,7 +357,7 @@ function AgencyCandidatesPage() {
       )}
 
       {/* Filter panel */}
-      <Card className="rounded-none mb-3">
+      <Card className="mb-3">
         <CardContent className="p-4">
           <div className="flex items-center justify-between gap-2 mb-2">
             <div className="flex items-center gap-3">
@@ -369,7 +369,7 @@ function AgencyCandidatesPage() {
                 <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
                 {ui.filters}
                 {activeCount > 0 && (
-                  <span className="rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+                  <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
                     {activeCount}
                   </span>
                 )}
@@ -381,7 +381,7 @@ function AgencyCandidatesPage() {
                   placeholder={ui.search}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-8 h-7 text-xs rounded-none w-52"
+                  className="pl-8 h-7 text-xs w-52"
                 />
               </div>
             </div>
@@ -423,7 +423,7 @@ function AgencyCandidatesPage() {
                 options={[{ value: "all", label: "-----" }, { value: "Single", label: ui.single }, { value: "Married", label: ui.married }]}
               />
               <div className={cn(
-                "flex items-center gap-1 h-7 px-2 border rounded-none text-[13px] font-medium transition-colors",
+                "flex items-center gap-1 h-7 px-2 border text-[13px] font-medium transition-colors",
                 (filters.ageFrom || filters.ageTo)
                   ? "bg-black/10 border-black/20 text-[#181A27] dark:bg-white/10 dark:border-white/20 dark:text-white"
                   : "bg-muted/40 border-border text-muted-foreground",
@@ -490,11 +490,11 @@ function AgencyCandidatesPage() {
 
       {/* Results grid */}
       {isLoading ? (
-        <Card className="rounded-none">
+        <Card>
           <CardContent className="p-8 text-center text-sm text-muted-foreground">{ui.loading}</CardContent>
         </Card>
       ) : filtered.length === 0 ? (
-        <Card className="rounded-none">
+        <Card>
           <CardContent className="p-8 text-center text-sm text-muted-foreground">{ui.noResults}</CardContent>
         </Card>
       ) : (
@@ -838,8 +838,11 @@ function AgencyCandidateCard({
         selected && "ring-2 ring-primary/50 border-primary/40",
       )}>
 
-        {/* ── Photo: full width on mobile, w-56 on sm+ ── */}
-        <div className="w-full aspect-[3/4] sm:aspect-auto sm:w-72 sm:h-auto sm:self-stretch shrink-0 bg-muted relative order-first sm:order-last">
+        {/* ── Photo: full width on mobile (short strip when there is no photo), w-72 on sm+ ── */}
+        <div className={cn(
+          "relative order-first w-full shrink-0 bg-muted sm:order-last sm:aspect-auto sm:h-auto sm:w-72 sm:self-stretch",
+          (c.photo_url || c.full_photo_url) ? "aspect-[4/5] max-h-[65vh]" : "aspect-[5/2]",
+        )}>
           {(c.photo_url || c.full_photo_url) ? (
             <img
               src={c.photo_url ?? c.full_photo_url!}
@@ -848,7 +851,7 @@ function AgencyCandidateCard({
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/20">
-              <User className="h-14 w-14" />
+              <User className="h-12 w-12" />
             </div>
           )}
         </div>
@@ -951,7 +954,7 @@ function FilterSelect({
     <div className="flex items-center gap-0.5">
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger className={cn(
-          "border shadow-none w-auto h-7 px-2 gap-1.5 transition-colors rounded-none text-[13px] font-medium [&>svg]:shrink-0",
+          "border shadow-none w-auto h-7 px-2 gap-1.5 transition-colors text-[13px] font-medium [&>svg]:shrink-0",
           isReset
             ? "bg-muted/40 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
             : "bg-black/10 border-black/20 text-[#181A27] dark:bg-white/10 dark:border-white/20 dark:text-white",
@@ -971,7 +974,7 @@ function FilterSelect({
       </Select>
       {!isReset && (
         <button type="button" onClick={() => onChange("all")}
-          className="rounded-none p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          className="p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
           aria-label="Clear filter">
           <X className="h-3 w-3" />
         </button>

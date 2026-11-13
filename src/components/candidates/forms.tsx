@@ -58,7 +58,7 @@ export function Field({ label, value, onChange, type = "text", placeholder, maxL
   return (
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
-      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="rounded-none h-9" placeholder={placeholder} maxLength={maxLength} list={hasSugg ? listId : undefined} />
+      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="h-9" placeholder={placeholder} maxLength={maxLength} list={hasSugg ? listId : undefined} />
       {hasSugg && <datalist id={listId}>{suggestions!.map((s) => <option key={s} value={s} />)}</datalist>}
     </div>
   );
@@ -69,7 +69,7 @@ export function FormSelect({ label, value, onChange, options }: { label: string;
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
       <Select value={value || undefined} onValueChange={onChange}>
-        <SelectTrigger className="rounded-none h-9"><SelectValue placeholder="—" /></SelectTrigger>
+        <SelectTrigger className="h-9"><SelectValue placeholder="—" /></SelectTrigger>
         <SelectContent>
           {options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
         </SelectContent>
@@ -90,7 +90,7 @@ export function FormInput({ label, value, onChange, placeholder, type = "text", 
         placeholder={placeholder}
         min={type === "number" ? 0 : undefined}
         list={listId}
-        className="w-full rounded-none border border-input bg-background px-3 h-9 text-sm outline-none focus:ring-1 focus:ring-ring"
+        className="w-full border border-input bg-background px-3 h-9 text-sm outline-none focus:ring-1 focus:ring-ring"
       />
       {listId && (
         <datalist id={listId}>
@@ -136,7 +136,7 @@ export function PhotoUpload({ label, value, onChange, accept = "image/*" }: { la
           onDragEnter={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); }}
-          className={`border-2 border-dashed rounded-none cursor-pointer transition-colors flex flex-col items-center justify-center gap-1.5 min-h-[88px] p-2 bg-muted/20 select-none ${dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/60"}`}
+          className={`border-2 border-dashed cursor-pointer transition-colors flex flex-col items-center justify-center gap-1.5 min-h-[88px] p-2 bg-muted/20 select-none ${dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/60"}`}
         >
           {uploading ? (
             <span className="text-xs text-muted-foreground animate-pulse">Uploading…</span>
@@ -148,7 +148,7 @@ export function PhotoUpload({ label, value, onChange, accept = "image/*" }: { la
           ) : value ? (
             <>
               {isImage ? (
-                <img src={value} alt={label} className="max-h-[60px] max-w-full object-contain rounded-none" />
+                <img src={value} alt={label} className="max-h-[60px] max-w-full object-contain" />
               ) : (
                 <div className="flex flex-col items-center gap-1">
                   <ImageIcon className="h-8 w-8 text-muted-foreground" />
@@ -168,7 +168,7 @@ export function PhotoUpload({ label, value, onChange, accept = "image/*" }: { la
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onChange(""); }}
-            className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center rounded-none bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors"
+            className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors"
             title="Remove"
           >
             <X className="h-3 w-3" />
@@ -218,7 +218,7 @@ export function LmisDocSection({
           onDragLeave={() => setDragOver(false)}
           onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); }}
           className={cn(
-            "border-2 border-dashed rounded-none cursor-pointer transition-colors flex flex-col items-center justify-center gap-1 min-h-[56px] p-1.5 bg-muted/20 select-none",
+            "border-2 border-dashed cursor-pointer transition-colors flex flex-col items-center justify-center gap-1 min-h-[56px] p-1.5 bg-muted/20 select-none",
             dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/60",
           )}
         >
@@ -229,7 +229,7 @@ export function LmisDocSection({
           ) : url ? (
             <>
               {isImage
-                ? <img src={url} alt={label} className="max-h-[40px] max-w-full object-contain rounded-none" />
+                ? <img src={url} alt={label} className="max-h-[40px] max-w-full object-contain" />
                 : <><ImageIcon className="h-5 w-5 text-muted-foreground" /><span className="text-[9px] text-muted-foreground truncate max-w-[100px]">{url.split("/").pop()}</span></>}
               <span className="text-[9px] text-primary">Replace</span>
             </>
@@ -239,7 +239,7 @@ export function LmisDocSection({
         </div>
         {url && !uploading && (
           <button type="button" onClick={(e) => { e.stopPropagation(); onRemove(); }}
-            className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center rounded-none bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors">
+            className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors">
             <X className="h-3 w-3" />
           </button>
         )}
@@ -278,7 +278,7 @@ export function LmisFilesDialog({
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-3xl rounded-none">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="text-base">LMIS Documents — {candidate.full_name}</DialogTitle>
         </DialogHeader>
@@ -323,7 +323,7 @@ export function LmisFilesDialog({
             { label: "Ending of Contract",     value: fmtDate(ca.musaned_contract_end) },
           ];
           return (
-            <div className="mt-4 rounded-none border border-border overflow-hidden">
+            <div className="mt-4 border border-border overflow-hidden">
               <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border-b border-border">
                 <svg className="h-3.5 w-3.5 text-teal-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                 <span className="text-[11px] font-semibold tracking-wider uppercase text-foreground/70">Musaned Info</span>
@@ -370,7 +370,7 @@ export function TicketFilesDialog({
   };
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-2xl rounded-none">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-base">Ticket Documents — {candidate.full_name}</DialogTitle>
         </DialogHeader>

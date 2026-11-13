@@ -25,7 +25,8 @@ import { JawaCv } from "./jawa";
 import { MonacoCv } from "./monaco";
 import { FormatNCv } from "./format-n";
 
-export type CvLayoutId = "normal" | "normal-classic" | "tadbeer" | "jawa" | "monaco" | "format-n";
+import type { CvLayoutId } from "./match";
+export { layoutForTemplate, type CvLayoutId } from "./match";
 
 // Every layout draws Play / Download video buttons under its full-size photo (from
 // CvData.video), so their PDFs have no separate video-link page.
@@ -70,19 +71,6 @@ export const NORMAL_CV_OPTION = {
   label: "Normal CV",
   layout: "normal" as CvLayoutId,
 };
-
-/** The code layout that replaces an uploaded template's PDF output, matched by template name. */
-export function layoutForTemplate(
-  template: Pick<CvTemplate, "name"> | null | undefined,
-): CvLayoutId | null {
-  const name = (template?.name ?? "").toLowerCase();
-  if (name.includes("tadbeer")) return "tadbeer";
-  if (name.includes("jawa")) return "jawa";
-  if (name.includes("monaco")) return "monaco";
-  if (/format\s*n\b/.test(name)) return "format-n";
-  if (/\bnormal\b/.test(name)) return "normal";
-  return null;
-}
 
 // Marks <link>/<style> nodes that must survive the stylesheet purge in html2canvas' clone.
 const KEEP_ATTR = "data-cv-keep";

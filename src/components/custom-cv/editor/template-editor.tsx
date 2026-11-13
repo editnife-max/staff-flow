@@ -129,11 +129,11 @@ export function TemplateEditor({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Top bar */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
+      <div className="glass-bar sticky top-14 z-30 flex flex-wrap items-center gap-3 border-b border-border px-4 py-3 lg:static">
         <Button
           variant="ghost"
           size="sm"
-          className="rounded-none"
+         
           onClick={() => (dirty ? setConfirmLeave(true) : onClose())}
         >
           <ArrowLeft className="mr-1.5 h-4 w-4" /> Templates
@@ -143,7 +143,7 @@ export function TemplateEditor({
           maxLength={60}
           onChange={(e) => setName(e.target.value)}
           placeholder="Template name"
-          className="h-9 w-64 rounded-none font-medium"
+          className="h-9 min-w-0 flex-1 font-medium sm:w-64 sm:flex-none"
           aria-label="Template name"
         />
         <label className="flex items-center gap-2 text-sm">
@@ -166,7 +166,7 @@ export function TemplateEditor({
           <Button
             onClick={() => saveMut.mutate()}
             disabled={saveMut.isPending || (!dirty && !!id)}
-            className="rounded-none"
+           
           >
             <Save className="mr-1.5 h-4 w-4" />
             {saveMut.isPending ? "Saving…" : dirty || !id ? "Save" : "Saved"}
@@ -176,8 +176,8 @@ export function TemplateEditor({
 
       <div className="grid min-h-0 flex-1 lg:grid-cols-[440px_1fr]">
         {/* Settings */}
-        <Tabs defaultValue="layout" className="flex min-h-0 flex-col border-r border-border">
-          <TabsList className="h-auto w-full shrink-0 flex-wrap justify-start gap-0.5 rounded-none border-b border-border bg-muted/40 p-1">
+        <Tabs defaultValue="layout" className="flex min-h-0 flex-col border-b border-border lg:border-b-0 lg:border-r">
+          <TabsList className="h-auto w-full shrink-0 flex-wrap justify-start gap-0.5 border-b border-border bg-muted/40 p-1">
             {[
               ["layout", "Layout"],
               ["header", "Header"],
@@ -185,7 +185,7 @@ export function TemplateEditor({
               ["contacts", "Contacts & footer"],
               ["style", "Style"],
             ].map(([v, label]) => (
-              <TabsTrigger key={v} value={v} className="rounded-none text-xs">
+              <TabsTrigger key={v} value={v} className="text-xs">
                 {label}
               </TabsTrigger>
             ))}
@@ -215,7 +215,7 @@ export function TemplateEditor({
             <span className="text-xs font-medium text-muted-foreground">Live preview · A4</span>
             <Select value={candidateId} onValueChange={setCandidateId}>
               <SelectTrigger
-                className="h-8 w-64 rounded-none text-xs"
+                className="h-8 w-44 text-xs sm:w-64"
                 aria-label="Preview with candidate"
               >
                 <SelectValue />

@@ -89,7 +89,7 @@ export function ProcessingEditDialog({
     <div className="space-y-1">
       <label className="text-xs font-medium text-muted-foreground">{label}</label>
       <select value={form[k]} onChange={(e) => set(k)(e.target.value)}
-        className="w-full rounded-none border border-input bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+        className="w-full border border-input bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
         <option value="">—</option>
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
       </select>
@@ -102,7 +102,7 @@ export function ProcessingEditDialog({
       <div className="space-y-1">
         <label className="text-xs font-medium text-muted-foreground">{label}</label>
         <Input type={type} value={form[k]} onChange={(e) => set(k)(e.target.value)}
-          className="rounded-none h-8 text-sm" list={hasSugg ? listId : undefined} />
+          className="h-8 text-sm" list={hasSugg ? listId : undefined} />
         {hasSugg && <datalist id={listId}>{suggestions!.map((s) => <option key={s} value={s} />)}</datalist>}
       </div>
     );
@@ -117,7 +117,7 @@ export function ProcessingEditDialog({
           <DialogTitle>Edit Processing — {candidate.full_name}</DialogTitle>
         </DialogHeader>
         {isLocked && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-300 dark:bg-amber-950/40 dark:border-amber-700 rounded-none text-sm text-amber-800 dark:text-amber-300">
+          <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-300 dark:bg-amber-950/40 dark:border-amber-700 text-sm text-amber-800 dark:text-amber-300">
             <span className="text-base">🔒</span>
             <span><strong>Locked</strong> — Visa Status is <strong>Waiting Replacement</strong>. Changes are not allowed until the visa status is updated.</span>
           </div>
@@ -357,12 +357,12 @@ export function CandidateCardList({
   return (
     <div className="space-y-2">
       {countryMeta.length > 0 && (
-        <Card className="rounded-none">
+        <Card>
           <CardContent className="px-3 py-2">
             <div className="flex items-center gap-1 flex-wrap">
               <button type="button"
                 onClick={() => { setActiveCountryTab("all"); setActiveOfficeTab("all"); }}
-                className={cn("px-3 py-1.5 text-xs font-medium rounded-none border transition-colors",
+                className={cn("px-3 py-1.5 text-xs font-medium border transition-colors",
                   activeCountryTab === "all"
                     ? "border-primary/40 bg-primary/5 text-primary"
                     : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40")}>
@@ -373,7 +373,7 @@ export function CandidateCardList({
                 return (
                   <button key={c.name} type="button"
                     onClick={() => { setActiveCountryTab(activeCountryTab === c.name ? "all" : c.name); setActiveOfficeTab("all"); }}
-                    className={cn("px-3 py-1.5 text-xs font-medium rounded-none border transition-colors flex items-center gap-1.5",
+                    className={cn("px-3 py-1.5 text-xs font-medium border transition-colors flex items-center gap-1.5",
                       activeCountryTab === c.name
                         ? "border-primary/40 bg-primary/5 text-primary"
                         : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40")}>
@@ -386,11 +386,11 @@ export function CandidateCardList({
         </Card>
       )}
       {activeCountryTab !== "all" && (officesByCountry[activeCountryTab] ?? []).length > 0 && (
-        <Card className="rounded-none">
+        <Card>
           <CardContent className="px-3 py-2">
             <div className="flex items-center gap-1 flex-wrap">
               <button type="button" onClick={() => setActiveOfficeTab("all")}
-                className={cn("px-3 py-1.5 text-xs font-medium rounded-none border transition-colors",
+                className={cn("px-3 py-1.5 text-xs font-medium border transition-colors",
                   activeOfficeTab === "all"
                     ? "border-primary/40 bg-primary/5 text-primary"
                     : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40")}>
@@ -401,7 +401,7 @@ export function CandidateCardList({
                 return (
                   <button key={office} type="button"
                     onClick={() => setActiveOfficeTab(activeOfficeTab === office ? "all" : office)}
-                    className={cn("px-3 py-1.5 text-xs font-medium rounded-none border transition-colors flex items-center gap-1.5",
+                    className={cn("px-3 py-1.5 text-xs font-medium border transition-colors flex items-center gap-1.5",
                       activeOfficeTab === office
                         ? "border-primary/40 bg-primary/5 text-primary"
                         : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40")}>
@@ -439,13 +439,13 @@ export function CandidateCardList({
                 <SlidersHorizontal className="h-3.5 w-3.5" />
                 Columns
                 {hiddenCols.size > 0 && (
-                  <span className="ml-1 rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+                  <span className="ml-1 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
                     {hiddenCols.size} hidden
                   </span>
                 )}
               </Button>
               {showColPicker && (
-                <div className="absolute right-0 top-8 z-50 bg-popover border border-border rounded-none shadow-xl p-3 w-[340px]">
+                <div className="absolute right-0 top-8 z-50 bg-popover border border-border shadow-xl p-3 w-[min(340px,calc(100vw-2rem))] rounded-xl">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Columns</span>
                     <button type="button" onClick={() => setHiddenCols(new Set())}
@@ -512,11 +512,11 @@ export function CandidateCardList({
       )}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
       {filtered.length > 0 && (
-        <div className="sticky bottom-0 z-10 bg-background shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
+        <div className="sticky bottom-above-tabbar z-10 bg-background shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
           <div ref={mirrorRef} className="w-full" style={{ overflowX: "scroll", overflowY: "hidden", height: 16 }}><div style={{ height: 1 }} /></div>
           <div className="flex items-center justify-between px-4 py-2 flex-wrap gap-2">
           <div className="flex items-center gap-1">
-            <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
+            <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={page === 1}
               onClick={() => { setPage((p) => p - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
               <ChevronLeft className="h-3.5 w-3.5" />
             </Button>
@@ -526,13 +526,13 @@ export function CandidateCardList({
                 <React.Fragment key={n}>
                   {i > 0 && n - arr[i - 1] > 1 && <span className="text-xs text-muted-foreground px-0.5">…</span>}
                   <Button size="sm" variant={page === n ? "default" : "outline"}
-                    className="h-7 w-7 p-0 rounded-none text-xs"
+                    className="h-7 w-7 p-0 text-xs"
                     onClick={() => { setPage(n); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
                     {n}
                   </Button>
                 </React.Fragment>
               ))}
-            <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === totalPages}
+            <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={page === totalPages}
               onClick={() => { setPage((p) => p + 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
               <ChevronRight className="h-3.5 w-3.5" />
             </Button>
@@ -540,7 +540,7 @@ export function CandidateCardList({
           <div className="flex items-center gap-1">
             {[5, 10, 50, 100, 500].map((s) => (
               <Button key={s} size="sm" variant={pageSize === s ? "default" : "outline"}
-                className="h-7 px-2 rounded-none text-xs"
+                className="h-7 px-2 text-xs"
                 onClick={() => { setPageSize(s); setPage(1); }}>
                 {s}
               </Button>
@@ -579,7 +579,7 @@ function VideoCell({ url, onSave, candidateName }: { url: string | null; onSave:
           if (e.key === "Escape") { setDraft(url ?? ""); setEditing(false); }
         }}
         placeholder="Paste video URL…"
-        className="rounded-none border border-primary bg-background px-1 py-0.5 text-[12px] outline-none w-[80px]"
+        className="border border-primary bg-background px-1 py-0.5 text-[12px] outline-none w-[80px]"
       />
     );
   }
@@ -637,7 +637,7 @@ function VideoCell({ url, onSave, candidateName }: { url: string | null; onSave:
 
   return (
     <button type="button" onClick={() => setEditing(true)}
-      className="text-[11px] text-muted-foreground hover:text-foreground rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border block">
+      className="text-[11px] text-muted-foreground hover:text-foreground px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border block">
       Add URL
     </button>
   );
@@ -705,7 +705,7 @@ export function CandidateHistoryDialog({ candidateId, candidateName, createdAt, 
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-lg rounded-none">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <History className="h-4 w-4 text-muted-foreground" />
@@ -715,7 +715,7 @@ export function CandidateHistoryDialog({ candidateId, candidateName, createdAt, 
         {isLoading ? (
           <div className="py-8 text-center text-sm text-muted-foreground">Loading…</div>
         ) : (
-          <div className="max-h-[60vh] overflow-y-auto divide-y divide-border border border-border rounded-none">
+          <div className="max-h-[60vh] overflow-y-auto divide-y divide-border border border-border">
             <div className="flex items-start gap-3 px-4 py-2.5">
               <div className="flex flex-col items-center shrink-0 pt-[3px]">
                 <div className="w-1.5 h-1.5 rounded-full bg-teal-500/70" />
@@ -866,10 +866,10 @@ function CandidateCard({
   return (
     <>
       <div
-        className={cn("border border-border shadow-sm rounded-sm transition-colors", selected && "ring-1 ring-primary/50")}
+        className={cn("overflow-clip rounded-xl border border-border shadow-xs transition-colors", selected && "ring-1 ring-primary/50")}
         style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}
       >
-        <div className="sticky left-0 z-10 w-fit flex items-center gap-2 px-4 pt-2.5 pb-1" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
+        <div className="sticky left-0 z-10 w-fit flex items-center gap-2 px-3 pt-2.5 pb-1 sm:px-4" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" disabled={candidate.visa_status === "Waiting Replacement"} />
           <StatusBadge status={candidate.availability_type === "TC" ? (candidate.video_url ? "Trained" : "Training") : (candidate.status ?? "available")} />
           {candidate.availability_type?.toLowerCase() === "private" && (
@@ -903,14 +903,14 @@ function CandidateCard({
           )}
         </div>
         <div className="flex items-center pb-3 pt-1">
-          <div className="sticky left-0 z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
+          <div className="sticky left-0 z-10 shrink-0 self-stretch flex items-center gap-3 pl-3 pr-2 sm:gap-4 sm:pl-4 sm:pr-3" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
             <button type="button" onClick={onViewPhotos} className="shrink-0">
-              <Avatar className={cn("hover:ring-2 hover:ring-primary transition-all", compact ? "h-10 w-10" : "h-14 w-14")}>
+              <Avatar className={cn("hover:ring-2 hover:ring-primary transition-all", compact ? "h-10 w-10" : "h-11 w-11 sm:h-14 sm:w-14")}>
                 {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
                 <AvatarFallback className="text-[11px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
             </button>
-            <div className="shrink-0 w-[140px]">
+            <div className="shrink-0 w-[112px] sm:w-[140px]">
               <div className="text-[10px] font-semibold tracking-wider text-muted-foreground uppercase mb-1 whitespace-nowrap">FULL NAME</div>
               <button type="button" onClick={onView} className={cn("text-sm font-semibold text-left hover:text-primary hover:underline transition-colors break-words", compact ? "line-clamp-1" : "line-clamp-2")}>
                 {candidate.full_name || "—"}
@@ -1015,7 +1015,7 @@ function CandidateCard({
                                   <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
                                 </div>
                               </TooltipTrigger>
-                              <TooltipContent className="rounded-none text-xs p-2 space-y-0.5">
+                              <TooltipContent className="text-xs p-2 space-y-0.5">
                                 <div className="font-semibold">{(candidate as any).coc_agency_name || "—"}</div>
                                 <div>{(candidate as any).coc_agency_phone || "No phone"}</div>
                               </TooltipContent>
@@ -1066,7 +1066,7 @@ function CandidateCard({
                                     {wafidChecking ? <Loader2 className="h-3 w-3 animate-spin" /> : <Globe className="h-3 w-3" />}
                                   </button>
                                 </TooltipTrigger>
-                                <TooltipContent className="rounded-none text-xs p-2">
+                                <TooltipContent className="text-xs p-2">
                                   {wafidChecking ? "Connecting to wafid.com…" : "Check on wafid.com"}
                                 </TooltipContent>
                               </Tooltip>
@@ -1085,7 +1085,7 @@ function CandidateCard({
                                 Reserved — {3 - Math.floor((Date.now() - new Date((candidate as any).reserved_at).getTime()) / 86_400_000)}d left
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent className="rounded-none text-xs p-2">
+                            <TooltipContent className="text-xs p-2">
                               Reserved by <strong>{(candidate as any).reserved_by ?? "agency"}</strong>
                             </TooltipContent>
                           </Tooltip>
@@ -1111,8 +1111,8 @@ function CandidateCard({
             })}
             {renderExtraColumns}
           </div>
-          <div className="sticky right-0 z-10 shrink-0 self-stretch flex flex-col items-center justify-center gap-1.5 px-4 border-l border-border" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
-            <Button size="sm" onClick={() => setViewing(true)} className="w-full px-5 h-8 rounded text-xs font-semibold tracking-wide">
+          <div className="sticky right-0 z-10 shrink-0 self-stretch flex flex-col items-center justify-center gap-1.5 px-2.5 border-l border-border sm:px-4" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
+            <Button size="sm" onClick={() => setViewing(true)} className="w-full px-3 h-8 rounded-md text-xs font-semibold tracking-wide sm:px-5">
               VIEW
             </Button>
             {candidate.visa_status === "Waiting Replacement" ? (
@@ -1181,7 +1181,7 @@ function CandidateCard({
               Please enter the <strong>Medical Date</strong> before setting Medical Status to <strong>"Fit"</strong>.
             </p>
             <div className="py-2">
-              <Input type="date" value={pendingMedDate} onChange={(e) => setPendingMedDate(e.target.value)} className="rounded-none h-9" />
+              <Input type="date" value={pendingMedDate} onChange={(e) => setPendingMedDate(e.target.value)} className="h-9" />
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={() => setMedDateOpen(false)}>Cancel</Button>
@@ -1202,8 +1202,8 @@ function CandidateCard({
           <DialogContent className="max-w-sm">
             <DialogHeader><DialogTitle>Edit COC Agency Details</DialogTitle></DialogHeader>
             <div className="space-y-3 py-2">
-              <Input placeholder="Agency Name" value={cocEditName} onChange={(e) => setCocEditName(e.target.value)} className="rounded-none h-9" />
-              <Input placeholder="Phone Number" value={cocEditPhone} onChange={(e) => setCocEditPhone(e.target.value)} className="rounded-none h-9" />
+              <Input placeholder="Agency Name" value={cocEditName} onChange={(e) => setCocEditName(e.target.value)} className="h-9" />
+              <Input placeholder="Phone Number" value={cocEditPhone} onChange={(e) => setCocEditPhone(e.target.value)} className="h-9" />
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={() => setCocEditOpen(false)}>Cancel</Button>

@@ -42,7 +42,7 @@ function UserCell({ name, email }: { name: string | null; email: string | null }
   return (
     <div className="flex items-center gap-2.5">
       <Avatar className="h-7 w-7">
-        <AvatarFallback className="text-[11px] bg-accent/20 text-accent">
+        <AvatarFallback className="text-[11px] bg-primary/10 text-primary">
           {initials(name, email)}
         </AvatarFallback>
       </Avatar>

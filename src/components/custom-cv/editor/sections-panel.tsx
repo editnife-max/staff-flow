@@ -130,7 +130,7 @@ function SectionDetails({
             value={sec.style}
             onValueChange={(v) => onChange((s) => ({ ...s, style: v as SectionConfig["style"] }))}
           >
-            <SelectTrigger className="h-8 w-48 rounded-none text-xs">
+            <SelectTrigger className="h-8 w-48 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -149,7 +149,7 @@ function SectionDetails({
           maxLength={40}
           placeholder={def.en}
           onChange={(e) => onChange((s) => ({ ...s, titleEn: e.target.value }))}
-          className="h-8 rounded-none text-xs"
+          className="h-8 text-xs"
           aria-label="Heading (English)"
         />
         <Input
@@ -158,7 +158,7 @@ function SectionDetails({
           dir="rtl"
           placeholder={def.ar}
           onChange={(e) => onChange((s) => ({ ...s, titleAr: e.target.value }))}
-          className="h-8 rounded-none text-xs"
+          className="h-8 text-xs"
           aria-label="Heading (Arabic)"
         />
       </div>
@@ -194,7 +194,7 @@ function SectionDetails({
                 <Checkbox
                   checked={f.enabled}
                   onCheckedChange={(v) => setField(f.id, v === true)}
-                  className="h-3.5 w-3.5 rounded-none"
+                  className="h-3.5 w-3.5"
                 />
                 <span className="flex-1">{FIELDS[f.id]?.en ?? f.id}</span>
                 <span dir="rtl" className="text-muted-foreground">

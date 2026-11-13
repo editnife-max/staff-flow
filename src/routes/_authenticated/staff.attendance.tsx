@@ -169,10 +169,10 @@ function AttendancePage() {
     : null;
 
   return (
-    <div className="space-y-6 max-w-3xl p-6">
+    <div className="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">My Attendance</h1>
+          <h1 className="text-[26px] font-semibold leading-tight tracking-tight sm:text-[28px]">My Attendance</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Time is counted in 15-minute windows — only when you're active
           </p>

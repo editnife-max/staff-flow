@@ -63,7 +63,7 @@ function Nav({ transparent }: { transparent: boolean }) {
             {user ? "Dashboard" : "Sign in"}
           </Link>
           {!user && (
-            <Button asChild size="sm" className="bg-primary hover:bg-primary/90 text-white">
+            <Button asChild size="sm" className="rounded-full bg-primary hover:bg-primary/90 text-white">
               <Link to="/login">Get started <ArrowRight className="ml-1 h-3.5 w-3.5" /></Link>
             </Button>
           )}
@@ -178,7 +178,7 @@ function Hero() {
           <Button
             asChild
             size="lg"
-            className="h-12 px-8 text-base bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20"
+            className="h-12 rounded-full px-8 text-base bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20"
           >
             <Link to={user ? "/dashboard" : "/login"}>
               {user ? "Go to dashboard" : "Start for free"}
@@ -189,7 +189,7 @@ function Hero() {
             asChild
             size="lg"
             variant="ghost"
-            className="h-12 px-8 text-base text-white/70 hover:text-white hover:bg-white/5"
+            className="h-12 rounded-full px-8 text-base text-white/70 hover:text-white hover:bg-white/5"
           >
             <Link to="/about">Learn how it works</Link>
           </Button>
@@ -370,7 +370,7 @@ function CtaBand() {
           <Button
             asChild
             size="lg"
-            className="h-12 px-10 text-base bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20"
+            className="h-12 rounded-full px-10 text-base bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20"
           >
             <Link to={user ? "/dashboard" : "/login"}>
               {user ? "Go to dashboard" : "Get started free"}

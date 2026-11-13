@@ -1134,14 +1134,14 @@ function ManagerCandidatesPage() {
   };
 
   return (
-    <div className="space-y-6 px-6 py-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold tracking-tight">Candidates</h1>
-        <div className="flex items-center gap-2">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-5 sm:px-6 sm:py-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <h1 className="text-[26px] font-semibold leading-tight tracking-tight sm:text-[28px]">Candidates</h1>
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
             variant="secondary"
-            className="gap-2 text-xs h-8 rounded-none"
+            className="gap-2 text-xs h-8"
             disabled={selected.size === 0}
             onClick={() => {
               const sel = Array.from(selected)
@@ -1159,19 +1159,19 @@ function ManagerCandidatesPage() {
             countryOptions={countryMeta.map((c) => c.name)}
           />
           {tab === "available" && (
-            <Button size="sm" className="gap-2 text-xs h-8 rounded-none" onClick={openCreate}>
-              <FilePlus className="h-4 w-4" /> ADD NEW CANDIDATE
+            <Button size="sm" className="gap-2 text-xs h-8" onClick={openCreate}>
+              <FilePlus className="h-4 w-4" /> Add candidate
             </Button>
           )}
           <Button
             size="sm"
             variant="outline"
-            className="gap-1.5 text-xs h-8 rounded-none"
+            className="gap-1.5 text-xs h-8"
             onClick={() => setGlobalSearchOpen(true)}
           >
             <ScanSearch className="h-3.5 w-3.5" />
             Search
-            <kbd className="ml-1 text-[10px] bg-muted px-1 py-0.5 rounded font-mono">⌘K</kbd>
+            <kbd className="ml-1 hidden text-[10px] bg-muted px-1 py-0.5 rounded font-mono sm:inline">⌘K</kbd>
           </Button>
         </div>
       </div>
@@ -1243,11 +1243,11 @@ function ManagerCandidatesPage() {
 
       {tab !== "processing" && (
         <>
-        <Card className="rounded-none">
+        <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
               {activeCount > 0 && (
-                <span className="rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+                <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
                   {activeCount}
                 </span>
               )}
@@ -1312,7 +1312,7 @@ function ManagerCandidatesPage() {
                   <div className="relative">
                     <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                     <Input
-                      className="pl-8 h-7 text-xs rounded-none w-52"
+                      className="pl-8 h-7 text-xs w-52"
                       placeholder="Name, Labour ID, Passport…"
                       value={passport}
                       onChange={(e) => setPassport(e.target.value)}
@@ -1332,9 +1332,9 @@ function ManagerCandidatesPage() {
         </>
       )}
 
-      <Card className="rounded-none">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-8 border-b border-border">
+      <Card>
+        <CardContent className="p-1.5">
+          <div role="tablist" className="flex items-center gap-1 overflow-x-auto no-scrollbar">
             {TABS.map((t) => (
               <button
                 key={t.key}
@@ -1346,11 +1346,13 @@ function ManagerCandidatesPage() {
                   setTab(t.key);
                   // Don't clearSelection — the tab-change useEffect restores each tab's own selection
                 }}
+                role="tab"
+                aria-selected={tab === t.key}
                 className={cn(
-                  "pb-2 text-[16px] font-medium transition-colors",
+                  "h-9 shrink-0 whitespace-nowrap rounded-lg px-4 text-sm font-medium transition-colors sm:flex-1 sm:text-[15px]",
                   tab === t.key
-                    ? "text-primary border-b-2 border-primary -mb-px"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 {t.label}
@@ -1653,13 +1655,13 @@ function ManagerCandidatesPage() {
                 placeholder="Agency Name"
                 value={cocPlacedName}
                 onChange={(e) => setCocPlacedName(e.target.value)}
-                className="rounded-none h-9"
+                className="h-9"
               />
               <Input
                 placeholder="Phone Number"
                 value={cocPlacedPhone}
                 onChange={(e) => setCocPlacedPhone(e.target.value)}
-                className="rounded-none h-9"
+                className="h-9"
               />
             </div>
             <DialogFooter>
@@ -1689,7 +1691,7 @@ function ManagerCandidatesPage() {
               <DialogTitle>{editing ? "Edit candidate" : "Add new candidate"}</DialogTitle>
               <Button
                 type="button" size="sm" variant="outline"
-                className="gap-1.5 text-xs h-7 rounded-none"
+                className="gap-1.5 text-xs h-7"
                 onClick={async () => {
                   try {
                     const text = await navigator.clipboard.readText();
@@ -1776,7 +1778,7 @@ function ManagerCandidatesPage() {
                           updated[i] = { ...updated[i], country: v, customCountry: v !== "Other" ? "" : updated[i].customCountry };
                           setExpEntries(updated);
                         }}>
-                          <SelectTrigger className="rounded-none h-9"><SelectValue placeholder="—" /></SelectTrigger>
+                          <SelectTrigger className="h-9"><SelectValue placeholder="—" /></SelectTrigger>
                           <SelectContent>
                             {assignCountries.map((c) => <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>)}
                             <SelectItem value="Other">Other</SelectItem>
@@ -1785,7 +1787,7 @@ function ManagerCandidatesPage() {
                         {entry.country === "Other" && (
                           <input
                             type="text"
-                            className="mt-1 w-full h-9 border border-input rounded-none px-3 text-sm bg-background"
+                            className="mt-1 w-full h-9 border border-input px-3 text-sm bg-background"
                             placeholder="Enter country name"
                             value={entry.customCountry}
                             onChange={(e) => {
@@ -1804,7 +1806,7 @@ function ManagerCandidatesPage() {
                             updated[i] = { ...updated[i], years: v };
                             setExpEntries(updated);
                           }}>
-                            <SelectTrigger className="rounded-none h-9"><SelectValue placeholder="—" /></SelectTrigger>
+                            <SelectTrigger className="h-9"><SelectValue placeholder="—" /></SelectTrigger>
                             <SelectContent>
                               {Array.from({ length: 20 }, (_, j) => String(j + 1)).map((y) => (
                                 <SelectItem key={y} value={y}>{y} {y === "1" ? "year" : "years"}</SelectItem>
@@ -1847,7 +1849,7 @@ function ManagerCandidatesPage() {
                       const checked = skillSet.has(skill);
                       return (
                         <label key={skill} className={cn(
-                          "flex items-center gap-1.5 px-2.5 py-1 rounded-none border cursor-pointer text-xs transition-colors",
+                          "flex items-center gap-1.5 px-2.5 py-1 border cursor-pointer text-xs transition-colors",
                           checked ? "bg-primary/10 border-primary text-primary" : "border-border text-muted-foreground hover:border-primary/50",
                         )}>
                           <Checkbox checked={checked} onCheckedChange={(v) => {
@@ -1876,13 +1878,13 @@ function ManagerCandidatesPage() {
                         placeholder="Agency Name"
                         value={form.coc_agency_name}
                         onChange={(e) => setForm({ ...form, coc_agency_name: e.target.value })}
-                        className="rounded-none h-8 text-xs"
+                        className="h-8 text-xs"
                       />
                       <Input
                         placeholder="Phone Number"
                         value={form.coc_agency_phone}
                         onChange={(e) => setForm({ ...form, coc_agency_phone: e.target.value })}
-                        className="rounded-none h-8 text-xs"
+                        className="h-8 text-xs"
                       />
                     </div>
                   )}
@@ -1899,7 +1901,7 @@ function ManagerCandidatesPage() {
                     type="button" size="sm" variant="outline"
                     disabled={narrativeMut.isPending}
                     onClick={() => narrativeMut.mutate()}
-                    className="h-7 gap-1.5 text-xs rounded-none"
+                    className="h-7 gap-1.5 text-xs"
                   >
                     {narrativeMut.isPending
                       ? <Loader2 className="h-3 w-3 animate-spin" />
@@ -1913,7 +1915,7 @@ function ManagerCandidatesPage() {
                   {narrativeMut.isPending ? (
                     <div className="space-y-1.5">
                       <Label className="text-xs">Narrative</Label>
-                      <div className="h-9 rounded-none border border-input bg-muted/30 animate-pulse" />
+                      <div className="h-9 border border-input bg-muted/30 animate-pulse" />
                     </div>
                   ) : (
                     <Field label="Narrative" value={form.narrative} onChange={(v) => setForm({ ...form, narrative: v })} suggestions={opts.narrative} maxLength={200} />
@@ -1929,11 +1931,11 @@ function ManagerCandidatesPage() {
                   options={["Available", "Private", "Unavailable"]} />
                 <div className="space-y-1.5">
                   <Label className="text-xs">Remark</Label>
-                  <Textarea rows={2} value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} className="rounded-none text-sm" />
+                  <Textarea rows={2} value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} className="text-sm" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Notes</Label>
-                  <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-none text-sm" />
+                  <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="text-sm" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Video URL</Label>
@@ -1942,7 +1944,7 @@ function ManagerCandidatesPage() {
                     value={form.video_url}
                     onChange={(e) => setForm({ ...form, video_url: e.target.value })}
                     placeholder="https://…"
-                    className="w-full rounded-none border border-input bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                    className="w-full border border-input bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
               </div>
@@ -2012,7 +2014,7 @@ function ManagerCandidatesPage() {
       {/* LMIS files needed prompt */}
       {lmisNeededId && (
         <Dialog open onOpenChange={(o) => { if (!o) setLmisNeededId(null); }}>
-          <DialogContent className="max-w-sm rounded-none">
+          <DialogContent className="max-w-sm">
             <DialogHeader>
               <DialogTitle>LMIS Files Required?</DialogTitle>
             </DialogHeader>

@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Building2, Printer, Search, Users, Send, Download,
-  AlertTriangle, CheckCircle2, ChevronDown, ChevronUp,
+  AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Eye, Pencil,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -14,7 +14,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -23,6 +25,14 @@ import {
   getManagerInvoices,
   managerMarkInvoicePaid,
 } from "@/lib/invoice.functions";
+import { listCustomCvTemplates } from "@/lib/custom-cv.functions";
+import {
+  invoiceTemplateOptions,
+  type InvoiceData,
+  type InvoiceTemplateOption,
+} from "@/components/invoice-layouts/data";
+import { InvoiceDocument, invoiceWebFont } from "@/components/invoice-layouts/templates";
+import { printInvoice } from "@/components/invoice-layouts/print";
 
 export const Route = createFileRoute("/_authenticated/manager/invoice")({
   head: () => ({ meta: [{ title: "Invoice — Staff-Flow" }] }),
@@ -75,6 +85,53 @@ function todayIso() { return new Date().toISOString().split("T")[0]; }
 function fmtDate(s: string) {
   return new Date(s).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
+/** Per-browser memory of the last invoice template and currency (a convenience only). */
+function readPref(key: string, fallback: string): string {
+  try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
+}
+function writePref(key: string, value: string) {
+  try { localStorage.setItem(key, value); } catch { /* storage blocked: nothing to remember */ }
+}
+const TEMPLATE_PREF = "invoice-template";
+const CURRENCY_PREF = "invoice-currency";
+
+const TEMPLATE_GROUPS: Array<{ id: InvoiceTemplateOption["group"]; label: string }> = [
+  { id: "builtin",  label: "General" },
+  { id: "company",  label: "Matches your CV templates" },
+  { id: "custom",   label: "Your Custom CV templates" },
+];
+
+function TemplatePicker({
+  options, value, onChange, className,
+}: {
+  options: InvoiceTemplateOption[];
+  value: string;
+  onChange: (v: string) => void;
+  className?: string;
+}) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className={cn("h-8 text-xs", className)}>
+        <SelectValue placeholder="Invoice template…" />
+      </SelectTrigger>
+      <SelectContent>
+        {TEMPLATE_GROUPS.map(g => {
+          const items = options.filter(o => o.group === g.id);
+          if (!items.length) return null;
+          return (
+            <SelectGroup key={g.id}>
+              <SelectLabel className="text-[10px] uppercase tracking-wider">{g.label}</SelectLabel>
+              {items.map(o => (
+                <SelectItem key={o.id} value={o.id} className="text-xs">{o.label}</SelectItem>
+              ))}
+            </SelectGroup>
+          );
+        })}
+      </SelectContent>
+    </Select>
+  );
+}
+
 function makeInvNum() {
   const d = new Date();
   return `INV-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -90,7 +147,17 @@ function ManagerInvoicePage() {
 
   // ── Invoice creation state ────────────────────────────────────────────────
   const [activeGroup, setActiveGroup] = useState<CompanyGroup | null>(null);
-  const [invNum] = useState(makeInvNum);
+  const [invNum, setInvNum] = useState(makeInvNum);
+  const [view, setView] = useState<"edit" | "preview">("edit");
+  const [templateId, setTemplateId] = useState("standard");
+  const [currency, setCurrency] = useState("");
+  // Read after mount: the page is server-rendered, where there is no localStorage.
+  useEffect(() => {
+    setTemplateId(readPref(TEMPLATE_PREF, "standard"));
+    setCurrency(readPref(CURRENCY_PREF, ""));
+  }, []);
+  const chooseTemplate = (v: string) => { setTemplateId(v); writePref(TEMPLATE_PREF, v); };
+  const chooseCurrency = (v: string) => { setCurrency(v); writePref(CURRENCY_PREF, v); };
 
   const [fromCompany,    setFromCompany]    = useState("");
   const [fromAddress,    setFromAddress]    = useState("");
@@ -143,6 +210,31 @@ function ManagerInvoicePage() {
     queryFn: () => doGetAgencies(),
     enabled: !!user,
   });
+
+  // Invoice templates follow the company's CV designs.
+  const { data: cvTemplates = [] } = useQuery<{ name: string }[]>({
+    queryKey: ["invoice-cv-template-names", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("cv_templates").select("name");
+      if (error) throw error;
+      return (data ?? []) as { name: string }[];
+    },
+    enabled: !!user,
+    staleTime: 5 * 60_000,
+  });
+  const doListCustom = useServerFn(listCustomCvTemplates);
+  const { data: customData } = useQuery({
+    queryKey: ["custom-cv-templates"],
+    queryFn: () => doListCustom(),
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+  const templateOptions = useMemo(
+    () => invoiceTemplateOptions(cvTemplates, customData?.templates ?? []),
+    [cvTemplates, customData],
+  );
+  // A remembered template that no longer exists falls back to the default.
+  const template = templateOptions.find(o => o.id === templateId) ?? templateOptions[0];
 
   const { data: invoiceHistory = [] } = useQuery<InvRecord[]>({
     queryKey: ["manager-invoices"],
@@ -250,89 +342,39 @@ function ManagerInvoicePage() {
   });
 
   // ── Print handler ─────────────────────────────────────────────────────────
-  function handlePrint() {
-    const rows = workers.map((c, i) => `
-      <tr>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center;color:#666">${i + 1}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-weight:600">${c.full_name}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;color:#555">${c.passport_number ?? "—"}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;color:${!c.ticket_date ? "#ef4444" : "#555"}">${c.ticket_date ? fmtDate(c.ticket_date) : "⚠ Missing"}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;color:${!c.occupation ? "#ef4444" : "#555"}">${c.occupation ?? "⚠ Missing"}</td>
-      </tr>`).join("");
+  const invoiceData: InvoiceData = {
+    number: invNum,
+    date: invoiceDate,
+    dueDate,
+    periodFrom: dateFrom,
+    periodTo: dateTo,
+    from: { company: fromCompany, address: fromAddress, phone: fromPhone, email: fromEmail },
+    company: activeGroup && activeGroup.name !== "— Unassigned —" ? activeGroup.name : "",
+    billTo: officeName,
+    payment: { name: paymentName, account: paymentAccount },
+    terms: term,
+    currency: currency.trim(),
+    workers: workers.map(c => ({
+      id: c.id,
+      name: c.full_name,
+      passport: c.passport_number,
+      travelDate: c.ticket_date,
+      profession: c.occupation,
+    })),
+    feeEach,
+    subtotal,
+    otherExpenses: other,
+    total,
+  };
 
-    const fromBlock = [
-      fromCompany && `<div style="font-weight:700;font-size:13px;color:#1a3a52">${fromCompany}</div>`,
-      fromAddress && `<div>${fromAddress}</div>`,
-      fromPhone   && `<div>Tel: ${fromPhone}</div>`,
-      fromEmail   && `<div>${fromEmail}</div>`,
-    ].filter(Boolean).join("");
-
-    const win = window.open("", "_blank", "width=1000,height=750");
-    if (!win) return;
-    win.document.write(`<!DOCTYPE html><html><head><title>${invNum}</title>
-    <style>
-      *{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:Arial,sans-serif;padding:28px 36px;color:#111;font-size:12px}
-      .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2.5px solid #1a3a52;padding-bottom:14px;margin-bottom:18px}
-      .logo{font-size:20px;font-weight:700;color:#1a3a52}.logo-sub{font-size:10px;color:#888;margin-top:2px}
-      .inv-h{font-size:26px;font-weight:700;color:#1a3a52;text-align:right}
-      .inv-meta{font-size:11px;color:#555;text-align:right;margin-top:4px;line-height:1.8}
-      .body{display:flex;gap:28px;align-items:flex-start}
-      .left{width:200px;flex-shrink:0;display:flex;flex-direction:column;gap:14px}
-      .right{flex:1;min-width:0}
-      .lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#999;margin-bottom:4px}
-      .val{font-size:12px;color:#111;line-height:1.6;word-break:break-word}
-      .divider{border-top:1px solid #e5e7eb;margin:4px 0}
-      .thank{margin-top:auto;padding-top:20px;font-size:13px;font-weight:700;color:#1a3a52;line-height:1.5}
-      table{width:100%;border-collapse:collapse}
-      th{background:#1a3a52;color:#fff;padding:7px 8px;font-size:10px;text-align:left;white-space:nowrap}
-      th:first-child{text-align:center;width:34px}
-      td{vertical-align:middle;padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px}
-      .totals{margin-top:10px;margin-left:auto;width:260px}
-      .t-row{display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid #e5e7eb}
-      .t-row.final{font-weight:700;font-size:14px;color:#1a3a52;border:none;padding-top:8px}
-      @media print{body{padding:14px 20px}@page{margin:1cm}}
-    </style></head><body>
-    <div class="top">
-      <div><div class="logo">Staff-Flow</div><div class="logo-sub">Recruitment &amp; Placement Agency</div></div>
-      <div>
-        <div class="inv-h">INVOICE</div>
-        <div class="inv-meta">
-          <div><b>No:</b> ${invNum}</div>
-          <div><b>Date:</b> ${invoiceDate ? fmtDate(invoiceDate) : "—"}</div>
-          ${dueDate ? `<div><b>Due:</b> ${fmtDate(dueDate)}</div>` : ""}
-          ${dateFrom ? `<div><b>Period:</b> ${fmtDate(dateFrom)}${dateTo ? ` – ${fmtDate(dateTo)}` : ""}</div>` : ""}
-        </div>
-      </div>
-    </div>
-    <div class="body">
-      <div class="left">
-        ${fromBlock ? `<div><div class="lbl">Invoice From</div><div class="val">${fromBlock}</div></div><div class="divider"></div>` : ""}
-        ${activeGroup?.name && activeGroup.name !== "— Unassigned —" ? `<div><div class="lbl">Company / Sponsor</div><div class="val" style="font-weight:700">${activeGroup.name}</div></div>` : ""}
-        ${officeName ? `<div><div class="lbl">Bill To / Office</div><div class="val">${officeName}</div></div>` : ""}
-        ${(paymentName || paymentAccount) ? `<div><div class="lbl">Payment</div><div class="val">${paymentName ? `<div style="font-weight:600">${paymentName}</div>` : ""}${paymentAccount ? `<div>Acc: ${paymentAccount}</div>` : ""}</div></div>` : ""}
-        ${term ? `<div><div class="lbl">Terms</div><div class="val">${term}</div></div>` : ""}
-        <div class="thank">THANK YOU FOR<br>YOUR BUSINESS</div>
-      </div>
-      <div class="right">
-        <table>
-          <thead><tr>
-            <th>#</th><th>Worker Name</th><th>Passport No.</th>
-            <th>Travel Date *</th><th>Profession *</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-        <div class="totals">
-          <div class="t-row"><span>Recru. Fee (×${workers.length})</span><span>${feeEach.toLocaleString()} × ${workers.length} = ${subtotal.toLocaleString()}</span></div>
-          <div class="t-row"><span>Other Expenses</span><span>${other.toLocaleString()}</span></div>
-          <div class="t-row final"><span>Total Due</span><span>${total.toLocaleString()}</span></div>
-        </div>
-      </div>
-    </div>
-    </body></html>`);
-    win.document.close();
-    win.focus();
-    setTimeout(() => { win.print(); win.close(); }, 400);
+  /** Opens the print dialog; false when the browser blocked the print window. */
+  function handlePrint(): boolean {
+    const ok = printInvoice(<InvoiceDocument template={template} data={invoiceData} />, {
+      title: invNum,
+      webFont: invoiceWebFont(template),
+    });
+    if (!ok) toast.error("Your browser blocked the print window. Allow pop-ups for this site and try again.");
+    return ok;
   }
 
   // ── Excel export ──────────────────────────────────────────────────────────
@@ -372,12 +414,12 @@ function ManagerInvoicePage() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="px-6 py-5 space-y-4">
+    <div className="mx-auto w-full max-w-[1600px] px-4 py-5 sm:px-6 space-y-4">
 
       {/* ── Page title ──────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-sm font-semibold tracking-tight">Invoice</h1>
-        <p className="text-[11px] text-muted-foreground">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <h1 className="text-[26px] font-semibold leading-tight tracking-tight sm:text-[28px]">Invoice</h1>
+        <p className="text-sm text-muted-foreground">
           {companyGroups.length} compan{companyGroups.length !== 1 ? "ies" : "y"} · {candidates.length} arrived workers
         </p>
       </div>
@@ -412,7 +454,7 @@ function ManagerInvoicePage() {
         <div className="space-y-4">
 
           {/* Settings bar */}
-          <Card className="rounded-none">
+          <Card>
             <CardContent className="p-4 space-y-4">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Invoice From (your details)</p>
@@ -450,6 +492,14 @@ function ManagerInvoicePage() {
                   <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Account Number</Label>
                   <Input placeholder="e.g. 1234 5678 9012" value={paymentAccount} onChange={e => setPaymentAccount(e.target.value)} className="h-8 w-44 text-sm" />
                 </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Currency</Label>
+                  <Input placeholder="e.g. SAR" value={currency} onChange={e => chooseCurrency(e.target.value)} maxLength={8} className="h-8 w-24 text-sm" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Invoice Template</Label>
+                  <TemplatePicker options={templateOptions} value={template?.id ?? "standard"} onChange={chooseTemplate} className="w-56" />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -462,13 +512,13 @@ function ManagerInvoicePage() {
 
           {/* Company cards */}
           {isLoading ? (
-            <Card className="rounded-none"><CardContent className="p-8 text-center text-sm text-muted-foreground">Loading…</CardContent></Card>
+            <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">Loading…</CardContent></Card>
           ) : filteredGroups.length === 0 ? (
-            <Card className="rounded-none"><CardContent className="p-8 text-center text-sm text-muted-foreground">No uninvoiced arrived workers.</CardContent></Card>
+            <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">No uninvoiced arrived workers.</CardContent></Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {filteredGroups.map(g => (
-                <Card key={g.name} className="rounded-none hover:shadow-md transition-shadow">
+                <Card key={g.name} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-4 flex items-start gap-3">
                     <div className="h-10 w-10 rounded-md bg-primary/10 grid place-items-center shrink-0">
                       <Building2 className="h-5 w-5 text-primary" />
@@ -482,6 +532,8 @@ function ManagerInvoicePage() {
                     </div>
                     <Button size="sm" variant="outline" className="shrink-0 self-center" onClick={() => {
                       setActiveGroup(g);
+                      setInvNum(makeInvNum());
+                      setView("edit");
                       setOfficeName(g.name === "— Unassigned —" ? "" : g.name);
                       setOtherExpenses(""); setDateFrom(""); setDateTo("");
                     }}>
@@ -501,9 +553,9 @@ function ManagerInvoicePage() {
       {tab === "sent" && (
         <div>
           {sentInvoices.length === 0 ? (
-            <Card className="rounded-none"><CardContent className="p-8 text-center text-sm text-muted-foreground">No sent invoices yet.</CardContent></Card>
+            <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">No sent invoices yet.</CardContent></Card>
           ) : (
-            <Card className="rounded-none overflow-hidden">
+            <Card className="overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -525,7 +577,7 @@ function ManagerInvoicePage() {
                         <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{(inv.candidate_ids ?? []).length}</td>
                         <td className="px-4 py-3 text-right font-medium tabular-nums">{Number(inv.total ?? 0).toLocaleString()}</td>
                         <td className="px-4 py-3 text-right">
-                          <Button size="sm" variant="outline" className="h-7 text-xs rounded-none"
+                          <Button size="sm" variant="outline" className="h-7 text-xs"
                             onClick={() => { setPayDialog(inv); setDeductAmt(""); setDeductReason(""); }}>
                             <CheckCircle2 className="h-3 w-3 mr-1" /> Mark Paid
                           </Button>
@@ -546,9 +598,9 @@ function ManagerInvoicePage() {
       {tab === "paid" && (
         <div>
           {paidInvoices.length === 0 ? (
-            <Card className="rounded-none"><CardContent className="p-8 text-center text-sm text-muted-foreground">No paid invoices yet.</CardContent></Card>
+            <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">No paid invoices yet.</CardContent></Card>
           ) : (
-            <Card className="rounded-none overflow-hidden">
+            <Card className="overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -601,13 +653,13 @@ function ManagerInvoicePage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">{invoiceHistory.length} total invoice{invoiceHistory.length !== 1 ? "s" : ""} across {overallByCompany.length} compan{overallByCompany.length !== 1 ? "ies" : "y"}</p>
-            <Button size="sm" variant="outline" className="h-7 rounded-none text-xs gap-1.5" onClick={downloadOverallExcel}>
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={downloadOverallExcel}>
               <Download className="h-3 w-3" /> Download Excel
             </Button>
           </div>
 
           {overallByCompany.length === 0 ? (
-            <Card className="rounded-none"><CardContent className="p-8 text-center text-sm text-muted-foreground">No invoices yet.</CardContent></Card>
+            <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">No invoices yet.</CardContent></Card>
           ) : (
             <div className="space-y-2">
               {overallByCompany.map(({ company, invoices, totalInvoiced, totalDeductions, netReceived }) => {
@@ -691,6 +743,16 @@ function ManagerInvoicePage() {
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex border border-border" role="group" aria-label="Edit or preview the invoice">
+                {([["edit", "Edit", Pencil], ["preview", "Preview", Eye]] as const).map(([v, label, Icon]) => (
+                  <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v}
+                    className={cn("flex items-center gap-1 px-2.5 h-8 text-xs font-medium transition-colors",
+                      view === v ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
+                    <Icon className="h-3.5 w-3.5" /> {label}
+                  </button>
+                ))}
+              </div>
+              <TemplatePicker options={templateOptions} value={template?.id ?? "standard"} onChange={chooseTemplate} className="w-48" />
               {agencyUsers.length > 0 && (
                 <Select value={agencyUserId} onValueChange={setAgencyUserId}>
                   <SelectTrigger className="h-8 w-48 text-xs">
@@ -705,7 +767,7 @@ function ManagerInvoicePage() {
               )}
               <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
                 disabled={sendMut.isPending}
-                onClick={() => { handlePrint(); sendMut.mutate(); }}>
+                onClick={() => { if (handlePrint()) sendMut.mutate(); }}>
                 <Send className="h-3.5 w-3.5" />
                 {sendMut.isPending ? "Saving…" : "Print & Send"}
               </Button>
@@ -715,7 +777,15 @@ function ManagerInvoicePage() {
             </div>
           </div>
 
-          <div className="overflow-y-auto flex-1 p-6">
+          {view === "preview" && (
+            <div className="overflow-auto flex-1 bg-muted/40 p-6">
+              <div className="mx-auto bg-white shadow-sm" style={{ width: 794, padding: "28px 34px" }}>
+                <InvoiceDocument template={template} data={invoiceData} />
+              </div>
+            </div>
+          )}
+
+          <div className={cn("overflow-y-auto flex-1 p-6", view === "preview" && "hidden")}>
 
             {/* Missing fields warning */}
             {missingFields.length > 0 && (

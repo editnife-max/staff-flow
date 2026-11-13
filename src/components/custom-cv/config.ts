@@ -96,6 +96,8 @@ export type Size = "s" | "m" | "l";
 export type NameSize = "auto" | "s" | "m" | "l" | "xl";
 
 export type PhotoShape = "rect" | "rounded" | "circle";
+export type PhotoSize = Size | "xl";
+export const PHOTO_SIZES: PhotoSize[] = ["s", "m", "l", "xl"];
 
 /** The passport photo stays in a top corner, separate from the full-size photo. */
 export type SecondPlacement = "header-left" | "header-right";
@@ -103,6 +105,44 @@ export const SECOND_PLACEMENTS: Array<{ id: SecondPlacement; label: string }> = 
   { id: "header-left", label: "Top · left" },
   { id: "header-right", label: "Top · right" },
 ];
+
+/**
+ * Where the full-size photo sits in its column, relative to that column's sections.
+ * Structures with a top row (single, flow, hero) always place it in that row.
+ */
+export type FullPlacement = "top" | "middle" | "bottom";
+export const FULL_PLACEMENTS: FullPlacement[] = ["top", "middle", "bottom"];
+/** Structures where the full-size photo heads a column of its own. */
+export const COLUMN_PHOTO_STRUCTURES: Structure[] = ["photo-column", "sidebar", "two-column"];
+
+/**
+ * Where the full-size photo is actually drawn. The passport photo owns its top corner,
+ * so the full-size photo never sits directly under it:
+ * - in a photo column on the same side, "top" moves down to "middle";
+ * - in a top-row structure, the photo moves to the opposite side.
+ */
+export function resolveFullPhoto(c: CustomCvConfig): {
+  side: "left" | "right";
+  placement: FullPlacement;
+  /** True when the requested position was changed to keep the photos apart. */
+  adjusted: boolean;
+} {
+  const passportSide = c.photo.second.placement === "header-right" ? "right" : "left";
+  const clash = c.photo.show && c.photo.second.show && passportSide === c.photoSide;
+  if (COLUMN_PHOTO_STRUCTURES.includes(c.structure)) {
+    const moveDown = clash && c.photo.placement === "top";
+    return {
+      side: c.photoSide,
+      placement: moveDown ? "middle" : c.photo.placement,
+      adjusted: moveDown,
+    };
+  }
+  return {
+    side: clash ? (c.photoSide === "left" ? "right" : "left") : c.photoSide,
+    placement: "top",
+    adjusted: clash,
+  };
+}
 export type NameBlockStyle = "band" | "plain" | "none";
 
 export type HeadingStyle = "bar" | "underline" | "accent" | "plain";
@@ -437,7 +477,9 @@ export interface CustomCvConfig {
   photo: {
     show: boolean;
     shape: PhotoShape;
-    size: Size;
+    size: PhotoSize;
+    /** Position of the full-size photo in its column (see resolveFullPhoto). */
+    placement: FullPlacement;
     frame: boolean;
     videoButtons: boolean;
     /** Optional passport-size photo, kept in a top corner separately from the full-size photo. */
@@ -557,6 +599,7 @@ export function defaultConfig(): CustomCvConfig {
       show: true,
       shape: "rounded",
       size: "m",
+      placement: "top",
       frame: true,
       videoButtons: true,
       second: { show: false, placement: "header-left", size: "m", shape: "rect" },
@@ -756,14 +799,22 @@ export const PRESETS: Array<{
   {
     id: "two-photos",
     name: "Two Photos",
-    description: "Full-size photo in the photo column; passport photo in a separate top corner.",
+    description:
+      "Passport photo in the top-left corner; full-size photo on the right, below the passport details.",
     config: () =>
       preset(
         {
-          photo: { size: "l", second: { show: true, placement: "header-left", size: "s" } },
+          photoSide: "right",
+          photo: {
+            size: "l",
+            placement: "middle",
+            second: { show: true, placement: "header-left", size: "l" },
+          },
+          header: { height: "tall" },
           theme: { primary: "#0f4c5c", secondary: "#e36414" },
         },
-        (s) => zones({ contact: "main" })(s),
+        // Passport details sit above the full-size photo, like the TADBEER form.
+        (s) => zones({ contact: "main", languages: "main", passport: "side" })(s),
       ),
   },
   {
@@ -786,7 +837,7 @@ export const PRESETS: Array<{
             headingStyle: "underline",
             density: "compact",
           },
-          photo: { size: "s", second: { show: true, placement: "header-left", size: "s" } },
+          photo: { size: "s", second: { show: true, placement: "header-right", size: "s" } },
           nameBlock: { style: "plain" },
         },
         (s) =>
@@ -846,7 +897,7 @@ export const PRESETS: Array<{
             headingStyle: "bar",
             density: "compact",
           },
-          photo: { size: "m", second: { show: true, placement: "header-left", size: "s" } },
+          photo: { size: "m", second: { show: true, placement: "header-right", size: "s" } },
           nameBlock: { style: "band" },
         },
         (s) =>
@@ -998,7 +1049,8 @@ export function normalizeConfig(raw: unknown): CustomCvConfig {
         ? bool(secondPhoto.show, d.photo.second.show)
         : bool(p.show, d.photo.show),
       shape: pick(p.shape, ["rect", "rounded", "circle"] as const, d.photo.shape),
-      size: pick(p.size, ["s", "m", "l"] as const, d.photo.size),
+      size: pick(p.size, PHOTO_SIZES, d.photo.size),
+      placement: pick(p.placement, FULL_PLACEMENTS, d.photo.placement),
       frame: bool(p.frame, d.photo.frame),
       videoButtons: bool(p.videoButtons, d.photo.videoButtons),
       second: {

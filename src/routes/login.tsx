@@ -6,7 +6,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { DarkModeToggle } from "@/components/dark-mode-toggle";
@@ -82,38 +81,60 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen grid place-items-center bg-muted/40 p-6 relative">
-      <div className="absolute top-4 right-4"><DarkModeToggle /></div>
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <Link to="/" className="mx-auto mb-3 flex items-center gap-2">
-            <div className="h-10 w-10 rounded-lg bg-primary grid place-items-center">
-              <Building2 className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="font-semibold tracking-tight text-lg">Staff-Flow</span>
-          </Link>
-          <CardTitle>Sign in</CardTitle>
-          <CardDescription>Welcome back. Sign in to your dashboard.  </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-            </div>
-            <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? "Signing in..." : "Sign in"}
-            </Button>
-            <p className="text-center text-xs text-muted-foreground">
-              All accounts are created by the administrator.
-            </p>
-          </form>
-        </CardContent>
-      </Card>
+    <div className="relative flex min-h-[100dvh] flex-col bg-background">
+      <div className="flex items-center justify-between px-4 pt-[max(1rem,env(safe-area-inset-top))] sm:px-6">
+        <Link to="/" className="flex items-center gap-2.5">
+          <span className="grid h-8 w-8 place-items-center rounded-[9px] bg-primary text-primary-foreground shadow-sm">
+            <Building2 className="h-4 w-4" />
+          </span>
+          <span className="text-[15px] font-semibold tracking-tight">Staff-Flow</span>
+        </Link>
+        <DarkModeToggle className="inline-grid h-9 w-9 place-items-center rounded-full text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground" />
+      </div>
+
+      <div className="flex flex-1 items-center justify-center px-4 py-10">
+        <div className="w-full max-w-[400px]">
+          <div className="mb-8 text-center">
+            <h1 className="text-[32px] font-semibold leading-tight tracking-tight">Sign in</h1>
+            <p className="mt-2 text-[15px] text-muted-foreground">Welcome back. Sign in to your dashboard.</p>
+          </div>
+          <div className="rounded-2xl border bg-card p-6 shadow-sm sm:p-8">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  inputMode="email"
+                  required
+                  className="h-11 rounded-xl"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  className="h-11 rounded-xl"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+              <Button type="submit" className="h-11 w-full rounded-xl text-[15px]" disabled={submitting}>
+                {submitting ? "Signing in…" : "Sign in"}
+              </Button>
+            </form>
+          </div>
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            All accounts are created by the administrator.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

@@ -33,7 +33,7 @@ export function CancelReasonDialog({
           <div className="space-y-1.5">
             <Label className="text-xs">Reason *</Label>
             <Select value={reason} onValueChange={setReason}>
-              <SelectTrigger className="rounded-none h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {["No sponsor", "Candidate withdrew", "Medical issue", "Visa rejected", "Document issue", "Other"].map((r) => (
                   <SelectItem key={r} value={r}>{r}</SelectItem>
@@ -48,7 +48,7 @@ export function CancelReasonDialog({
               placeholder="Optional details..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="rounded-none text-sm"
+              className="text-sm"
             />
           </div>
         </div>
@@ -87,7 +87,7 @@ export function DeleteReasonDialog({
           <div className="space-y-1.5">
             <Label className="text-xs">Reason *</Label>
             <Select value={reason} onValueChange={setReason}>
-              <SelectTrigger className="rounded-none h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {["No longer needed", "Duplicate record", "Candidate withdrew", "Data error", "Other"].map((r) => (
                   <SelectItem key={r} value={r}>{r}</SelectItem>
@@ -102,7 +102,7 @@ export function DeleteReasonDialog({
               placeholder="Optional details..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="rounded-none text-sm"
+              className="text-sm"
             />
           </div>
         </div>
@@ -138,7 +138,7 @@ export function ReturnReasonDialog({
           <div className="space-y-1.5">
             <Label className="text-xs">Return Reason *</Label>
             <Select value={reason} onValueChange={setReason}>
-              <SelectTrigger className="rounded-none h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {["Employer request", "Medical condition", "Personal reasons", "Contract dispute", "Document issue", "Failed clearance", "Other"].map((r) => (
                   <SelectItem key={r} value={r}>{r}</SelectItem>
@@ -153,7 +153,7 @@ export function ReturnReasonDialog({
               placeholder="Describe the return reason in detail..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="rounded-none text-sm"
+              className="text-sm"
             />
           </div>
         </div>
@@ -212,7 +212,7 @@ export function ArrivedCheckDialog({
               <div className="space-y-1.5">
                 <Label className="text-xs">Reason</Label>
                 <Select value={reason} onValueChange={setReason}>
-                  <SelectTrigger className="rounded-none h-9"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {["Visa issue", "Flight issue", "Health issue", "Sponsor issue", "Other"].map((r) => (
                       <SelectItem key={r} value={r}>{r}</SelectItem>
@@ -227,7 +227,7 @@ export function ArrivedCheckDialog({
                   placeholder="Describe the issue..."
                   value={problem}
                   onChange={(e) => setProblem(e.target.value)}
-                  className="rounded-none text-sm"
+                  className="text-sm"
                 />
               </div>
             </div>
@@ -318,7 +318,7 @@ export function CandidateDetailDialog({ candidate, onClose, agencyPhones = {} }:
             {candidate.candidate_code && (
               <span className="text-xs font-mono font-normal text-muted-foreground">{candidate.candidate_code}</span>
             )}
-            <span className={cn("ml-auto text-[11px] font-semibold px-2 py-0.5 rounded-none capitalize", statusStyles[statusKey])}>
+            <span className={cn("ml-auto text-[11px] font-semibold px-2 py-0.5 capitalize", statusStyles[statusKey])}>
               {statusKey}
             </span>
           </DialogTitle>
@@ -387,7 +387,7 @@ export function CandidateDetailDialog({ candidate, onClose, agencyPhones = {} }:
                   <TooltipTrigger asChild>
                     <div><InfoRow label="COC Status" value={candidate.coc_status} /></div>
                   </TooltipTrigger>
-                  <TooltipContent className="rounded-none text-xs p-2 space-y-0.5">
+                  <TooltipContent className="text-xs p-2 space-y-0.5">
                     <div className="font-semibold">{(candidate as any).coc_agency_name || "—"}</div>
                     <div>{(candidate as any).coc_agency_phone || "No phone"}</div>
                   </TooltipContent>

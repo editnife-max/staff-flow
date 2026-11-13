@@ -16,15 +16,15 @@ export const Route = createFileRoute("/about")({
 function AboutPage() {
   return (
     <PublicShell>
-      <div className="container mx-auto px-6 py-16 max-w-4xl">
-        <h1 className="text-4xl font-semibold tracking-tight text-accent mb-6">About Staff-Flow</h1>
-        <p className="text-lg leading-relaxed text-foreground/80">
+      <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-20">
+        <h1 className="mb-6 text-[34px] font-semibold leading-[1.1] tracking-tight sm:text-5xl">About Staff-Flow</h1>
+        <p className="text-[17px] leading-[1.6] text-foreground/80 sm:text-lg">
           Staff-Flow is an electronic platform that aims to provide a comprehensive system to
           integrate and organize the labor recruitment process from offering countries,
           digitally authenticating the contract between the employer and the laborer and organizing
           the contractual relationship between recruitment offices and external recruitment offices.
         </p>
-        <p className="text-lg leading-relaxed text-foreground/80 mt-4">
+        <p className="text-[17px] leading-[1.6] text-foreground/80 sm:text-lg mt-4">
           We facilitate the labor recruitment process and protect the legal rights of the binding
           parties by applying a comprehensive process that starts with the recruitment and selection
           of a suitable candidate by the employer and ends with the candidate's arrival, all

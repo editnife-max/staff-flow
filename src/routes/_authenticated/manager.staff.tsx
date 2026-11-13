@@ -411,7 +411,7 @@ function StaffDetailSheet({ staff, open, onClose }: {
             ) : activityLog.length === 0 ? (
               <p className="text-xs text-muted-foreground italic">No recorded updates yet.</p>
             ) : (
-              <div className="space-y-0 border border-border rounded-none overflow-hidden">
+              <div className="space-y-0 border border-border overflow-hidden">
                 {activityLog.map((entry, i) => (
                   <div key={entry.id} className={cn("flex items-start gap-3 px-4 py-2.5 text-xs", i % 2 === 0 ? "bg-muted/20" : "bg-background")}>
                     <div className="shrink-0 mt-0.5 w-1.5 h-1.5 rounded-full bg-primary/50 mt-[5px]" />
@@ -682,7 +682,7 @@ function StaffPage() {
   });
 
   return (
-    <div className="p-6">
+    <div className="mx-auto w-full max-w-[1600px] p-4 sm:p-6">
       <PageHeader
         title="Staff"
         description="Create login accounts for your team. Click a row to view their candidates."

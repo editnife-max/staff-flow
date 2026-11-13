@@ -39,7 +39,7 @@ export function ContactsPanel({ config, update }: PanelProps) {
             type="button"
             size="sm"
             variant="outline"
-            className="h-7 rounded-none text-xs"
+            className="h-7 text-xs"
             disabled={contacts.length >= MAX_CONTACTS}
             onClick={() =>
               setContacts([
@@ -78,7 +78,7 @@ export function ContactsPanel({ config, update }: PanelProps) {
                       onValueChange={(v) => edit(x.id, { kind: v as ContactKind })}
                     >
                       <SelectTrigger
-                        className="h-8 w-40 shrink-0 rounded-none text-xs"
+                        className="h-8 w-40 shrink-0 text-xs"
                         aria-label="Type"
                       >
                         <SelectValue />
@@ -100,14 +100,14 @@ export function ContactsPanel({ config, update }: PanelProps) {
                       maxLength={80}
                       placeholder={kind.placeholder}
                       onChange={(e) => edit(x.id, { value: e.target.value })}
-                      className="h-8 rounded-none text-xs"
+                      className="h-8 text-xs"
                       aria-label="Value"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 shrink-0 rounded-none text-muted-foreground hover:text-destructive"
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
                       onClick={() => setContacts(contacts.filter((c) => c.id !== x.id))}
                       aria-label="Remove"
                     >
@@ -120,7 +120,7 @@ export function ContactsPanel({ config, update }: PanelProps) {
                       maxLength={24}
                       placeholder="Label (optional), e.g. Office"
                       onChange={(e) => edit(x.id, { label: e.target.value })}
-                      className="h-8 rounded-none text-xs"
+                      className="h-8 text-xs"
                       aria-label="Label"
                     />
                     <Select
@@ -128,7 +128,7 @@ export function ContactsPanel({ config, update }: PanelProps) {
                       onValueChange={(v) => edit(x.id, { placement: v as Placement })}
                     >
                       <SelectTrigger
-                        className="h-8 w-40 shrink-0 rounded-none text-xs"
+                        className="h-8 w-40 shrink-0 text-xs"
                         aria-label="Placement"
                       >
                         <SelectValue />
@@ -183,7 +183,7 @@ export function ContactsPanel({ config, update }: PanelProps) {
               maxLength={120}
               placeholder="Footer note (optional), e.g. Licence No. 123/2024 · Addis Ababa"
               onChange={(e) => update(patch("footer", { note: e.target.value }))}
-              className="rounded-none"
+             
             />
             {f.note.trim() && (
               <Row label="Note position">

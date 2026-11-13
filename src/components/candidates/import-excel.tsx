@@ -372,7 +372,7 @@ export function ImportExcelButton({ onImported, status, countryOptions }: { onIm
       <Button
         size="sm"
         variant={revealed ? "secondary" : "ghost"}
-        className="h-8 w-8 p-0 rounded-none"
+        className="h-8 w-8 p-0"
         title={revealed ? "Hide Excel import" : "Show Excel import"}
         onClick={() => setRevealed((v) => !v)}
       >
@@ -383,7 +383,7 @@ export function ImportExcelButton({ onImported, status, countryOptions }: { onIm
         <Button
           size="sm"
           variant="outline"
-          className="gap-2 text-xs h-8 rounded-none"
+          className="gap-2 text-xs h-8"
           onClick={() => { reset(); setOpen(true); }}
         >
           <Upload className="h-4 w-4" /> IMPORT EXCEL
@@ -408,7 +408,7 @@ export function ImportExcelButton({ onImported, status, countryOptions }: { onIm
                 const file = e.dataTransfer.files?.[0];
                 if (file) handleFile(file);
               }}
-              className="border-2 border-dashed border-border rounded-none cursor-pointer hover:border-primary/60 transition-colors flex flex-col items-center justify-center gap-2 py-8 bg-muted/20 select-none"
+              className="border-2 border-dashed border-border cursor-pointer hover:border-primary/60 transition-colors flex flex-col items-center justify-center gap-2 py-8 bg-muted/20 select-none"
             >
               <Upload className="h-7 w-7 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
@@ -431,7 +431,7 @@ export function ImportExcelButton({ onImported, status, countryOptions }: { onIm
               <div className="flex items-center gap-3">
                 <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Import as status:</label>
                 <Select value={importStatus} onValueChange={setImportStatus}>
-                  <SelectTrigger className="h-8 text-xs rounded-none w-40">
+                  <SelectTrigger className="h-8 text-xs w-40">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -446,7 +446,7 @@ export function ImportExcelButton({ onImported, status, countryOptions }: { onIm
               <div className="flex items-center gap-3">
                 <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Country:</label>
                 <Select value={importCountry || "__none__"} onValueChange={(v) => setImportCountry(v === "__none__" ? "" : v)}>
-                  <SelectTrigger className="h-8 text-xs rounded-none w-40">
+                  <SelectTrigger className="h-8 text-xs w-40">
                     <SelectValue placeholder="— none —" />
                   </SelectTrigger>
                   <SelectContent>
@@ -458,7 +458,7 @@ export function ImportExcelButton({ onImported, status, countryOptions }: { onIm
             </div>
 
             {parseError && (
-              <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-none">
+              <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 px-3 py-2">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 {parseError}
               </div>
@@ -470,7 +470,7 @@ export function ImportExcelButton({ onImported, status, countryOptions }: { onIm
                   <AlertTriangle className="h-4 w-4 shrink-0" />
                   {validationErrors.length} row{validationErrors.length !== 1 ? "s" : ""} missing required fields — fix and re-upload:
                 </div>
-                <ul className="text-xs text-destructive bg-destructive/10 rounded-none px-3 py-2 max-h-28 overflow-y-auto space-y-0.5 list-none">
+                <ul className="text-xs text-destructive bg-destructive/10 px-3 py-2 max-h-28 overflow-y-auto space-y-0.5 list-none">
                   {validationErrors.map((err, i) => <li key={i}>{err}</li>)}
                 </ul>
               </div>
@@ -481,7 +481,7 @@ export function ImportExcelButton({ onImported, status, countryOptions }: { onIm
                 <p className="text-sm font-medium text-foreground">
                   {rows.length} candidate{rows.length !== 1 ? "s" : ""} ready to import — preview (first 5):
                 </p>
-                <div className="overflow-x-auto rounded-none border border-border">
+                <div className="overflow-x-auto border border-border">
                   <table className="w-full text-xs">
                     <thead className="bg-muted">
                       <tr>
@@ -524,7 +524,7 @@ export function ImportExcelButton({ onImported, status, countryOptions }: { onIm
             <Button
               variant="outline"
               size="sm"
-              className="rounded-none gap-2 text-xs"
+              className="gap-2 text-xs"
               onClick={() => downloadSampleExcel(importStatus as Status)}
               type="button"
             >
@@ -534,7 +534,7 @@ export function ImportExcelButton({ onImported, status, countryOptions }: { onIm
               <Button
                 variant="ghost"
                 size="sm"
-                className="rounded-none text-xs"
+                className="text-xs"
                 onClick={() => setOpen(false)}
                 disabled={loading}
               >
@@ -542,7 +542,7 @@ export function ImportExcelButton({ onImported, status, countryOptions }: { onIm
               </Button>
               <Button
                 size="sm"
-                className="rounded-none gap-2 text-xs"
+                className="gap-2 text-xs"
                 onClick={handleImport}
                 disabled={rows.length === 0 || validationErrors.length > 0 || loading}
               >

@@ -98,7 +98,7 @@ export function HeaderPanel({ config, update }: PanelProps) {
               type="button"
               size="sm"
               variant="outline"
-              className="rounded-none"
+             
               disabled={uploading}
               asChild
             >
@@ -122,7 +122,7 @@ export function HeaderPanel({ config, update }: PanelProps) {
                 type="button"
                 size="sm"
                 variant="ghost"
-                className="justify-start rounded-none text-destructive"
+                className="justify-start text-destructive"
                 onClick={() => update(patch("header", { logoUrl: null }))}
               >
                 <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Remove
@@ -165,7 +165,7 @@ export function HeaderPanel({ config, update }: PanelProps) {
           maxLength={80}
           placeholder="Company name"
           onChange={(e) => update(patch("header", { companyName: e.target.value }))}
-          className="rounded-none"
+         
         />
         <Input
           value={h.companyNameAr}
@@ -173,14 +173,14 @@ export function HeaderPanel({ config, update }: PanelProps) {
           dir="rtl"
           placeholder="اسم الشركة (اختياري)"
           onChange={(e) => update(patch("header", { companyNameAr: e.target.value }))}
-          className="rounded-none"
+         
         />
         <Input
           value={h.tagline}
           maxLength={90}
           placeholder="Tagline (optional), e.g. Licensed Foreign Employment Agency"
           onChange={(e) => update(patch("header", { tagline: e.target.value }))}
-          className="rounded-none"
+         
         />
         <Row label="Position">
           <Segmented
@@ -216,7 +216,7 @@ export function HeaderPanel({ config, update }: PanelProps) {
             maxLength={50}
             placeholder="English title"
             onChange={(e) => update(patch("header", { titleEn: e.target.value }))}
-            className="rounded-none"
+           
           />
           <Input
             value={h.titleAr}
@@ -224,7 +224,7 @@ export function HeaderPanel({ config, update }: PanelProps) {
             dir="rtl"
             placeholder="العنوان بالعربية"
             onChange={(e) => update(patch("header", { titleAr: e.target.value }))}
-            className="rounded-none"
+           
           />
         </div>
         <Row label="Position">

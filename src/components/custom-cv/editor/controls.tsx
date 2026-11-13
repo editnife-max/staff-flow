@@ -100,7 +100,7 @@ export function Segmented<T extends string>({
           key={o.value}
           value={o.value}
           title={o.title}
-          className="h-7 rounded-none px-2.5 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+          className="h-7 px-2.5 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
         >
           {o.label}
         </ToggleGroupItem>

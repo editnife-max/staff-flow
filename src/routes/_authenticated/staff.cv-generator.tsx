@@ -93,11 +93,11 @@ function CvCandidateCard({
 
   return (
     <div
-      className={cn("border border-border shadow-sm rounded-sm transition-colors", selected && "ring-1 ring-primary/50", lockedDaysLeft != null && "opacity-60")}
+      className={cn("overflow-clip rounded-xl border border-border shadow-xs transition-colors", selected && "ring-1 ring-primary/50", lockedDaysLeft != null && "opacity-60")}
       style={{ background: bg }}
     >
       {/* Status badge + checkbox + indicators — sticky left */}
-      <div className="sticky left-0 z-10 w-fit flex items-center gap-2 px-4 pt-2.5 pb-1" style={{ background: bg }}>
+      <div className="sticky left-0 z-10 w-fit flex items-center gap-2 px-3 pt-2.5 pb-1 sm:px-4" style={{ background: bg }}>
         <Checkbox
           checked={selected}
           onCheckedChange={onToggleSelect}
@@ -119,8 +119,8 @@ function CvCandidateCard({
       {/* Main content row */}
       <div className="flex items-center pb-3 pt-1">
         {/* Sticky left: photo + full name */}
-        <div className="sticky left-0 z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3" style={{ background: bg }}>
-          <Avatar className="h-14 w-14 shrink-0">
+        <div className="sticky left-0 z-10 shrink-0 self-stretch flex items-center gap-3 pl-3 pr-2 sm:gap-4 sm:pl-4 sm:pr-3" style={{ background: bg }}>
+          <Avatar className="h-11 w-11 shrink-0 sm:h-14 sm:w-14">
             {c.photo_url && <AvatarImage src={c.photo_url} alt={c.full_name} />}
             <AvatarFallback className="text-[11px]">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
@@ -160,11 +160,11 @@ function CvCandidateCard({
         </div>
 
         {/* Sticky right: actions */}
-        <div className="sticky right-0 z-10 self-stretch shrink-0 flex flex-col justify-center items-center gap-1.5 px-4 border-l border-border" style={{ background: bg }}>
-          <Button size="sm" onClick={() => setViewing(true)} className="w-full px-5 h-8 rounded text-xs font-semibold tracking-wide">
+        <div className="sticky right-0 z-10 self-stretch shrink-0 flex flex-col justify-center items-center gap-1.5 px-2.5 border-l border-border sm:px-4" style={{ background: bg }}>
+          <Button size="sm" onClick={() => setViewing(true)} className="w-full px-3 h-8 rounded-md text-xs font-semibold tracking-wide sm:px-5">
             VIEW
           </Button>
-          <Button size="sm" variant="outline" onClick={onAction} className="w-full px-5 h-8 rounded text-xs font-semibold tracking-wide">
+          <Button size="sm" variant="outline" onClick={onAction} className="w-full px-3 h-8 rounded-md text-xs font-semibold tracking-wide sm:px-5">
             ACTION
           </Button>
           {c.cv_sent_to && (
@@ -519,7 +519,7 @@ function CvGeneratorPage() {
   const someSel = !allSel && selectableFiltered.some((c) => selected.has(c.id));
 
   return (
-    <div className="px-6 pb-6 pt-6">
+    <div className="mx-auto w-full max-w-[1600px] px-4 pb-6 pt-5 sm:px-6 sm:pt-6">
       <div className="shrink-0 mb-6">
         <PageHeader
           title="CV Page"
@@ -528,11 +528,11 @@ function CvGeneratorPage() {
       </div>
 
       {/* Filters */}
-      <Card className="rounded-none mb-4 shrink-0">
+      <Card className="mb-4 shrink-0">
         <CardContent className="p-4">
           <div className="flex items-center gap-2">
             {activeCount > 0 && (
-              <span className="rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+              <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
                 {activeCount}
               </span>
             )}
@@ -583,7 +583,7 @@ function CvGeneratorPage() {
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                className="pl-8 h-7 text-xs rounded-none w-52"
+                className="pl-8 h-7 text-xs w-52"
                 placeholder="Search by name…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -634,13 +634,13 @@ function CvGeneratorPage() {
                 <SlidersHorizontal className="h-3.5 w-3.5" />
                 Columns
                 {hiddenCols.size > 0 && (
-                  <span className="ml-1 rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+                  <span className="ml-1 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
                     {hiddenCols.size} hidden
                   </span>
                 )}
               </Button>
               {showColPicker && (
-                <div className="absolute right-0 top-8 z-50 bg-popover border border-border rounded-none shadow-xl p-3 w-[340px]">
+                <div className="absolute right-0 top-8 z-50 bg-popover border border-border shadow-xl p-3 w-[min(340px,calc(100vw-2rem))] rounded-xl">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Columns</span>
                     <button type="button" onClick={() => setHiddenCols(new Set())} className="text-[11px] text-primary hover:underline disabled:opacity-40" disabled={hiddenCols.size === 0}>Reset</button>
@@ -663,7 +663,7 @@ function CvGeneratorPage() {
               <>
                 <span className="text-xs text-muted-foreground shrink-0">{selected.size} selected</span>
                 <Select value={sendOffice} onValueChange={setSendOffice}>
-                  <SelectTrigger className="h-8 w-44 rounded-none text-xs">
+                  <SelectTrigger className="h-8 w-44 text-xs">
                     <SelectValue placeholder="Send CV to office…" />
                   </SelectTrigger>
                   <SelectContent>
@@ -677,7 +677,7 @@ function CvGeneratorPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="gap-1.5 text-xs h-8 rounded-none"
+                  className="gap-1.5 text-xs h-8"
                   disabled={!sendOffice || sendToOfficeMut.isPending}
                   onClick={() => {
                     const ids = filtered
@@ -695,7 +695,7 @@ function CvGeneratorPage() {
                 </Button>
                 <Button
                   size="sm"
-                  className="gap-2 text-xs h-8 rounded-none"
+                  className="gap-2 text-xs h-8"
                   onClick={() => {
                     const sel = filtered.filter((c) => selected.has(c.id));
                     if (sel.length > 0) setActionCandidates(sel);
@@ -704,7 +704,7 @@ function CvGeneratorPage() {
                   <FileText className="h-4 w-4" />
                   Action ({selected.size})
                 </Button>
-                <Button size="sm" variant="ghost" className="h-8 gap-1 text-xs rounded-none" onClick={clearSelection}>
+                <Button size="sm" variant="ghost" className="h-8 gap-1 text-xs" onClick={clearSelection}>
                   <X className="h-4 w-4" /> Clear
                 </Button>
               </>
@@ -745,12 +745,12 @@ function CvGeneratorPage() {
       </div>
 
       {/* Pagination footer */}
-      <div className={cn("sticky bottom-0 z-10 bg-background", filtered.length > 0 && "shadow-[0_-1px_3px_rgba(0,0,0,0.06)]")}>
+      <div className={cn("sticky bottom-above-tabbar z-10 bg-background", filtered.length > 0 && "shadow-[0_-1px_3px_rgba(0,0,0,0.06)]")}>
         <div ref={mirrorRef} className="w-full" style={{ overflowX: filtered.length > 0 ? "scroll" : "hidden", overflowY: "hidden", height: filtered.length > 0 ? 16 : 0 }}><div style={{ height: 1 }} /></div>
         {filtered.length > 0 && (
           <div className="flex items-center justify-between px-4 py-2 flex-wrap gap-2">
             <div className="flex items-center gap-1">
-              <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
+              <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={page === 1}
                 onClick={() => { setPage((p) => p - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
                 <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
@@ -760,13 +760,13 @@ function CvGeneratorPage() {
                   <React.Fragment key={n}>
                     {i > 0 && n - arr[i - 1] > 1 && <span className="text-xs text-muted-foreground px-0.5">…</span>}
                     <Button size="sm" variant={page === n ? "default" : "outline"}
-                      className="h-7 w-7 p-0 rounded-none text-xs"
+                      className="h-7 w-7 p-0 text-xs"
                       onClick={() => { setPage(n); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
                       {n}
                     </Button>
                   </React.Fragment>
                 ))}
-              <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === totalPages}
+              <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={page === totalPages}
                 onClick={() => { setPage((p) => p + 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
                 <ChevronRight className="h-3.5 w-3.5" />
               </Button>
@@ -774,7 +774,7 @@ function CvGeneratorPage() {
             <div className="flex items-center gap-1">
               {[5, 10, 50, 100, 500].map((s) => (
                 <Button key={s} size="sm" variant={pageSize === s ? "default" : "outline"}
-                  className="h-7 px-2 rounded-none text-xs"
+                  className="h-7 px-2 text-xs"
                   onClick={() => { setPageSize(s); setPage(1); }}>
                   {s}
                 </Button>
@@ -863,7 +863,7 @@ function CvFilterSelect({
       </Select>
       {!isReset && (
         <button type="button" onClick={() => onChange("all")}
-          className="rounded-none p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          className="p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
           aria-label="Clear filter">
           <X className="h-3 w-3" />
         </button>
@@ -927,10 +927,10 @@ function MultiFilterSelect({
             <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-52 p-1 rounded-none" align="start">
+        <PopoverContent className="w-52 p-1" align="start">
           <div className="px-1 pb-1">
             <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search…"
-              className="w-full h-6 text-[12px] px-2 border border-border rounded-none bg-background outline-none placeholder:text-muted-foreground" />
+              className="w-full h-6 text-[12px] px-2 border border-border bg-background outline-none placeholder:text-muted-foreground" />
           </div>
           <div className="max-h-[220px] overflow-y-auto">
             {filteredOpts.map((o) => {
@@ -955,7 +955,7 @@ function MultiFilterSelect({
       </Popover>
       {!isEmpty && (
         <button type="button" onClick={() => onChange([])}
-          className="rounded-none p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          className="p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
           aria-label="Clear filter">
           <X className="h-3 w-3" />
         </button>
@@ -992,13 +992,13 @@ function CvDateField({ label, value, onChange }: { label: string; value: string;
             <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0 rounded-none" align="start" side="bottom" sideOffset={6} collisionPadding={16}>
+        <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={6} collisionPadding={16}>
           <CalendarPicker mode="single" selected={selected} onSelect={handleSelect} initialFocus />
         </PopoverContent>
       </Popover>
       {hasValue && (
         <button type="button" onClick={() => onChange("")}
-          className="rounded-none p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          className="p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
           aria-label="Clear date">
           <X className="h-3 w-3" />
         </button>
@@ -1046,7 +1046,7 @@ function CandidateDetailDialog({ candidate, onClose }: { candidate: Candidate | 
             {candidate.candidate_code && (
               <span className="text-xs font-mono font-normal text-muted-foreground">{candidate.candidate_code}</span>
             )}
-            <span className={cn("ml-auto text-[11px] font-semibold px-2 py-0.5 rounded-none capitalize", statusStyles[statusKey])}>
+            <span className={cn("ml-auto text-[11px] font-semibold px-2 py-0.5 capitalize", statusStyles[statusKey])}>
               {statusKey}
             </span>
           </DialogTitle>

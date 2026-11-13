@@ -602,18 +602,18 @@ function AssignmentsPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-56px)] px-6 py-4 gap-4">
+    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 px-4 py-5 sm:px-6 sm:py-6">
 
       {/* Title */}
-      <div className="flex items-center justify-between shrink-0">
-        <h1 className="text-base font-semibold tracking-tight">Assignments</h1>
-        <p className="text-xs text-muted-foreground">Countries and offices appear in Processing filters.</p>
+      <div className="flex shrink-0 flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <h1 className="text-[26px] font-semibold leading-tight tracking-tight sm:text-[28px]">Assignments</h1>
+        <p className="text-sm text-muted-foreground">Countries and offices appear in Processing filters.</p>
       </div>
 
       {/* ── Panel cards ──────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-4 shrink-0">
+      <div className="grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <button type="button" onClick={() => setPanelDialog("countries")}
-          className="border border-border bg-background flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
+          className="flex min-h-16 items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-xs transition-colors hover:border-primary/40 hover:bg-muted/40">
           <Globe className="h-4 w-4 text-primary shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold">Countries</div>
@@ -623,7 +623,7 @@ function AssignmentsPage() {
         </button>
 
         <button type="button" onClick={() => setPanelDialog("offices")}
-          className="border border-border bg-background flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
+          className="flex min-h-16 items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-xs transition-colors hover:border-primary/40 hover:bg-muted/40">
           <Building2 className="h-4 w-4 text-primary shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold">Offices</div>
@@ -635,7 +635,7 @@ function AssignmentsPage() {
         </button>
 
         <button type="button" onClick={() => setPanelDialog("cvTemplates")}
-          className="border border-border bg-background flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
+          className="flex min-h-16 items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-xs transition-colors hover:border-primary/40 hover:bg-muted/40">
           <FileText className="h-4 w-4 text-primary shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold">CV Templates</div>
@@ -645,7 +645,7 @@ function AssignmentsPage() {
         </button>
 
         <button type="button" onClick={() => setPanelDialog("cvReq")}
-          className="border border-border bg-background flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
+          className="flex min-h-16 items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-xs transition-colors hover:border-primary/40 hover:bg-muted/40">
           <CircleDot className="h-4 w-4 text-primary shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold">CV Page Requirements</div>
@@ -656,7 +656,7 @@ function AssignmentsPage() {
           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         </button>
 
-        <div className="border border-border bg-background flex items-center gap-3 px-4 py-3">
+        <div className="flex min-h-16 items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-xs">
           <GraduationCap className="h-4 w-4 text-primary shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold">Training Centre (TC)</div>
@@ -672,7 +672,7 @@ function AssignmentsPage() {
         </div>
 
         <button type="button" onClick={() => setPanelDialog("tcCriteria")}
-          className="border border-border bg-background flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
+          className="flex min-h-16 items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-xs transition-colors hover:border-primary/40 hover:bg-muted/40">
           <ListChecks className="h-4 w-4 text-primary shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold">TC Criteria</div>
@@ -682,7 +682,7 @@ function AssignmentsPage() {
         </button>
 
         <button type="button" onClick={() => setPanelDialog("cvDist")}
-          className="border border-border bg-background flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
+          className="flex min-h-16 items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-xs transition-colors hover:border-primary/40 hover:bg-muted/40">
           <Shuffle className="h-4 w-4 text-primary shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold">CV Distribution</div>
@@ -696,7 +696,7 @@ function AssignmentsPage() {
 
       {/* ── Countries Dialog ──────────────────────────────────────────── */}
       <Dialog open={panelDialog === "countries"} onOpenChange={(o) => { if (!o) setPanelDialog(null); }}>
-        <DialogContent className="sm:max-w-md rounded-none">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Globe className="h-4 w-4 text-primary" />
@@ -710,10 +710,10 @@ function AssignmentsPage() {
                 className="h-8 border border-border bg-background text-sm px-1 focus:outline-none shrink-0">
                 {COMMON_FLAGS.map((f) => <option key={f} value={f}>{f}</option>)}
               </select>
-              <Input className="h-8 rounded-none text-sm flex-1" placeholder="Country name…"
+              <Input className="h-8 text-sm flex-1" placeholder="Country name…"
                 value={newCountryName} onChange={(e) => setNewCountryName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && newCountryName.trim()) addCountryMut.mutate(); }} />
-              <Button size="sm" className="h-8 rounded-none px-3 text-sm gap-1"
+              <Button size="sm" className="h-8 px-3 text-sm gap-1"
                 disabled={!newCountryName.trim() || addCountryMut.isPending}
                 onClick={() => addCountryMut.mutate()}>
                 <Plus className="h-3.5 w-3.5" /> Add
@@ -750,7 +750,7 @@ function AssignmentsPage() {
 
       {/* ── Offices Dialog ────────────────────────────────────────────── */}
       <Dialog open={panelDialog === "offices"} onOpenChange={(o) => { if (!o) setPanelDialog(null); }}>
-        <DialogContent className="sm:max-w-xl rounded-none">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-primary" />
@@ -758,7 +758,7 @@ function AssignmentsPage() {
               <span className="ml-auto text-xs font-normal text-muted-foreground shrink-0">{offices.length} total</span>
               {activeCountry && (
                 <button type="button" onClick={() => setSummaryView(v => !v)}
-                  className={cn("h-6 px-2 text-xs border flex items-center gap-1 rounded-none transition-colors shrink-0",
+                  className={cn("h-6 px-2 text-xs border flex items-center gap-1 transition-colors shrink-0",
                     summaryView ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:bg-muted")}>
                   <BarChart3 className="h-3 w-3" /> Summary
                 </button>
@@ -856,13 +856,13 @@ function AssignmentsPage() {
                             <>
                               {/* Add office */}
                               <div className="flex gap-1.5 items-center">
-                                <Input className="h-8 rounded-none text-sm flex-1" placeholder="Office name…"
+                                <Input className="h-8 text-sm flex-1" placeholder="Office name…"
                                   value={newOfficeName} onChange={(e) => setNewOfficeName(e.target.value)}
                                   onKeyDown={(e) => { if (e.key === "Enter" && newOfficeName.trim()) addOfficeMut.mutate(); }} />
                                 <div className="flex items-center h-8 px-2 border border-input" title="Office rating — higher stars get more CVs">
                                   <StarRating value={newOfficeRating} onChange={setNewOfficeRating} />
                                 </div>
-                                <Button size="sm" className="h-8 rounded-none px-3 text-sm gap-1"
+                                <Button size="sm" className="h-8 px-3 text-sm gap-1"
                                   disabled={!newOfficeName.trim() || addOfficeMut.isPending}
                                   onClick={() => addOfficeMut.mutate()}>
                                   <Plus className="h-3.5 w-3.5" /> Add
@@ -918,7 +918,7 @@ function AssignmentsPage() {
 
       {/* ── CV Templates Dialog ───────────────────────────────────────── */}
       <Dialog open={panelDialog === "cvTemplates"} onOpenChange={(o) => { if (!o) setPanelDialog(null); }}>
-        <DialogContent className="sm:max-w-md rounded-none">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-primary" />
@@ -928,7 +928,7 @@ function AssignmentsPage() {
           </DialogHeader>
           <div className="space-y-2 overflow-y-auto max-h-[60vh]">
             <div className="flex gap-1.5">
-              <Input className="h-8 rounded-none text-sm flex-1" placeholder="Template name…"
+              <Input className="h-8 text-sm flex-1" placeholder="Template name…"
                 value={newTemplateName} onChange={(e) => setNewTemplateName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && newTemplateName.trim() && templateFile) handleTemplateUpload(); }} />
               <label className={cn(
@@ -947,7 +947,7 @@ function AssignmentsPage() {
                     }
                   }} />
               </label>
-              <Button size="sm" className="h-8 rounded-none px-3 text-sm"
+              <Button size="sm" className="h-8 px-3 text-sm"
                 disabled={!newTemplateName.trim() || !templateFile || templateUploading}
                 onClick={handleTemplateUpload}>
                 {templateUploadStep === "uploading" ? "Uploading…" : "Upload"}
@@ -989,7 +989,7 @@ function AssignmentsPage() {
 
       {/* ── CV Page Requirements Dialog ───────────────────────────────── */}
       <Dialog open={panelDialog === "cvReq"} onOpenChange={(o) => { if (!o) setPanelDialog(null); }}>
-        <DialogContent className="sm:max-w-lg rounded-none">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CircleDot className="h-4 w-4 text-primary" />
@@ -1017,17 +1017,17 @@ function AssignmentsPage() {
                 <div className="flex items-center gap-2 flex-1">
                   <input autoFocus type="number" min={1} value={alertDraft}
                     onChange={(e) => setAlertDraft(e.target.value)}
-                    className="w-14 border border-input rounded-none px-2 h-7 text-sm"
+                    className="w-14 border border-input px-2 h-7 text-sm"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") { const n = parseInt(alertDraft); if (!isNaN(n) && n > 0) { saveCvReq.mutate({ ...cvReq, alert_after_days: String(n) }); setAlertEdit(false); } }
                       if (e.key === "Escape") setAlertEdit(false);
                     }} />
                   <span className="text-xs text-muted-foreground">days</span>
-                  <Button size="sm" className="h-7 rounded-none px-2 text-xs" disabled={saveCvReq.isPending}
+                  <Button size="sm" className="h-7 px-2 text-xs" disabled={saveCvReq.isPending}
                     onClick={() => { const n = parseInt(alertDraft); if (!isNaN(n) && n > 0) { saveCvReq.mutate({ ...cvReq, alert_after_days: String(n) }); setAlertEdit(false); } }}>
                     {saveCvReq.isPending ? "…" : "Save"}
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-7 rounded-none px-2 text-xs" onClick={() => setAlertEdit(false)}>Cancel</Button>
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setAlertEdit(false)}>Cancel</Button>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 flex-1">
@@ -1045,17 +1045,17 @@ function AssignmentsPage() {
                 <div className="flex items-center gap-2 flex-1">
                   <input autoFocus type="number" min={1} value={baseDraft}
                     onChange={(e) => setBaseDraft(e.target.value)}
-                    className="w-14 border border-input rounded-none px-2 h-7 text-sm"
+                    className="w-14 border border-input px-2 h-7 text-sm"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") { const n = parseInt(baseDraft); if (!isNaN(n) && n > 0) { saveCvReq.mutate({ ...cvReq, base_per_office: String(n) }); setBaseEdit(false); } }
                       if (e.key === "Escape") setBaseEdit(false);
                     }} />
                   <span className="text-xs text-muted-foreground">candidates</span>
-                  <Button size="sm" className="h-7 rounded-none px-2 text-xs" disabled={saveCvReq.isPending}
+                  <Button size="sm" className="h-7 px-2 text-xs" disabled={saveCvReq.isPending}
                     onClick={() => { const n = parseInt(baseDraft); if (!isNaN(n) && n > 0) { saveCvReq.mutate({ ...cvReq, base_per_office: String(n) }); setBaseEdit(false); } }}>
                     {saveCvReq.isPending ? "…" : "Save"}
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-7 rounded-none px-2 text-xs" onClick={() => setBaseEdit(false)}>Cancel</Button>
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setBaseEdit(false)}>Cancel</Button>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 flex-1">
@@ -1090,7 +1090,7 @@ function AssignmentsPage() {
                     cvReq[key] !== "all" ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-muted-foreground",
                   )}>{label}</span>
                   <Select value={cvReq[key]} onValueChange={(v) => saveCvReq.mutate({ ...cvReq, [key]: v })}>
-                    <SelectTrigger className="h-7 flex-1 rounded-none text-xs min-w-0">
+                    <SelectTrigger className="h-7 flex-1 text-xs min-w-0">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1106,7 +1106,7 @@ function AssignmentsPage() {
       </Dialog>
 
       {/* ── Row 3: Platform Credentials ──────────────────────────────── */}
-      <div className="grid grid-cols-4 gap-4 shrink-0">
+      <div className="grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {([
           { id: "musaned", label: "Musaned",  desc: "Staff HR Pool",  saved: musanedSaved },
           { id: "enjaz",   label: "Enjaz+",   desc: "Visa Portal",    saved: enjazSaved   },
@@ -1114,7 +1114,7 @@ function AssignmentsPage() {
           { id: "lmis",    label: "LMIS",     desc: "Labour Market",  saved: lmisSaved    },
         ] as const).map(({ id, label, desc, saved }) => (
           <button key={id} type="button" onClick={() => openSetup(id)}
-            className="border border-border bg-background flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
+            className="flex min-h-16 items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-xs transition-colors hover:border-primary/40 hover:bg-muted/40">
             <KeyRound className={cn("h-4 w-4 shrink-0", saved ? "text-emerald-500" : "text-primary")} />
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold">{label}</div>
@@ -1129,20 +1129,20 @@ function AssignmentsPage() {
       </div>
 
       {/* ── LMIS Contract Process ─────────────────────────────────────── */}
-      <div className="border border-border bg-background shrink-0">
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-border/60">
+      <div className="shrink-0 overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 border-b border-border/60">
           <FileSignature className="h-4 w-4 text-primary shrink-0" />
-          <div className="flex-1 min-w-0">
+          <div className="min-w-[14rem] flex-1">
             <div className="text-sm font-semibold">LMIS Contract Process</div>
             <div className="text-xs text-muted-foreground">3-phase contract workflow for processing candidates</div>
           </div>
           {!lmisSaved && (
-            <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-sm shrink-0">
+            <span className="text-[10px] rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300 shrink-0">
               LMIS credentials required
             </span>
           )}
         </div>
-        <div className="grid grid-cols-3 divide-x divide-border/60">
+        <div className="grid grid-cols-1 divide-y divide-border/60 md:grid-cols-3 md:divide-x md:divide-y-0">
 
           {/* Phase 1 — Create Contract */}
           <div className="px-4 py-3 flex flex-col gap-2">
@@ -1174,7 +1174,7 @@ function AssignmentsPage() {
             )}
             <Button
               size="sm"
-              className="h-7 rounded-none px-3 text-xs gap-1.5 w-fit mt-auto"
+              className="h-7 px-3 text-xs gap-1.5 w-fit mt-auto"
               disabled={!lmisSaved || phase1Running}
               onClick={async () => {
                 setPhase1Running(true);
@@ -1213,7 +1213,7 @@ function AssignmentsPage() {
             </p>
             <Button
               size="sm"
-              className="h-7 rounded-none px-3 text-xs gap-1.5 w-fit mt-auto"
+              className="h-7 px-3 text-xs gap-1.5 w-fit mt-auto"
               disabled
             >
               <Send className="h-3 w-3" /> Run Phase 2
@@ -1231,7 +1231,7 @@ function AssignmentsPage() {
             </p>
             <Button
               size="sm"
-              className="h-7 rounded-none px-3 text-xs gap-1.5 w-fit mt-auto"
+              className="h-7 px-3 text-xs gap-1.5 w-fit mt-auto"
               disabled
             >
               <CheckCircle2 className="h-3 w-3" /> Run Phase 3
@@ -1241,15 +1241,15 @@ function AssignmentsPage() {
       </div>
 
       {/* ── Musaned Fetch ─────────────────────────────────────────────── */}
-      <div className="border border-border bg-background shrink-0">
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-border/60">
+      <div className="shrink-0 overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 border-b border-border/60">
           <Globe className="h-4 w-4 text-primary shrink-0" />
-          <div className="flex-1 min-w-0">
+          <div className="min-w-[14rem] flex-1">
             <div className="text-sm font-semibold">Musaned Data Fetch</div>
             <div className="text-xs text-muted-foreground">Fetch visa & employer info for new Processing candidates from musaned.com.sa</div>
           </div>
           {!musanedSaved && (
-            <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-sm shrink-0">
+            <span className="text-[10px] rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300 shrink-0">
               Musaned credentials required
             </span>
           )}
@@ -1277,7 +1277,7 @@ function AssignmentsPage() {
           )}
           <Button
             size="sm"
-            className="h-7 rounded-none px-3 text-xs gap-1.5 w-fit mt-auto"
+            className="h-7 px-3 text-xs gap-1.5 w-fit mt-auto"
             disabled={!musanedSaved || musanedRunning}
             onClick={async () => {
               setMusanedRunning(true);
@@ -1308,11 +1308,11 @@ function AssignmentsPage() {
 
       {/* Musaned log dialog */}
       <Dialog open={musanedLogOpen} onOpenChange={setMusanedLogOpen}>
-        <DialogContent className="sm:max-w-lg rounded-none">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-sm">Musaned Fetch — Run Log</DialogTitle>
           </DialogHeader>
-          <div className="bg-muted/50 border border-border rounded-none p-3 max-h-80 overflow-y-auto font-mono text-[11px] space-y-0.5">
+          <div className="bg-muted/50 border border-border p-3 max-h-80 overflow-y-auto font-mono text-[11px] space-y-0.5">
             {musanedResult?.log.map((line, i) => (
               <div key={i} className={cn(
                 "leading-relaxed",
@@ -1345,11 +1345,11 @@ function AssignmentsPage() {
 
       {/* Phase 1 log dialog */}
       <Dialog open={phase1LogOpen} onOpenChange={setPhase1LogOpen}>
-        <DialogContent className="sm:max-w-lg rounded-none">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-sm">Phase 1 — Run Log</DialogTitle>
           </DialogHeader>
-          <div className="bg-muted/50 border border-border rounded-none p-3 max-h-80 overflow-y-auto font-mono text-[11px] space-y-0.5">
+          <div className="bg-muted/50 border border-border p-3 max-h-80 overflow-y-auto font-mono text-[11px] space-y-0.5">
             {phase1Result?.log.map((line, i) => (
               <div key={i} className={cn(
                 line.includes("ERROR") ? "text-red-600 dark:text-red-400" :
@@ -1364,7 +1364,7 @@ function AssignmentsPage() {
 
       {/* ── TC Criteria Dialog ───────────────────────────────────────── */}
       <Dialog open={panelDialog === "tcCriteria"} onOpenChange={(o) => { if (!o) setPanelDialog(null); }}>
-        <DialogContent className="sm:max-w-md rounded-none">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ListChecks className="h-4 w-4 text-primary" />
@@ -1411,12 +1411,12 @@ function AssignmentsPage() {
               );
             })}
             <div className="flex gap-2 pt-2">
-              <Button size="sm" variant="outline" className="h-7 rounded-none text-xs"
+              <Button size="sm" variant="outline" className="h-7 text-xs"
                 disabled={tcCriteriaKeys.length === ALL_TC_CRITERIA.length || saveTcCriteriaMut.isPending}
                 onClick={() => saveTcCriteriaMut.mutate(ALL_TC_CRITERIA_KEYS)}>
                 Enable all
               </Button>
-              <Button size="sm" variant="outline" className="h-7 rounded-none text-xs text-destructive border-destructive/30 hover:bg-destructive/5"
+              <Button size="sm" variant="outline" className="h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/5"
                 disabled={tcCriteriaKeys.length === 0 || saveTcCriteriaMut.isPending}
                 onClick={() => saveTcCriteriaMut.mutate([])}>
                 Disable all
@@ -1428,7 +1428,7 @@ function AssignmentsPage() {
 
       {/* ── CV Distribution Dialog ───────────────────────────────────── */}
       <Dialog open={panelDialog === "cvDist"} onOpenChange={(o) => { if (!o) setPanelDialog(null); }}>
-        <DialogContent className="sm:max-w-lg rounded-none max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Shuffle className="h-4 w-4 text-primary" />
@@ -1445,13 +1445,13 @@ function AssignmentsPage() {
                     <input
                       autoFocus type="number" min={1} value={baseDraft}
                       onChange={(e) => setBaseDraft(e.target.value)}
-                      className="w-12 border border-input rounded-none px-1.5 h-6 text-sm"
+                      className="w-12 border border-input px-1.5 h-6 text-sm"
                       onKeyDown={(e) => {
                         if (e.key === "Enter") { const n = parseInt(baseDraft); if (!isNaN(n) && n > 0) { saveCvReq.mutate({ ...cvReq, base_per_office: String(n) }); setBaseEdit(false); } }
                         if (e.key === "Escape") setBaseEdit(false);
                       }}
                     />
-                    <Button size="sm" className="h-6 rounded-none px-1.5 text-xs" disabled={saveCvReq.isPending}
+                    <Button size="sm" className="h-6 px-1.5 text-xs" disabled={saveCvReq.isPending}
                       onClick={() => { const n = parseInt(baseDraft); if (!isNaN(n) && n > 0) { saveCvReq.mutate({ ...cvReq, base_per_office: String(n) }); setBaseEdit(false); } }}>
                       {saveCvReq.isPending ? "…" : "Save"}
                     </Button>
@@ -1484,7 +1484,7 @@ function AssignmentsPage() {
               <div className="flex items-center justify-between gap-3">
                 <span className="text-[12px]">Move its CVs to other offices</span>
                 <Select value={cvReq.lock_delay ?? "now"} onValueChange={(v) => saveCvReq.mutate({ ...cvReq, lock_delay: v })}>
-                  <SelectTrigger className="h-7 w-36 rounded-none text-xs"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-7 w-36 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {LOCK_DELAY_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
                   </SelectContent>
@@ -1564,7 +1564,7 @@ function AssignmentsPage() {
             </p>
 
             <Button
-              className="w-full h-8 rounded-none gap-2 text-sm"
+              className="w-full h-8 gap-2 text-sm"
               disabled={runDistMut.isPending || distJob?.status === "pending" || distJob?.status === "running"}
               onClick={() => runDistMut.mutate()}
             >
@@ -1594,7 +1594,7 @@ function AssignmentsPage() {
 
       {/* ── Credential Dialog ─────────────────────────────────────────── */}
       <Dialog open={activeSetup !== null} onOpenChange={(open) => { if (!open) setActiveSetup(null); }}>
-        <DialogContent className="sm:max-w-md rounded-none">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <KeyRound className="h-4 w-4 text-primary" />
@@ -1626,14 +1626,14 @@ function AssignmentsPage() {
             <div className="flex flex-col gap-3 pt-1">
               <div className="flex items-center gap-3">
                 <span className="text-sm text-muted-foreground w-20 shrink-0">Email</span>
-                <Input autoFocus className="h-8 rounded-none text-sm flex-1" type="email"
+                <Input autoFocus className="h-8 text-sm flex-1" type="email"
                   placeholder="Musaned email…"
                   value={musanedEmail} onChange={(e) => setMusanedEmail(e.target.value)} />
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm text-muted-foreground w-20 shrink-0">Password</span>
                 <div className="flex gap-1 flex-1">
-                  <Input className="h-8 rounded-none text-sm flex-1"
+                  <Input className="h-8 text-sm flex-1"
                     type={musanedShowPassword ? "text" : "password"}
                     placeholder="Musaned password…"
                     value={musanedPasswordDraft} onChange={(e) => setMusanedPasswordDraft(e.target.value)} />
@@ -1644,12 +1644,12 @@ function AssignmentsPage() {
                 </div>
               </div>
               <div className="flex gap-2 pt-1">
-                <Button size="sm" className="h-8 rounded-none px-4 text-sm"
+                <Button size="sm" className="h-8 px-4 text-sm"
                   disabled={!musanedEmail.trim() || !musanedPasswordDraft.trim() || saveMusanedMut.isPending}
                   onClick={() => saveMusanedMut.mutate()}>
                   {saveMusanedMut.isPending ? "Saving…" : "Save"}
                 </Button>
-                <Button size="sm" variant="ghost" className="h-8 rounded-none px-4 text-sm"
+                <Button size="sm" variant="ghost" className="h-8 px-4 text-sm"
                   onClick={() => setActiveSetup(null)}>Cancel</Button>
               </div>
             </div>
@@ -1659,14 +1659,14 @@ function AssignmentsPage() {
             <div className="flex flex-col gap-3 pt-1">
               <div className="flex items-center gap-3">
                 <span className="text-sm text-muted-foreground w-20 shrink-0">Email</span>
-                <Input autoFocus className="h-8 rounded-none text-sm flex-1" type="email"
+                <Input autoFocus className="h-8 text-sm flex-1" type="email"
                   placeholder="Enjaz+ email…"
                   value={enjazEmail} onChange={(e) => setEnjazEmail(e.target.value)} />
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm text-muted-foreground w-20 shrink-0">Password</span>
                 <div className="flex gap-1 flex-1">
-                  <Input className="h-8 rounded-none text-sm flex-1"
+                  <Input className="h-8 text-sm flex-1"
                     type={enjazShowPassword ? "text" : "password"}
                     placeholder="Enjaz+ password…"
                     value={enjazPasswordDraft} onChange={(e) => setEnjazPasswordDraft(e.target.value)} />
@@ -1677,12 +1677,12 @@ function AssignmentsPage() {
                 </div>
               </div>
               <div className="flex gap-2 pt-1">
-                <Button size="sm" className="h-8 rounded-none px-4 text-sm"
+                <Button size="sm" className="h-8 px-4 text-sm"
                   disabled={!enjazEmail.trim() || !enjazPasswordDraft.trim() || saveEnjazMut.isPending}
                   onClick={() => saveEnjazMut.mutate()}>
                   {saveEnjazMut.isPending ? "Saving…" : "Save"}
                 </Button>
-                <Button size="sm" variant="ghost" className="h-8 rounded-none px-4 text-sm"
+                <Button size="sm" variant="ghost" className="h-8 px-4 text-sm"
                   onClick={() => setActiveSetup(null)}>Cancel</Button>
               </div>
             </div>
@@ -1692,14 +1692,14 @@ function AssignmentsPage() {
             <div className="flex flex-col gap-3 pt-1">
               <div className="flex items-center gap-3">
                 <span className="text-sm text-muted-foreground w-20 shrink-0">Email</span>
-                <Input autoFocus className="h-8 rounded-none text-sm flex-1" type="email"
+                <Input autoFocus className="h-8 text-sm flex-1" type="email"
                   placeholder="MOFA email…"
                   value={mofaEmail} onChange={(e) => setMofaEmail(e.target.value)} />
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm text-muted-foreground w-20 shrink-0">Password</span>
                 <div className="flex gap-1 flex-1">
-                  <Input className="h-8 rounded-none text-sm flex-1"
+                  <Input className="h-8 text-sm flex-1"
                     type={mofaShowPassword ? "text" : "password"}
                     placeholder="MOFA password…"
                     value={mofaPasswordDraft} onChange={(e) => setMofaPasswordDraft(e.target.value)} />
@@ -1710,12 +1710,12 @@ function AssignmentsPage() {
                 </div>
               </div>
               <div className="flex gap-2 pt-1">
-                <Button size="sm" className="h-8 rounded-none px-4 text-sm"
+                <Button size="sm" className="h-8 px-4 text-sm"
                   disabled={!mofaEmail.trim() || !mofaPasswordDraft.trim() || saveMofaMut.isPending}
                   onClick={() => saveMofaMut.mutate()}>
                   {saveMofaMut.isPending ? "Saving…" : "Save"}
                 </Button>
-                <Button size="sm" variant="ghost" className="h-8 rounded-none px-4 text-sm"
+                <Button size="sm" variant="ghost" className="h-8 px-4 text-sm"
                   onClick={() => setActiveSetup(null)}>Cancel</Button>
               </div>
             </div>
@@ -1725,14 +1725,14 @@ function AssignmentsPage() {
             <div className="flex flex-col gap-3 pt-1">
               <div className="flex items-center gap-3">
                 <span className="text-sm text-muted-foreground w-20 shrink-0">Username</span>
-                <Input autoFocus className="h-8 rounded-none text-sm flex-1"
+                <Input autoFocus className="h-8 text-sm flex-1"
                   placeholder="LMIS username…"
                   value={lmisEmail} onChange={(e) => setLmisEmail(e.target.value)} />
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm text-muted-foreground w-20 shrink-0">Password</span>
                 <div className="flex gap-1 flex-1">
-                  <Input className="h-8 rounded-none text-sm flex-1"
+                  <Input className="h-8 text-sm flex-1"
                     type={lmisShowPassword ? "text" : "password"}
                     placeholder="LMIS password…"
                     value={lmisPasswordDraft} onChange={(e) => setLmisPasswordDraft(e.target.value)} />
@@ -1743,12 +1743,12 @@ function AssignmentsPage() {
                 </div>
               </div>
               <div className="flex gap-2 pt-1">
-                <Button size="sm" className="h-8 rounded-none px-4 text-sm"
+                <Button size="sm" className="h-8 px-4 text-sm"
                   disabled={!lmisEmail.trim() || !lmisPasswordDraft.trim() || saveLmisMut.isPending}
                   onClick={() => saveLmisMut.mutate()}>
                   {saveLmisMut.isPending ? "Saving…" : "Save"}
                 </Button>
-                <Button size="sm" variant="ghost" className="h-8 rounded-none px-4 text-sm"
+                <Button size="sm" variant="ghost" className="h-8 px-4 text-sm"
                   onClick={() => setActiveSetup(null)}>Cancel</Button>
               </div>
             </div>

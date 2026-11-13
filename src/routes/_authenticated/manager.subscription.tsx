@@ -67,29 +67,35 @@ function SubscriptionPage() {
   const reqPages = Math.ceil(requests.length / PAGE);
 
   return (
-    <div className="space-y-3 px-6 py-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-sm font-semibold tracking-tight">Subscription</h1>
-        <p className="text-[11px] text-muted-foreground">Choose a plan and submit payment proof for approval.</p>
+    <div className="mx-auto w-full max-w-5xl space-y-4 px-4 py-5 sm:px-6 sm:py-6">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <h1 className="text-[26px] font-semibold leading-tight tracking-tight sm:text-[28px]">Subscription</h1>
+        <p className="text-sm text-muted-foreground">Choose a plan and submit payment proof for approval.</p>
       </div>
 
       {/* ── Plans ─────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {PLANS.map((p) => (
           <button key={p.id} type="button" onClick={() => setPlan(p.id)}
+            aria-pressed={plan === p.id}
             className={cn(
-              "text-left border bg-background p-3 transition-colors",
-              plan === p.id ? "border-primary bg-primary/5" : "border-border hover:border-border/80 hover:bg-muted/30",
+              "rounded-2xl border bg-card p-5 text-left shadow-xs transition-all",
+              plan === p.id ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/40",
             )}>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-semibold">{p.name}</span>
-              {plan === p.id && <Check className="h-3 w-3 text-primary" />}
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm font-semibold">{p.name}</span>
+              <span className={cn(
+                "grid h-5 w-5 place-items-center rounded-full border",
+                plan === p.id ? "border-primary bg-primary text-primary-foreground" : "border-border",
+              )}>
+                {plan === p.id && <Check className="h-3 w-3" />}
+              </span>
             </div>
-            <div className="text-base font-bold text-primary mb-2">{p.price}</div>
-            <ul className="space-y-0.5">
+            <div className="mb-3 text-[28px] font-semibold leading-none tracking-tight">{p.price}</div>
+            <ul className="space-y-1.5">
               {p.features.map((f) => (
-                <li key={f} className="text-[11px] text-muted-foreground flex items-center gap-1">
-                  <span className="text-primary/60">·</span>{f}
+                <li key={f} className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                  <Check className="h-3.5 w-3.5 shrink-0 text-primary" />{f}
                 </li>
               ))}
             </ul>
@@ -98,37 +104,37 @@ function SubscriptionPage() {
       </div>
 
       {/* ── Submit form ───────────────────────────────────────────────────── */}
-      <div className="border border-border bg-background">
-        <div className="px-2.5 py-1.5 border-b flex items-center gap-1.5 bg-muted/30">
-          <CreditCard className="h-3 w-3 text-primary shrink-0" />
-          <span className="text-[11px] font-semibold">Submit Upgrade Request</span>
-          <span className="ml-auto text-[10px] text-muted-foreground capitalize">{plan} plan selected</span>
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+        <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
+          <CreditCard className="h-4 w-4 shrink-0 text-primary" />
+          <span className="text-sm font-semibold">Submit upgrade request</span>
+          <span className="ml-auto text-xs capitalize text-muted-foreground">{plan} plan selected</span>
         </div>
-        <div className="p-3 space-y-2">
+        <div className="space-y-4 p-4">
           {/* File upload */}
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] text-muted-foreground w-28 shrink-0">Payment screenshot</span>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <span className="w-36 shrink-0 text-sm text-muted-foreground">Payment screenshot</span>
             <label className={cn(
-              "h-6 inline-flex items-center gap-1 px-2 border text-[11px] font-medium cursor-pointer transition-colors",
+              "inline-flex h-9 w-fit cursor-pointer items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors",
               file ? "border-primary/50 bg-primary/5 text-primary" : "border-input bg-background text-muted-foreground hover:bg-muted",
             )}>
-              <Upload className="h-2.5 w-2.5" />
+              <Upload className="h-3.5 w-3.5" />
               {file ? (file.name.length > 20 ? file.name.slice(0, 18) + "…" : file.name) : "Choose image"}
               <input type="file" accept="image/*" className="hidden"
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
             </label>
             {file && (
-              <button type="button" className="text-[11px] text-destructive hover:underline"
+              <button type="button" className="w-fit text-sm text-destructive hover:underline"
                 onClick={() => setFile(null)}>remove</button>
             )}
           </div>
           {/* Notes */}
-          <div className="flex gap-2">
-            <span className="text-[11px] text-muted-foreground w-28 shrink-0 pt-1">Notes (optional)</span>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
-              className="rounded-none text-xs flex-1 resize-none" placeholder="Any details…" />
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <span className="w-36 shrink-0 pt-1 text-sm text-muted-foreground">Notes (optional)</span>
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3}
+              className="flex-1 resize-none text-sm" placeholder="Any details…" />
           </div>
-          <Button size="sm" className="h-7 rounded-none text-xs px-4"
+          <Button className="h-10 w-full rounded-xl px-6 sm:w-auto"
             onClick={() => submit.mutate()} disabled={submit.isPending}>
             {submit.isPending ? "Submitting…" : "Submit request"}
           </Button>
@@ -137,21 +143,21 @@ function SubscriptionPage() {
 
       {/* ── Request history ───────────────────────────────────────────────── */}
       {requests.length > 0 && (
-        <div className="border border-border bg-background">
-          <div className="px-2.5 py-1.5 border-b flex items-center gap-1.5 bg-muted/30">
-            <span className="text-[11px] font-semibold">Your Requests</span>
-            <span className="ml-auto text-[10px] text-muted-foreground">{requests.length} total</span>
+        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+          <div className="flex items-center gap-2 border-b px-4 py-3">
+            <span className="text-sm font-semibold">Your requests</span>
+            <span className="ml-auto text-xs text-muted-foreground">{requests.length} total</span>
           </div>
           <div className="p-2 space-y-1.5">
             <div className="space-y-px">
               {reqSlice.map((r) => (
                 <div key={r.id} className="flex items-center gap-2 px-2 py-0.5 hover:bg-muted/30">
-                  <span className="text-[11px] font-medium capitalize flex-1">{r.plan} plan</span>
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="flex-1 text-sm font-medium capitalize">{r.plan} plan</span>
+                  <span className="text-xs text-muted-foreground">
                     {new Date(r.created_at).toLocaleDateString()}
                   </span>
                   <span className={cn(
-                    "text-[10px] font-medium px-1.5 py-0.5 rounded-none border",
+                    "rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize",
                     r.status === "approved"  ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400" :
                     r.status === "rejected"  ? "border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400" :
                     "border-border bg-muted text-muted-foreground",
@@ -162,13 +168,13 @@ function SubscriptionPage() {
             {reqPages > 1 && (
               <div className="flex items-center justify-between pt-1 border-t border-border/50">
                 <button type="button" onClick={() => setReqPage(reqPage - 1)} disabled={reqPage === 0}
-                  className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30">
-                  <ChevronLeft className="h-3 w-3" />
+                  className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30">
+                  <ChevronLeft className="h-4 w-4" />
                 </button>
-                <span className="text-[10px] text-muted-foreground">{reqPage + 1} / {reqPages}</span>
+                <span className="text-xs text-muted-foreground">{reqPage + 1} / {reqPages}</span>
                 <button type="button" onClick={() => setReqPage(reqPage + 1)} disabled={reqPage >= reqPages - 1}
-                  className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30">
-                  <ChevronRight className="h-3 w-3" />
+                  className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30">
+                  <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
             )}

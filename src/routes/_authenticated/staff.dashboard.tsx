@@ -160,7 +160,7 @@ type EditableField =
 function OptionPill({ value }: { value: string }) {
   return (
     <span className={cn(
-      "inline-block text-[11px] font-medium px-2 py-0.5 rounded-none whitespace-nowrap",
+      "inline-block text-[11px] font-medium px-2 py-0.5 whitespace-nowrap",
       OPTION_COLORS[value] ?? "bg-zinc-100/50 text-[#181A27] dark:bg-zinc-800 dark:text-zinc-400",
     )}>
       {value || "—"}
@@ -173,14 +173,14 @@ function InlineSelect({ value, options, onSave }: { value: string; options: stri
   if (!open) {
     return (
       <button type="button" onClick={() => setOpen(true)}
-        className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border block">
+        className="text-left px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border block">
         {value ? <OptionPill value={value} /> : <span className="text-muted-foreground text-[14px]">—</span>}
       </button>
     );
   }
   return (
     <div className="relative z-20">
-      <div className="absolute top-0 left-0 bg-background border border-border shadow-md rounded-none min-w-[140px]">
+      <div className="absolute top-0 left-0 bg-background border border-border shadow-md min-w-[140px]">
         {options.map((opt) => (
           <button key={opt} type="button"
             className={cn("w-full text-left px-3 py-1.5 text-[13px] hover:bg-muted/60 flex items-center gap-2", opt === value && "bg-muted/40 font-semibold")}
@@ -212,7 +212,7 @@ function InlineText({ value, onSave, truncate }: { value: string; onSave: (v: st
         <button
           type="button"
           onClick={() => setExpanded(false)}
-          className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border block whitespace-normal max-w-[260px] break-words text-[14px]"
+          className="text-left px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border block whitespace-normal max-w-[260px] break-words text-[14px]"
         >
           {value}
         </button>
@@ -224,7 +224,7 @@ function InlineText({ value, onSave, truncate }: { value: string; onSave: (v: st
         title={isLong ? value : undefined}
         onClick={() => { if (isLong) { setExpanded(true); } else { setDraft(value); setEditing(true); } }}
         className={cn(
-          "text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block text-[14px]",
+          "text-left px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block text-[14px]",
           isLong && "cursor-pointer",
         )}
       >
@@ -239,7 +239,7 @@ function InlineText({ value, onSave, truncate }: { value: string; onSave: (v: st
         if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
         if (e.key === "Escape") { setDraft(value); setEditing(false); }
       }}
-      className="rounded-none border border-primary bg-background px-1 py-0.5 text-[14px] text-[#181A27] outline-none min-w-[100px]" />
+      className="border border-primary bg-background px-1 py-0.5 text-[14px] text-[#181A27] outline-none min-w-[100px]" />
   );
 }
 
@@ -254,7 +254,7 @@ function InlineDate({ value, onSave, showDays }: { value: string; onSave: (v: st
   if (!editing) {
     return (
       <button type="button" onClick={() => { setDraft(value); setEditing(true); }}
-        className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block">
+        className="text-left px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block">
         {value ? fmt(value) : <span className="text-muted-foreground">—</span>}
         {days !== null && (
           <span className="block text-[11px] text-muted-foreground leading-none mt-0.5">
@@ -271,7 +271,7 @@ function InlineDate({ value, onSave, showDays }: { value: string; onSave: (v: st
         if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
         if (e.key === "Escape") { setDraft(value); setEditing(false); }
       }}
-      className="rounded-none border border-primary bg-background px-1 py-0.5 text-[14px] text-[#181A27] outline-none min-w-[110px]" />
+      className="border border-primary bg-background px-1 py-0.5 text-[14px] text-[#181A27] outline-none min-w-[110px]" />
   );
 }
 
@@ -339,15 +339,15 @@ function DashboardCandidateCard({
   ];
 
   return (
-    <Card className={cn("group relative overflow-visible rounded-none mx-[5px]")}>
+    <Card className={cn("group relative overflow-visible mx-[5px]")}>
       <span className={cn(
-        "absolute -top-2 left-3 rounded-none px-1.5 py-0.5 text-[10px] font-semibold tracking-wide",
+        "absolute -top-2 left-3 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide",
         statusStyles[statusKey],
       )}>
         {statusLabel[statusKey]}
       </span>
       {note && (
-        <span className="absolute -top-2 right-3 rounded-none px-1.5 py-0.5 text-[10px] font-semibold bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
+        <span className="absolute -top-2 right-3 px-1.5 py-0.5 text-[10px] font-semibold bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
           {note}
         </span>
       )}
@@ -385,7 +385,7 @@ function DashboardCandidateCard({
           </div>
           <div className="flex flex-col items-end gap-1 mb-[8px] pt-[10px] pr-[12px] pb-[10px] pl-[4px]">
             {extraAction}
-            <Button asChild size="sm" className="h-6 w-18 text-[12px] px-2 rounded-none">
+            <Button asChild size="sm" className="h-6 w-18 text-[12px] px-2">
               <Link to="/staff/cv-generator" search={{ id: candidate.id }}>
                 <FileText className="h-3.5 w-3.5 mr-1" /> VIEW
               </Link>
@@ -424,7 +424,7 @@ function PaginationBar({
             <span key={`e${i}`} className="px-1 text-muted-foreground text-xs">…</span>
           ) : (
             <button key={p} type="button" onClick={() => onPage(p as number)}
-              className={cn("h-6 min-w-[24px] px-1.5 text-xs rounded-none border transition-colors",
+              className={cn("h-6 min-w-[24px] px-1.5 text-xs border transition-colors",
                 p === page ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted/60")}>
               {p}
             </button>
@@ -434,7 +434,7 @@ function PaginationBar({
       <div className="flex items-center gap-3">
         <span className="text-xs text-muted-foreground whitespace-nowrap">{start}–{end} of {total}</span>
         <select value={pageSize} onChange={(e) => onPageSize(Number(e.target.value))}
-          className="h-6 text-xs border border-border bg-background rounded-none px-1 outline-none cursor-pointer">
+          className="h-6 text-xs border border-border bg-background px-1 outline-none cursor-pointer">
           {[5, 10, 50, 100, 500].map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
         <button type="button" onClick={onBackToTop}
@@ -486,12 +486,12 @@ function MedicalBookButton({ candidateId, candidateName, onConfirm }: {
   const [date, setDate] = useState("");
   return (
     <>
-      <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+      <Button size="sm" variant="outline" className="text-xs h-7 px-2"
         onClick={() => { setOpen(true); setDate(""); }}>
         Re-Book
       </Button>
       <Dialog open={open} onOpenChange={(o) => { if (!o) setOpen(false); }}>
-        <DialogContent className="max-w-sm rounded-none">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Book Medical</DialogTitle>
           </DialogHeader>
@@ -502,11 +502,11 @@ function MedicalBookButton({ candidateId, candidateName, onConfirm }: {
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="rounded-none h-9"
+            className="h-9"
           />
           <DialogFooter>
-            <Button variant="ghost" className="rounded-none" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button disabled={!date} className="rounded-none" onClick={() => { onConfirm(date); setOpen(false); }}>
+            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button disabled={!date} onClick={() => { onConfirm(date); setOpen(false); }}>
               Confirm
             </Button>
           </DialogFooter>
@@ -526,12 +526,12 @@ function TicketBookButton({ candidateId, candidateName, onConfirm }: {
   const [date, setDate] = useState("");
   return (
     <>
-      <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+      <Button size="sm" variant="outline" className="text-xs h-7 px-2"
         onClick={() => { setOpen(true); setDate(""); }}>
         Mark Booked
       </Button>
       <Dialog open={open} onOpenChange={(o) => { if (!o) setOpen(false); }}>
-        <DialogContent className="max-w-sm rounded-none">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Book Ticket</DialogTitle>
           </DialogHeader>
@@ -542,11 +542,11 @@ function TicketBookButton({ candidateId, candidateName, onConfirm }: {
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="rounded-none h-9"
+            className="h-9"
           />
           <DialogFooter>
-            <Button variant="ghost" className="rounded-none" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button disabled={!date} className="rounded-none" onClick={() => { onConfirm(date); setOpen(false); }}>
+            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button disabled={!date} onClick={() => { onConfirm(date); setOpen(false); }}>
               Confirm
             </Button>
           </DialogFooter>
@@ -578,7 +578,7 @@ function CocBookButton({ candidate, onConfirm }: {
   return (
     <>
       <Select onValueChange={handleSelect}>
-        <SelectTrigger className="h-7 text-xs rounded-none w-[130px]">
+        <SelectTrigger className="h-7 text-xs w-[130px]">
           <SelectValue placeholder="Set COC" />
         </SelectTrigger>
         <SelectContent>
@@ -589,7 +589,7 @@ function CocBookButton({ candidate, onConfirm }: {
       </Select>
 
       <Dialog open={bookingOpen} onOpenChange={(o) => { if (!o) setBookingOpen(false); }}>
-        <DialogContent className="max-w-sm rounded-none">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>COC Booking Date</DialogTitle>
           </DialogHeader>
@@ -600,13 +600,13 @@ function CocBookButton({ candidate, onConfirm }: {
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="rounded-none h-9"
+            className="h-9"
           />
           <DialogFooter>
-            <Button variant="ghost" className="rounded-none" onClick={() => setBookingOpen(false)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setBookingOpen(false)}>Cancel</Button>
             <Button
               disabled={!date}
-              className="rounded-none"
+             
               onClick={() => {
                 if (pendingStatus) onConfirm(pendingStatus, date);
                 setBookingOpen(false);
@@ -656,12 +656,12 @@ function AlertSection({
         className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/25 transition-colors text-left group"
         onClick={() => { setOpen(true); setPage(1); }}
       >
-        <div className={cn("h-8 w-8 rounded-none grid place-items-center shrink-0", ALERT_ICON_BG[pillKey] ?? "bg-muted/40")}>
+        <div className={cn("h-8 w-8 grid place-items-center shrink-0", ALERT_ICON_BG[pillKey] ?? "bg-muted/40")}>
           <Icon className={cn("h-4 w-4 shrink-0", iconColor)} />
         </div>
         <span className="flex-1 text-[13px] font-medium leading-snug truncate">{title}</span>
         <div className="flex items-center gap-2 shrink-0">
-          <span className={cn("min-w-[2.25rem] text-center text-sm font-bold tabular-nums px-2.5 py-0.5 rounded-none", ALERT_PILL[pillKey])}>
+          <span className={cn("min-w-[2.25rem] text-center text-sm font-bold tabular-nums px-2.5 py-0.5", ALERT_PILL[pillKey])}>
             {candidates.length}
           </span>
           <span
@@ -677,7 +677,7 @@ function AlertSection({
       </button>
 
       <Dialog open={open} onOpenChange={(o) => { if (!o) { setOpen(false); setStatusFilter("all"); setPage(1); } }}>
-        <DialogContent className="max-w-lg rounded-none">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Icon className={cn("h-5 w-5", iconColor)} />
@@ -686,9 +686,9 @@ function AlertSection({
           </DialogHeader>
           {statusSet.size > 1 && (
             <div className="flex flex-wrap gap-1.5">
-              <button type="button" onClick={() => { setStatusFilter("all"); setPage(1); }} className={cn("px-2.5 py-1 text-xs font-medium rounded-none border transition-colors", statusFilter === "all" ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 text-muted-foreground border-border hover:bg-muted hover:text-foreground")}>All <span className="opacity-70">{candidates.length}</span></button>
+              <button type="button" onClick={() => { setStatusFilter("all"); setPage(1); }} className={cn("px-2.5 py-1 text-xs font-medium border transition-colors", statusFilter === "all" ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 text-muted-foreground border-border hover:bg-muted hover:text-foreground")}>All <span className="opacity-70">{candidates.length}</span></button>
               {(["available","processing","arrived","canceled","returned"] as const).filter((s) => statusSet.has(s)).map((s) => (
-                <button key={s} type="button" onClick={() => { setStatusFilter(s); setPage(1); }} className={cn("px-2.5 py-1 text-xs font-medium rounded-none border transition-colors", statusFilter === s ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 text-muted-foreground border-border hover:bg-muted hover:text-foreground")}>
+                <button key={s} type="button" onClick={() => { setStatusFilter(s); setPage(1); }} className={cn("px-2.5 py-1 text-xs font-medium border transition-colors", statusFilter === s ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 text-muted-foreground border-border hover:bg-muted hover:text-foreground")}>
                   {s.charAt(0).toUpperCase() + s.slice(1)} <span className="opacity-70">{candidates.filter((c) => c.status === s).length}</span>
                 </button>
               ))}
@@ -699,7 +699,7 @@ function AlertSection({
               <div key={c.id} className="flex items-center gap-3 py-3">
                 <Avatar className="h-9 w-9 shrink-0">
                   {c.photo_url && <AvatarImage src={c.photo_url} alt={c.full_name} />}
-                  <AvatarFallback className="text-[11px] rounded-none">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                  <AvatarFallback className="text-[11px]">{c.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate">{c.full_name}</p>
@@ -708,12 +708,12 @@ function AlertSection({
                 <div className="shrink-0 flex items-center gap-2">
                   {renderCardAction?.(c)}
                   <button type="button" title="View candidate" onClick={() => setViewCandidate(c)}
-                    className="p-1 rounded-none text-muted-foreground hover:text-primary hover:bg-muted/60 transition-colors shrink-0">
+                    className="p-1 text-muted-foreground hover:text-primary hover:bg-muted/60 transition-colors shrink-0">
                     <FileText className="h-3.5 w-3.5" />
                   </button>
                   <div className="text-right">
                     {renderBadge ? renderBadge(c) : getNote?.(c) ? (
-                      <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-none", ALERT_PILL[pillKey])}>
+                      <span className={cn("text-[11px] font-medium px-2 py-0.5", ALERT_PILL[pillKey])}>
                         {getNote(c)}
                       </span>
                     ) : null}
@@ -732,11 +732,11 @@ function AlertSection({
             onBackToTop={() => listRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
           />
           <div className="pt-2 flex items-center justify-between">
-            <Button size="sm" variant="outline" className="rounded-none text-xs gap-1 text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-900/20"
+            <Button size="sm" variant="outline" className="text-xs gap-1 text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-900/20"
               onClick={() => downloadCandidatesExcel(filtered, title, exportCols)}>
               <FileSpreadsheet className="h-3.5 w-3.5" /> Download Excel
             </Button>
-            <Button asChild size="sm" className="rounded-none text-xs gap-1">
+            <Button asChild size="sm" className="text-xs gap-1">
               <Link to="/staff/candidates" onClick={() => setOpen(false)}>
                 Go to Candidates <ChevronRight className="h-3.5 w-3.5" />
               </Link>
@@ -746,7 +746,7 @@ function AlertSection({
       </Dialog>
 
       <Dialog open={!!viewCandidate} onOpenChange={(o) => { if (!o) setViewCandidate(null); }}>
-        <DialogContent className="max-w-[95vw] w-fit rounded-none p-0 overflow-hidden">
+        <DialogContent className="max-w-[95vw] w-fit p-0 overflow-hidden">
           {viewCandidate && (
             <DashboardCandidateCard
               candidate={viewCandidate}
@@ -834,7 +834,7 @@ function LmisDocSection({
           onDragLeave={() => setDragOver(false)}
           onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); }}
           className={cn(
-            "border-2 border-dashed rounded-none cursor-pointer transition-colors flex flex-col items-center justify-center gap-1.5 min-h-[90px] p-2 bg-muted/20 select-none",
+            "border-2 border-dashed cursor-pointer transition-colors flex flex-col items-center justify-center gap-1.5 min-h-[90px] p-2 bg-muted/20 select-none",
             dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/60",
           )}
         >
@@ -845,7 +845,7 @@ function LmisDocSection({
           ) : url ? (
             <>
               {isImage
-                ? <img src={url} alt={label} className="max-h-[60px] max-w-full object-contain rounded-none" />
+                ? <img src={url} alt={label} className="max-h-[60px] max-w-full object-contain" />
                 : <><Upload className="h-7 w-7 text-muted-foreground" /><span className="text-[10px] text-muted-foreground truncate max-w-[140px]">{url.split("/").pop()?.slice(0, 20)}</span></>}
               <span className="text-[10px] text-primary">Click to replace</span>
             </>
@@ -855,7 +855,7 @@ function LmisDocSection({
         </div>
         {url && !uploading && (
           <button type="button" onClick={(e) => { e.stopPropagation(); onRemove(); }}
-            className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center rounded-none bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors">
+            className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors">
             <X className="h-3 w-3" />
           </button>
         )}
@@ -891,14 +891,14 @@ function LmisUploadButton({
       <Button
         size="sm"
         variant="outline"
-        className="h-6 text-[12px] px-2 rounded-none gap-1"
+        className="h-6 text-[12px] px-2 gap-1"
         onClick={() => setOpen(true)}
       >
         <Upload className="h-3 w-3" /> Files
       </Button>
       {open && (
         <Dialog open onOpenChange={(o) => { if (!o) setOpen(false); }}>
-          <DialogContent className="max-w-2xl rounded-none">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle className="text-base">LMIS Documents — {candidate.full_name}</DialogTitle>
             </DialogHeader>
@@ -1294,17 +1294,17 @@ function StaffDashboard() {
 
   return (
     <>
-    <div className="space-y-6 px-6 py-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-5 sm:px-6 sm:py-6">
 
       {/* Page header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-[26px] font-semibold leading-tight tracking-tight sm:text-[28px]">Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           </p>
         </div>
-        <Button asChild size="sm" className="gap-2 rounded-none">
+        <Button asChild size="sm" className="gap-2">
           <Link to="/staff/candidates">
             <UserPlus className="h-4 w-4" /> Manage Candidates
           </Link>
@@ -1322,9 +1322,9 @@ function StaffDashboard() {
             const typeLabel = isSelected ? "Selected" : isReserved ? "Reserved" : "Sent";
             const note = n.body?.replace(/^\[Selected\]\s*|^\[Reserved\]\s*/, "") || null;
             return (
-              <div key={n.id} className="flex items-start gap-3 border border-border rounded-none bg-card px-4 py-3">
+              <div key={n.id} className="flex items-start gap-3 border border-border bg-card px-4 py-3">
                 <div className={cn(
-                  "mt-0.5 shrink-0 h-7 w-7 rounded-none grid place-items-center text-white text-[10px] font-bold",
+                  "mt-0.5 shrink-0 h-7 w-7 grid place-items-center text-white text-[10px] font-bold",
                   isReserved ? "bg-amber-500" : "bg-primary",
                 )}>
                   <Send className="h-3.5 w-3.5" />
@@ -1333,7 +1333,7 @@ function StaffDashboard() {
                   <p className="text-sm font-semibold leading-snug">{n.title}</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className={cn(
-                      "text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-none",
+                      "text-[10px] font-bold uppercase px-1.5 py-0.5",
                       isReserved ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
                                  : "bg-primary/10 text-primary",
                     )}>{typeLabel}</span>
@@ -1379,10 +1379,10 @@ function StaffDashboard() {
             const pct   = total > 0 ? Math.round((count / total) * 100) : 0;
             const Icon  = s.icon;
             return (
-              <div key={s.key} className="relative border border-border bg-card rounded-none p-3 overflow-hidden">
+              <div key={s.key} className="relative overflow-hidden rounded-xl border border-border bg-card p-3 shadow-xs sm:p-4">
                 <div className={cn("absolute left-0 top-0 bottom-0 w-[3px]", s.bar)} />
                 <div className="pl-2">
-                  <div className={cn("h-6 w-6 rounded-none grid place-items-center mb-2", s.icon_bg)}>
+                  <div className={cn("h-7 w-7 grid place-items-center mb-2 rounded-lg", s.icon_bg)}>
                     <Icon className={cn("h-3 w-3", s.icon_color)} />
                   </div>
                   <p className={cn("text-2xl font-bold leading-none tabular-nums", s.value_color)}>{count}</p>
@@ -1400,7 +1400,7 @@ function StaffDashboard() {
 
       {/* Upcoming flights (next 3 days) */}
       {upcomingFlights.length > 0 && (
-        <Card className="rounded-none border-primary/30 bg-primary/5">
+        <Card className="border-primary/30 bg-primary/5">
           <CardContent className="pt-4 pb-4">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-primary mb-3">
               Upcoming Flights — Next 3 Days
@@ -1441,7 +1441,7 @@ function StaffDashboard() {
 
       {/* Alert summary badge */}
       {totalAlerts > 0 && (
-        <div className="flex items-center gap-2 px-4 py-2.5 border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
+        <div className="flex items-center gap-2 rounded-xl px-4 py-2.5 border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
           <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
           <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
             {totalAlerts} item{totalAlerts !== 1 ? "s" : ""} require attention
@@ -1455,11 +1455,11 @@ function StaffDashboard() {
 
           {/* COMPLIANCE & RECRUITMENT */}
           {(noMedical5Days.length > 0 || noTasheer10Days.length > 0 || cocNo.length > 0 || cocPlaced.length > 0 || medicalNotFit.length > 0 || cocDoneNotFit.length > 0 || medicalExpired.length > 0) && (
-            <div className="border border-border rounded-none overflow-hidden">
+            <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
               <div className="px-4 py-2.5 bg-red-50 dark:bg-red-950/20 border-b border-red-200 dark:border-red-900/60 flex items-center gap-2.5">
                 <span className="h-2 w-2 rounded-full bg-red-500 shrink-0" />
                 <p className="text-xs font-bold uppercase tracking-widest text-red-700 dark:text-red-400">Compliance & Recruitment</p>
-                <span className="ml-auto text-[11px] font-bold tabular-nums px-2.5 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                <span className="ml-auto rounded-full text-[11px] font-bold tabular-nums px-2.5 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
                   {[noMedical5Days, noTasheer10Days, cocNo, cocPlaced, medicalNotFit, cocDoneNotFit, medicalExpired].reduce((sum, a) => sum + a.length, 0)}
                 </span>
               </div>
@@ -1467,20 +1467,20 @@ function StaffDashboard() {
                 <AlertSection icon={Stethoscope} title="Warning No Medical — 5+ Days in Processing" iconColor="text-red-600 dark:text-red-400" pillKey="medical" candidates={noMedical5Days} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "contract_date", label: "Contract Date" }, { key: "office", label: "Office" }, { key: "selected_by", label: "Selected By" }]}
                   renderBadge={(c) => c.contract_date ? (
-                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">
+                    <span className="text-[11px] font-medium px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">
                       {daysSince(c.contract_date)}d
                     </span>
                   ) : null}
                   renderCardAction={(c) => (
                     <div className="flex gap-1">
-                      <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
+                      <Button size="sm" className="h-6 text-[12px] px-2 bg-emerald-600 hover:bg-emerald-700 text-white"
                         onClick={() => {
                           handleUpdateField(c.id, "medical_status", "Fit");
                           handleUpdateField(c.id, "medical_date", new Date().toISOString().split("T")[0]);
                         }}>
                         Fit
                       </Button>
-                      <Button size="sm" variant="outline" className="h-6 text-[12px] px-2 rounded-none text-red-600 border-red-300 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
+                      <Button size="sm" variant="outline" className="h-6 text-[12px] px-2 text-red-600 border-red-300 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
                         onClick={() => handleUpdateField(c.id, "status", "canceled")}>
                         Cancel
                       </Button>
@@ -1489,12 +1489,12 @@ function StaffDashboard() {
                 <AlertSection icon={AlertTriangle} title="Warning No Tasheer — 10+ Days in Processing" iconColor="text-violet-600 dark:text-violet-400" pillKey="tasheer" candidates={noTasheer10Days} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "contract_date", label: "Contract Date" }, { key: "office", label: "Office" }, { key: "selected_by", label: "Selected By" }]}
                   renderBadge={(c) => c.contract_date ? (
-                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
+                    <span className="text-[11px] font-medium px-2 py-0.5 bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
                       {daysSince(c.contract_date)}d
                     </span>
                   ) : null}
                   renderCardAction={(c) => (
-                    <Button size="sm" variant="outline" className="h-6 text-[12px] px-2 rounded-none text-red-600 border-red-300 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
+                    <Button size="sm" variant="outline" className="h-6 text-[12px] px-2 text-red-600 border-red-300 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
                       onClick={() => handleUpdateField(c.id, "status", "canceled")}>
                       Suggest Cancel
                     </Button>
@@ -1503,7 +1503,7 @@ function StaffDashboard() {
                   exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "coc_booked_date", label: "COC Booking Date" }, { key: "labour_id", label: "Labour ID" }, { key: "office", label: "Office" }, { key: "narrative", label: "Narrative" }, { key: "narrative_phone", label: "Narrative Phone" }]}
                   renderBadge={(c) => (
                     <div className="text-right">
-                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300">No</span>
+                      <span className="text-[11px] font-medium px-2 py-0.5 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300">No</span>
                       {(c as any).coc_booked_date && (
                         <p className="text-[10px] text-muted-foreground mt-0.5">Booked: {new Date((c as any).coc_booked_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}</p>
                       )}
@@ -1519,7 +1519,7 @@ function StaffDashboard() {
                   exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "coc_booked_date", label: "COC Booking Date" }, { key: "labour_id", label: "Labour ID" }, { key: "selected_by", label: "Selected By" }, { key: "office", label: "Office" }]}
                   renderBadge={(c) => (
                     <div className="text-right">
-                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Placed</span>
+                      <span className="text-[11px] font-medium px-2 py-0.5 bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Placed</span>
                       {(c as any).coc_booked_date && (
                         <p className="text-[10px] text-muted-foreground mt-0.5">Booked: {new Date((c as any).coc_booked_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}</p>
                       )}
@@ -1533,14 +1533,14 @@ function StaffDashboard() {
                   )} />
                 <AlertSection icon={Stethoscope} title="Medical — Not Fit" iconColor="text-red-600 dark:text-red-400" pillKey="medical" candidates={medicalNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }, { key: "coc_status", label: "COC Status" }, { key: "office", label: "Office" }]}
-                  renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">{c.medical_status}</span>}
+                  renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">{c.medical_status}</span>}
                   renderCardAction={(c) => (
                     <MedicalBookButton candidateId={c.id} candidateName={c.full_name}
                       onConfirm={(date) => { handleUpdateField(c.id, "medical_date", date); handleUpdateField(c.id, "medical_status", "Booked"); }} />
                   )} />
                 <AlertSection icon={Stethoscope} title="COC Done — Medical Not Fit" iconColor="text-fuchsia-600 dark:text-fuchsia-400" pillKey="medical" candidates={cocDoneNotFit} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "coc_status", label: "COC Status" }, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }]}
-                  renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">{c.medical_status}</span>}
+                  renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">{c.medical_status}</span>}
                   renderCardAction={(c) => (
                     <MedicalBookButton candidateId={c.id} candidateName={c.full_name}
                       onConfirm={(date) => { handleUpdateField(c.id, "medical_date", date); handleUpdateField(c.id, "medical_status", "Booked"); }} />
@@ -1549,7 +1549,7 @@ function StaffDashboard() {
                   exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }]}
                   renderBadge={(c) => (
                     <div className="text-right">
-                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">Expired</span>
+                      <span className="text-[11px] font-medium px-2 py-0.5 bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">Expired</span>
                       {c.medical_date && <p className="text-[10px] text-muted-foreground mt-0.5">{daysSince(c.medical_date)}d ago</p>}
                     </div>
                   )}
@@ -1563,25 +1563,25 @@ function StaffDashboard() {
 
           {/* LOGISTICS & DEPLOYMENT */}
           {(ticketNotBooked.length > 0 || ticketReady.length > 0 || arrivalCityMissing.length > 0 || visaReady.length > 0 || visaReturned.length > 0 || tasheerOverdue.length > 0 || tasheerDoneWokalaUnpaid.length > 0 || passportNotAccepted.length > 0 || weeklyAdded.length > 0 || weeklyDeployments.length > 0) && (
-            <div className="border border-border rounded-none overflow-hidden">
+            <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
               <div className="px-4 py-2.5 bg-violet-50 dark:bg-violet-950/20 border-b border-violet-200 dark:border-violet-900/60 flex items-center gap-2.5">
                 <span className="h-2 w-2 rounded-full bg-violet-500 shrink-0" />
                 <p className="text-xs font-bold uppercase tracking-widest text-violet-700 dark:text-violet-400">Logistics & Deployment</p>
-                <span className="ml-auto text-[11px] font-bold tabular-nums px-2.5 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
+                <span className="ml-auto rounded-full text-[11px] font-bold tabular-nums px-2.5 py-0.5 bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
                   {[ticketNotBooked, ticketReady, arrivalCityMissing, visaReady, visaReturned, visaWaitingReplacement, tasheerOverdue, tasheerDoneWokalaUnpaid, passportNotAccepted].reduce((sum, a) => sum + a.length, 0)}
                 </span>
               </div>
               <div className="divide-y divide-border">
                 <AlertSection icon={Ticket} title="Ticket Not Booked — Over 20 Days" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketNotBooked} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "ticket_status", label: "Ticket" }, { key: "contract_date", label: "Contract Date" }, { key: "arrival_city", label: "Arrival City" }, { key: "office", label: "Office" }]}
-                  renderBadge={(c) => c.contract_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">{daysSince(c.contract_date)}d since contract</span> : null}
+                  renderBadge={(c) => c.contract_date ? <span className="text-[11px] font-medium px-2 py-0.5 bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">{daysSince(c.contract_date)}d since contract</span> : null}
                   renderCardAction={(c) => (
                     <TicketBookButton candidateId={c.id} candidateName={c.full_name}
                       onConfirm={(date) => { handleUpdateField(c.id, "ticket_date", date); handleUpdateField(c.id, "ticket_status", "Booked"); }} />
                   )} />
                 <AlertSection icon={Ticket} title="Ticket Ready" iconColor="text-violet-600 dark:text-violet-400" pillKey="ticket" candidates={ticketReady} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "ticket_status", label: "Ticket" }, { key: "ticket_date", label: "Ticket Date" }, { key: "arrival_city", label: "Arrival City" }, { key: "passport_number", label: "Passport No." }]}
-                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Ready</span>}
+                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Ready</span>}
                   renderCardAction={(c) => (
                     <TicketBookButton candidateId={c.id} candidateName={c.full_name}
                       onConfirm={(date) => { handleUpdateField(c.id, "ticket_date", date); handleUpdateField(c.id, "ticket_status", "Booked"); }} />
@@ -1590,7 +1590,7 @@ function StaffDashboard() {
                   exportCols={[...BASE, { key: "arrival_city", label: "Arrival City" }, { key: "ticket_status", label: "Ticket" }, { key: "office", label: "Office" }]}
                   renderCardAction={(c) => (
                     <Select onValueChange={(v) => handleUpdateField(c.id, "arrival_city", v)}>
-                      <SelectTrigger className="h-7 text-xs rounded-none w-[110px]"><SelectValue placeholder="Set City" /></SelectTrigger>
+                      <SelectTrigger className="h-7 text-xs w-[110px]"><SelectValue placeholder="Set City" /></SelectTrigger>
                       <SelectContent>
                         {["Riyadh", "Jeddah", "Dammam", "Mecca", "Medina", "Taif", "Khobar", "Abha"].map((city) => (
                           <SelectItem key={city} value={city}>{city}</SelectItem>
@@ -1600,40 +1600,40 @@ function StaffDashboard() {
                   )} />
 <AlertSection icon={BadgeCheck} title="Ready for Embassy Visa" iconColor="text-emerald-600 dark:text-emerald-400" pillKey="visaready" candidates={visaReady} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "tasheer_status", label: "Tasheer" }, { key: "wokala_status", label: "Wokala" }, { key: "embassy_date", label: "Embassy Date" }]}
-                  renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">{c.visa_status === "Ready for embassy" ? "Ready" : "Auto"}</span>}
+                  renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">{c.visa_status === "Ready for embassy" ? "Ready" : "Auto"}</span>}
                   renderCardAction={(c) => (
-                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                    <Button size="sm" variant="outline" className="text-xs h-7 px-2"
                       onClick={() => handleUpdateField(c.id, "visa_status", "Sent to Embassy")}>Sent to Embassy</Button>
                   )} />
                 <AlertSection icon={RotateCcw} title="Visa Returned" iconColor="text-rose-600 dark:text-rose-400" pillKey="visareturn" candidates={visaReturned} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "remark", label: "Remark" }, { key: "musaned_status", label: "Country" }]}
-                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">Returned</span>}
+                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300">Returned</span>}
                   renderCardAction={(c) => (
-                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                    <Button size="sm" variant="outline" className="text-xs h-7 px-2"
                       onClick={() => handleUpdateField(c.id, "visa_status", "Waiting Replacement")}>Replacement</Button>
                   )} />
                 <AlertSection icon={AlertTriangle} title="Visa — Waiting Replacement" iconColor="text-amber-600 dark:text-amber-400" pillKey="waitreplace" candidates={visaWaitingReplacement} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "visa_status", label: "Visa Status" }, { key: "musaned_status", label: "Country" }, { key: "office", label: "Office" }, { key: "passport_number", label: "Passport No." }]}
-                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">Waiting</span>} />
+                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">Waiting</span>} />
                 <AlertSection icon={AlertTriangle} title="Tasheer Overdue — Booked Date Passed" iconColor="text-amber-600 dark:text-amber-400" pillKey="tasheer" candidates={tasheerOverdue} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }]}
-                  renderBadge={(c) => c.tasheer_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{daysSince(c.tasheer_date)}d overdue</span> : null}
+                  renderBadge={(c) => c.tasheer_date ? <span className="text-[11px] font-medium px-2 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{daysSince(c.tasheer_date)}d overdue</span> : null}
                   renderCardAction={(c) => (
-                    <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
+                    <Button size="sm" className="h-6 text-[12px] px-2 bg-emerald-600 hover:bg-emerald-700 text-white"
                       onClick={() => handleUpdateField(c.id, "tasheer_status", "Done")}>Done</Button>
                   )} />
                 <AlertSection icon={AlertTriangle} title="Tasheer Done — Wokala Unpaid" iconColor="text-violet-600 dark:text-violet-400" pillKey="tasheer" candidates={tasheerDoneWokalaUnpaid} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "tasheer_date", label: "Tasheer Date" }, { key: "wokala_status", label: "Wokala" }, { key: "narrative_phone", label: "Narrative Phone" }]}
-                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Unpaid</span>}
+                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">Unpaid</span>}
                   renderCardAction={(c) => (
-                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                    <Button size="sm" variant="outline" className="text-xs h-7 px-2"
                       onClick={() => handleUpdateField(c.id, "wokala_status", "Paid")}>Mark Paid</Button>
                   )} />
                 <AlertSection icon={XCircle} title="Tasheer — Ready" iconColor="text-red-600 dark:text-red-400" pillKey="tasheer" candidates={passportNotAccepted} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "tasheer_status", label: "Tasheer" }, { key: "passport_number", label: "Passport No." }, { key: "office", label: "Office" }]}
-                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">Ready</span>}
+                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">Ready</span>}
                   renderCardAction={(c) => (
-                    <Button size="sm" className="h-6 text-[12px] px-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white"
+                    <Button size="sm" className="h-6 text-[12px] px-2 bg-emerald-600 hover:bg-emerald-700 text-white"
                       onClick={() => {
                         handleUpdateField(c.id, "passport_accepted", "true");
                         handleUpdateField(c.id, "tasheer_status", "Done");
@@ -1642,49 +1642,49 @@ function StaffDashboard() {
                   )} />
                 <AlertSection icon={UserPlus} title="Weekly Candidates Added" iconColor="text-blue-600 dark:text-blue-400" pillKey="weekly" candidates={weeklyAdded} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "created_at", label: "Added Date" }, { key: "office", label: "Office" }, { key: "selected_by", label: "Selected By" }]}
-                  renderBadge={(c) => c.created_at ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">{daysSince(c.created_at.split("T")[0])}d ago</span> : null} />
+                  renderBadge={(c) => c.created_at ? <span className="text-[11px] font-medium px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">{daysSince(c.created_at.split("T")[0])}d ago</span> : null} />
                 <AlertSection icon={TrendingUp} title="Weekly Deployments" iconColor="text-emerald-600 dark:text-emerald-400" pillKey="visaready" candidates={weeklyDeployments} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "ticket_date", label: "Ticket Date" }, { key: "arrival_city", label: "Arrival City" }, { key: "musaned_status", label: "Country" }]}
-                  renderBadge={(c) => c.ticket_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">{daysSince(c.ticket_date)}d ago</span> : null} />
+                  renderBadge={(c) => c.ticket_date ? <span className="text-[11px] font-medium px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">{daysSince(c.ticket_date)}d ago</span> : null} />
               </div>
             </div>
           )}
 
           {/* DATA & MISC */}
           {(cvOverdue.length > 0 || unfilledLmis.length > 0 || fitLmisNotTested.length > 0 || lmisDraftImported.length > 0) && (
-            <div className="border border-border rounded-none overflow-hidden">
+            <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
               <div className="px-4 py-2.5 bg-teal-50 dark:bg-teal-950/20 border-b border-teal-200 dark:border-teal-900/60 flex items-center gap-2.5">
                 <span className="h-2 w-2 rounded-full bg-teal-500 shrink-0" />
                 <p className="text-xs font-bold uppercase tracking-widest text-teal-700 dark:text-teal-400">Data & Misc</p>
-                <span className="ml-auto text-[11px] font-bold tabular-nums px-2.5 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
+                <span className="ml-auto rounded-full text-[11px] font-bold tabular-nums px-2.5 py-0.5 bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
                   {[cvOverdue, fitLmisNotTested, unfilledLmis, lmisDraftImported].reduce((sum, a) => sum + a.length, 0)}
                 </span>
               </div>
               <div className="divide-y divide-border">
                 <AlertSection icon={Send} title="CV Sent — No Selection" iconColor="text-teal-600 dark:text-teal-400" pillKey="cvoverdue" candidates={cvOverdue} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "cv_sent_to", label: "CV Sent To" }, { key: "cv_sent_date", label: "CV Sent Date" }, { key: "musaned_status", label: "Country" }]}
-                  renderBadge={(c) => c.cv_sent_date ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">{Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000)}d ago</span> : null}
+                  renderBadge={(c) => c.cv_sent_date ? <span className="text-[11px] font-medium px-2 py-0.5 bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">{Math.floor((today.getTime() - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000)}d ago</span> : null}
                   renderCardAction={(c) => (
-                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                    <Button size="sm" variant="outline" className="text-xs h-7 px-2"
                       onClick={() => handleUpdateField(c.id, "cv_sent_to", null)}>Recall CV</Button>
                   )} />
                 <AlertSection icon={ClipboardList} title="LMIS file" iconColor="text-amber-600 dark:text-amber-400" pillKey="lmis" candidates={unfilledLmis} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "lmis_status", label: "LMIS Status" }, { key: "unfilled_lmis", label: "Unfilled LMIS" }, { key: "labour_id", label: "Labour ID" }]}
-                  renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{c.unfilled_lmis}</span>}
+                  renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{c.unfilled_lmis}</span>}
                   renderCardAction={(c) => (
-                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                    <Button size="sm" variant="outline" className="text-xs h-7 px-2"
                       onClick={() => handleUpdateField(c.id, "unfilled_lmis", "")}>Mark Done</Button>
                   )} />
                 <AlertSection icon={Stethoscope} title="Medical Fit — LMIS Not Tested" iconColor="text-teal-600 dark:text-teal-400" pillKey="fitlmis" candidates={fitLmisNotTested} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "medical_status", label: "Medical Status" }, { key: "medical_date", label: "Medical Date" }, { key: "coc_status", label: "COC Status" }, { key: "lmis_status", label: "LMIS" }]}
-                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">Not Tested</span>}
+                  renderBadge={() => <span className="text-[11px] font-medium px-2 py-0.5 bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300">Not Tested</span>}
                   renderCardAction={(c) => (
-                    <Button size="sm" variant="outline" className="rounded-none text-xs h-7 px-2"
+                    <Button size="sm" variant="outline" className="text-xs h-7 px-2"
                       onClick={() => handleUpdateField(c.id, "lmis_status", "Imported")}>Start LMIS</Button>
                   )} />
                 <AlertSection icon={Upload} title="LMIS Draft / Imported — Upload Files" iconColor="text-indigo-600 dark:text-indigo-400" pillKey="lmis" candidates={lmisDraftImported} onUpdateField={handleUpdateField} countryOptions={countryOptions}
                   exportCols={[...BASE, { key: "lmis_status", label: "LMIS Status" }, { key: "labour_id", label: "Labour ID" }, { key: "unfilled_lmis", label: "Unfilled LMIS" }]}
-                  renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 rounded-none bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">{c.lmis_status}</span>}
+                  renderBadge={(c) => <span className="text-[11px] font-medium px-2 py-0.5 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">{c.lmis_status}</span>}
                   renderCardAction={(c) => (
                     <LmisUploadButton candidate={c} onUpdate={(field, value) => handleUpdateField(c.id, field as any, value)} />
                   )} />
@@ -1751,7 +1751,7 @@ function StaffDashboard() {
           setFlightReminderOpen(false);
         }
       }}>
-        <DialogContent className="max-w-md rounded-none">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
               ✈️ Upcoming Flights — Next 3 Days
@@ -1762,7 +1762,7 @@ function StaffDashboard() {
             {upcomingFlights.map((c) => {
               const daysUntil = Math.ceil((new Date(c.ticket_date! + "T00:00:00").getTime() - today.getTime()) / 86_400_000);
               return (
-                <div key={c.id} className="flex items-center justify-between rounded-none border border-border px-3 py-2 text-sm">
+                <div key={c.id} className="flex items-center justify-between border border-border px-3 py-2 text-sm">
                   <div>
                     <div className="font-semibold">{c.full_name}</div>
                     <div className="text-xs text-muted-foreground">{c.arrival_city ?? "—"}</div>
