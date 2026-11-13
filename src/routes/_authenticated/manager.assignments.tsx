@@ -51,7 +51,13 @@ const DEFAULT_CV_REQ = {
   // When an office is locked: when its CVs move, and whether processing candidates are taken too
   lock_delay: "now" as string,
   lock_move_processing: "false" as string,
+  // Automatic background jobs for this company ("false" = off)
+  auto_distribute: "true" as string,
+  auto_expiry_move: "true" as string,
 };
+
+// CV Distribution office table: office | rating (5 stars) | CVs held "15/15 +3" | overflow %
+const OFFICE_TABLE_COLUMNS = "minmax(0,1fr) 84px 72px 80px";
 
 const LOCK_DELAY_OPTIONS = [
   { value: "now", label: "Immediately" },
@@ -1471,8 +1477,46 @@ function AssignmentsPage() {
               </div>
               <div className="border border-border px-2.5 py-2">
                 <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Automatic run</div>
-                <span className="font-bold text-sm">00:00</span>
-                <div className="text-[10px] text-muted-foreground">Addis Ababa, nightly</div>
+                {cvReq.auto_distribute === "false" ? (
+                  <>
+                    <span className="font-bold text-sm text-muted-foreground">Off</span>
+                    <div className="text-[10px] text-muted-foreground">Manual only</div>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-bold text-sm">00:00</span>
+                    <div className="text-[10px] text-muted-foreground">Addis Ababa, nightly</div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Automatic jobs for this company */}
+            <div className="border border-border px-3 py-2 space-y-2">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                <Clock className="h-3 w-3" /> Automatic distribution
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-[12px] leading-tight">
+                  Distribute new CVs every night at 00:00
+                  <div className="text-[11px] text-muted-foreground">Off: CVs are only sent when you click Run Distribution or Send CV.</div>
+                </div>
+                <Switch
+                  aria-label="Automatic nightly distribution"
+                  checked={cvReq.auto_distribute !== "false"}
+                  onCheckedChange={(v) => saveCvReq.mutate({ ...cvReq, auto_distribute: v ? "true" : "false" })}
+                />
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-[12px] leading-tight">
+                  Move CVs when an office doesn't respond in {cvDaysThreshold} days
+                  <div className="text-[11px] text-muted-foreground">Off: CVs stay with their office until you move them.</div>
+                </div>
+                <Switch
+                  aria-label="Automatically move unanswered CVs"
+                  checked={cvReq.auto_expiry_move !== "false"}
+                  onCheckedChange={(v) => saveCvReq.mutate({ ...cvReq, auto_expiry_move: v ? "true" : "false" })}
+                />
               </div>
             </div>
 
@@ -1514,14 +1558,15 @@ function AssignmentsPage() {
               );
               return (
                 <div className="border border-border overflow-hidden">
-                  <div className="grid text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-muted/40 px-3 py-1.5"
-                    style={{ gridTemplateColumns: "1fr auto auto auto" }}>
+                  {/* Same fixed columns + reserved scrollbar gutter on header and body so they line up */}
+                  <div className="grid items-center gap-x-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-muted/40 px-3 py-1.5 overflow-hidden [scrollbar-gutter:stable]"
+                    style={{ gridTemplateColumns: OFFICE_TABLE_COLUMNS }}>
                     <span>Office</span>
-                    <span className="pr-4">Rating</span>
-                    <span className="text-right pr-4">CVs held</span>
-                    <span className="text-right">Overflow %</span>
+                    <span>Rating</span>
+                    <span className="text-right whitespace-nowrap">CVs held</span>
+                    <span className="text-right whitespace-nowrap">Overflow %</span>
                   </div>
-                  <div className="divide-y divide-border max-h-56 overflow-y-auto">
+                  <div className="divide-y divide-border max-h-56 overflow-y-auto [scrollbar-gutter:stable]">
                     {activeOfficList.map((o) => {
                       const country = countryMap.get(o.country_id ?? "");
                       const current = cvDistStats?.sentCounts?.[o.name] ?? 0;
@@ -1529,17 +1574,17 @@ function AssignmentsPage() {
                       const pct = procTotal > 0 ? Math.round((procCount / procTotal) * 100) : null;
                       const added = distJob?.status === "done" ? distJob.result?.byOffice?.[o.name] : undefined;
                       return (
-                        <div key={o.id} className="grid items-center px-3 py-1.5 text-[12px] hover:bg-muted/20"
-                          style={{ gridTemplateColumns: "1fr auto auto auto" }}>
+                        <div key={o.id} className="grid items-center gap-x-3 px-3 py-1.5 text-[12px] hover:bg-muted/20"
+                          style={{ gridTemplateColumns: OFFICE_TABLE_COLUMNS }}>
                           <div className="min-w-0">
                             <div className="font-medium truncate">{o.name}</div>
-                            {country && <div className="text-[10px] text-muted-foreground">{country.flag} {country.name}</div>}
+                            {country && <div className="text-[10px] text-muted-foreground truncate">{country.flag} {country.name}</div>}
                           </div>
-                          <div className="pr-4">
+                          <div>
                             <StarRating value={o.rating ?? 3} disabled={rateOfficeMut.isPending}
                               onChange={(rating) => rateOfficeMut.mutate({ id: o.id, rating })} />
                           </div>
-                          <div className="text-right pr-4 tabular-nums">
+                          <div className="text-right tabular-nums whitespace-nowrap">
                             <span className={cn(current >= Number(cvReq.base_per_office) && "text-amber-600 dark:text-amber-400 font-semibold")}>{current}</span>
                             <span className="text-muted-foreground">/{cvReq.base_per_office}</span>
                             {added ? <span className="ml-1 font-semibold text-emerald-600 dark:text-emerald-400">+{added}</span> : null}
