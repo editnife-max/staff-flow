@@ -14,10 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
 import { ALL_TC_CRITERIA, ALL_TC_CRITERIA_KEYS } from "@/components/candidates/types";
-import { addCountry, deleteCountry, addOffice, deleteOffice, lockOffice, deleteCvTemplate, optimizeCvTemplate, saveMusanedCredentials, saveEnjazCredentials, saveMofaCredentials, saveLmisCredentials, getManagerCredentials } from "@/lib/assignments.functions";
+import { addCountry, deleteCountry, addOffice, deleteOffice, lockOffice, setOfficeRating, deleteCvTemplate, optimizeCvTemplate, saveMusanedCredentials, saveEnjazCredentials, saveMofaCredentials, saveLmisCredentials, getManagerCredentials } from "@/lib/assignments.functions";
 import { runLmisPhase1 } from "@/lib/lmis-contract.functions";
 import { runMusanedFetch } from "@/lib/musaned.functions";
-import { distributeCandidates, autoDistributeUnassigned } from "@/lib/cv-distribution.functions";
+import { runDistribution } from "@/lib/cv-distribution.functions";
+import { useCvExpiryDays, useDistributionJob, useRecentDistributionJobs, summarizeReport } from "@/hooks/use-distribution";
+import { DistributionReportView, JobStatusLine, StarRating } from "@/components/distribution-report";
 
 type AssignCountry  = Database["public"]["Tables"]["assignment_countries"]["Row"];
 type AssignOffice   = Database["public"]["Tables"]["assignment_offices"]["Row"];
@@ -46,7 +48,16 @@ const DEFAULT_CV_REQ = {
   passport_scan: "all", full_size_photo: "all", photo_cv: "all",
   alert_after_days: "90",
   base_per_office: "15",
+  // When an office is locked: when its CVs move, and whether processing candidates are taken too
+  lock_delay: "now" as string,
+  lock_move_processing: "false" as string,
 };
+
+const LOCK_DELAY_OPTIONS = [
+  { value: "now", label: "Immediately" },
+  { value: "1h",  label: "After 1 hour" },
+  { value: "1d",  label: "After 1 day" },
+];
 
 function AssignmentsPage() {
   const { user } = useAuth();
@@ -57,6 +68,7 @@ function AssignmentsPage() {
   const addOfficeFn    = useServerFn(addOffice);
   const delOfficeFn    = useServerFn(deleteOffice);
   const lockOfficeFn   = useServerFn(lockOffice);
+  const rateOfficeFn   = useServerFn(setOfficeRating);
   const delTemplateFn         = useServerFn(deleteCvTemplate);
   const optimizeTemplateFn    = useServerFn(optimizeCvTemplate);
   const saveMusanedFn         = useServerFn(saveMusanedCredentials);
@@ -102,14 +114,23 @@ function AssignmentsPage() {
   const [panelDialog, setPanelDialog] = useState<"countries" | "offices" | "cvTemplates" | "cvReq" | "tcCriteria" | "cvDist" | null>(null);
 
   // ── CV Distribution ───────────────────────────────────────────────────────────
-  const distributeFn          = useServerFn(distributeCandidates);
-  const autoDistUnassignedFn  = useServerFn(autoDistributeUnassigned);
-  const [distRunning, setDistRunning] = useState(false);
-  const [distResult,  setDistResult]  = useState<{ assigned: number; byOffice: Record<string, number> } | null>(null);
+  const runDistributionFn = useServerFn(runDistribution);
+  const [distJobId, setDistJobId] = useState<string | null>(null);
+  const { data: distJob } = useDistributionJob(distJobId);
+  const { data: recentJobs = [] } = useRecentDistributionJobs(user?.id, 1);
+  const lastRun = recentJobs[0];
 
-  // ── CV requirement days ──────────────────────────────────────────────────────
-  const [cvDaysEdit,  setCvDaysEdit]  = useState(false);
-  const [cvDaysDraft, setCvDaysDraft] = useState("");
+  // Refresh office numbers when a run finishes
+  useEffect(() => {
+    if (distJob?.status === "done") {
+      qc.invalidateQueries({ queryKey: ["cv-dist-stats", user?.id] });
+      qc.invalidateQueries({ queryKey: ["office-summary-candidates", user?.id] });
+      qc.invalidateQueries({ queryKey: ["distribution-jobs-recent", user?.id] });
+      qc.invalidateQueries({ queryKey: ["manager-candidates"] });
+      toast.success(`Distribution finished — ${summarizeReport(distJob.result)}`);
+    }
+  }, [distJob?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [summaryView, setSummaryView] = useState(false);
   const [alertEdit, setAlertEdit] = useState(false);
   const [alertDraft, setAlertDraft] = useState("");
@@ -129,7 +150,7 @@ function AssignmentsPage() {
       return data;
     },
   });
-  const cvDaysThreshold = profile?.cv_days_threshold ?? 7;
+  const cvDaysThreshold = useCvExpiryDays();
 
   const getCredentialsFn = useServerFn(getManagerCredentials);
   const { data: credentials } = useQuery({
@@ -137,22 +158,6 @@ function AssignmentsPage() {
     enabled: !!user,
     queryFn: () => getCredentialsFn(),
     staleTime: 0,
-  });
-
-  const updateThreshold = useMutation({
-    mutationFn: async (days: number) => {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ cv_days_threshold: days })
-        .eq("id", user!.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["manager-profile", user?.id] });
-      setCvDaysEdit(false);
-      toast.success("CV requirement days updated");
-    },
-    onError: (e: Error) => toast.error(e.message),
   });
 
   const tcEnabled = (profile?.cv_page_requirements as any)?.tc_enabled !== false;
@@ -211,6 +216,7 @@ function AssignmentsPage() {
 
   // ── add-office form ─────────────────────────────────────────────────────────
   const [newOfficeName, setNewOfficeName] = useState("");
+  const [newOfficeRating, setNewOfficeRating] = useState(3);
 
   // ── CV page requirements ─────────────────────────────────────────────────────
   const cvReq = useMemo(() => {
@@ -246,19 +252,6 @@ function AssignmentsPage() {
 
   // reset office page when active country changes
   useEffect(() => { setOfficePage(0); setSummaryView(false); }, [activeCountryId]);
-
-  // auto-distribute unassigned CV Ready candidates on page load
-  useEffect(() => {
-    if (!user) return;
-    autoDistUnassignedFn({}).then((r) => {
-      if (r.assigned > 0) {
-        toast.info(`${r.assigned} CV Ready candidate${r.assigned > 1 ? "s" : ""} auto-distributed`);
-        qc.invalidateQueries({ queryKey: ["manager-candidates"] });
-        qc.invalidateQueries({ queryKey: ["cv-dist-stats", user.id] });
-        qc.invalidateQueries({ queryKey: ["office-summary-candidates", user.id] });
-      }
-    }).catch(() => {});
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── cv template form ─────────────────────────────────────────────────────────
   const [newTemplateName, setNewTemplateName] = useState("");
@@ -420,12 +413,37 @@ function AssignmentsPage() {
 
   const addOfficeMut = useMutation({
     mutationFn: () =>
-      addOfficeFn({ data: { name: newOfficeName.trim(), countryId: activeCountry!.id } }),
+      addOfficeFn({ data: { name: newOfficeName.trim(), countryId: activeCountry!.id, rating: newOfficeRating } }),
     onSuccess: (row) => {
       toast.success(`Office "${row.name}" added`);
       qc.invalidateQueries({ queryKey: ["assignment-offices"] });
       qc.invalidateQueries({ queryKey: ["agencies-offices-names"] });
       setNewOfficeName("");
+      setNewOfficeRating(3);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const rateOfficeMut = useMutation({
+    mutationFn: ({ id, rating }: { id: string; rating: number }) => rateOfficeFn({ data: { id, rating } }),
+    onMutate: async ({ id, rating }) => {
+      await qc.cancelQueries({ queryKey: ["assignment-offices", user?.id] });
+      const prev = qc.getQueryData<AssignOffice[]>(["assignment-offices", user?.id]);
+      qc.setQueryData<AssignOffice[]>(["assignment-offices", user?.id], (old) =>
+        old?.map((o) => (o.id === id ? { ...o, rating } : o)));
+      return { prev };
+    },
+    onError: (e: Error, _v, ctx) => {
+      qc.setQueryData(["assignment-offices", user?.id], ctx?.prev);
+      toast.error(e.message);
+    },
+  });
+
+  const runDistMut = useMutation({
+    mutationFn: () => runDistributionFn({ data: {} }),
+    onSuccess: (r) => {
+      setDistJobId(r.jobId);
+      if (r.alreadyQueued) toast.info("A distribution is already running — showing its progress");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -444,22 +462,17 @@ function AssignmentsPage() {
   const lockOfficeMut = useMutation({
     mutationFn: ({ id, locked }: { id: string; locked: boolean }) =>
       lockOfficeFn({ data: { id, locked } }),
-    onSuccess: (result: any, { locked }) => {
-      const redistributed = result?.redistributed ?? 0;
+    onSuccess: (result, { locked }) => {
       if (locked) {
         toast.success(
-          redistributed > 0
-            ? `Office locked — ${redistributed} candidate${redistributed === 1 ? "" : "s"} redistributed`
-            : "Office locked — will not receive candidates",
+          result.moveAt
+            ? `Office locked — its CVs move to other offices on ${new Date(result.moveAt).toLocaleString()}`
+            : "Office locked — its CVs are being moved to other offices in the background",
         );
       } else {
-        toast.success("Office unlocked");
+        toast.success("Office unlocked — any scheduled move was cancelled");
       }
       qc.invalidateQueries({ queryKey: ["assignment-offices"] });
-      if (locked && redistributed > 0) {
-        qc.invalidateQueries({ queryKey: ["mgr-cv-candidates"] });
-        qc.invalidateQueries({ queryKey: ["staff-dashboard-candidates"] });
-      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -668,7 +681,7 @@ function AssignmentsPage() {
           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         </button>
 
-        <button type="button" onClick={() => { setPanelDialog("cvDist"); setDistResult(null); }}
+        <button type="button" onClick={() => setPanelDialog("cvDist")}
           className="border border-border bg-background flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
           <Shuffle className="h-4 w-4 text-primary shrink-0" />
           <div className="flex-1 min-w-0">
@@ -842,10 +855,13 @@ function AssignmentsPage() {
                           ) : (
                             <>
                               {/* Add office */}
-                              <div className="flex gap-1.5">
+                              <div className="flex gap-1.5 items-center">
                                 <Input className="h-8 rounded-none text-sm flex-1" placeholder="Office name…"
                                   value={newOfficeName} onChange={(e) => setNewOfficeName(e.target.value)}
                                   onKeyDown={(e) => { if (e.key === "Enter" && newOfficeName.trim()) addOfficeMut.mutate(); }} />
+                                <div className="flex items-center h-8 px-2 border border-input" title="Office rating — higher stars get more CVs">
+                                  <StarRating value={newOfficeRating} onChange={setNewOfficeRating} />
+                                </div>
                                 <Button size="sm" className="h-8 rounded-none px-3 text-sm gap-1"
                                   disabled={!newOfficeName.trim() || addOfficeMut.isPending}
                                   onClick={() => addOfficeMut.mutate()}>
@@ -865,6 +881,8 @@ function AssignmentsPage() {
                                         : <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                                       }
                                       <span className={cn("flex-1 truncate text-sm", isLocked && "line-through text-muted-foreground")}>{o.name}</span>
+                                      <StarRating value={o.rating ?? 3} disabled={rateOfficeMut.isPending}
+                                        onChange={(rating) => rateOfficeMut.mutate({ id: o.id, rating })} />
                                       {isLocked && (
                                         <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5 rounded-sm shrink-0">Locked</span>
                                       )}
@@ -986,30 +1004,11 @@ function AssignmentsPage() {
             <div className="flex items-center gap-2 px-3 py-1.5 border border-teal-200 bg-teal-50/40 dark:border-teal-800/40 dark:bg-teal-900/10">
               <Clock className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
               <span className="text-sm text-muted-foreground w-24 shrink-0">Resend after</span>
-              {cvDaysEdit ? (
-                <div className="flex items-center gap-2 flex-1">
-                  <input autoFocus type="number" min={1} value={cvDaysDraft}
-                    onChange={(e) => setCvDaysDraft(e.target.value)}
-                    className="w-14 border border-input rounded-none px-2 h-7 text-sm"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") { const n = parseInt(cvDaysDraft); if (!isNaN(n) && n > 0) updateThreshold.mutate(n); }
-                      if (e.key === "Escape") setCvDaysEdit(false);
-                    }} />
-                  <span className="text-xs text-muted-foreground">days</span>
-                  <Button size="sm" className="h-7 rounded-none px-2 text-xs" disabled={updateThreshold.isPending}
-                    onClick={() => { const n = parseInt(cvDaysDraft); if (!isNaN(n) && n > 0) updateThreshold.mutate(n); }}>
-                    {updateThreshold.isPending ? "…" : "Save"}
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-7 rounded-none px-2 text-xs" onClick={() => setCvDaysEdit(false)}>Cancel</Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 flex-1">
-                  <span className="text-base font-bold text-teal-700 dark:text-teal-300">{cvDaysThreshold}</span>
-                  <span className="text-xs text-muted-foreground">days</span>
-                  <button type="button" className="ml-auto text-xs text-primary hover:underline"
-                    onClick={() => { setCvDaysDraft(String(cvDaysThreshold)); setCvDaysEdit(true); }}>Edit</button>
-                </div>
-              )}
+              <div className="flex items-center gap-2 flex-1">
+                <span className="text-base font-bold text-teal-700 dark:text-teal-300">{cvDaysThreshold}</span>
+                <span className="text-xs text-muted-foreground">days</span>
+                <span className="ml-auto text-[11px] text-muted-foreground">Set by admin</span>
+              </div>
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 border border-orange-200 bg-orange-50/40 dark:border-orange-800/40 dark:bg-orange-900/10">
               <AlertCircle className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400 shrink-0" />
@@ -1429,7 +1428,7 @@ function AssignmentsPage() {
 
       {/* ── CV Distribution Dialog ───────────────────────────────────── */}
       <Dialog open={panelDialog === "cvDist"} onOpenChange={(o) => { if (!o) setPanelDialog(null); }}>
-        <DialogContent className="sm:max-w-md rounded-none">
+        <DialogContent className="sm:max-w-lg rounded-none max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Shuffle className="h-4 w-4 text-primary" />
@@ -1438,8 +1437,8 @@ function AssignmentsPage() {
           </DialogHeader>
           <div className="space-y-3">
             {/* Settings row */}
-            <div className="flex items-center gap-3 text-[12px]">
-              <div className="border border-border px-2.5 py-2 flex-1">
+            <div className="grid grid-cols-3 gap-2 text-[12px]">
+              <div className="border border-border px-2.5 py-2">
                 <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Base per office</div>
                 {baseEdit ? (
                   <div className="flex items-center gap-1">
@@ -1456,7 +1455,6 @@ function AssignmentsPage() {
                       onClick={() => { const n = parseInt(baseDraft); if (!isNaN(n) && n > 0) { saveCvReq.mutate({ ...cvReq, base_per_office: String(n) }); setBaseEdit(false); } }}>
                       {saveCvReq.isPending ? "…" : "Save"}
                     </Button>
-                    <Button size="sm" variant="ghost" className="h-6 rounded-none px-1 text-xs" onClick={() => setBaseEdit(false)}>✕</Button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
@@ -1466,15 +1464,49 @@ function AssignmentsPage() {
                   </div>
                 )}
               </div>
-              <div className="border border-border px-2.5 py-2 flex-1">
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Auto-resend after</div>
+              <div className="border border-border px-2.5 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Office response time</div>
                 <span className="font-bold text-sm">{cvDaysThreshold} days</span>
+                <div className="text-[10px] text-muted-foreground">Set by admin</div>
+              </div>
+              <div className="border border-border px-2.5 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Automatic run</div>
+                <span className="font-bold text-sm">00:00</span>
+                <div className="text-[10px] text-muted-foreground">Addis Ababa, nightly</div>
+              </div>
+            </div>
+
+            {/* Locked office behaviour */}
+            <div className="border border-border px-3 py-2 space-y-2">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                <Lock className="h-3 w-3" /> When an office is locked
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[12px]">Move its CVs to other offices</span>
+                <Select value={cvReq.lock_delay ?? "now"} onValueChange={(v) => saveCvReq.mutate({ ...cvReq, lock_delay: v })}>
+                  <SelectTrigger className="h-7 w-36 rounded-none text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {LOCK_DELAY_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-[12px] leading-tight">
+                  Also take back its processing candidates
+                  <div className="text-[11px] text-muted-foreground">Employer work is reset. Candidates with visa issued or ticket booked stay.</div>
+                </div>
+                <Switch
+                  checked={cvReq.lock_move_processing === "true"}
+                  onCheckedChange={(v) => saveCvReq.mutate({ ...cvReq, lock_move_processing: v ? "true" : "false" })}
+                />
               </div>
             </div>
 
             {/* Office breakdown table */}
             {(() => {
-              const activeOfficList = offices.filter((o) => !(o as any).is_locked);
+              const activeOfficList = offices
+                .filter((o) => !(o as any).is_locked)
+                .sort((a, b) => (a.country_id ?? "").localeCompare(b.country_id ?? "") || a.name.localeCompare(b.name));
               const countryMap = new Map(countries.map((c) => [c.id, c]));
               const procTotal = cvDistStats?.procTotal ?? 0;
               if (activeOfficList.length === 0) return (
@@ -1485,17 +1517,17 @@ function AssignmentsPage() {
                   <div className="grid text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-muted/40 px-3 py-1.5"
                     style={{ gridTemplateColumns: "1fr auto auto auto" }}>
                     <span>Office</span>
-                    <span className="text-right pr-4">Current CVs</span>
-                    <span className="text-right pr-4">Base</span>
+                    <span className="pr-4">Rating</span>
+                    <span className="text-right pr-4">CVs held</span>
                     <span className="text-right">Overflow %</span>
                   </div>
-                  <div className="divide-y divide-border max-h-48 overflow-y-auto">
+                  <div className="divide-y divide-border max-h-56 overflow-y-auto">
                     {activeOfficList.map((o) => {
                       const country = countryMap.get(o.country_id ?? "");
                       const current = cvDistStats?.sentCounts?.[o.name] ?? 0;
                       const procCount = cvDistStats?.procCounts?.[o.name] ?? 0;
                       const pct = procTotal > 0 ? Math.round((procCount / procTotal) * 100) : null;
-                      const afterResult = distResult?.byOffice?.[o.name];
+                      const added = distJob?.status === "done" ? distJob.result?.byOffice?.[o.name] : undefined;
                       return (
                         <div key={o.id} className="grid items-center px-3 py-1.5 text-[12px] hover:bg-muted/20"
                           style={{ gridTemplateColumns: "1fr auto auto auto" }}>
@@ -1503,13 +1535,14 @@ function AssignmentsPage() {
                             <div className="font-medium truncate">{o.name}</div>
                             {country && <div className="text-[10px] text-muted-foreground">{country.flag} {country.name}</div>}
                           </div>
-                          <div className="text-right pr-4 tabular-nums">
-                            {afterResult != null
-                              ? <span className="font-semibold text-emerald-600 dark:text-emerald-400">{afterResult}</span>
-                              : <span className="text-muted-foreground">{current}</span>}
+                          <div className="pr-4">
+                            <StarRating value={o.rating ?? 3} disabled={rateOfficeMut.isPending}
+                              onChange={(rating) => rateOfficeMut.mutate({ id: o.id, rating })} />
                           </div>
-                          <div className="text-right pr-4 tabular-nums text-muted-foreground">
-                            {cvReq.base_per_office}
+                          <div className="text-right pr-4 tabular-nums">
+                            <span className={cn(current >= Number(cvReq.base_per_office) && "text-amber-600 dark:text-amber-400 font-semibold")}>{current}</span>
+                            <span className="text-muted-foreground">/{cvReq.base_per_office}</span>
+                            {added ? <span className="ml-1 font-semibold text-emerald-600 dark:text-emerald-400">+{added}</span> : null}
                           </div>
                           <div className="text-right tabular-nums">
                             {pct != null
@@ -1520,39 +1553,41 @@ function AssignmentsPage() {
                       );
                     })}
                   </div>
-                  {distResult && (
-                    <div className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/30 border-t border-emerald-200 dark:border-emerald-800 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-                      {distResult.assigned} candidate{distResult.assigned !== 1 ? "s" : ""} distributed
-                    </div>
-                  )}
                 </div>
               );
             })()}
+
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Each country's CVs go only to that country's offices. Offices take turns — more stars means more turns —
+              until each reaches the base limit; extra CVs then follow stars and hiring performance (Overflow %).
+              Candidates without a country, in training, or not CV ready are never sent.
+            </p>
+
             <Button
               className="w-full h-8 rounded-none gap-2 text-sm"
-              disabled={distRunning}
-              onClick={async () => {
-                setDistRunning(true);
-                setDistResult(null);
-                try {
-                  const r = await distributeFn();
-                  setDistResult(r);
-                  qc.invalidateQueries({ queryKey: ["cv-dist-stats", user?.id] });
-                  qc.invalidateQueries({ queryKey: ["office-summary-candidates", user?.id] });
-                  toast.success(`Distributed ${r.assigned} candidates across ${Object.keys(r.byOffice).length} offices`);
-                } catch (e: any) {
-                  toast.error(e.message ?? "Distribution failed");
-                } finally {
-                  setDistRunning(false);
-                }
-              }}
+              disabled={runDistMut.isPending || distJob?.status === "pending" || distJob?.status === "running"}
+              onClick={() => runDistMut.mutate()}
             >
-              {distRunning ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Running…</>
+              {runDistMut.isPending || distJob?.status === "pending" || distJob?.status === "running" ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Running in background…</>
               ) : (
-                <><Shuffle className="h-4 w-4" /> Run Distribution</>
+                <><Shuffle className="h-4 w-4" /> Run Distribution Now</>
               )}
             </Button>
+
+            <JobStatusLine job={distJob} />
+            {distJob?.status === "done" && distJob.result && (
+              <DistributionReportView report={distJob.result} kind={distJob.kind} />
+            )}
+            {!distJob && lastRun?.result && (
+              <div className="space-y-1.5">
+                <div className="text-[11px] text-muted-foreground">
+                  Last run · {new Date(lastRun.finished_at ?? lastRun.created_at).toLocaleString()} ·{" "}
+                  {lastRun.trigger === "scheduled" ? "automatic" : lastRun.trigger === "system" ? "system" : "manual"}
+                </div>
+                <DistributionReportView report={lastRun.result} kind={lastRun.kind} />
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

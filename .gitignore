@@ -39,3 +39,10 @@ tests/e2e/.auth/
 *.njsproj
 *.sln
 *.sw?
+
+# Local testing only (local Supabase, seed scripts, test runners) — never commit
+.local-test/
+supabase/.temp/
+supabase/.branches/
+supabase/functions/.env
+docker-compose*.yml

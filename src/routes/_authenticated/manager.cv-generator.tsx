@@ -25,6 +25,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn, calcAge } from "@/lib/utils";
 import { StatusBadge } from "@/components/status-badge";
 import type { Database } from "@/integrations/supabase/types";
+import { useServerFn } from "@tanstack/react-start";
+import { manualSendCvs, runDistribution } from "@/lib/cv-distribution.functions";
+import { useCvExpiryDays, useDistributionJob, waitForDistributionJob } from "@/hooks/use-distribution";
+import { DistributionReportView, JobStatusLine } from "@/components/distribution-report";
 
 export const Route = createFileRoute("/_authenticated/manager/cv-generator")({
   head: () => ({ meta: [{ title: "CV Page — Manager" }] }),
@@ -272,17 +276,41 @@ function ManagerCvGeneratorPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Manual send goes through the background worker, which checks country, CV
+  // readiness, locked offices and that no other office already holds the CV.
+  const manualSendFn = useServerFn(manualSendCvs);
   const sendToOfficeMut = useMutation({
-    mutationFn: async ({ ids, office }: { ids: string[]; office: string }) => {
-      const { error } = await supabase.from("candidates").update({ cv_sent_to: office, cv_sent_date: new Date().toISOString().split("T")[0] }).in("id", ids);
-      if (error) throw error;
+    mutationFn: async ({ ids, officeId }: { ids: string[]; officeId: string }) => {
+      const { jobId } = await manualSendFn({ data: { officeId, candidateIds: ids } });
+      return waitForDistributionJob(jobId);
     },
-    onSuccess: (_, { ids, office }) => {
-      toast.success(`CV sent to "${office}" for ${ids.length} candidate${ids.length > 1 ? "s" : ""}`);
+    onSuccess: (job) => {
+      if (job.status === "failed") { toast.error(job.error ?? "Send failed"); return; }
+      const r = job.result;
+      const rejected = r?.skipped.rejected ?? [];
+      if (r?.assigned) toast.success(`${r.assigned} CV${r.assigned > 1 ? "s" : ""} sent to ${r.officeName}`);
+      if (rejected.length) {
+        toast.warning(`${rejected.length} not sent`, {
+          description: rejected.slice(0, 5).map((c) => `${c.name}: ${c.reason}`).join("\n"),
+          duration: 10_000,
+        });
+      }
       qc.invalidateQueries({ queryKey: ["mgr-cv-candidates"] });
       clearSelection();
       setSendOffice("");
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const runDistributionFn = useServerFn(runDistribution);
+  const [distJobId, setDistJobId] = useState<string | null>(null);
+  const { data: distJob } = useDistributionJob(distJobId);
+  useEffect(() => {
+    if (distJob?.status === "done") qc.invalidateQueries({ queryKey: ["mgr-cv-candidates"] });
+  }, [distJob?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  const runDistMut = useMutation({
+    mutationFn: () => runDistributionFn({ data: {} }),
+    onSuccess: (r) => setDistJobId(r.jobId),
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -305,79 +333,6 @@ function ManagerCvGeneratorPage() {
 
   // Only unlocked offices participate in candidate distribution
   const activeOfficesList = useMemo(() => officesList.filter(o => !o.isLocked), [officesList]);
-
-  // Index: lowercase country name → unlocked offices for that country (used by distribute & resend)
-  const officeCountryIndex = useMemo(() => {
-    const idx = new Map<string, typeof activeOfficesList>();
-    for (const o of activeOfficesList) {
-      const key = (o.countryName ?? "").toLowerCase().trim();
-      if (!key) continue;
-      if (!idx.has(key)) idx.set(key, []);
-      idx.get(key)!.push(o);
-    }
-    return idx;
-  }, [activeOfficesList]);
-
-  const resendMut = useMutation({
-    mutationFn: async (candidateId: string) => {
-      const cand = candidates.find(c => c.id === candidateId);
-      if (!cand) throw new Error("Candidate not found");
-      const seen = new Set([cand.cv_sent_to, ...((cand.cv_resent_offices as string[]) ?? [])].filter(Boolean) as string[]);
-      const dc = (cand.destination_country ?? "").toLowerCase().trim();
-      const pool = (dc && officeCountryIndex.get(dc)?.length) ? officeCountryIndex.get(dc)! : officesList;
-      const eligible = pool.filter(o => !seen.has(o.name));
-      const today = new Date().toISOString().split("T")[0];
-      if (eligible.length === 0) {
-        // All offices exhausted — cycle back to current office with reset history
-        const { error } = await supabase.from("candidates")
-          .update({ cv_sent_to: cand.cv_sent_to, cv_sent_date: today, cv_resent_offices: [], cv_resent_date: today } as any)
-          .eq("id", candidateId);
-        if (error) throw error;
-        return { cycled: true };
-      }
-      const best = eligible.reduce((a, b) =>
-        candidates.filter(c => c.cv_sent_to === a.name && !c.selected_by).length <=
-        candidates.filter(c => c.cv_sent_to === b.name && !c.selected_by).length ? a : b
-      );
-      const history = [...new Set([...((cand.cv_resent_offices as string[]) ?? []), cand.cv_sent_to])].filter(Boolean);
-      const { error } = await supabase.from("candidates")
-        .update({ cv_sent_to: best.name, cv_sent_date: today, cv_resent_offices: history, cv_resent_date: today } as any)
-        .eq("id", candidateId);
-      if (error) throw error;
-      return { cycled: false };
-    },
-    onSuccess: (result) => {
-      toast.success(result?.cycled ? "All offices tried — reset to current office for a new cycle" : "CV redistributed to a new office");
-      qc.invalidateQueries({ queryKey: ["mgr-cv-candidates"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const distributeMut = useMutation({
-    mutationFn: async (plan: Array<{ name: string; ids: string[]; overdueEntries: Array<{ id: string; oldOffice: string; cycleReset?: boolean }> }>) => {
-      const today = new Date().toISOString().split("T")[0];
-      for (const { name, ids, overdueEntries } of plan) {
-        if (ids.length === 0) continue;
-        const overdueSet = new Set(overdueEntries.map(o => o.id));
-        const unsentIds = ids.filter(id => !overdueSet.has(id));
-        if (unsentIds.length > 0) {
-          const { error } = await supabase.from("candidates").update({ cv_sent_to: name, cv_sent_date: today }).in("id", unsentIds);
-          if (error) throw error;
-        }
-        for (const { id, oldOffice, cycleReset } of overdueEntries) {
-          const cand = candidates.find(c => c.id === id);
-          // cycleReset: all offices were exhausted — clear history so next round cycles through all offices again
-          const history = cycleReset ? [] : [...new Set([...((cand?.cv_resent_offices as string[]) ?? []), oldOffice])];
-          const { error } = await supabase.from("candidates")
-            .update({ cv_sent_to: name, cv_sent_date: today, cv_resent_offices: history, cv_resent_date: today } as any)
-            .eq("id", id);
-          if (error) throw error;
-        }
-      }
-    },
-    onSuccess: () => { toast.success("Candidates distributed to offices"); qc.invalidateQueries({ queryKey: ["mgr-cv-candidates"] }); setShowDistribute(false); },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   const { data: candidates = [], refetch: refetchCandidates } = useQuery({
     queryKey: ["mgr-cv-candidates", user?.id],
@@ -443,7 +398,7 @@ function ManagerCvGeneratorPage() {
       return data;
     },
   });
-  const cvDaysThreshold = managerProfile?.cv_days_threshold ?? 7;
+  const cvDaysThreshold = useCvExpiryDays();
 
   const lockedFilters = useMemo(() => {
     const req = managerProfile?.cv_page_requirements as Record<string, string> | null;
@@ -455,17 +410,6 @@ function ManagerCvGeneratorPage() {
       experience: lock("experience"),
     };
   }, [managerProfile]);
-
-  const basePerOffice = parseInt((managerProfile?.cv_page_requirements as Record<string, string> | null)?.base_per_office ?? "15") || 15;
-
-  // True once locked filters from cv_page_requirements have been applied to local filter state
-  const filtersApplied = useMemo(() => {
-    if (lockedFilters.medical.length > 0 && !lockedFilters.medical.every(v => filters.medical.includes(v))) return false;
-    if (lockedFilters.coc.length > 0 && !lockedFilters.coc.every(v => filters.coc.includes(v))) return false;
-    if (lockedFilters.narrative.length > 0 && !lockedFilters.narrative.every(v => filters.narrative.includes(v))) return false;
-    if (lockedFilters.experience.length > 0 && !lockedFilters.experience.every(v => filters.experience.includes(v))) return false;
-    return true;
-  }, [lockedFilters, filters]);
 
   // Apply locked filters whenever they change (also clears when a lock is removed)
   useEffect(() => {
@@ -502,7 +446,6 @@ function ManagerCvGeneratorPage() {
   }), [candidates]);
 
   const initialised        = useRef(false);
-  const autoDistributedRef = useRef(false);
 
   // Reactively clear cv_sent_to values that no longer exist in assignment_offices or foreign_agencies.
   // Runs whenever candidates or the office/agency lists change (e.g. after an office is deleted).
@@ -582,121 +525,6 @@ function ManagerCvGeneratorPage() {
     }
     return result;
   }, [filtered, cvDaysThreshold]);
-
-  const distributionPlan = useMemo(() => {
-    if (activeOfficesList.length === 0) return null;
-    const todayMs = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); })();
-    const unsent = filtered.filter(c => !c.cv_sent_to);
-    const overdue = filtered.filter(c => {
-      if (!c.cv_sent_to || c.selected_by || !c.cv_sent_date) return false;
-      return Math.floor((todayMs - new Date(c.cv_sent_date + "T00:00:00").getTime()) / 86_400_000) >= cvDaysThreshold;
-    });
-    if (unsent.length === 0 && overdue.length === 0) return null;
-
-    const overdueIdSet = new Set(overdue.map(c => c.id));
-
-    // Snapshot of active (non-overdue, non-selected) candidates per office before this distribution
-    const currentLoadSnapshot = new Map<string, number>(activeOfficesList.map(o => [
-      o.name,
-      candidates.filter(c => c.cv_sent_to === o.name && !c.selected_by && !overdueIdSet.has(c.id)).length,
-    ]));
-    const loads = new Map(currentLoadSnapshot);
-
-    // Overdue: redistribute to least-loaded eligible office (country-filtered, cycle if all exhausted).
-    // When all offices exhausted, allow at most 1 cycleReset candidate back to origin per run.
-    const overdueByOffice = new Map<string, Array<{ id: string; oldOffice: string; cycleReset?: boolean }>>(
-      activeOfficesList.map(o => [o.name, []])
-    );
-    for (const cand of overdue) {
-      const seen = new Set([cand.cv_sent_to, ...((cand.cv_resent_offices as string[]) ?? [])].filter(Boolean) as string[]);
-      const dc = (((cand as any).musaned_status || cand.destination_country) ?? "").toLowerCase().trim();
-      const pool = (dc && officeCountryIndex.get(dc)?.length) ? officeCountryIndex.get(dc)! : activeOfficesList;
-      const eligible = pool.filter(o => !seen.has(o.name));
-      if (eligible.length === 0) {
-        const orig = cand.cv_sent_to!;
-        const existing = overdueByOffice.get(orig) ?? [];
-        if (existing.filter(e => e.cycleReset).length < 1 && overdueByOffice.has(orig)) {
-          overdueByOffice.get(orig)!.push({ id: cand.id, oldOffice: orig, cycleReset: true });
-          loads.set(orig, (loads.get(orig) ?? 0) + 1);
-        }
-        continue;
-      }
-      const best = eligible.reduce((a, b) => (loads.get(a.name) ?? 0) <= (loads.get(b.name) ?? 0) ? a : b);
-      overdueByOffice.get(best.name)!.push({ id: cand.id, oldOffice: cand.cv_sent_to! });
-      loads.set(best.name, (loads.get(best.name) ?? 0) + 1);
-    }
-
-    // Unsent Phase 1: fill each office up to basePerOffice.
-    const unsentByOffice = new Map<string, Candidate[]>(activeOfficesList.map(o => [o.name, []]));
-    const overflowUnsent: typeof unsent = [];
-    for (const cand of unsent) {
-      const dc = (((cand as any).musaned_status || cand.destination_country) ?? "").toLowerCase().trim();
-      const pool = (dc && officeCountryIndex.get(dc)?.length) ? officeCountryIndex.get(dc)! : activeOfficesList;
-      const withNeed = pool.filter(o => (loads.get(o.name) ?? 0) < basePerOffice);
-      if (withNeed.length > 0) {
-        const target = withNeed.reduce((a, b) => (loads.get(a.name) ?? 0) <= (loads.get(b.name) ?? 0) ? a : b);
-        unsentByOffice.get(target.name)!.push(cand);
-        loads.set(target.name, (loads.get(target.name) ?? 0) + 1);
-      } else {
-        overflowUnsent.push(cand);
-      }
-    }
-
-    // Unsent Phase 2: overflow — proportional by each office's share of Processing-tab candidates.
-    const processingCounts = new Map<string, number>(
-      activeOfficesList.map(o => [
-        o.name,
-        candidates.filter(c => c.status === "processing" && c.selected_by === o.name).length,
-      ])
-    );
-    const totalProcessing = activeOfficesList.reduce((s, o) => s + (processingCounts.get(o.name) ?? 0), 0);
-
-    for (const cand of overflowUnsent) {
-      const dc = (((cand as any).musaned_status || cand.destination_country) ?? "").toLowerCase().trim();
-      const pool = (dc && officeCountryIndex.get(dc)?.length) ? officeCountryIndex.get(dc)! : activeOfficesList;
-      const target = totalProcessing > 0
-        ? pool.reduce((best, o) => {
-            const shareA = (processingCounts.get(best.name) ?? 0) / totalProcessing;
-            const shareB = (processingCounts.get(o.name) ?? 0) / totalProcessing;
-            const loadA = loads.get(best.name) ?? 0;
-            const loadB = loads.get(o.name) ?? 0;
-            return (loadA / Math.max(shareA, 0.01)) <= (loadB / Math.max(shareB, 0.01)) ? best : o;
-          })
-        : pool.reduce((a, b) => (loads.get(a.name) ?? 0) <= (loads.get(b.name) ?? 0) ? a : b);
-      unsentByOffice.get(target.name)!.push(cand);
-      loads.set(target.name, (loads.get(target.name) ?? 0) + 1);
-    }
-
-    return activeOfficesList.map((o) => {
-      const unsentSlice = unsentByOffice.get(o.name)!;
-      const od = overdueByOffice.get(o.name)!;
-      const cycleCount = od.filter(e => e.cycleReset).length;
-      const movedIn = od.length - cycleCount;
-      return {
-        name: o.name,
-        currentLoad: currentLoadSnapshot.get(o.name) ?? 0,
-        leavingCount: overdue.filter(c => c.cv_sent_to === o.name).length,
-        cycleCount,
-        newCount: unsentSlice.length,
-        movedIn,
-        count: unsentSlice.length + od.length,
-        overdueCount: od.length,
-        ids: [...unsentSlice.map(c => c.id), ...od.map(a => a.id)],
-        overdueEntries: od,
-      };
-    });
-  }, [filtered, activeOfficesList, officeCountryIndex, candidates, cvDaysThreshold, basePerOffice]);
-
-  // Auto-distribute once on page load when data + CV page requirements are ready
-  useEffect(() => {
-    if (autoDistributedRef.current) return;
-    if (!filtersApplied) return;
-    if (candidates.length === 0 || officesList.length === 0 || managerProfile === undefined) return;
-    if (!distributionPlan || distributionPlan.every(o => o.count === 0)) return;
-    autoDistributedRef.current = true;
-    distributeMut.mutate(distributionPlan);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtersApplied, candidates.length, officesList.length, managerProfile, distributionPlan]);
 
   useEffect(() => { setPage(1); }, [filtered.length, pageSize]);
 
@@ -804,7 +632,7 @@ function ManagerCvGeneratorPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs rounded-none"
               disabled={activeOfficesList.length === 0}
-              onClick={async () => { await refetchCandidates(); setShowDistribute(true); }}>
+              onClick={() => setShowDistribute(true)}>
               <GitBranch className="h-3.5 w-3.5" /> Distribute to Offices
             </Button>
             {hiddenCols.size > 0 && (
@@ -850,8 +678,10 @@ function ManagerCvGeneratorPage() {
                     <SelectValue placeholder="Send CV to office…" />
                   </SelectTrigger>
                   <SelectContent>
-                    {agencyOptions.map((o) => (
-                      <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
+                    {activeOfficesList.map((o) => (
+                      <SelectItem key={o.id} value={o.id} className="text-xs">
+                        {o.name}{o.countryName ? ` · ${o.countryName}` : ""}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -862,7 +692,7 @@ function ManagerCvGeneratorPage() {
                   disabled={!sendOffice || sendToOfficeMut.isPending}
                   onClick={() => {
                     const ids = filtered.filter((c) => selected.has(c.id)).map((c) => c.id);
-                    sendToOfficeMut.mutate({ ids, office: sendOffice });
+                    sendToOfficeMut.mutate({ ids, officeId: sendOffice });
                   }}
                 >
                   <Send className="h-3.5 w-3.5" />
@@ -904,7 +734,6 @@ function ManagerCvGeneratorPage() {
                 onAction={() => setActionCandidates([c])}
                 onRemoveFromAgency={() => setRemoveTarget(c)}
                 overdueDays={status?.overdueDays}
-                onResend={status?.overdueDays != null ? () => resendMut.mutate(c.id) : undefined}
                 visibleCols={visibleCols}
               />
             );
@@ -972,75 +801,28 @@ function ManagerCvGeneratorPage() {
         <BulkActionDialog candidates={actionCandidates} onClose={() => setActionCandidates([])} />
       )}
 
-      {/* Distribute to Offices dialog */}
+      {/* Distribute to Offices — runs in the background (same engine as the nightly run) */}
       <Dialog open={showDistribute} onOpenChange={(o) => { if (!o) setShowDistribute(false); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <GitBranch className="h-4 w-4 text-primary" /> Distribute to Offices
             </DialogTitle>
           </DialogHeader>
-          {!distributionPlan ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">
-              {activeOfficesList.length === 0 ? "No unlocked offices available. Unlock or add offices in Assignments first." : "No unsent or overdue candidates in current filters."}
-            </p>
-          ) : (
-            <>
-              <p className="text-xs text-muted-foreground mb-2">
-                {(() => {
-                  const totalNew = distributionPlan.reduce((a, o) => a + o.newCount, 0);
-                  const totalLeaving = distributionPlan.reduce((a, o) => a + o.leavingCount, 0);
-                  const totalCycle = distributionPlan.reduce((a, o) => a + o.cycleCount, 0);
-                  const totalMoved = totalLeaving - totalCycle;
-                  const parts: string[] = [];
-                  if (totalNew > 0) parts.push(`${totalNew} new`);
-                  if (totalMoved > 0) parts.push(`${totalMoved} overdue → new office`);
-                  if (totalCycle > 0) parts.push(`${totalCycle} overdue → back to same office`);
-                  const total = totalNew + totalLeaving;
-                  return `${total} candidate${total !== 1 ? "s" : ""} will be processed` +
-                    (parts.length ? ` (${parts.join(", ")})` : ".");
-                })()}
-                {" "}Target: <strong>{basePerOffice}</strong> per office.
-              </p>
-              <table className="w-full text-xs border-collapse mb-2">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-1.5 font-semibold text-muted-foreground">Office</th>
-                    <th className="text-right py-1.5 font-semibold text-muted-foreground">Queue</th>
-                    <th className="text-right py-1.5 font-semibold text-muted-foreground">Target</th>
-                    <th className="text-right py-1.5 font-semibold text-warning">Leaving</th>
-                    <th className="text-right py-1.5 font-semibold text-primary">Receiving</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {distributionPlan.map(o => (
-                    <tr key={o.name} className="border-b border-border/40">
-                      <td className="py-1.5 font-medium truncate max-w-[120px]">{o.name}</td>
-                      <td className={cn("text-right py-1.5 tabular-nums", o.currentLoad >= basePerOffice ? "text-amber-600 dark:text-amber-400" : "")}>
-                        {o.currentLoad}
-                      </td>
-                      <td className="text-right py-1.5 tabular-nums text-muted-foreground">{basePerOffice}</td>
-                      <td className="text-right py-1.5 tabular-nums text-warning">{o.leavingCount > 0 ? o.leavingCount : "—"}</td>
-                      <td className="text-right py-1.5 tabular-nums font-semibold text-primary">
-                        {o.count > 0 ? (
-                          <span title={[o.newCount > 0 && `${o.newCount} new`, o.movedIn > 0 && `${o.movedIn} overdue in`, o.cycleCount > 0 && `${o.cycleCount} cycle reset`].filter(Boolean).join(", ")}>
-                            +{o.count}
-                          </span>
-                        ) : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          )}
+          <p className="text-xs text-muted-foreground">
+            Sends every CV-ready candidate that has no office yet to an office in their own country, by star rating
+            and the base limit. Candidates without a country, in training, or not CV ready are listed, not sent.
+            This also runs automatically every night at 00:00 Addis Ababa time.
+          </p>
+          <JobStatusLine job={distJob} />
+          {distJob?.status === "done" && distJob.result && <DistributionReportView report={distJob.result} kind={distJob.kind} />}
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowDistribute(false)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setShowDistribute(false)}>Close</Button>
             <Button
-              disabled={!distributionPlan || distributeMut.isPending}
-              onClick={() => distributionPlan && distributeMut.mutate(distributionPlan)}
+              disabled={runDistMut.isPending || distJob?.status === "pending" || distJob?.status === "running"}
+              onClick={() => runDistMut.mutate()}
             >
-              {distributeMut.isPending ? "Distributing…" : "Confirm Distribute"}
+              {runDistMut.isPending || distJob?.status === "pending" || distJob?.status === "running" ? "Running…" : "Run Distribution"}
             </Button>
           </DialogFooter>
         </DialogContent>

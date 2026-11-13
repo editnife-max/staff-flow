@@ -1,1 +1,6 @@
 project_id = "phxmsiazdvoguliletrt"
+
+# Background worker for CV distribution — called by pg_net with a shared secret
+# (x-worker-secret header), not by browsers, so JWT verification is off.
+[functions.cv-distribution]
+verify_jwt = false

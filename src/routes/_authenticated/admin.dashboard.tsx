@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Users, Bell, Trash2, ShieldAlert,
-  UserPlus, Briefcase, Globe2,
+  UserPlus, Briefcase, Globe2, Clock,
 } from "lucide-react";
+import { useCvExpiryDays } from "@/hooks/use-distribution";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
@@ -18,7 +19,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
-  getAdminStats, getAdminUsers, createAdminUser, removeUser,
+  getAdminStats, getAdminUsers, createAdminUser, removeUser, setCvExpiryDays,
 } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
@@ -56,6 +57,48 @@ function UserCell({ name, email }: { name: string | null; email: string | null }
 function RoleBadge({ role }: { role: string }) {
   const s = ROLE_STYLE[role] ?? { label: role, cls: "bg-muted text-muted-foreground" };
   return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${s.cls}`}>{s.label}</span>;
+}
+
+/** Global: how long an office has to respond before its CVs move to another office. */
+function CvExpirySetting() {
+  const qc = useQueryClient();
+  const current = useCvExpiryDays();
+  const save = useServerFn(setCvExpiryDays);
+  const [draft, setDraft] = useState<string | null>(null);
+  const mut = useMutation({
+    mutationFn: (days: number) => save({ data: { days } }),
+    onSuccess: () => {
+      toast.success("Office response time updated");
+      qc.invalidateQueries({ queryKey: ["system-setting", "cv_expiry_days"] });
+      setDraft(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const value = draft ?? String(current);
+  const n = parseInt(value, 10);
+  const valid = !isNaN(n) && n >= 1 && n <= 60;
+  return (
+    <Card className="mb-8">
+      <CardContent className="py-4 flex items-center gap-4 flex-wrap">
+        <Clock className="h-5 w-5 text-primary shrink-0" />
+        <div className="flex-1 min-w-[220px]">
+          <div className="text-sm font-semibold">Office response time</div>
+          <div className="text-xs text-muted-foreground">
+            Days an office has to select a CV before it is automatically moved to another office in the same country.
+            Applies to all managers; checked every hour.
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Input type="number" min={1} max={60} className="w-20" value={value}
+            onChange={(e) => setDraft(e.target.value)} aria-label="Office response time in days" />
+          <span className="text-sm text-muted-foreground">days</span>
+          <Button size="sm" disabled={!valid || n === current || mut.isPending} onClick={() => mut.mutate(n)}>
+            {mut.isPending ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 function AdminDashboard() {
@@ -140,6 +183,8 @@ function AdminDashboard() {
         <StatCard label="Pending Approvals" value={stats?.pendingSubs ?? "—"} icon={Bell}
           tone={stats?.pendingSubs ? "warning" : "default"} />
       </div>
+
+      <CvExpirySetting />
 
       {/* Users */}
       <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">

@@ -13,6 +13,19 @@ async function requireAdmin(userId: string) {
   if (!data) throw new Response("Forbidden", { status: 403 });
 }
 
+/** Days an office has to respond before its CVs move to another office (all managers). */
+export const setCvExpiryDays = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ days: z.number().int().min(1).max(60) }).parse(input))
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context.userId);
+    const { error } = await supabaseAdmin
+      .from("system_settings")
+      .upsert({ key: "cv_expiry_days", value: data.days, updated_at: new Date().toISOString(), updated_by: context.userId });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 export const getAdminStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

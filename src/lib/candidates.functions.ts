@@ -170,6 +170,39 @@ async function requireManagerId(userId: string): Promise<string> {
   return id;
 }
 
+/**
+ * A CV may only sit at an office in the candidate's own country. When the
+ * Country (musaned_status) changes, take the CV back from any office in another
+ * country; the next distribution run sends it to the right place.
+ */
+async function clearOfficesOutsideCountry(managerId: string, ids: string[], newCountry: string | null) {
+  const { data: rows } = await supabaseAdmin
+    .from("candidates")
+    .select("id, cv_sent_to")
+    .in("id", ids)
+    .eq("manager_id", managerId)
+    .not("cv_sent_to", "is", null);
+  if (!rows?.length) return;
+
+  const [{ data: offices }, { data: countries }] = await Promise.all([
+    supabaseAdmin.from("assignment_offices").select("name, country_id").eq("manager_id", managerId),
+    supabaseAdmin.from("assignment_countries").select("id, name").eq("manager_id", managerId),
+  ]);
+  const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
+  const countryName = new Map((countries ?? []).map((c) => [c.id, norm(c.name)]));
+  const officeCountry = new Map((offices ?? []).map((o) => [o.name, countryName.get(o.country_id) ?? ""]));
+
+  const clear = rows
+    .filter((r) => officeCountry.has(r.cv_sent_to!) && officeCountry.get(r.cv_sent_to!) !== norm(newCountry))
+    .map((r) => r.id);
+  if (!clear.length) return;
+  await supabaseAdmin
+    .from("candidates")
+    .update({ cv_sent_to: null, cv_sent_date: null })
+    .in("id", clear)
+    .eq("manager_id", managerId);
+}
+
 export const nextCandidateCode = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -193,15 +226,6 @@ export const upsertCandidate = createServerFn({ method: "POST" })
       (data.data as Record<string, unknown>).religion = normalizeReligion(data.data.religion);
     }
 
-    // Auto-derive cv_sent_to from musaned_status (Country)
-    const today = new Date().toISOString().split("T")[0];
-    const autoCountryPatch = (payload: typeof data.data): Record<string, unknown> => {
-      if (payload.musaned_status) {
-        return { ...payload, cv_sent_to: payload.musaned_status, cv_sent_date: today };
-      }
-      return { ...payload, cv_sent_to: null, cv_sent_date: null };
-    };
-
     if (data.id) {
       // Fetch existing values before update so we can log what changed
       const { data: existing } = await (supabaseAdmin.from("candidates") as any)
@@ -210,7 +234,7 @@ export const upsertCandidate = createServerFn({ method: "POST" })
         .eq("manager_id", managerId)
         .maybeSingle();
 
-      const patched = autoCountryPatch(data.data);
+      const patched: Record<string, unknown> = { ...data.data };
       const { error } = await (supabaseAdmin.from("candidates") as any)
         .update(patched)
         .eq("id", data.id)
@@ -220,6 +244,10 @@ export const upsertCandidate = createServerFn({ method: "POST" })
           throw new Error(`Candidate code "${patched.candidate_code}" is already used by another candidate — please choose a different code.`);
         }
         throw new Error(error.message);
+      }
+
+      if ("musaned_status" in data.data && existing && (existing.musaned_status ?? null) !== (data.data.musaned_status ?? null)) {
+        await clearOfficesOutsideCountry(managerId, [data.id], data.data.musaned_status ?? null);
       }
 
       if (existing) {
@@ -292,7 +320,7 @@ export const upsertCandidate = createServerFn({ method: "POST" })
     const { data: row, error } = await supabaseAdmin
       .from("candidates")
       .insert({
-        ...autoCountryPatch(data.data),
+        ...data.data,
         candidate_code: candidateCode,
         manager_id: managerId,
         created_by_user_id: context.userId,
@@ -377,16 +405,6 @@ export const updateCandidateField = createServerFn({ method: "POST" })
       payload.tasheer_date = null;
     }
 
-    // Auto-assign cv_sent_to when the Country (musaned_status) field is set
-    if (data.field === "musaned_status" && raw) {
-      payload.cv_sent_to = raw;
-      payload.cv_sent_date = new Date().toISOString().split("T")[0];
-    }
-    if (data.field === "musaned_status" && !raw) {
-      payload.cv_sent_to = null;
-      payload.cv_sent_date = null;
-    }
-
     // When selected_by is set on an available candidate, auto-advance to processing
     if (data.field === "selected_by" && raw && cur) {
       if (cur.status === "available") payload.status = "processing";
@@ -415,6 +433,10 @@ export const updateCandidateField = createServerFn({ method: "POST" })
       shouldTrack ? resolveChangedBy(context.userId) : Promise.resolve(null),
     ]);
     if (updateResult.error) throw new Error(updateResult.error.message);
+
+    if (data.field === "musaned_status") {
+      await clearOfficesOutsideCountry(managerId, [data.id], raw);
+    }
 
     if (shouldTrack && changedBy) {
       await supabaseAdmin.from("candidate_field_log").insert({
@@ -517,6 +539,9 @@ export const bulkUpdateField = createServerFn({ method: "POST" })
       .in("id", data.ids)
       .eq("manager_id", managerId);
     if (error) throw new Error(error.message);
+    if (data.field === "musaned_status") {
+      await clearOfficesOutsideCountry(managerId, data.ids, raw);
+    }
     return { ok: true, count: count ?? 0 };
   });
 

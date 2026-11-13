@@ -43,22 +43,28 @@ export type Database = {
           country_id: string
           created_at: string
           id: string
+          is_locked: boolean
           manager_id: string
           name: string
+          rating: number
         }
         Insert: {
           country_id: string
           created_at?: string
           id?: string
+          is_locked?: boolean
           manager_id: string
           name: string
+          rating?: number
         }
         Update: {
           country_id?: string
           created_at?: string
           id?: string
+          is_locked?: boolean
           manager_id?: string
           name?: string
+          rating?: number
         }
         Relationships: [
           {
@@ -69,6 +75,75 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      distribution_jobs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          error: string | null
+          finished_at: string | null
+          id: string
+          kind: string
+          manager_id: string
+          payload: Json
+          result: Json | null
+          run_at: string
+          started_at: string | null
+          status: string
+          trigger: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          kind: string
+          manager_id: string
+          payload?: Json
+          result?: Json | null
+          run_at?: string
+          started_at?: string | null
+          status?: string
+          trigger?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          kind?: string
+          manager_id?: string
+          payload?: Json
+          result?: Json | null
+          run_at?: string
+          started_at?: string | null
+          status?: string
+          trigger?: string
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
       }
       candidate_code_sequences: {
         Row: {

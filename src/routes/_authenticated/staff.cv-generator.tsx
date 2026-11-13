@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useCvExpiryDays, waitForDistributionJob } from "@/hooks/use-distribution";
+import { manualSendCvs } from "@/lib/cv-distribution.functions";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,7 +27,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn, calcAge } from "@/lib/utils";
 import { StatusBadge } from "@/components/status-badge";
 import type { Database } from "@/integrations/supabase/types";
-import { checkAndResendExpiredCvs } from "@/lib/cv-distribution.functions";
 
 export const Route = createFileRoute("/_authenticated/staff/cv-generator")({
   head: () => ({ meta: [{ title: "CV Page — Staff-Flow" }] }),
@@ -191,16 +192,6 @@ function CvGeneratorPage() {
   const { user } = useAuth();
   const qc       = useQueryClient();
 
-  const resendExpiredFn = useServerFn(checkAndResendExpiredCvs);
-  useEffect(() => {
-    if (!user) return;
-    resendExpiredFn({}).then((r) => {
-      if (r.redistributed > 0) {
-        toast.info(`${r.redistributed} candidate${r.redistributed > 1 ? "s" : ""} auto-redistributed`);
-        qc.invalidateQueries({ queryKey: ["cv-candidates"] });
-      }
-    }).catch(() => {});
-  }, [user?.id]);
   const search   = Route.useSearch();
   const [query,   setQuery]   = useState("");
   const [filters, setFilters] = useState({
@@ -287,18 +278,47 @@ function CvGeneratorPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Manual send goes through the background worker, which checks country, CV
+  // readiness, locked offices and that no other office already holds the CV.
+  const manualSendFn = useServerFn(manualSendCvs);
   const sendToOfficeMut = useMutation({
-    mutationFn: async ({ ids, office }: { ids: string[]; office: string }) => {
-      const { error } = await supabase.from("candidates").update({ cv_sent_to: office, cv_sent_date: new Date().toISOString().split("T")[0] }).in("id", ids);
-      if (error) throw error;
+    mutationFn: async ({ ids, officeId }: { ids: string[]; officeId: string }) => {
+      const { jobId } = await manualSendFn({ data: { officeId, candidateIds: ids } });
+      return waitForDistributionJob(jobId);
     },
-    onSuccess: (_, { ids, office }) => {
-      toast.success(`CV sent to "${office}" for ${ids.length} candidate${ids.length > 1 ? "s" : ""}`);
+    onSuccess: (job) => {
+      if (job.status === "failed") { toast.error(job.error ?? "Send failed"); return; }
+      const r = job.result;
+      const rejected = r?.skipped.rejected ?? [];
+      if (r?.assigned) toast.success(`${r.assigned} CV${r.assigned > 1 ? "s" : ""} sent to ${r.officeName}`);
+      if (rejected.length) {
+        toast.warning(`${rejected.length} not sent`, {
+          description: rejected.slice(0, 5).map((c) => `${c.name}: ${c.reason}`).join("\n"),
+          duration: 10_000,
+        });
+      }
       qc.invalidateQueries({ queryKey: ["cv-candidates"] });
       clearSelection();
       setSendOffice("");
     },
     onError: (e: Error) => toast.error(e.message),
+  });
+
+  const { data: sendOffices = [] } = useQuery({
+    queryKey: ["staff-send-offices", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("assignment_offices")
+        .select("id, name, is_locked, assignment_countries(name)")
+        .eq("is_locked", false)
+        .order("name");
+      return (data ?? []).map((o: any) => ({
+        id: o.id as string,
+        name: o.name as string,
+        countryName: (o.assignment_countries?.name ?? null) as string | null,
+      }));
+    },
   });
 
   const { data: candidates = [] } = useQuery({
@@ -371,7 +391,7 @@ function CvGeneratorPage() {
       };
     },
   });
-  const cvDaysThreshold = managerCvData.threshold;
+  const cvDaysThreshold = useCvExpiryDays();
 
   const lockedFilters = useMemo(() => {
     const req = managerCvData.requirements;
@@ -647,8 +667,10 @@ function CvGeneratorPage() {
                     <SelectValue placeholder="Send CV to office…" />
                   </SelectTrigger>
                   <SelectContent>
-                    {agencyOptions.map((o) => (
-                      <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>
+                    {sendOffices.map((o) => (
+                      <SelectItem key={o.id} value={o.id} className="text-xs">
+                        {o.name}{o.countryName ? ` · ${o.countryName}` : ""}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -665,7 +687,7 @@ function CvGeneratorPage() {
                       toast.info("Selected candidates are still within the requirement period — cannot resend yet");
                       return;
                     }
-                    sendToOfficeMut.mutate({ ids, office: sendOffice });
+                    sendToOfficeMut.mutate({ ids, officeId: sendOffice });
                   }}
                 >
                   <Send className="h-3.5 w-3.5" />

@@ -23,6 +23,8 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DarkModeToggle } from "@/components/dark-mode-toggle";
 import { TicketAnnouncementBanner } from "@/components/ticket-announcement-banner";
+import { useDistributionJob } from "@/hooks/use-distribution";
+import { DistributionReportView, JobStatusLine } from "@/components/distribution-report";
 
 export const Route = createFileRoute("/_authenticated/manager")({
   component: ManagerLayout,
@@ -62,6 +64,8 @@ function ManagerBell() {
   const [activeNotif, setActiveNotif] = useState<InvoiceNotif | null>(null);
   const [activeTasheerCandidateId, setActiveTasheerCandidateId] = useState<string | null>(null);
   const [tasheerStep, setTasheerStep] = useState<"overdue" | "passport">("overdue");
+  const [reportJobId, setReportJobId] = useState<string | null>(null);
+  const { data: reportJob } = useDistributionJob(reportJobId);
 
   // ── Tasheer overdue candidates ────────────────────────────────────────────
   const { data: tasheerOverdue = [] } = useQuery<{ id: string; full_name: string; tasheer_date: string | null }[]>({
@@ -113,7 +117,7 @@ function ManagerBell() {
       const { data, error } = await supabase
         .from("notifications" as any)
         .select("id,title,body,read,status,reference_id,created_at,type")
-        .eq("type", "invoice_paid")
+        .in("type", ["invoice_paid", "cv_distribution"])
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
@@ -199,7 +203,11 @@ function ManagerBell() {
               <p className="px-4 py-8 text-center text-sm text-muted-foreground">No notifications.</p>
             ) : notifications.map((n) => (
               <button key={n.id} type="button"
-                onClick={() => { setOpen(false); setActiveNotif(n); }}
+                onClick={() => {
+                  setOpen(false);
+                  if (n.type === "cv_distribution") setReportJobId(n.reference_id);
+                  else setActiveNotif(n);
+                }}
                 className={cn("w-full text-left px-4 py-3 text-sm hover:bg-muted/60 transition-colors", !n.read && "bg-primary/5")}>
                 <div className="flex items-start gap-2">
                   {!n.read && <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
@@ -248,6 +256,23 @@ function ManagerBell() {
                 {confirmMut.isPending ? "Confirming…" : "Confirm Payment"}
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* CV distribution report (from a background run) */}
+      <Dialog open={!!reportJobId} onOpenChange={(o) => { if (!o) setReportJobId(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>CV Distribution Report</DialogTitle>
+          </DialogHeader>
+          {reportJob?.finished_at && (
+            <p className="text-xs text-muted-foreground">{new Date(reportJob.finished_at).toLocaleString()}</p>
+          )}
+          <JobStatusLine job={reportJob} />
+          {reportJob?.result && <DistributionReportView report={reportJob.result} kind={reportJob.kind} />}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setReportJobId(null)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
