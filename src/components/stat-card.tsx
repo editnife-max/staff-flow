@@ -9,7 +9,7 @@ interface StatCardProps {
 }
 
 const toneClass: Record<NonNullable<StatCardProps["tone"]>, string> = {
-  default: "bg-accent/15 text-accent",
+  default: "bg-primary/10 text-primary",
   success: "bg-success/15 text-success",
   warning: "bg-warning/20 text-foreground",
   info: "bg-info/15 text-info",
@@ -19,13 +19,17 @@ const toneClass: Record<NonNullable<StatCardProps["tone"]>, string> = {
 export function StatCard({ label, value, icon: Icon, tone = "default" }: StatCardProps) {
   return (
     <Card>
-      <CardContent className="p-5">
+      <CardContent className="p-4 sm:p-5">
         <div className="flex items-start justify-between">
           <div>
             <div className="text-sm text-muted-foreground">{label}</div>
-            <div className="text-3xl font-semibold mt-2 tracking-tight">{value}</div>
+            <div className="mt-1.5 text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl">
+              {value}
+            </div>
           </div>
-          <div className={`h-10 w-10 rounded-lg grid place-items-center ${toneClass[tone]}`}>
+          <div
+            className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${toneClass[tone]}`}
+          >
             <Icon className="h-5 w-5" />
           </div>
         </div>

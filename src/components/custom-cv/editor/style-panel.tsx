@@ -78,7 +78,7 @@ export function StylePanel({ config, update }: PanelProps) {
       <Group title="Text">
         <Row label="Font" hint="All support Arabic">
           <Select value={t.font} onValueChange={(v) => setTheme({ font: v })}>
-            <SelectTrigger className="h-8 w-48 rounded-none text-xs">
+            <SelectTrigger className="h-8 w-48 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -252,11 +252,11 @@ export function ProcessingTable({
 
   return (
     <div className="space-y-2">
-      {<Card className="rounded-none">
+      {<Card>
         <CardContent className="p-3">
           <div className="flex items-center gap-1.5">
             {activeCount > 0 && (
-              <span className="rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">{activeCount}</span>
+              <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">{activeCount}</span>
             )}
           </div>
             <div className="mt-3 flex flex-wrap gap-5">
@@ -278,7 +278,7 @@ export function ProcessingTable({
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
-                  className="pl-8 h-7 text-xs rounded-none w-52"
+                  className="pl-8 h-7 text-xs w-52"
                   placeholder="Search name / passport…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -298,11 +298,11 @@ export function ProcessingTable({
                   onClick={() => setShowColPicker((v) => !v)}>
                   <SlidersHorizontal className="h-3 w-3" /> Columns
                   {hiddenCols.size > 0 && (
-                    <span className="ml-1 rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">{hiddenCols.size} hidden</span>
+                    <span className="ml-1 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">{hiddenCols.size} hidden</span>
                   )}
                 </Button>
                 {showColPicker && (
-                  <div className="absolute right-0 bottom-7 z-50 bg-popover border border-border rounded-none shadow-xl p-3 w-[340px]">
+                  <div className="absolute right-0 bottom-7 z-50 bg-popover border border-border shadow-xl p-3 w-[min(340px,calc(100vw-2rem))] rounded-xl">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Columns</span>
                       <button type="button" onClick={() => setHiddenCols(new Set())}
@@ -331,14 +331,14 @@ export function ProcessingTable({
       </Card>}
 
       {selected.size === 0 && countryMeta.length > 0 && (
-        <Card className="rounded-none">
+        <Card>
           <CardContent className="px-3 py-2">
             <div className="flex items-center gap-1 flex-wrap">
               <button
                 type="button"
                 onClick={() => { setActiveCountryTab("all"); setActiveOfficeTab("all"); }}
                 className={cn(
-                  "px-3 py-1.5 text-xs font-medium rounded-none border transition-colors",
+                  "px-3 py-1.5 text-xs font-medium border transition-colors",
                   activeCountryTab === "all"
                     ? "border-primary/40 bg-primary/5 text-primary"
                     : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40",
@@ -358,7 +358,7 @@ export function ProcessingTable({
                       setActiveOfficeTab("all");
                     }}
                     className={cn(
-                      "px-3 py-1.5 text-xs font-medium rounded-none border transition-colors flex items-center gap-1.5",
+                      "px-3 py-1.5 text-xs font-medium border transition-colors flex items-center gap-1.5",
                       activeCountryTab === c.name
                         ? "border-primary/40 bg-primary/5 text-primary"
                         : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40",
@@ -376,14 +376,14 @@ export function ProcessingTable({
       )}
 
       {activeCountryTab !== "all" && (officesByCountry[activeCountryTab] ?? []).length > 0 && (
-        <Card className="rounded-none">
+        <Card>
           <CardContent className="px-3 py-2">
             <div className="flex items-center gap-1 flex-wrap">
               <button
                 type="button"
                 onClick={() => setActiveOfficeTab("all")}
                 className={cn(
-                  "px-3 py-1.5 text-xs font-medium rounded-none border transition-colors",
+                  "px-3 py-1.5 text-xs font-medium border transition-colors",
                   activeOfficeTab === "all"
                     ? "border-primary/40 bg-primary/5 text-primary"
                     : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40",
@@ -399,7 +399,7 @@ export function ProcessingTable({
                     type="button"
                     onClick={() => setActiveOfficeTab(activeOfficeTab === office ? "all" : office)}
                     className={cn(
-                      "px-3 py-1.5 text-xs font-medium rounded-none border transition-colors flex items-center gap-1.5",
+                      "px-3 py-1.5 text-xs font-medium border transition-colors flex items-center gap-1.5",
                       activeOfficeTab === office
                         ? "border-primary/40 bg-primary/5 text-primary"
                         : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40",
@@ -479,11 +479,11 @@ export function ProcessingTable({
       )}
 
       {candidates.length > 0 && (
-        <div className="sticky bottom-0 z-10 bg-background shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
+        <div className="sticky bottom-above-tabbar z-10 bg-background shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
           <div ref={mirrorRef} className="w-full" style={{ overflowX: "scroll", overflowY: "hidden", height: 16 }}><div style={{ height: 1 }} /></div>
           <div className="flex items-center justify-between px-4 py-2 flex-wrap gap-2">
           <div className="flex items-center gap-1">
-            <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
+            <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={page === 1}
               onClick={() => { setPage((p) => p - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
               <ChevronLeft className="h-3.5 w-3.5" />
             </Button>
@@ -493,13 +493,13 @@ export function ProcessingTable({
                 <React.Fragment key={n}>
                   {i > 0 && n - arr[i - 1] > 1 && <span className="text-xs text-muted-foreground px-0.5">…</span>}
                   <Button size="sm" variant={page === n ? "default" : "outline"}
-                    className="h-7 w-7 p-0 rounded-none text-xs"
+                    className="h-7 w-7 p-0 text-xs"
                     onClick={() => { setPage(n); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
                     {n}
                   </Button>
                 </React.Fragment>
               ))}
-            <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === totalPages}
+            <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={page === totalPages}
               onClick={() => { setPage((p) => p + 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
               <ChevronRight className="h-3.5 w-3.5" />
             </Button>
@@ -507,7 +507,7 @@ export function ProcessingTable({
           <div className="flex items-center gap-1">
             {[5, 10, 50, 100, 500].map((s) => (
               <Button key={s} size="sm" variant={pageSize === s ? "default" : "outline"}
-                className="h-7 px-2 rounded-none text-xs"
+                className="h-7 px-2 text-xs"
                 onClick={() => { setPageSize(s); setPage(1); }}>
                 {s}
               </Button>
@@ -648,10 +648,10 @@ function ProcessingCard({
   return (
     <>
       <div
-        className={cn("border border-border shadow-sm rounded-sm transition-colors", selected && "ring-1 ring-primary/50")}
+        className={cn("overflow-clip rounded-xl border border-border shadow-xs transition-colors", selected && "ring-1 ring-primary/50")}
         style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}
       >
-        <div className="sticky left-0 z-10 w-fit flex items-center gap-2 px-4 pt-2.5 pb-1" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
+        <div className="sticky left-0 z-10 w-fit flex items-center gap-2 px-3 pt-2.5 pb-1 sm:px-4" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
           <Checkbox checked={selected} onCheckedChange={onToggleSelect} aria-label="Select candidate" disabled={candidate.visa_status === "Waiting Replacement"} />
           <StatusBadge status="processing" />
           {(candidate as any).lmis_contract_phase && (
@@ -670,9 +670,9 @@ function ProcessingCard({
           )}
         </div>
         <div className="flex items-center pb-3 pt-1">
-          <div className="sticky left-0 z-10 shrink-0 self-stretch flex items-center gap-4 pl-4 pr-3" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
+          <div className="sticky left-0 z-10 shrink-0 self-stretch flex items-center gap-3 pl-3 pr-2 sm:gap-4 sm:pl-4 sm:pr-3" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
             <button type="button" onClick={onViewPhotos} className="shrink-0">
-              <Avatar className="h-14 w-14 hover:ring-2 hover:ring-primary transition-all">
+              <Avatar className="h-11 w-11 hover:ring-2 hover:ring-primary transition-all sm:h-14 sm:w-14">
                 {candidate.photo_url && <AvatarImage src={candidate.photo_url} alt={candidate.full_name} />}
                 <AvatarFallback className="text-[11px]">{candidate.full_name.slice(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
@@ -755,7 +755,7 @@ function ProcessingCard({
                                   <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
                                 </div>
                               </TooltipTrigger>
-                              <TooltipContent className="rounded-none text-xs p-2 space-y-0.5">
+                              <TooltipContent className="text-xs p-2 space-y-0.5">
                                 <div className="font-semibold">{(candidate as any).coc_agency_name || "—"}</div>
                                 <div>{(candidate as any).coc_agency_phone || "No phone"}</div>
                               </TooltipContent>
@@ -773,7 +773,7 @@ function ProcessingCard({
                                 <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent className="rounded-none text-xs p-2">
+                            <TooltipContent className="text-xs p-2">
                               {(candidate as any).insurance_date
                                 ? new Date((candidate as any).insurance_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
                                 : "No date"}
@@ -812,7 +812,7 @@ function ProcessingCard({
                                     {wafidProcChecking ? <Loader2 className="h-3 w-3 animate-spin" /> : <Globe className="h-3 w-3" />}
                                   </button>
                                 </TooltipTrigger>
-                                <TooltipContent className="rounded-none text-xs p-2">
+                                <TooltipContent className="text-xs p-2">
                                   {wafidProcChecking ? "Connecting to wafid.com…" : "Check on wafid.com"}
                                 </TooltipContent>
                               </Tooltip>
@@ -864,8 +864,8 @@ function ProcessingCard({
               );
             })}
           </div>
-          <div className="sticky right-0 z-10 shrink-0 self-stretch flex flex-col items-center justify-center gap-1.5 px-4 border-l border-border" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
-            <Button size="sm" onClick={() => setViewing(true)} className="w-full px-5 h-8 rounded text-xs font-semibold tracking-wide">
+          <div className="sticky right-0 z-10 shrink-0 self-stretch flex flex-col items-center justify-center gap-1.5 px-2.5 border-l border-border sm:px-4" style={{ background: selected ? "var(--selected-bg)" : "var(--card)" }}>
+            <Button size="sm" onClick={() => setViewing(true)} className="w-full px-3 h-8 rounded-md text-xs font-semibold tracking-wide sm:px-5">
               VIEW
             </Button>
             {candidate.visa_status === "Waiting Replacement" ? (
@@ -912,7 +912,7 @@ function ProcessingCard({
               type="date"
               value={pendingDate}
               onChange={(e) => setPendingDate(e.target.value)}
-              className="rounded-none h-9"
+              className="h-9"
             />
           </div>
           <DialogFooter>
@@ -1025,13 +1025,13 @@ function ProcessingCard({
               placeholder="Agency Name"
               value={cocPlacedName}
               onChange={(e) => setCocPlacedName(e.target.value)}
-              className="rounded-none h-9"
+              className="h-9"
             />
             <Input
               placeholder="Phone Number"
               value={cocPlacedPhone}
               onChange={(e) => setCocPlacedPhone(e.target.value)}
-              className="rounded-none h-9"
+              className="h-9"
             />
           </div>
           <DialogFooter>

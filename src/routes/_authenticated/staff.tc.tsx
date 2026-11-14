@@ -49,7 +49,7 @@ export const CEO_OPTIONS = TC_CEO_OPTIONS;
 function QualEmptyState({ label, small }: { label: string; small?: boolean }) {
   return (
     <div className={cn(
-      "flex items-center justify-center text-muted-foreground border-2 border-dashed border-border/40 rounded-none",
+      "flex items-center justify-center text-muted-foreground border-2 border-dashed border-border/40",
       small ? "h-full min-h-[80px]" : "h-full min-h-[160px]",
     )}>
       <span className="text-xs">{label}</span>
@@ -573,25 +573,25 @@ function TcPage() {
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-5 px-6 py-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-5 px-4 py-5 sm:px-6 sm:py-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold tracking-tight">Training Centre</h1>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <h1 className="text-[26px] font-semibold leading-tight tracking-tight sm:text-[28px]">Training Centre</h1>
+        <div className="flex flex-wrap items-center gap-2">
           {activeNav === "cp" && activeView === "entered" && (
-            <Button size="sm" className="gap-2 text-xs h-8 rounded-none" onClick={openCreate}>
-              <FilePlus className="h-4 w-4" /> ADD NEW CANDIDATE
+            <Button size="sm" className="gap-2 text-xs h-8" onClick={openCreate}>
+              <FilePlus className="h-4 w-4" /> Add candidate
             </Button>
           )}
           <Button
             size="sm" variant="outline"
-            className="gap-1.5 text-xs h-8 rounded-none"
+            className="gap-1.5 text-xs h-8"
             onClick={() => setGlobalSearchOpen(true)}
           >
             <ScanSearch className="h-3.5 w-3.5" />
             Search
-            <kbd className="ml-1 text-[10px] bg-muted px-1 py-0.5 rounded font-mono">⌘K</kbd>
+            <kbd className="ml-1 hidden text-[10px] bg-muted px-1 py-0.5 rounded font-mono sm:inline">⌘K</kbd>
           </Button>
         </div>
       </div>
@@ -638,15 +638,15 @@ function TcPage() {
         ].filter((w) => w.list.length > 0);
 
         return (
-          <div className="grid grid-cols-3 gap-4 items-start">
+          <div className="grid grid-cols-3 gap-2 items-start sm:gap-4">
             {stats.map((s) => (
               <button
                 key={s.label}
                 type="button"
                 onClick={() => navigate({ to: "/staff/tc", search: { nav: "cp", view: s.view }, replace: true })}
-                className={cn("rounded-none border p-5 text-left hover:opacity-90 transition-opacity", s.bg)}
+                className={cn("rounded-2xl border p-4 text-left transition-opacity hover:opacity-90 sm:p-5", s.bg)}
               >
-                <p className={cn("text-4xl font-bold tabular-nums leading-none", s.value)}>{s.count}</p>
+                <p className={cn("text-3xl font-bold tabular-nums leading-none sm:text-4xl", s.value)}>{s.count}</p>
                 <p className="text-sm text-muted-foreground mt-2 font-medium">{s.label}</p>
               </button>
             ))}
@@ -659,7 +659,7 @@ function TcPage() {
                     key={w.key}
                     type="button"
                     onClick={() => setWarningModal(w.key)}
-                    className="w-full text-left border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 rounded-none p-5 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors"
+                    className="w-full text-left border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-5 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors"
                   >
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
@@ -685,7 +685,7 @@ function TcPage() {
 
         return (
           <Dialog open onOpenChange={(o) => { if (!o) setWarningModal(null); }}>
-            <DialogContent className="max-w-lg p-0 overflow-hidden rounded-none flex flex-col" style={{ maxHeight: "82vh" }}>
+            <DialogContent className="max-w-lg p-0 overflow-hidden flex flex-col" style={{ maxHeight: "82vh" }}>
               <DialogHeader className="px-5 py-3 border-b shrink-0">
                 <DialogTitle className="text-sm font-semibold flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
@@ -698,9 +698,9 @@ function TcPage() {
                   <p className="text-sm text-muted-foreground text-center py-10">All fixed ✓</p>
                 ) : list.map((c) => (
                   <div key={c.id} className="flex items-center gap-4 px-5 py-3">
-                    <Avatar className="h-10 w-10 shrink-0 rounded-none">
+                    <Avatar className="h-10 w-10 shrink-0">
                       {(c as any).photo_url && <AvatarImage src={(c as any).photo_url} className="object-cover" />}
-                      <AvatarFallback className="rounded-none text-xs">{(c.full_name ?? "?")[0]}</AvatarFallback>
+                      <AvatarFallback className="text-xs">{(c.full_name ?? "?")[0]}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium leading-tight truncate">{c.full_name ?? "—"}</p>
@@ -799,11 +799,11 @@ function TcPage() {
       </Dialog>
 
       {/* Filter panel */}
-      <Card className="rounded-none">
+      <Card>
         <CardContent className="p-4">
           <div className="flex items-center gap-2">
             {activeFilterCount > 0 && (
-              <span className="rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+              <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
                 {activeFilterCount}
               </span>
             )}
@@ -842,7 +842,7 @@ function TcPage() {
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                className="pl-8 h-7 text-xs rounded-none w-52"
+                className="pl-8 h-7 text-xs w-52"
                 placeholder="Name, Labour ID, Passport…"
                 value={passport}
                 onChange={(e) => setPassport(e.target.value)}
@@ -960,13 +960,13 @@ function TcPage() {
               <div className="relative mb-2">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
-                  className="pl-8 h-8 text-xs rounded-none"
+                  className="pl-8 h-8 text-xs"
                   placeholder="Search name, code, passport…"
                   value={trainedPickQ}
                   onChange={(e) => setTrainedPickQ(e.target.value)}
                 />
               </div>
-              <div className="border rounded-none max-h-52 overflow-y-auto">
+              <div className="border max-h-52 overflow-y-auto">
                 {(() => {
                   const enteredGirls = allCandidates.filter((c) => c.availability_type === "TC" && !c.video_url);
                   const q = trainedPickQ.toLowerCase();
@@ -1007,7 +1007,7 @@ function TcPage() {
             <div>
               <p className="text-xs font-medium mb-1">Training Video URL</p>
               <Input
-                className="h-8 text-xs rounded-none"
+                className="h-8 text-xs"
                 placeholder="https://…"
                 value={trainedVideoUrl}
                 onChange={(e) => setTrainedVideoUrl(e.target.value)}
@@ -1148,7 +1148,7 @@ function TcPage() {
 
         return (
           <Dialog open onOpenChange={(o) => { if (!o) closeCriteria(); }}>
-            <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-none flex flex-col" style={{ maxHeight: "88vh" }}>
+            <DialogContent className="max-w-2xl p-0 overflow-hidden flex flex-col" style={{ maxHeight: "88vh" }}>
 
               {/* Header */}
               <DialogHeader className="px-4 py-3 border-b shrink-0">
@@ -1220,7 +1220,7 @@ function TcPage() {
                     </div>
                     {downloadUrl && (
                       <a href={downloadUrl} download target="_blank" rel="noreferrer">
-                        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 rounded-none">
+                        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1">
                           <Download className="h-3.5 w-3.5" /> Download
                         </Button>
                       </a>
@@ -1237,7 +1237,7 @@ function TcPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <Button
                         size="sm" variant="outline"
-                        className={cn("h-7 text-xs gap-1 rounded-none",
+                        className={cn("h-7 text-xs gap-1",
                           criteriaVerdicts[current?.key ?? ""] === "approved"
                             ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
                             : "border-emerald-500 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40")}
@@ -1247,7 +1247,7 @@ function TcPage() {
                       </Button>
                       <Button
                         size="sm" variant="outline"
-                        className={cn("h-7 text-xs gap-1 rounded-none",
+                        className={cn("h-7 text-xs gap-1",
                           criteriaVerdicts[current?.key ?? ""] === "rejected"
                             ? "bg-red-600 hover:bg-red-700 text-white border-red-600"
                             : "border-red-400 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40")}
@@ -1258,7 +1258,7 @@ function TcPage() {
                       <span className="text-[11px] text-muted-foreground">Click the same verdict again to clear it.</span>
                     </div>
                     <Textarea
-                      className="rounded-none text-xs resize-none"
+                      className="text-xs resize-none"
                       rows={2}
                       placeholder={`Comment about ${current?.short?.toLowerCase() ?? "criterion"} — what is wrong, or what to fix`}
                       value={criteriaComments[current?.key ?? ""] ?? ""}
@@ -1272,13 +1272,13 @@ function TcPage() {
               <div className="border-t px-4 py-2.5 flex items-center justify-between bg-background shrink-0">
                 <div className="flex gap-2">
                   {criteriaViewIdx > 0 && (
-                    <Button size="sm" variant="outline" className="h-7 text-xs rounded-none gap-1"
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
                       onClick={() => setCriteriaViewId(filtered[criteriaViewIdx - 1].id)}>
                       <ChevronLeft className="h-3.5 w-3.5" /> Prev
                     </Button>
                   )}
                   {criteriaViewIdx < filtered.length - 1 && (
-                    <Button size="sm" variant="outline" className="h-7 text-xs rounded-none gap-1"
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
                       onClick={() => setCriteriaViewId(filtered[criteriaViewIdx + 1].id)}>
                       Next <ChevronRight className="h-3.5 w-3.5" />
                     </Button>
@@ -1286,7 +1286,7 @@ function TcPage() {
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline"
-                    className="h-7 text-xs rounded-none text-destructive border-destructive/40 hover:bg-destructive/5"
+                    className="h-7 text-xs text-destructive border-destructive/40 hover:bg-destructive/5"
                     onClick={() => {
                       fieldMut.mutate({ id: cc.id, field: "availability_type", value: "TC_failed" });
                       toast.success(`${cc.full_name ?? "Candidate"} moved to Failed Girls`);
@@ -1294,7 +1294,7 @@ function TcPage() {
                     }}>
                     Deny
                   </Button>
-                  <Button size="sm" className="h-7 text-xs rounded-none"
+                  <Button size="sm" className="h-7 text-xs"
                     onClick={() => {
                       fieldMut.mutate({ id: cc.id, field: "cv_approved", value: "true" });
                       fieldMut.mutate({ id: cc.id, field: "availability_type", value: "Available" });
@@ -1313,7 +1313,7 @@ function TcPage() {
 
       {/* TC Remove dialog — Failed / Cancelled */}
       <Dialog open={!!tcRemove} onOpenChange={(o) => { if (!o) setTcRemove(null); }}>
-        <DialogContent className="max-w-sm rounded-none">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-sm">Remove from Entered Girls</DialogTitle>
           </DialogHeader>
@@ -1330,7 +1330,7 @@ function TcPage() {
                   type="button"
                   onClick={() => setTcRemoveMode(m)}
                   className={cn(
-                    "flex-1 py-2 text-xs font-semibold border rounded-none transition-colors capitalize",
+                    "flex-1 py-2 text-xs font-semibold border transition-colors capitalize",
                     tcRemoveMode === m
                       ? m === "failed"
                         ? "bg-red-600 text-white border-red-600"
@@ -1348,7 +1348,7 @@ function TcPage() {
               <div className="space-y-1.5">
                 <label className="text-xs font-medium">Reason <span className="text-destructive">*</span></label>
                 <Textarea
-                  className="rounded-none text-xs resize-none"
+                  className="text-xs resize-none"
                   rows={3}
                   placeholder="Why did this candidate fail TC?"
                   value={tcRemoveReason}
@@ -1363,7 +1363,7 @@ function TcPage() {
               size="sm"
               variant={tcRemoveMode === "failed" ? "destructive" : "default"}
               disabled={tcRemoveMode === "failed" && !tcRemoveReason.trim()}
-              className="rounded-none"
+             
               onClick={() => {
                 if (!tcRemove) return;
                 if (tcRemoveMode === "failed") {
@@ -1469,7 +1469,7 @@ function TcPage() {
                     {SKILLS_LIST.map((skill) => {
                       const checked = skillSet.has(skill);
                       return (
-                        <label key={skill} className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-none border cursor-pointer text-xs transition-colors", checked ? "bg-primary/10 border-primary text-primary" : "border-border text-muted-foreground hover:border-primary/50")}>
+                        <label key={skill} className={cn("flex items-center gap-1.5 px-2.5 py-1 border cursor-pointer text-xs transition-colors", checked ? "bg-primary/10 border-primary text-primary" : "border-border text-muted-foreground hover:border-primary/50")}>
                           <Checkbox checked={checked} onCheckedChange={(v) => { const s = new Set(skillSet); v ? s.add(skill) : s.delete(skill); setForm({ ...form, skills: Array.from(s).join(", ") }); }} />
                           {skill}
                         </label>
@@ -1489,8 +1489,8 @@ function TcPage() {
                   <FormSelect label="COC Status *" value={form.coc_status} onChange={(v) => setForm({ ...form, coc_status: v })} options={COC_OPTIONS} />
                   {form.coc_status === "Placed" && (
                     <div className="mt-2 space-y-1.5">
-                      <input placeholder="Agency Name" value={form.coc_agency_name} onChange={(e) => setForm({ ...form, coc_agency_name: e.target.value })} className="w-full rounded-none border border-input bg-background px-3 h-8 text-xs outline-none focus:ring-1 focus:ring-ring" />
-                      <input placeholder="Phone Number" value={form.coc_agency_phone} onChange={(e) => setForm({ ...form, coc_agency_phone: e.target.value })} className="w-full rounded-none border border-input bg-background px-3 h-8 text-xs outline-none focus:ring-1 focus:ring-ring" />
+                      <input placeholder="Agency Name" value={form.coc_agency_name} onChange={(e) => setForm({ ...form, coc_agency_name: e.target.value })} className="w-full border border-input bg-background px-3 h-8 text-xs outline-none focus:ring-1 focus:ring-ring" />
+                      <input placeholder="Phone Number" value={form.coc_agency_phone} onChange={(e) => setForm({ ...form, coc_agency_phone: e.target.value })} className="w-full border border-input bg-background px-3 h-8 text-xs outline-none focus:ring-1 focus:ring-ring" />
                     </div>
                   )}
                 </div>
@@ -1512,15 +1512,15 @@ function TcPage() {
               <div className="space-y-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Remark</Label>
-                  <Textarea rows={2} value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} className="rounded-none text-sm" />
+                  <Textarea rows={2} value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} className="text-sm" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Notes</Label>
-                  <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-none text-sm" />
+                  <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="text-sm" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Video URL</Label>
-                  <input type="url" value={form.video_url} onChange={(e) => setForm({ ...form, video_url: e.target.value })} placeholder="https://…" className="w-full rounded-none border border-input bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring" />
+                  <input type="url" value={form.video_url} onChange={(e) => setForm({ ...form, video_url: e.target.value })} placeholder="https://…" className="w-full border border-input bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring" />
                 </div>
               </div>
             </FormSection>

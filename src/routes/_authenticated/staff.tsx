@@ -1,17 +1,14 @@
-import { Outlet, createFileRoute, Navigate, Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, Users, FileText, ChevronDown, Building2, Bell, CheckCircle2, XCircle, CalendarClock, AlertTriangle, ShieldX, X, GraduationCap } from "lucide-react";
+import { Outlet, createFileRoute, Navigate } from "@tanstack/react-router";
+import { LayoutDashboard, Users, FileText, Bell, CheckCircle2, XCircle, CalendarClock, AlertTriangle, ShieldX, X, GraduationCap } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/hooks/use-auth";
+import { PageLoader } from "@/components/page-loader";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuSeparator, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
@@ -30,18 +27,18 @@ import { getManagerTcEnabled } from "@/lib/settings.functions";
 import { getMyEffectiveAccess } from "@/lib/staff-overrides.functions";
 import { useStaffSession } from "@/hooks/use-staff-session";
 import { recordStaffLogin } from "@/lib/staff-attendance.functions";
-import { DarkModeToggle } from "@/components/dark-mode-toggle";
+import { RoleShell, headerIconButton, type RoleNavItem } from "@/components/role-shell";
 import { TicketAnnouncementBanner } from "@/components/ticket-announcement-banner";
 
 export const Route = createFileRoute("/_authenticated/staff")({
   component: StaffLayout,
 });
 
-const NAV_TOP = [
+const NAV_TOP: Array<RoleNavItem & { pageKey: string; exact?: boolean }> = [
   { to: "/staff/dashboard",    label: "Dashboard",     icon: LayoutDashboard, pageKey: "dashboard"    },
   { to: "/staff/candidates",   label: "HR Pool",       icon: Users,           pageKey: "candidates",   exact: false },
   { to: "/staff/cv-generator", label: "CV Page",       icon: FileText,        pageKey: "cv_generator" },
-  { to: "/staff/attendance",   label: "My Attendance", icon: CalendarClock,   pageKey: "attendance"   },
+  { to: "/staff/attendance",   label: "My Attendance", short: "Attendance", icon: CalendarClock,   pageKey: "attendance"   },
   { to: "/staff/tc",           label: "TC",            icon: GraduationCap,   pageKey: "tc"           },
 ];
 
@@ -76,8 +73,7 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 function StaffLayout() {
-  const { role, loading, user, signOut } = useAuth();
-  const navigate  = useNavigate();
+  const { role, loading, user } = useAuth();
   const qc        = useQueryClient();
   const doAccept  = useServerFn(acceptCandidatesNotification);
   const doDecline = useServerFn(declineCandidatesNotification);
@@ -265,51 +261,34 @@ function StaffLayout() {
 
   useStaffSession(role === "staff");
 
-  if (loading && !role) return <div className="p-8 text-muted-foreground">Loading...</div>;
+  if (loading && !role) return <PageLoader />;
   if (!loading && role !== "staff" && role !== "admin") return <Navigate to="/dashboard" />;
-  const initials = (user?.email ?? "U").slice(0, 2).toUpperCase();
+  const nav: RoleNavItem[] = NAV_TOP.filter((n) => {
+    if (n.pageKey === "tc" && !tcEnabled) return false;
+    if (deniedPages.has(n.pageKey)) return false;
+    return true;
+  });
 
   return (
-    <div className="min-h-screen flex flex-col bg-muted/30">
-      <header className="border-b bg-background">
-        <div className="px-6 py-3 flex items-center gap-8">
-          <Link to="/staff/candidates" className="flex items-center gap-3 shrink-0">
-            <div className="h-9 w-9 rounded-md bg-primary/10 grid place-items-center">
-              <Building2 className="h-4 w-4 text-primary" />
-            </div>
-            <span className="text-sm font-semibold tracking-tight">Staff-Flow</span>
-          </Link>
-
-          <nav className="flex-1 flex flex-wrap items-center gap-x-8 gap-y-2">
-            {NAV_TOP.filter((n) => {
-              if (n.pageKey === "tc" && !tcEnabled) return false;
-              if (deniedPages.has(n.pageKey)) return false;
-              return true;
-            }).map((n) => {
-              const Icon = n.icon;
-              return (
-                <Link key={n.label} to={n.to}
-                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary py-2"
-                  activeProps={{ className: "text-primary font-semibold border-b-2 border-primary py-2 flex items-center gap-2" }}>
-                  <Icon className="h-4 w-4" />{n.label}
-                </Link>
-              );
-            })}
-          </nav>
-
+    <RoleShell
+      homeTo="/staff/candidates"
+      roleLabel="Staff"
+      nav={nav}
+      actions={
+        <>
           {/* Notification bell */}
           <Popover open={notifOpen} onOpenChange={(o) => { if (o) openNotifs(); else setNotifOpen(false); }}>
             <PopoverTrigger asChild>
-              <button className="relative p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+              <button type="button" className={headerIconButton} aria-label="Notifications">
                 <Bell className="h-5 w-5" />
                 {unread > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold grid place-items-center leading-none">
+                  <span className="absolute top-0.5 right-0.5 h-4 min-w-4 px-0.5 rounded-full ring-2 ring-background bg-destructive text-destructive-foreground text-[10px] font-bold grid place-items-center leading-none">
                     {unread > 9 ? "9+" : unread}
                   </span>
                 )}
               </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-80 p-0">
+            <PopoverContent align="end" className="w-[min(20rem,calc(100vw-1.5rem))] p-0">
               <div className="flex items-center justify-between px-4 py-3 border-b">
                 <span className="text-sm font-semibold">Notifications</span>
               </div>
@@ -377,70 +356,41 @@ function StaffLayout() {
               </div>
             </PopoverContent>
           </Popover>
-
-          <DarkModeToggle />
-          {/* User menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-1 shrink-0 pt-1">
-                <Avatar className="h-9 w-9 bg-muted">
-                  <AvatarFallback className="bg-muted text-muted-foreground text-xs">{initials}</AvatarFallback>
-                </Avatar>
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem disabled className="text-xs">{user?.email}</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={async () => { await signOut(); navigate({ to: "/login" }); }}>
-                <LogOut className="h-4 w-4 mr-2" /> Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </header>
-
-      <main className="flex-1 overflow-auto">
-        {/* Late-login warning banner */}
-        {loginStatus?.isLate && !loginStatus.isSuspended && !warningDismissed && (
-          <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30">
-            <div className="flex items-start gap-3 px-4 py-3">
-              <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Late Login Warning</p>
-                <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-                  Your first login today is after 09:00 AM. This is late login{" "}
-                  <strong>{loginStatus.lateCount}</strong> of 3 this month.
-                  After 3 late logins your account will be permanently suspended.
-                </p>
+        </>
+      }
+      banner={
+        <>
+          {/* Late-login warning banner */}
+          {loginStatus?.isLate && !loginStatus.isSuspended && !warningDismissed && (
+            <div className="mx-auto mt-4 w-[calc(100%-2rem)] max-w-[1600px] rounded-xl border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30">
+              <div className="flex items-start gap-3 px-4 py-3">
+                <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Late Login Warning</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                    Your first login today is after 09:00 AM. This is late login{" "}
+                    <strong>{loginStatus.lateCount}</strong> of 3 this month.
+                    After 3 late logins your account will be permanently suspended.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWarningDismissed(true);
+                    try { sessionStorage.setItem(`stf-late-warn-${todayKey}`, "1"); } catch {}
+                  }}
+                  className="shrink-0 text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200 transition-colors"
+                  aria-label="Dismiss"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setWarningDismissed(true);
-                  try { sessionStorage.setItem(`stf-late-warn-${todayKey}`, "1"); } catch {}
-                }}
-                className="shrink-0 text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200 transition-colors"
-                aria-label="Dismiss"
-              >
-                <X className="h-4 w-4" />
-              </button>
             </div>
-          </div>
-        )}
-        <Outlet />
-      </main>
-
-      <footer className="border-t bg-background">
-        <div className="px-6 py-4 text-xs text-muted-foreground flex flex-wrap items-center justify-between gap-2">
-          <div>© {new Date().getFullYear()} Staff-Flow Agency. All rights reserved.</div>
-          <div className="flex items-center gap-4">
-            <Link to="/about" className="hover:text-foreground">About</Link>
-            <Link to="/faq" className="hover:text-foreground">FAQ</Link>
-            <Link to="/contact" className="hover:text-foreground">Contact</Link>
-          </div>
-        </div>
-      </footer>
+          )}
+        </>
+      }
+    >
+      <Outlet />
 
       {/* Tasheer overdue dialog */}
       <Dialog open={!!activeTasheerCandidateId} onOpenChange={(o) => { if (!o) { setActiveTasheerCandidateId(null); setTasheerStep("overdue"); } }}>
@@ -607,7 +557,6 @@ function StaffLayout() {
           )}
         </DialogContent>
       </Dialog>
-      <TicketAnnouncementBanner />
-    </div>
+      <TicketAnnouncementBanner />    </RoleShell>
   );
 }

@@ -1,5 +1,6 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/use-auth";
+import { PageLoader } from "@/components/page-loader";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: DashboardRouter,
@@ -7,7 +8,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 
 function DashboardRouter() {
   const { role, loading } = useAuth();
-  if (loading) return <div className="p-8 text-muted-foreground">Loading...</div>;
+  if (loading) return <PageLoader />;
   if (role === "admin") return <Navigate to="/admin/dashboard" />;
   if (role === "manager") return <Navigate to="/manager/dashboard" />;
   if (role === "staff") return <Navigate to="/staff/dashboard" />;

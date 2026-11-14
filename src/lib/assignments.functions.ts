@@ -54,7 +54,11 @@ export const deleteCountry = createServerFn({ method: "POST" })
 export const addOffice = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({ name: z.string().min(1).max(120), countryId: z.string().uuid() }).parse(input),
+    z.object({
+      name: z.string().min(1).max(120),
+      countryId: z.string().uuid(),
+      rating: z.number().int().min(1).max(5).default(3),
+    }).parse(input),
   )
   .handler(async ({ data, context }) => {
     const managerId = await resolveManagerId(context.userId);
@@ -68,11 +72,27 @@ export const addOffice = createServerFn({ method: "POST" })
     if (!country) throw new Error("Country not found");
     const { data: row, error } = await supabaseAdmin
       .from("assignment_offices")
-      .insert({ manager_id: managerId, country_id: data.countryId, name: data.name.trim() })
-      .select("id, name, country_id, created_at")
+      .insert({ manager_id: managerId, country_id: data.countryId, name: data.name.trim(), rating: data.rating })
+      .select("id, name, country_id, rating, created_at")
       .single();
     if (error) throw new Error(error.message);
     return row;
+  });
+
+export const setOfficeRating = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid(), rating: z.number().int().min(1).max(5) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const managerId = await resolveManagerId(context.userId);
+    const { error } = await supabaseAdmin
+      .from("assignment_offices")
+      .update({ rating: data.rating })
+      .eq("id", data.id)
+      .eq("manager_id", managerId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 export const deleteOffice = createServerFn({ method: "POST" })
@@ -110,38 +130,51 @@ export const lockOffice = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const managerId = await resolveManagerId(context.userId);
-    const { error } = await supabaseAdmin
+    const { data: office, error } = await supabaseAdmin
       .from("assignment_offices")
-      .update({ is_locked: data.locked } as any)
+      .update({ is_locked: data.locked })
       .eq("id", data.id)
-      .eq("manager_id", managerId);
+      .eq("manager_id", managerId)
+      .select("id, name")
+      .maybeSingle();
     if (error) throw new Error(error.message);
+    if (!office) throw new Error("Office not found");
 
-    let redistributed = 0;
-    if (data.locked) {
-      const { data: office } = await supabaseAdmin
-        .from("assignment_offices")
-        .select("name")
-        .eq("id", data.id)
-        .eq("manager_id", managerId)
-        .maybeSingle();
+    // Any move still waiting for this office is replaced (lock) or dropped (unlock)
+    await supabaseAdmin
+      .from("distribution_jobs")
+      .update({ status: "cancelled", finished_at: new Date().toISOString(), result: { note: data.locked ? "Replaced by a newer lock" : "Office unlocked" } })
+      .eq("manager_id", managerId)
+      .eq("kind", "office_locked")
+      .eq("status", "pending")
+      .contains("payload", { office_id: office.id });
 
-      if (office?.name) {
-        const { data: profileRow } = await supabaseAdmin
-          .from("profiles")
-          .select("cv_page_requirements")
-          .eq("id", managerId)
-          .maybeSingle();
-        const req = (profileRow?.cv_page_requirements as Record<string, string>) ?? {};
-        const basePerOffice = parseInt(req.base_per_office ?? "15", 10) || 15;
+    if (!data.locked) return { ok: true, moveAt: null as string | null };
 
-        const { redistributeFromLockedOffice } = await import("@/lib/cv-distribution.server");
-        redistributed = await redistributeFromLockedOffice(managerId, office.name, basePerOffice);
-      }
-    }
+    // The manager's lock settings: when to move CVs, and whether to also take processing candidates
+    const { data: profileRow } = await supabaseAdmin
+      .from("profiles")
+      .select("cv_page_requirements")
+      .eq("id", managerId)
+      .maybeSingle();
+    const req = (profileRow?.cv_page_requirements as Record<string, unknown>) ?? {};
+    const delayMs = LOCK_DELAYS_MS[String(req.lock_delay ?? "now")] ?? 0;
+    const moveAt = new Date(Date.now() + delayMs).toISOString();
 
-    return { ok: true, redistributed };
+    const { error: jobErr } = await supabaseAdmin.from("distribution_jobs").insert({
+      manager_id: managerId,
+      kind: "office_locked",
+      trigger: "system",
+      created_by: context.userId,
+      run_at: moveAt,
+      payload: { office_id: office.id, office_name: office.name, move_processing: req.lock_move_processing === "true" },
+    });
+    if (jobErr) throw new Error(jobErr.message);
+
+    return { ok: true, moveAt: delayMs > 0 ? moveAt : null };
   });
+
+const LOCK_DELAYS_MS: Record<string, number> = { now: 0, "1h": 3_600_000, "1d": 86_400_000 };
 
 export const saveMusanedCredentials = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

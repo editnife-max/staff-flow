@@ -23,13 +23,13 @@ const faqs = [
 function FaqPage() {
   return (
     <PublicShell>
-      <div className="container mx-auto px-6 py-16 max-w-3xl">
-        <h1 className="text-4xl font-semibold tracking-tight text-accent mb-6">FAQ</h1>
-        <Accordion type="single" collapsible className="w-full">
+      <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-20">
+        <h1 className="mb-6 text-[34px] font-semibold leading-[1.1] tracking-tight sm:text-5xl">FAQ</h1>
+        <Accordion type="single" collapsible className="w-full rounded-2xl border bg-card px-5 shadow-xs">
           {faqs.map((f, i) => (
-            <AccordionItem key={i} value={`item-${i}`}>
-              <AccordionTrigger className="text-left">{f.q}</AccordionTrigger>
-              <AccordionContent>{f.a}</AccordionContent>
+            <AccordionItem key={i} value={`item-${i}`} className="last:border-b-0">
+              <AccordionTrigger className="text-left text-[15px]">{f.q}</AccordionTrigger>
+              <AccordionContent className="text-[15px] leading-relaxed text-muted-foreground">{f.a}</AccordionContent>
             </AccordionItem>
           ))}
         </Accordion>

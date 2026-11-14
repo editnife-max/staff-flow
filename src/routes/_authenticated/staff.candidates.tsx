@@ -1262,15 +1262,15 @@ function StaffCandidatesPage() {
   };
 
   return (
-    <div className="space-y-6 px-6 py-6">
+    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-5 sm:px-6 sm:py-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold tracking-tight">Candidates</h1>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <h1 className="text-[26px] font-semibold leading-tight tracking-tight sm:text-[28px]">Candidates</h1>
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
             variant="secondary"
-            className="gap-2 text-xs h-8 rounded-none"
+            className="gap-2 text-xs h-8"
             disabled={selected.size === 0}
             onClick={() => {
               const sel = Array.from(selected)
@@ -1288,19 +1288,19 @@ function StaffCandidatesPage() {
             countryOptions={countryMeta.map((c) => c.name)}
           />
           {tab === "available" && (
-            <Button size="sm" className="gap-2 text-xs h-8 rounded-none" onClick={openCreate}>
-              <FilePlus className="h-4 w-4" /> ADD NEW CANDIDATE
+            <Button size="sm" className="gap-2 text-xs h-8" onClick={openCreate}>
+              <FilePlus className="h-4 w-4" /> Add candidate
             </Button>
           )}
           <Button
             size="sm"
             variant="outline"
-            className="gap-1.5 text-xs h-8 rounded-none"
+            className="gap-1.5 text-xs h-8"
             onClick={() => setGlobalSearchOpen(true)}
           >
             <ScanSearch className="h-3.5 w-3.5" />
             Search
-            <kbd className="ml-1 text-[10px] bg-muted px-1 py-0.5 rounded font-mono">⌘K</kbd>
+            <kbd className="ml-1 hidden text-[10px] bg-muted px-1 py-0.5 rounded font-mono sm:inline">⌘K</kbd>
           </Button>
         </div>
       </div>
@@ -1371,11 +1371,11 @@ function StaffCandidatesPage() {
 
       {/* Filters — hidden on Processing tab */}
       {tab !== "processing" && <>
-        <Card className="rounded-none">
+        <Card>
         <CardContent className="p-4">
           <div className="flex items-center gap-2">
             {activeCount > 0 && (
-              <span className="rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+              <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
                 {activeCount}
               </span>
             )}
@@ -1437,7 +1437,7 @@ function StaffCandidatesPage() {
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                className="pl-8 h-7 text-xs rounded-none w-52"
+                className="pl-8 h-7 text-xs w-52"
                 placeholder="Name, Labour ID, Passport…"
                 value={passport}
                 onChange={(e) => setPassport(e.target.value)}
@@ -1457,9 +1457,9 @@ function StaffCandidatesPage() {
       </>}
 
       {/* Status tabs */}
-      <Card className="rounded-none">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-8 border-b border-border">
+      <Card>
+        <CardContent className="p-1.5">
+          <div role="tablist" className="flex items-center gap-1 overflow-x-auto no-scrollbar">
             {allowedTabs.map((t) => (
               <button
                 key={t.key}
@@ -1470,11 +1470,13 @@ function StaffCandidatesPage() {
                   setTab(t.key);
                   // Don't clearSelection — the tab-change useEffect restores each tab's own selection
                 }}
+                role="tab"
+                aria-selected={tab === t.key}
                 className={cn(
-                  "pb-2 text-[16px] font-medium transition-colors",
+                  "h-9 shrink-0 whitespace-nowrap rounded-lg px-4 text-sm font-medium transition-colors sm:flex-1 sm:text-[15px]",
                   tab === t.key
-                    ? "text-primary border-b-2 border-primary -mb-px"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 {t.label}
@@ -1858,13 +1860,13 @@ function StaffCandidatesPage() {
                 placeholder="Agency Name"
                 value={cocPlacedName}
                 onChange={(e) => setCocPlacedName(e.target.value)}
-                className="rounded-none h-9"
+                className="h-9"
               />
               <Input
                 placeholder="Phone Number"
                 value={cocPlacedPhone}
                 onChange={(e) => setCocPlacedPhone(e.target.value)}
-                className="rounded-none h-9"
+                className="h-9"
               />
             </div>
             <DialogFooter>
@@ -2113,7 +2115,7 @@ function StaffCandidatesPage() {
                 type="button"
                 size="sm"
                 variant="outline"
-                className="gap-1.5 text-xs h-7 rounded-none"
+                className="gap-1.5 text-xs h-7"
                 onClick={async () => {
                   try {
                     const text = await navigator.clipboard.readText();
@@ -2236,7 +2238,7 @@ function StaffCandidatesPage() {
                         <label
                           key={skill}
                           className={cn(
-                            "flex items-center gap-1.5 px-2.5 py-1 rounded-none border cursor-pointer text-xs transition-colors",
+                            "flex items-center gap-1.5 px-2.5 py-1 border cursor-pointer text-xs transition-colors",
                             checked ? "bg-primary/10 border-primary text-primary" : "border-border text-muted-foreground hover:border-primary/50",
                           )}
                         >
@@ -2270,13 +2272,13 @@ function StaffCandidatesPage() {
                         placeholder="Agency Name"
                         value={form.coc_agency_name}
                         onChange={(e) => setForm({ ...form, coc_agency_name: e.target.value })}
-                        className="rounded-none h-8 text-xs"
+                        className="h-8 text-xs"
                       />
                       <Input
                         placeholder="Phone Number"
                         value={form.coc_agency_phone}
                         onChange={(e) => setForm({ ...form, coc_agency_phone: e.target.value })}
-                        className="rounded-none h-8 text-xs"
+                        className="h-8 text-xs"
                       />
                     </div>
                   )}
@@ -2295,7 +2297,7 @@ function StaffCandidatesPage() {
                     type="button" size="sm" variant="outline"
                     disabled={narrativeMut.isPending}
                     onClick={() => narrativeMut.mutate()}
-                    className="h-7 gap-1.5 text-xs rounded-none"
+                    className="h-7 gap-1.5 text-xs"
                   >
                     {narrativeMut.isPending
                       ? <Loader2 className="h-3 w-3 animate-spin" />
@@ -2309,7 +2311,7 @@ function StaffCandidatesPage() {
                   {narrativeMut.isPending ? (
                     <div className="space-y-1.5">
                       <Label className="text-xs">Narrative</Label>
-                      <div className="h-9 rounded-none border border-input bg-muted/30 animate-pulse" />
+                      <div className="h-9 border border-input bg-muted/30 animate-pulse" />
                     </div>
                   ) : (
                     <Field label="Narrative" value={form.narrative} onChange={(v) => setForm({ ...form, narrative: v })} suggestions={opts.narrative} maxLength={200} />
@@ -2324,11 +2326,11 @@ function StaffCandidatesPage() {
               <div className="space-y-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Remark</Label>
-                  <Textarea rows={2} value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} className="rounded-none text-sm" />
+                  <Textarea rows={2} value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} className="text-sm" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Notes</Label>
-                  <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-none text-sm" />
+                  <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="text-sm" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Video URL</Label>
@@ -2337,7 +2339,7 @@ function StaffCandidatesPage() {
                     value={form.video_url}
                     onChange={(e) => setForm({ ...form, video_url: e.target.value })}
                     placeholder="https://…"
-                    className="w-full rounded-none border border-input bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                    className="w-full border border-input bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
               </div>
@@ -2406,7 +2408,7 @@ function StaffCandidatesPage() {
       {/* LMIS files needed prompt */}
       {lmisNeededId && (
         <Dialog open onOpenChange={(o) => { if (!o) setLmisNeededId(null); }}>
-          <DialogContent className="max-w-sm rounded-none">
+          <DialogContent className="max-w-sm">
             <DialogHeader>
               <DialogTitle>LMIS Files Required?</DialogTitle>
             </DialogHeader>
@@ -2556,7 +2558,7 @@ function ProcessingEditDialog({
     <div className="space-y-1">
       <label className="text-xs font-medium text-muted-foreground">{label}</label>
       <select value={form[k]} onChange={(e) => set(k)(e.target.value)}
-        className="w-full rounded-none border border-input bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+        className="w-full border border-input bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
         <option value="">—</option>
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
       </select>
@@ -2569,7 +2571,7 @@ function ProcessingEditDialog({
       <div className="space-y-1">
         <label className="text-xs font-medium text-muted-foreground">{label}</label>
         <Input type={type} value={form[k]} onChange={(e) => set(k)(e.target.value)}
-          className="rounded-none h-8 text-sm" list={hasSugg ? listId : undefined} />
+          className="h-8 text-sm" list={hasSugg ? listId : undefined} />
         {hasSugg && <datalist id={listId}>{suggestions!.map((s) => <option key={s} value={s} />)}</datalist>}
       </div>
     );
@@ -2584,7 +2586,7 @@ function ProcessingEditDialog({
           <DialogTitle>Edit Processing — {candidate.full_name}</DialogTitle>
         </DialogHeader>
         {isLocked && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-none bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300 text-sm">
+          <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-300 text-sm">
             🔒 This candidate is locked — Visa Status is <strong>Waiting Replacement</strong>.
           </div>
         )}
@@ -2845,12 +2847,12 @@ function CandidateCardList({
   return (
     <div className="space-y-2">
       {countryMeta.length > 0 && (
-        <Card className="rounded-none">
+        <Card>
           <CardContent className="px-3 py-2">
             <div className="flex items-center gap-1 flex-wrap">
               <button type="button"
                 onClick={() => { setActiveCountryTab("all"); setActiveOfficeTab("all"); }}
-                className={cn("px-3 py-1.5 text-xs font-medium rounded-none border transition-colors",
+                className={cn("px-3 py-1.5 text-xs font-medium border transition-colors",
                   activeCountryTab === "all"
                     ? "border-primary/40 bg-primary/5 text-primary"
                     : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40")}>
@@ -2861,7 +2863,7 @@ function CandidateCardList({
                 return (
                   <button key={c.name} type="button"
                     onClick={() => { setActiveCountryTab(activeCountryTab === c.name ? "all" : c.name); setActiveOfficeTab("all"); }}
-                    className={cn("px-3 py-1.5 text-xs font-medium rounded-none border transition-colors flex items-center gap-1.5",
+                    className={cn("px-3 py-1.5 text-xs font-medium border transition-colors flex items-center gap-1.5",
                       activeCountryTab === c.name
                         ? "border-primary/40 bg-primary/5 text-primary"
                         : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40")}>
@@ -2874,11 +2876,11 @@ function CandidateCardList({
         </Card>
       )}
       {activeCountryTab !== "all" && (officesByCountry[activeCountryTab] ?? []).length > 0 && (
-        <Card className="rounded-none">
+        <Card>
           <CardContent className="px-3 py-2">
             <div className="flex items-center gap-1 flex-wrap">
               <button type="button" onClick={() => setActiveOfficeTab("all")}
-                className={cn("px-3 py-1.5 text-xs font-medium rounded-none border transition-colors",
+                className={cn("px-3 py-1.5 text-xs font-medium border transition-colors",
                   activeOfficeTab === "all"
                     ? "border-primary/40 bg-primary/5 text-primary"
                     : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40")}>
@@ -2889,7 +2891,7 @@ function CandidateCardList({
                 return (
                   <button key={office} type="button"
                     onClick={() => setActiveOfficeTab(activeOfficeTab === office ? "all" : office)}
-                    className={cn("px-3 py-1.5 text-xs font-medium rounded-none border transition-colors flex items-center gap-1.5",
+                    className={cn("px-3 py-1.5 text-xs font-medium border transition-colors flex items-center gap-1.5",
                       activeOfficeTab === office
                         ? "border-primary/40 bg-primary/5 text-primary"
                         : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40")}>
@@ -2929,13 +2931,13 @@ function CandidateCardList({
                 <SlidersHorizontal className="h-3.5 w-3.5" />
                 Columns
                 {hiddenCols.size > 0 && (
-                  <span className="ml-1 rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+                  <span className="ml-1 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
                     {hiddenCols.size} hidden
                   </span>
                 )}
               </Button>
               {showColPicker && (
-                <div className="absolute right-0 top-8 z-50 bg-popover border border-border rounded-none shadow-xl p-3 w-[340px]">
+                <div className="absolute right-0 top-8 z-50 bg-popover border border-border shadow-xl p-3 w-[min(340px,calc(100vw-2rem))] rounded-xl">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Columns</span>
                     <button type="button" onClick={() => setHiddenCols(new Set())}
@@ -3000,11 +3002,11 @@ function CandidateCardList({
       )}
       <CandidatePhotosDialog candidate={viewingPhotos} onClose={() => setViewingPhotos(null)} />
       {filtered.length > 0 && (
-        <div className="sticky bottom-0 z-10 bg-background shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
+        <div className="sticky bottom-above-tabbar z-10 bg-background shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
           <div ref={mirrorRef} className="w-full" style={{ overflowX: "scroll", overflowY: "hidden", height: 16 }}><div style={{ height: 1 }} /></div>
           <div className="flex items-center justify-between px-4 py-2 flex-wrap gap-2">
           <div className="flex items-center gap-1">
-            <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
+            <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={page === 1}
               onClick={() => { setPage((p) => p - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
               <ChevronLeft className="h-3.5 w-3.5" />
             </Button>
@@ -3014,13 +3016,13 @@ function CandidateCardList({
                 <React.Fragment key={n}>
                   {i > 0 && n - arr[i - 1] > 1 && <span className="text-xs text-muted-foreground px-0.5">…</span>}
                   <Button size="sm" variant={page === n ? "default" : "outline"}
-                    className="h-7 w-7 p-0 rounded-none text-xs"
+                    className="h-7 w-7 p-0 text-xs"
                     onClick={() => { setPage(n); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
                     {n}
                   </Button>
                 </React.Fragment>
               ))}
-            <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === totalPages}
+            <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={page === totalPages}
               onClick={() => { setPage((p) => p + 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
               <ChevronRight className="h-3.5 w-3.5" />
             </Button>
@@ -3028,7 +3030,7 @@ function CandidateCardList({
           <div className="flex items-center gap-1">
             {[5, 10, 50, 100, 500].map((s) => (
               <Button key={s} size="sm" variant={pageSize === s ? "default" : "outline"}
-                className="h-7 px-2 rounded-none text-xs"
+                className="h-7 px-2 text-xs"
                 onClick={() => { setPageSize(s); setPage(1); }}>
                 {s}
               </Button>
@@ -3067,7 +3069,7 @@ function VideoCell({ url, onSave, candidateName }: { url: string | null; onSave:
           if (e.key === "Escape") { setDraft(url ?? ""); setEditing(false); }
         }}
         placeholder="Paste video URL…"
-        className="rounded-none border border-primary bg-background px-1 py-0.5 text-[12px] outline-none w-[80px]"
+        className="border border-primary bg-background px-1 py-0.5 text-[12px] outline-none w-[80px]"
       />
     );
   }
@@ -3125,7 +3127,7 @@ function VideoCell({ url, onSave, candidateName }: { url: string | null; onSave:
 
   return (
     <button type="button" onClick={() => setEditing(true)}
-      className="text-[11px] text-muted-foreground hover:text-foreground rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border block">
+      className="text-[11px] text-muted-foreground hover:text-foreground px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border block">
       Add URL
     </button>
   );
@@ -3168,7 +3170,7 @@ function CandidateDetailDialog({ candidate, onClose, agencyPhones = {} }: { cand
             {candidate.candidate_code && (
               <span className="text-xs font-mono font-normal text-muted-foreground">{candidate.candidate_code}</span>
             )}
-            <span className={cn("ml-auto text-[11px] font-semibold px-2 py-0.5 rounded-none capitalize", statusStyles[statusKey])}>
+            <span className={cn("ml-auto text-[11px] font-semibold px-2 py-0.5 capitalize", statusStyles[statusKey])}>
               {statusKey}
             </span>
           </DialogTitle>
@@ -3485,7 +3487,7 @@ function CandidateCard({
                                   <InlineSelect value={f.value} options={f.options} onSave={(v) => onUpdateField(f.field, v)} />
                                 </div>
                               </TooltipTrigger>
-                              <TooltipContent className="rounded-none text-xs p-2 space-y-0.5">
+                              <TooltipContent className="text-xs p-2 space-y-0.5">
                                 <div className="font-semibold">{(candidate as any).coc_agency_name || "—"}</div>
                                 <div>{(candidate as any).coc_agency_phone || "No phone"}</div>
                               </TooltipContent>
@@ -3536,7 +3538,7 @@ function CandidateCard({
                                     {wafidChecking ? <Loader2 className="h-3 w-3 animate-spin" /> : <Globe className="h-3 w-3" />}
                                   </button>
                                 </TooltipTrigger>
-                                <TooltipContent className="rounded-none text-xs p-2">
+                                <TooltipContent className="text-xs p-2">
                                   {wafidChecking ? "Connecting to wafid.com…" : "Check on wafid.com"}
                                 </TooltipContent>
                               </Tooltip>
@@ -3555,7 +3557,7 @@ function CandidateCard({
                                 Reserved — {3 - Math.floor((Date.now() - new Date((candidate as any).reserved_at).getTime()) / 86_400_000)}d left
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent className="rounded-none text-xs p-2">
+                            <TooltipContent className="text-xs p-2">
                               Reserved by <strong>{(candidate as any).reserved_by ?? "agency"}</strong>
                             </TooltipContent>
                           </Tooltip>
@@ -3628,7 +3630,7 @@ function CandidateCard({
               Please enter the <strong>Medical Date</strong> before setting Medical Status to <strong>"Fit"</strong>.
             </p>
             <div className="py-2">
-              <Input type="date" value={pendingMedDate} onChange={(e) => setPendingMedDate(e.target.value)} className="rounded-none h-9" />
+              <Input type="date" value={pendingMedDate} onChange={(e) => setPendingMedDate(e.target.value)} className="h-9" />
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={() => setMedDateOpen(false)}>Cancel</Button>
@@ -3649,8 +3651,8 @@ function CandidateCard({
           <DialogContent className="max-w-sm">
             <DialogHeader><DialogTitle>Edit COC Agency Details</DialogTitle></DialogHeader>
             <div className="space-y-3 py-2">
-              <Input placeholder="Agency Name" value={cocEditName} onChange={(e) => setCocEditName(e.target.value)} className="rounded-none h-9" />
-              <Input placeholder="Phone Number" value={cocEditPhone} onChange={(e) => setCocEditPhone(e.target.value)} className="rounded-none h-9" />
+              <Input placeholder="Agency Name" value={cocEditName} onChange={(e) => setCocEditName(e.target.value)} className="h-9" />
+              <Input placeholder="Phone Number" value={cocEditPhone} onChange={(e) => setCocEditPhone(e.target.value)} className="h-9" />
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={() => setCocEditOpen(false)}>Cancel</Button>
@@ -3900,11 +3902,11 @@ function ProcessingTable({
   return (
     <div className="space-y-2">
       {/* Filter bar */}
-      {<Card className="rounded-none">
+      {<Card>
         <CardContent className="p-3">
           <div className="flex items-center gap-1.5">
             {activeCount > 0 && (
-              <span className="rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+              <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
                 {activeCount}
               </span>
             )}
@@ -3940,7 +3942,7 @@ function ProcessingTable({
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
-                  className="pl-8 h-7 text-xs rounded-none w-52"
+                  className="pl-8 h-7 text-xs w-52"
                   placeholder="Search name / passport…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -3958,14 +3960,14 @@ function ProcessingTable({
       </Card>}
 
       {selected.size === 0 && countryMeta.length > 0 && (
-        <Card className="rounded-none">
+        <Card>
           <CardContent className="px-3 py-2">
             <div className="flex items-center gap-1 flex-wrap">
               <button
                 type="button"
                 onClick={() => { setActiveCountryTab("all"); setActiveOfficeTab("all"); }}
                 className={cn(
-                  "px-3 py-1.5 text-xs font-medium rounded-none border transition-colors",
+                  "px-3 py-1.5 text-xs font-medium border transition-colors",
                   activeCountryTab === "all"
                     ? "border-primary/40 bg-primary/5 text-primary"
                     : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40",
@@ -3985,7 +3987,7 @@ function ProcessingTable({
                       setActiveOfficeTab("all");
                     }}
                     className={cn(
-                      "px-3 py-1.5 text-xs font-medium rounded-none border transition-colors flex items-center gap-1.5",
+                      "px-3 py-1.5 text-xs font-medium border transition-colors flex items-center gap-1.5",
                       activeCountryTab === c.name
                         ? "border-primary/40 bg-primary/5 text-primary"
                         : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40",
@@ -4003,14 +4005,14 @@ function ProcessingTable({
       )}
 
       {activeCountryTab !== "all" && (officesByCountry[activeCountryTab] ?? []).length > 0 && (
-        <Card className="rounded-none">
+        <Card>
           <CardContent className="px-3 py-2">
             <div className="flex items-center gap-1 flex-wrap">
               <button
                 type="button"
                 onClick={() => setActiveOfficeTab("all")}
                 className={cn(
-                  "px-3 py-1.5 text-xs font-medium rounded-none border transition-colors",
+                  "px-3 py-1.5 text-xs font-medium border transition-colors",
                   activeOfficeTab === "all"
                     ? "border-primary/40 bg-primary/5 text-primary"
                     : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40",
@@ -4026,7 +4028,7 @@ function ProcessingTable({
                     type="button"
                     onClick={() => setActiveOfficeTab(activeOfficeTab === office ? "all" : office)}
                     className={cn(
-                      "px-3 py-1.5 text-xs font-medium rounded-none border transition-colors flex items-center gap-1.5",
+                      "px-3 py-1.5 text-xs font-medium border transition-colors flex items-center gap-1.5",
                       activeOfficeTab === office
                         ? "border-primary/40 bg-primary/5 text-primary"
                         : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40",
@@ -4059,13 +4061,13 @@ function ProcessingTable({
               <SlidersHorizontal className="h-3.5 w-3.5" />
               Columns
               {hiddenCols.size > 0 && (
-                <span className="ml-1 rounded-none bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
+                <span className="ml-1 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 leading-none">
                   {hiddenCols.size} hidden
                 </span>
               )}
             </Button>
             {showColPicker && (
-              <div className="absolute right-0 top-8 z-50 bg-popover border border-border rounded-none shadow-xl p-3 w-[340px]">
+              <div className="absolute right-0 top-8 z-50 bg-popover border border-border shadow-xl p-3 w-[min(340px,calc(100vw-2rem))] rounded-xl">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Columns</span>
                   <button type="button" onClick={() => setHiddenCols(new Set())}
@@ -4144,11 +4146,11 @@ function ProcessingTable({
       )}
 
       {candidates.length > 0 && (
-        <div className="sticky bottom-0 z-10 bg-background shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
+        <div className="sticky bottom-above-tabbar z-10 bg-background shadow-[0_-1px_3px_rgba(0,0,0,0.06)]">
           <div ref={mirrorRef} className="w-full" style={{ overflowX: "scroll", overflowY: "hidden", height: 16 }}><div style={{ height: 1 }} /></div>
           <div className="flex items-center justify-between px-4 py-2 flex-wrap gap-2">
           <div className="flex items-center gap-1">
-            <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === 1}
+            <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={page === 1}
               onClick={() => { setPage((p) => p - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
               <ChevronLeft className="h-3.5 w-3.5" />
             </Button>
@@ -4158,13 +4160,13 @@ function ProcessingTable({
                 <React.Fragment key={n}>
                   {i > 0 && n - arr[i - 1] > 1 && <span className="text-xs text-muted-foreground px-0.5">…</span>}
                   <Button size="sm" variant={page === n ? "default" : "outline"}
-                    className="h-7 w-7 p-0 rounded-none text-xs"
+                    className="h-7 w-7 p-0 text-xs"
                     onClick={() => { setPage(n); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
                     {n}
                   </Button>
                 </React.Fragment>
               ))}
-            <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-none" disabled={page === totalPages}
+            <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={page === totalPages}
               onClick={() => { setPage((p) => p + 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
               <ChevronRight className="h-3.5 w-3.5" />
             </Button>
@@ -4172,7 +4174,7 @@ function ProcessingTable({
           <div className="flex items-center gap-1">
             {[5, 10, 50, 100, 500].map((s) => (
               <Button key={s} size="sm" variant={pageSize === s ? "default" : "outline"}
-                className="h-7 px-2 rounded-none text-xs"
+                className="h-7 px-2 text-xs"
                 onClick={() => { setPageSize(s); setPage(1); }}>
                 {s}
               </Button>
@@ -4456,7 +4458,7 @@ function ProcessingCard({
                                   <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
                                 </div>
                               </TooltipTrigger>
-                              <TooltipContent className="rounded-none text-xs p-2 space-y-0.5">
+                              <TooltipContent className="text-xs p-2 space-y-0.5">
                                 <div className="font-semibold">{(candidate as any).coc_agency_name || "—"}</div>
                                 <div>{(candidate as any).coc_agency_phone || "No phone"}</div>
                               </TooltipContent>
@@ -4474,7 +4476,7 @@ function ProcessingCard({
                                 <InlineSelect value={strVal} options={col.options} onSave={(v) => handleColUpdate(col.key, v)} />
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent className="rounded-none text-xs p-2">
+                            <TooltipContent className="text-xs p-2">
                               {(candidate as any).insurance_date
                                 ? new Date((candidate as any).insurance_date + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
                                 : "No date"}
@@ -4513,7 +4515,7 @@ function ProcessingCard({
                                     {wafidChecking ? <Loader2 className="h-3 w-3 animate-spin" /> : <Globe className="h-3 w-3" />}
                                   </button>
                                 </TooltipTrigger>
-                                <TooltipContent className="rounded-none text-xs p-2">
+                                <TooltipContent className="text-xs p-2">
                                   {wafidChecking ? "Connecting to wafid.com…" : "Check on wafid.com"}
                                 </TooltipContent>
                               </Tooltip>
@@ -4605,7 +4607,7 @@ function ProcessingCard({
               type="date"
               value={pendingDate}
               onChange={(e) => setPendingDate(e.target.value)}
-              className="rounded-none h-9"
+              className="h-9"
             />
           </div>
           <DialogFooter>
@@ -4718,13 +4720,13 @@ function ProcessingCard({
               placeholder="Agency Name"
               value={cocPlacedName}
               onChange={(e) => setCocPlacedName(e.target.value)}
-              className="rounded-none h-9"
+              className="h-9"
             />
             <Input
               placeholder="Phone Number"
               value={cocPlacedPhone}
               onChange={(e) => setCocPlacedPhone(e.target.value)}
-              className="rounded-none h-9"
+              className="h-9"
             />
           </div>
           <DialogFooter>
@@ -4796,7 +4798,7 @@ function InlineDate({ value, onSave, display, showDays }: { value: string; onSav
   return (
     <>
       <button type="button" onClick={() => { setDraft(value); setOpen(true); }}
-        className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block">
+        className="text-left px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block">
         {display ?? (value ? fmt(value) : <span className="text-muted-foreground">—</span>)}
         {days !== null && (
           <span className="block text-[11px] text-muted-foreground leading-none mt-0.5">
@@ -4806,13 +4808,13 @@ function InlineDate({ value, onSave, display, showDays }: { value: string; onSav
       </button>
       {open && (
         <Dialog open onOpenChange={(o) => { if (!o) setOpen(false); }}>
-          <DialogContent className="max-w-xs rounded-none">
+          <DialogContent className="max-w-xs">
             <DialogHeader><DialogTitle>Set Date</DialogTitle></DialogHeader>
             <input autoFocus type="date" value={draft} onChange={(e) => setDraft(e.target.value)}
-              className="w-full rounded-none border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+              className="w-full border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
             <DialogFooter>
-              <Button variant="ghost" className="rounded-none" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button className="rounded-none" onClick={() => { onSave(draft || null); setOpen(false); }}>Save</Button>
+              <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button onClick={() => { onSave(draft || null); setOpen(false); }}>Save</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -4831,7 +4833,7 @@ function InlineText({ value, onSave, suggestions }: { value: string; onSave: (v:
         type="button"
         title={value || undefined}
         onClick={() => { setDraft(value); setEditing(true); }}
-        className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[40px] line-clamp-2 break-words"
+        className="text-left px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[40px] line-clamp-2 break-words"
       >
         {value || <span className="text-muted-foreground">—</span>}
       </button>
@@ -4854,7 +4856,7 @@ function InlineText({ value, onSave, suggestions }: { value: string; onSave: (v:
           if (e.key === "Escape") { setDraft(value); setEditing(false); }
         }}
         list={hasSugg ? listId : undefined}
-        className="rounded-none border border-primary bg-background px-1 py-0.5 text-[14px] text-foreground outline-none w-full max-w-full"
+        className="border border-primary bg-background px-1 py-0.5 text-[14px] text-foreground outline-none w-full max-w-full"
       />
       {hasSugg && <datalist id={listId}>{suggestions!.map((s) => <option key={s} value={s} />)}</datalist>}
     </>
@@ -4945,7 +4947,7 @@ function FilterSelect({
         <button
           type="button"
           onClick={() => onChange("all")}
-          className="rounded-none p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          className="p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
           aria-label="Clear filter"
         >
           <X className="h-3 w-3" />
@@ -5005,14 +5007,14 @@ function MultiFilterSelect({
             <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-52 p-1 rounded-none" align="start">
+        <PopoverContent className="w-52 p-1" align="start">
           <div className="px-1 pb-1">
             <input
               autoFocus
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search…"
-              className="w-full h-6 text-[12px] px-2 border border-border rounded-none bg-background outline-none placeholder:text-muted-foreground"
+              className="w-full h-6 text-[12px] px-2 border border-border bg-background outline-none placeholder:text-muted-foreground"
             />
           </div>
           <div className="max-h-[220px] overflow-y-auto">
@@ -5045,7 +5047,7 @@ function MultiFilterSelect({
         <button
           type="button"
           onClick={() => onChange([])}
-          className="rounded-none p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          className="p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
           aria-label="Clear filter"
         >
           <X className="h-3 w-3" />
@@ -5063,7 +5065,7 @@ function Field({
   return (
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
-      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="rounded-none h-9" placeholder={placeholder} maxLength={maxLength} list={hasSugg ? listId : undefined} />
+      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="h-9" placeholder={placeholder} maxLength={maxLength} list={hasSugg ? listId : undefined} />
       {hasSugg && <datalist id={listId}>{suggestions!.map((s) => <option key={s} value={s} />)}</datalist>}
     </div>
   );
@@ -5076,7 +5078,7 @@ function FormSelect({
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
       <Select value={value || undefined} onValueChange={onChange}>
-        <SelectTrigger className="rounded-none h-9"><SelectValue placeholder="—" /></SelectTrigger>
+        <SelectTrigger className="h-9"><SelectValue placeholder="—" /></SelectTrigger>
         <SelectContent>
           {options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
         </SelectContent>
@@ -5123,7 +5125,7 @@ function PhotoUpload({
           onDragEnter={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); }}
-          className={`border-2 border-dashed rounded-none cursor-pointer transition-colors flex flex-col items-center justify-center gap-1.5 min-h-[88px] p-2 bg-muted/20 select-none ${dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/60"}`}
+          className={`border-2 border-dashed cursor-pointer transition-colors flex flex-col items-center justify-center gap-1.5 min-h-[88px] p-2 bg-muted/20 select-none ${dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/60"}`}
         >
           {uploading ? (
             <span className="text-xs text-muted-foreground animate-pulse">Uploading…</span>
@@ -5135,7 +5137,7 @@ function PhotoUpload({
           ) : value ? (
             <>
               {isImage ? (
-                <img src={value} alt={label} className="max-h-[60px] max-w-full object-contain rounded-none" />
+                <img src={value} alt={label} className="max-h-[60px] max-w-full object-contain" />
               ) : (
                 <div className="flex flex-col items-center gap-1">
                   <ImageIcon className="h-8 w-8 text-muted-foreground" />
@@ -5155,7 +5157,7 @@ function PhotoUpload({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onChange(""); }}
-            className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center rounded-none bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors"
+            className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors"
             title="Remove"
           >
             <X className="h-3 w-3" />
@@ -5210,7 +5212,7 @@ function LmisDocSection({
           onDragLeave={() => setDragOver(false)}
           onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); }}
           className={cn(
-            "border-2 border-dashed rounded-none cursor-pointer transition-colors flex flex-col items-center justify-center gap-1.5 min-h-[90px] p-2 bg-muted/20 select-none",
+            "border-2 border-dashed cursor-pointer transition-colors flex flex-col items-center justify-center gap-1.5 min-h-[90px] p-2 bg-muted/20 select-none",
             dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/60",
           )}
         >
@@ -5221,7 +5223,7 @@ function LmisDocSection({
           ) : url ? (
             <>
               {isImage
-                ? <img src={url} alt={label} className="max-h-[60px] max-w-full object-contain rounded-none" />
+                ? <img src={url} alt={label} className="max-h-[60px] max-w-full object-contain" />
                 : <><ImageIcon className="h-7 w-7 text-muted-foreground" /><span className="text-[10px] text-muted-foreground truncate max-w-[140px]">{url.split("/").pop()}</span></>}
               <span className="text-[10px] text-primary">Click to replace</span>
             </>
@@ -5231,7 +5233,7 @@ function LmisDocSection({
         </div>
         {url && !uploading && (
           <button type="button" onClick={(e) => { e.stopPropagation(); onRemove(); }}
-            className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center rounded-none bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors">
+            className="absolute top-1 right-1 h-5 w-5 flex items-center justify-center bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors">
             <X className="h-3 w-3" />
           </button>
         )}
@@ -5267,7 +5269,7 @@ function LmisFilesDialog({
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-2xl rounded-none">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-base">LMIS Documents — {candidate.full_name}</DialogTitle>
         </DialogHeader>
@@ -5309,7 +5311,7 @@ function TicketFilesDialog({
   };
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-2xl rounded-none">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-base">Ticket Documents — {candidate.full_name}</DialogTitle>
         </DialogHeader>
@@ -5365,17 +5367,17 @@ function MultiTextInput({ label, value, onChange, placeholder, type = "text" }: 
               onChange={(e) => { const next = [...entries]; next[i] = e.target.value; update(next); }}
               placeholder={placeholder}
               min={type === "number" ? 0 : undefined}
-              className="flex-1 rounded-none border border-input bg-background px-3 h-9 text-sm outline-none focus:ring-1 focus:ring-ring"
+              className="flex-1 border border-input bg-background px-3 h-9 text-sm outline-none focus:ring-1 focus:ring-ring"
             />
             {entries.length > 1 && (
               <button type="button" onClick={() => update(entries.filter((_, j) => j !== i))}
-                className="h-9 w-9 flex items-center justify-center text-destructive hover:bg-destructive/10 rounded-none border border-destructive/30">
+                className="h-9 w-9 flex items-center justify-center text-destructive hover:bg-destructive/10 border border-destructive/30">
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
             {i === entries.length - 1 && (
               <button type="button" onClick={() => setEntries((prev) => [...prev, ""])}
-                className="h-9 w-9 flex items-center justify-center text-primary hover:bg-primary/10 rounded-none border border-primary/30">
+                className="h-9 w-9 flex items-center justify-center text-primary hover:bg-primary/10 border border-primary/30">
                 <Plus className="h-3.5 w-3.5" />
               </button>
             )}
@@ -5421,7 +5423,7 @@ function MultiExperienceInput({ countries, years, onChange }: {
               value={row.country}
               onChange={(e) => { const next = [...entries]; next[i] = { ...next[i], country: e.target.value }; update(next); }}
               placeholder="Country name"
-              className="flex-1 rounded-none border border-input bg-background px-3 h-9 text-sm outline-none focus:ring-1 focus:ring-ring"
+              className="flex-1 border border-input bg-background px-3 h-9 text-sm outline-none focus:ring-1 focus:ring-ring"
             />
             <input
               type="number"
@@ -5429,17 +5431,17 @@ function MultiExperienceInput({ countries, years, onChange }: {
               value={row.years}
               onChange={(e) => { const next = [...entries]; next[i] = { ...next[i], years: e.target.value }; update(next); }}
               placeholder="Yrs"
-              className="w-20 rounded-none border border-input bg-background px-3 h-9 text-sm outline-none focus:ring-1 focus:ring-ring"
+              className="w-20 border border-input bg-background px-3 h-9 text-sm outline-none focus:ring-1 focus:ring-ring"
             />
             {entries.length > 1 && (
               <button type="button" onClick={() => update(entries.filter((_, j) => j !== i))}
-                className="h-9 w-9 flex items-center justify-center text-destructive hover:bg-destructive/10 rounded-none border border-destructive/30">
+                className="h-9 w-9 flex items-center justify-center text-destructive hover:bg-destructive/10 border border-destructive/30">
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
             {i === entries.length - 1 && (
               <button type="button" onClick={() => setEntries((prev) => [...prev, { country: "", years: "" }])}
-                className="h-9 w-9 flex items-center justify-center text-primary hover:bg-primary/10 rounded-none border border-primary/30">
+                className="h-9 w-9 flex items-center justify-center text-primary hover:bg-primary/10 border border-primary/30">
                 <Plus className="h-3.5 w-3.5" />
               </button>
             )}
@@ -5480,7 +5482,7 @@ function CancelReasonDialog({
           <div className="space-y-1.5">
             <Label className="text-xs">Reason *</Label>
             <Select value={reason} onValueChange={setReason}>
-              <SelectTrigger className="rounded-none h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {["No sponsor", "Candidate withdrew", "Medical issue", "Visa rejected", "Document issue", "Other"].map((r) => (
                   <SelectItem key={r} value={r}>{r}</SelectItem>
@@ -5495,7 +5497,7 @@ function CancelReasonDialog({
               placeholder="Optional details..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="rounded-none text-sm"
+              className="text-sm"
             />
           </div>
         </div>
@@ -5531,7 +5533,7 @@ function ReturnReasonDialog({
           <div className="space-y-1.5">
             <Label className="text-xs">Return Reason *</Label>
             <Select value={reason} onValueChange={setReason}>
-              <SelectTrigger className="rounded-none h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {["Employer request", "Medical condition", "Personal reasons", "Contract dispute", "Document issue", "Failed clearance", "Other"].map((r) => (
                   <SelectItem key={r} value={r}>{r}</SelectItem>
@@ -5546,7 +5548,7 @@ function ReturnReasonDialog({
               placeholder="Describe the return reason in detail..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="rounded-none text-sm"
+              className="text-sm"
             />
           </div>
         </div>
@@ -5605,7 +5607,7 @@ function ArrivedCheckDialog({
               <div className="space-y-1.5">
                 <Label className="text-xs">Reason</Label>
                 <Select value={reason} onValueChange={setReason}>
-                  <SelectTrigger className="rounded-none h-9"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {["Visa issue", "Flight issue", "Health issue", "Sponsor issue", "Other"].map((r) => (
                       <SelectItem key={r} value={r}>{r}</SelectItem>
@@ -5620,7 +5622,7 @@ function ArrivedCheckDialog({
                   placeholder="Describe the issue..."
                   value={problem}
                   onChange={(e) => setProblem(e.target.value)}
-                  className="rounded-none text-sm"
+                  className="text-sm"
                 />
               </div>
             </div>
@@ -6042,7 +6044,7 @@ function ImportExcelButton({ onImported, status, countryOptions }: { onImported:
       <Button
         size="sm"
         variant={revealed ? "secondary" : "ghost"}
-        className="h-8 w-8 p-0 rounded-none"
+        className="h-8 w-8 p-0"
         title={revealed ? "Hide Excel import" : "Show Excel import"}
         onClick={() => setRevealed((v) => !v)}
       >
@@ -6053,7 +6055,7 @@ function ImportExcelButton({ onImported, status, countryOptions }: { onImported:
         <Button
           size="sm"
           variant="outline"
-          className="gap-2 text-xs h-8 rounded-none"
+          className="gap-2 text-xs h-8"
           onClick={() => { reset(); setOpen(true); }}
         >
           <Upload className="h-4 w-4" /> IMPORT EXCEL
@@ -6078,7 +6080,7 @@ function ImportExcelButton({ onImported, status, countryOptions }: { onImported:
                 const file = e.dataTransfer.files?.[0];
                 if (file) handleFile(file);
               }}
-              className="border-2 border-dashed border-border rounded-none cursor-pointer hover:border-primary/60 transition-colors flex flex-col items-center justify-center gap-2 py-8 bg-muted/20 select-none"
+              className="border-2 border-dashed border-border cursor-pointer hover:border-primary/60 transition-colors flex flex-col items-center justify-center gap-2 py-8 bg-muted/20 select-none"
             >
               <Upload className="h-7 w-7 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
@@ -6101,7 +6103,7 @@ function ImportExcelButton({ onImported, status, countryOptions }: { onImported:
               <div className="flex items-center gap-3">
                 <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Import as status:</label>
                 <Select value={importStatus} onValueChange={setImportStatus}>
-                  <SelectTrigger className="h-8 text-xs rounded-none w-40">
+                  <SelectTrigger className="h-8 text-xs w-40">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -6116,7 +6118,7 @@ function ImportExcelButton({ onImported, status, countryOptions }: { onImported:
               <div className="flex items-center gap-3">
                 <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Country:</label>
                 <Select value={importCountry || "__none__"} onValueChange={(v) => setImportCountry(v === "__none__" ? "" : v)}>
-                  <SelectTrigger className="h-8 text-xs rounded-none w-40">
+                  <SelectTrigger className="h-8 text-xs w-40">
                     <SelectValue placeholder="— none —" />
                   </SelectTrigger>
                   <SelectContent>
@@ -6128,7 +6130,7 @@ function ImportExcelButton({ onImported, status, countryOptions }: { onImported:
             </div>
 
             {parseError && (
-              <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-none">
+              <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 px-3 py-2">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 {parseError}
               </div>
@@ -6140,7 +6142,7 @@ function ImportExcelButton({ onImported, status, countryOptions }: { onImported:
                   <AlertTriangle className="h-4 w-4 shrink-0" />
                   {validationErrors.length} row{validationErrors.length !== 1 ? "s" : ""} missing required fields — fix and re-upload:
                 </div>
-                <ul className="text-xs text-destructive bg-destructive/10 rounded-none px-3 py-2 max-h-28 overflow-y-auto space-y-0.5 list-none">
+                <ul className="text-xs text-destructive bg-destructive/10 px-3 py-2 max-h-28 overflow-y-auto space-y-0.5 list-none">
                   {validationErrors.map((err, i) => <li key={i}>{err}</li>)}
                 </ul>
               </div>
@@ -6151,7 +6153,7 @@ function ImportExcelButton({ onImported, status, countryOptions }: { onImported:
                 <p className="text-sm font-medium text-foreground">
                   {rows.length} candidate{rows.length !== 1 ? "s" : ""} ready to import — preview (first 5):
                 </p>
-                <div className="overflow-x-auto rounded-none border border-border">
+                <div className="overflow-x-auto border border-border">
                   <table className="w-full text-xs">
                     <thead className="bg-muted">
                       <tr>
@@ -6194,7 +6196,7 @@ function ImportExcelButton({ onImported, status, countryOptions }: { onImported:
             <Button
               variant="outline"
               size="sm"
-              className="rounded-none gap-2 text-xs"
+              className="gap-2 text-xs"
               onClick={() => downloadSampleExcel(importStatus as Status)}
               type="button"
             >
@@ -6204,7 +6206,7 @@ function ImportExcelButton({ onImported, status, countryOptions }: { onImported:
               <Button
                 variant="ghost"
                 size="sm"
-                className="rounded-none text-xs"
+                className="text-xs"
                 onClick={() => setOpen(false)}
                 disabled={loading}
               >
@@ -6212,7 +6214,7 @@ function ImportExcelButton({ onImported, status, countryOptions }: { onImported:
               </Button>
               <Button
                 size="sm"
-                className="rounded-none gap-2 text-xs"
+                className="gap-2 text-xs"
                 onClick={handleImport}
                 disabled={rows.length === 0 || validationErrors.length > 0 || loading}
               >

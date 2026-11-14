@@ -73,10 +73,10 @@ function ManagerSettingsPage() {
   const restrictedCount = restricted.size;
 
   return (
-    <div className="space-y-6 p-6 max-w-2xl">
+    <div className="mx-auto w-full max-w-2xl space-y-6 p-4 sm:p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+          <h1 className="text-[26px] font-semibold leading-tight tracking-tight sm:text-[28px] flex items-center gap-2">
             <Settings2 className="h-6 w-6" />
             Settings
           </h1>

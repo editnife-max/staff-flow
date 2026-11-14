@@ -89,7 +89,7 @@ function SetupAdminPage() {
           <div className="rounded-lg border bg-muted/50 p-4 text-sm space-y-1.5">
             <div><span className="text-muted-foreground">Email:</span> <span className="font-mono font-medium ml-2">{EMAIL}</span></div>
             <div><span className="text-muted-foreground">Password:</span> <span className="font-mono font-medium ml-2">{PASSWORD}</span></div>
-            <div><span className="text-muted-foreground">Role:</span> <span className="font-mono font-medium ml-2 text-accent">admin</span></div>
+            <div><span className="text-muted-foreground">Role:</span> <span className="font-mono font-medium ml-2 text-primary">admin</span></div>
           </div>
 
           {state === "idle" && (

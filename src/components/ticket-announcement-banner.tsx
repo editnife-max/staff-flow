@@ -104,7 +104,7 @@ export function TicketAnnouncementBanner() {
             </>
           )}
           <Button
-            className="flex-1 h-9 rounded-none text-sm"
+            className="flex-1 h-9 text-sm"
             onClick={() => dismissMut.mutate(current.id)}
             disabled={dismissMut.isPending}
           >

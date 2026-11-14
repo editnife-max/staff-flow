@@ -18,6 +18,7 @@ import {
   HEADER_HEIGHT_PX,
   SECTIONS,
   onColor,
+  resolveFullPhoto,
   tint,
   type Align,
   type ContactItem,
@@ -983,8 +984,61 @@ function Photo({
   );
 }
 
-const PHOTO_HEIGHT = { s: 240, m: 300, l: 360 } as const;
-const SINGLE_PHOTO_WIDTH = { s: 150, m: 180, l: 210 } as const;
+const PHOTO_HEIGHT = { s: 240, m: 300, l: 360, xl: 430 } as const;
+const SINGLE_PHOTO_WIDTH = { s: 150, m: 180, l: 210, xl: 240 } as const;
+
+/**
+ * A column holding the full-size photo and the column's sections, ordered by the photo's
+ * placement: before the sections, between them, or pushed to the bottom of the column.
+ */
+function PhotoColumn({
+  ctx,
+  photo,
+  secs,
+  sf,
+  width,
+}: {
+  ctx: Ctx;
+  photo: React.ReactNode;
+  secs: SectionConfig[];
+  sf: Surface;
+  width: number;
+}) {
+  const { placement } = resolveFullPhoto(ctx.c);
+  const rest = (list: SectionConfig[]) => (
+    <Zone secs={list} ctx={ctx} sf={sf} width={width} style={{ flex: 1 }} />
+  );
+  if (!ctx.c.photo.show) return rest(secs);
+  // In a wide half the photo keeps a portrait width, centred.
+  const box = <div style={{ display: "flex", justifyContent: "center", flexShrink: 0 }}>{photo}</div>;
+  if (placement === "top")
+    return (
+      <>
+        {box}
+        {rest(secs)}
+      </>
+    );
+  if (placement === "bottom")
+    return (
+      <>
+        {rest(secs)}
+        {box}
+      </>
+    );
+  // Middle: after the first half of the sections; centred when the column has none.
+  const k = Math.ceil(secs.length / 2);
+  return (
+    <>
+      {k > 0 ? (
+        <Zone secs={secs.slice(0, k)} ctx={ctx} sf={sf} width={width} />
+      ) : (
+        <div style={{ flex: 1 }} />
+      )}
+      {box}
+      {rest(secs.slice(k))}
+    </>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Header
@@ -1563,7 +1617,8 @@ export function CustomCv({ d, config, logoSrc = null }: CustomCvProps) {
         }}
       />
     );
-  const reverse = config.photoSide === "right";
+  // The passport photo owns its top corner; the full-size photo is kept clear of it.
+  const reverse = resolveFullPhoto(config).side === "right";
 
   // --- Coloured sidebar -----------------------------------------------------
   if (config.structure === "sidebar") {
@@ -1588,14 +1643,21 @@ export function CustomCv({ d, config, logoSrc = null }: CustomCvProps) {
             gap: ctx.gap,
           }}
         >
-          <PhotoArea
+          <PhotoColumn
             ctx={ctx}
+            secs={sideSecs}
+            sf={dark}
             width={photoW}
-            height={PHOTO_HEIGHT[config.photo.size] - 20}
-            dark
-            direction="column"
+            photo={
+              <PhotoArea
+                ctx={ctx}
+                width={photoW}
+                height={PHOTO_HEIGHT[config.photo.size] - 20}
+                dark
+                direction="column"
+              />
+            }
           />
-          <Zone secs={sideSecs} ctx={ctx} sf={dark} width={photoW} style={{ flex: 1 }} />
         </div>
         <div
           style={{
@@ -1711,17 +1773,21 @@ export function CustomCv({ d, config, logoSrc = null }: CustomCvProps) {
             minHeight: 0,
           }}
         >
-          {/* In a wide half the photo keeps a portrait width, centred. */}
-          <div style={{ display: "flex", justifyContent: "center", flexShrink: 0 }}>
-            <PhotoArea
-              ctx={ctx}
-              width={Math.min(colW2, SINGLE_PHOTO_WIDTH[config.photo.size])}
-              height={PHOTO_HEIGHT[config.photo.size]}
-              dark={false}
-              direction="column"
-            />
-          </div>
-          <Zone secs={sideSecs} ctx={ctx} sf={light} width={colW2} style={{ flex: 1 }} />
+          <PhotoColumn
+            ctx={ctx}
+            secs={sideSecs}
+            sf={light}
+            width={colW2}
+            photo={
+              <PhotoArea
+                ctx={ctx}
+                width={Math.min(colW2, SINGLE_PHOTO_WIDTH[config.photo.size])}
+                height={PHOTO_HEIGHT[config.photo.size]}
+                dark={false}
+                direction="column"
+              />
+            }
+          />
         </div>
         <Zone secs={mainSecs} ctx={ctx} sf={light} width={mainW} style={{ flex: 1 }} />
       </div>

@@ -21,9 +21,11 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
+  COLUMN_PHOTO_STRUCTURES,
   PRESETS,
   SECOND_PLACEMENTS,
   STRUCTURES,
+  resolveFullPhoto,
   type CustomCvConfig,
   type SecondPlacement,
 } from "../config";
@@ -57,6 +59,8 @@ function applyPreset(current: CustomCvConfig, presetConfig: CustomCvConfig): Cus
 
 export function LayoutPanel({ config, update }: PanelProps) {
   const structure = STRUCTURES.find((s) => s.id === config.structure)!;
+  const inColumn = COLUMN_PHOTO_STRUCTURES.includes(config.structure);
+  const full = resolveFullPhoto(config);
   return (
     <div className="space-y-5">
       <Group
@@ -109,7 +113,10 @@ export function LayoutPanel({ config, update }: PanelProps) {
         )}
       </Group>
 
-      <Group title="Full-size photo">
+      <Group
+        title="Full-size photo"
+        description="Never placed directly under the passport photo, so the two photos stay apart."
+      >
         <Row label="Show full-size photo">
           <Switch
             checked={config.photo.show}
@@ -118,9 +125,9 @@ export function LayoutPanel({ config, update }: PanelProps) {
         </Row>
         {config.photo.show && (
           <>
-            <Row label="Position">
+            <Row label="Side">
               <Segmented
-                label="Full-size photo position"
+                label="Full-size photo side"
                 value={config.photoSide}
                 onChange={(v) => update((c) => ({ ...c, photoSide: v }))}
                 options={[
@@ -129,6 +136,30 @@ export function LayoutPanel({ config, update }: PanelProps) {
                 ]}
               />
             </Row>
+            {inColumn && (
+              <Row
+                label="Position in column"
+                hint="Middle places it between the column's sections; bottom pushes it to the end."
+              >
+                <Segmented
+                  label="Full-size photo position in its column"
+                  value={config.photo.placement}
+                  onChange={(v) => update(patch("photo", { placement: v }))}
+                  options={[
+                    { value: "top", label: "Top" },
+                    { value: "middle", label: "Middle" },
+                    { value: "bottom", label: "Bottom" },
+                  ]}
+                />
+              </Row>
+            )}
+            {full.adjusted && (
+              <p className="border-l-2 border-amber-500 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-800 dark:text-amber-300">
+                {inColumn
+                  ? "The passport photo is in the top corner on this side, so the full-size photo is shown in the middle of the column instead of at the top."
+                  : `The passport photo is in the top corner on this side, so the full-size photo is shown on the ${full.side} instead.`}
+              </p>
+            )}
             <Row label="Shape">
               <Segmented
                 label="Photo shape"
@@ -147,9 +178,10 @@ export function LayoutPanel({ config, update }: PanelProps) {
                 value={config.photo.size}
                 onChange={(v) => update(patch("photo", { size: v }))}
                 options={[
-                  { value: "s", label: "Small" },
-                  { value: "m", label: "Medium" },
-                  { value: "l", label: "Large" },
+                  { value: "s", label: "S" },
+                  { value: "m", label: "M" },
+                  { value: "l", label: "L" },
+                  { value: "xl", label: "XL" },
                 ]}
               />
             </Row>
@@ -174,7 +206,7 @@ export function LayoutPanel({ config, update }: PanelProps) {
 
       <Group
         title="Passport-size photo"
-        description="Keeps the passport photo in a top corner, separate from the full-size photo."
+        description="Always at the top of the page, in the left or right corner of the header."
       >
         <Row label="Show passport-size photo">
           <Switch
@@ -189,7 +221,7 @@ export function LayoutPanel({ config, update }: PanelProps) {
                 value={config.photo.second.placement}
                 onValueChange={(v) => update(patchSecond({ placement: v as SecondPlacement }))}
               >
-                <SelectTrigger className="h-8 w-52 rounded-none text-xs">
+                <SelectTrigger className="h-8 w-52 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -200,6 +232,18 @@ export function LayoutPanel({ config, update }: PanelProps) {
                   ))}
                 </SelectContent>
               </Select>
+            </Row>
+            <Row label="Size" hint="A taller header (Header tab) fits a larger photo">
+              <Segmented
+                label="Passport photo size"
+                value={config.photo.second.size}
+                onChange={(v) => update(patchSecond({ size: v }))}
+                options={[
+                  { value: "s", label: "S" },
+                  { value: "m", label: "M" },
+                  { value: "l", label: "L" },
+                ]}
+              />
             </Row>
             <Row label="Shape">
               <Segmented

@@ -32,7 +32,7 @@ export function InlineDate({ value, onSave, display, showDays }: { value: string
   return (
     <>
       <button type="button" onClick={() => { setDraft(value); setOpen(true); }}
-        className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block">
+        className="text-left px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[60px] block">
         {display ?? (value ? fmt(value) : <span className="text-muted-foreground">—</span>)}
         {days !== null && (
           <span className="block text-[11px] text-muted-foreground leading-none mt-0.5">
@@ -42,13 +42,13 @@ export function InlineDate({ value, onSave, display, showDays }: { value: string
       </button>
       {open && (
         <Dialog open onOpenChange={(o) => { if (!o) setOpen(false); }}>
-          <DialogContent className="max-w-xs rounded-none">
+          <DialogContent className="max-w-xs">
             <DialogHeader><DialogTitle>Set Date</DialogTitle></DialogHeader>
             <input autoFocus type="date" value={draft} onChange={(e) => setDraft(e.target.value)}
-              className="w-full rounded-none border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+              className="w-full border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
             <DialogFooter>
-              <Button variant="ghost" className="rounded-none" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button className="rounded-none" onClick={() => { onSave(draft || null); setOpen(false); }}>Save</Button>
+              <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button onClick={() => { onSave(draft || null); setOpen(false); }}>Save</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -67,7 +67,7 @@ export function InlineText({ value, onSave, suggestions }: { value: string; onSa
         type="button"
         title={value || undefined}
         onClick={() => { setDraft(value); setEditing(true); }}
-        className="text-left rounded-none px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[40px] line-clamp-2 break-words"
+        className="text-left px-1 -mx-1 py-0.5 hover:bg-muted/60 hover:ring-1 hover:ring-border min-w-[40px] line-clamp-2 break-words"
       >
         {value || <span className="text-muted-foreground">—</span>}
       </button>
@@ -83,7 +83,7 @@ export function InlineText({ value, onSave, suggestions }: { value: string; onSa
           if (e.key === "Escape") { setDraft(value); setEditing(false); }
         }}
         list={hasSugg ? listId : undefined}
-        className="rounded-none border border-primary bg-background px-1 py-0.5 text-[14px] text-foreground outline-none w-full max-w-full"
+        className="border border-primary bg-background px-1 py-0.5 text-[14px] text-foreground outline-none w-full max-w-full"
       />
       {hasSugg && <datalist id={listId}>{suggestions!.map((s) => <option key={s} value={s} />)}</datalist>}
     </>
@@ -152,7 +152,7 @@ export function FilterSelect({
       </Select>
       {!isReset && (
         <button type="button" onClick={() => onChange("all")}
-          className="rounded-none p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          className="p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
           aria-label="Clear filter">
           <X className="h-3 w-3" />
         </button>
@@ -210,14 +210,14 @@ export function MultiFilterSelect({
             <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-52 p-1 rounded-none" align="start">
+        <PopoverContent className="w-52 p-1" align="start">
           <div className="px-1 pb-1">
             <input
               autoFocus
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search…"
-              className="w-full h-6 text-[12px] px-2 border border-border rounded-none bg-background outline-none placeholder:text-muted-foreground"
+              className="w-full h-6 text-[12px] px-2 border border-border bg-background outline-none placeholder:text-muted-foreground"
             />
           </div>
           <div className="max-h-[220px] overflow-y-auto">
@@ -250,7 +250,7 @@ export function MultiFilterSelect({
         <button
           type="button"
           onClick={() => onChange([])}
-          className="rounded-none p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          className="p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
           aria-label="Clear filter"
         >
           <X className="h-3 w-3" />
