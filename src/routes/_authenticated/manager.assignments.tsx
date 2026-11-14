@@ -47,6 +47,7 @@ const DEFAULT_CV_REQ = {
   medical: "Fit", narrative: "all", experience: "all", coc: "Done",
   passport_scan: "all", full_size_photo: "all", photo_cv: "all",
   alert_after_days: "90",
+  resend_after_days: "6",
   base_per_office: "15",
   // When an office is locked: when its CVs move, and whether processing candidates are taken too
   lock_delay: "now" as string,
@@ -140,6 +141,8 @@ function AssignmentsPage() {
   const [summaryView, setSummaryView] = useState(false);
   const [alertEdit, setAlertEdit] = useState(false);
   const [alertDraft, setAlertDraft] = useState("");
+  const [resendEdit, setResendEdit] = useState(false);
+  const [resendDraft, setResendDraft] = useState("");
   const [baseEdit,  setBaseEdit]  = useState(false);
   const [baseDraft, setBaseDraft] = useState("");
 
@@ -693,7 +696,7 @@ function AssignmentsPage() {
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold">CV Distribution</div>
             <div className="text-xs text-muted-foreground">
-              {offices.filter((o) => !(o as any).is_locked).length} active offices · resend after {cvDaysThreshold}d
+              {offices.filter((o) => !(o as any).is_locked).length} active offices · resend after {cvReq.resend_after_days ?? "6"}d
             </div>
           </div>
           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -1010,11 +1013,30 @@ function AssignmentsPage() {
             <div className="flex items-center gap-2 px-3 py-1.5 border border-teal-200 bg-teal-50/40 dark:border-teal-800/40 dark:bg-teal-900/10">
               <Clock className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
               <span className="text-sm text-muted-foreground w-24 shrink-0">Resend after</span>
-              <div className="flex items-center gap-2 flex-1">
-                <span className="text-base font-bold text-teal-700 dark:text-teal-300">{cvDaysThreshold}</span>
-                <span className="text-xs text-muted-foreground">days</span>
-                <span className="ml-auto text-[11px] text-muted-foreground">Set by admin</span>
-              </div>
+              {resendEdit ? (
+                <div className="flex items-center gap-2 flex-1">
+                  <input autoFocus type="number" min={1} value={resendDraft}
+                    onChange={(e) => setResendDraft(e.target.value)}
+                    className="w-14 border border-input px-2 h-7 text-sm"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") { const n = parseInt(resendDraft); if (!isNaN(n) && n > 0) { saveCvReq.mutate({ ...cvReq, resend_after_days: String(n) }); setResendEdit(false); } }
+                      if (e.key === "Escape") setResendEdit(false);
+                    }} />
+                  <span className="text-xs text-muted-foreground">days</span>
+                  <Button size="sm" className="h-7 px-2 text-xs" disabled={saveCvReq.isPending}
+                    onClick={() => { const n = parseInt(resendDraft); if (!isNaN(n) && n > 0) { saveCvReq.mutate({ ...cvReq, resend_after_days: String(n) }); setResendEdit(false); } }}>
+                    {saveCvReq.isPending ? "…" : "Save"}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setResendEdit(false)}>Cancel</Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 flex-1">
+                  <span className="text-base font-bold text-teal-700 dark:text-teal-300">{cvReq.resend_after_days ?? "6"}</span>
+                  <span className="text-xs text-muted-foreground">days</span>
+                  <button type="button" className="ml-auto text-xs text-primary hover:underline"
+                    onClick={() => { setResendDraft(cvReq.resend_after_days ?? "6"); setResendEdit(true); }}>Edit</button>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 border border-orange-200 bg-orange-50/40 dark:border-orange-800/40 dark:bg-orange-900/10">
               <AlertCircle className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400 shrink-0" />
