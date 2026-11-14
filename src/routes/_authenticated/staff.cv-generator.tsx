@@ -450,7 +450,7 @@ function CvGeneratorPage() {
 
   const filtered = useMemo(() => {
     let list = candidates.filter((c) =>
-      c.status === "available" && (c as any).cv_approved === true,
+      c.status === "available" && (c as any).cv_approved === true && (c as any).availability_type !== "TC" && (c as any).availability_type !== "TC_failed",
     );
     if (query) list = list.filter((c) => c.full_name.toLowerCase().includes(query.toLowerCase()));
     if (filters.medical.length > 0)       list = list.filter((c) => filters.medical.includes(c.medical_status ?? ""));

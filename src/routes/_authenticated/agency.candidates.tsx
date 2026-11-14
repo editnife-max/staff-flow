@@ -267,6 +267,8 @@ function AgencyCandidatesPage() {
           "selected_by,cv_sent_to,status"
         )
         .eq("status", "available")
+        .neq("availability_type", "TC")
+        .neq("availability_type", "TC_failed")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as unknown as Candidate[];
