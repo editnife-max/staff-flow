@@ -727,7 +727,7 @@ function ManagerCandidatesPage() {
   const opts = useMemo(() => {
     const uniq = (k: keyof Candidate) =>
       Array.from(new Set(candidates.map((c) => (c[k] as string | null) ?? "").filter(Boolean))).sort();
-    const tabCandidates = candidates.filter((c) => c.status === tab);
+    const tabCandidates = candidates.filter((c) => c.status === tab && c.availability_type !== "TC" && c.availability_type !== "TC_failed");
     return {
       education: uniq("education"),
       marital: uniq("marital_status"),
@@ -757,7 +757,7 @@ function ManagerCandidatesPage() {
   }, [form.passport_number, candidates, editing]);
 
   const filtered = useMemo(() => {
-    let list = candidates.filter((c) => c.status === tab);
+    let list = candidates.filter((c) => c.status === tab && c.availability_type !== "TC" && c.availability_type !== "TC_failed");
     if (tab === "processing") {
       return [...list].sort((a, b) => {
         const ad = a.contract_date ?? "";
