@@ -1012,15 +1012,6 @@ function AssignmentsPage() {
           <div className="space-y-2 overflow-y-auto max-h-[60vh]">
             <div className="flex items-center gap-2 px-3 py-1.5 border border-teal-200 bg-teal-50/40 dark:border-teal-800/40 dark:bg-teal-900/10">
               <Clock className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
-              <span className="text-sm text-muted-foreground w-24 shrink-0">Office Response Time</span>
-              <div className="flex items-center gap-2 flex-1">
-                <span className="text-base font-bold text-teal-700 dark:text-teal-300">{cvDaysThreshold}</span>
-                <span className="text-xs text-muted-foreground">days</span>
-                <span className="ml-auto text-[11px] text-muted-foreground">Set by admin</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 border border-teal-200 bg-teal-50/40 dark:border-teal-800/40 dark:bg-teal-900/10">
-              <Clock className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
               <span className="text-sm text-muted-foreground w-24 shrink-0">Resend after</span>
               {resendEdit ? (
                 <div className="flex items-center gap-2 flex-1">
