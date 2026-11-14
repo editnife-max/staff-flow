@@ -180,7 +180,10 @@ async function loadContext(managerId: string) {
   const baseLimit =
     parseInt(String(requirements.base_per_office ?? DEFAULT_CV_REQUIREMENTS.base_per_office), 10) ||
     15;
-  const expiryDays = Number(settingRes.data?.value ?? 6) || 6;
+  const expiryDays =
+    parseInt(String(requirements.resend_after_days ?? ""), 10) ||
+    Number(settingRes.data?.value ?? 6) ||
+    6;
   const countries = new Set((countriesRes.data ?? []).map((c) => normCountry(c.name as string)));
 
   return { offices, requirements, baseLimit, expiryDays, countries };
